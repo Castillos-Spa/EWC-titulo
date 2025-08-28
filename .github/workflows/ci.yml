@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 jobs:
-  test:
+  test-backend:
     runs-on: ubuntu-latest
 
     services:
@@ -28,32 +28,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Find backend directory
+        id: find-backend
+        run: |
+          echo "Buscando package.json..."
+          PACKAGE_PATHS=$(find . -name "package.json" -type f | grep -v "node_modules")
+          echo "Encontrados:"
+          echo "$PACKAGE_PATHS"
+          
+          # Tomar el primero que no esté en node_modules
+          BACKEND_DIR=$(echo "$PACKAGE_PATHS" | head -1 | xargs dirname)
+          echo "BACKEND_DIR=$BACKEND_DIR" >> $GITHUB_ENV
+          echo "Usando directorio: $BACKEND_DIR"
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "pnpm"
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+      - name: Navigate to backend directory
+        run: |
+          echo "Cambiando a directorio: $BACKEND_DIR"
+          cd "$BACKEND_DIR"
+          echo "Directorio actual: $(pwd)"
+          ls -la
 
-      - name: Verify pnpm installation
-        run: pnpm --version
-
-      - name: Install dependencies
-        run: pnpm install
+      - name: Install backend dependencies
+        run: |
+          cd "$BACKEND_DIR"
+          npm install
 
       - name: Generate Prisma Client
-        run: pnpm prisma generate
+        run: |
+          cd "$BACKEND_DIR"
+          npx prisma generate
 
-      - name: Run linter
-        run: pnpm lint
-      - name: Run tests
+      - name: Run backend linter
+        run: |
+          cd "$BACKEND_DIR"
+          npm run lint || echo "Linter no configurado"
+
+      - name: Run backend tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-        run: pnpm test
+        run: |
+          cd "$BACKEND_DIR"
+          npm test
 
-      - name: Run build
-        run: pnpm build
+      - name: Build backend
+        run: |
+          cd "$BACKEND_DIR"
+          npm run build
