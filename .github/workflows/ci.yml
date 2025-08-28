@@ -32,47 +32,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: 'pnpm'
-
-      - name: Install pnpm
-        id: pnpm-install
-        run: |
-          npm install -g pnpm@8
-          echo "PNPM_PATH=$(which pnpm)" >> $GITHUB_OUTPUT
-          echo "PNPM_VERSION=$(pnpm --version)" >> $GITHUB_OUTPUT
-
-      - name: Add pnpm to PATH
-        run: |
-          echo "$(npm config get prefix)/bin" >> $GITHUB_PATH
-          echo "Updated PATH: $PATH"
-
-      - name: Verify pnpm installation
-        run: |
-          which pnpm
-          pnpm --version
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm ci
 
       - name: Generate Prisma Client
-        run: pnpm prisma generate
+        run: npx prisma generate
 
       - name: Run linter
-        run: pnpm lint
+        run: npm run lint
 
       - name: Run tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-        run: pnpm test
+        run: npm test
 
       - name: Run build
-        run: pnpm build
-
-      - name: Debug info (optional)
-        if: always()
-        run: |
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          echo "PNPM version: $(pnpm --version)"
-          echo "PATH: $PATH"
-          which pnpm
+        run: npm run build
