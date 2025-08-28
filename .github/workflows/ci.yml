@@ -35,10 +35,21 @@ jobs:
           cache: 'pnpm'
 
       - name: Install pnpm
-        run: npm install -g pnpm@8
+        id: pnpm-install
+        run: |
+          npm install -g pnpm@8
+          echo "PNPM_PATH=$(which pnpm)" >> $GITHUB_OUTPUT
+          echo "PNPM_VERSION=$(pnpm --version)" >> $GITHUB_OUTPUT
+
+      - name: Add pnpm to PATH
+        run: |
+          echo "$(npm config get prefix)/bin" >> $GITHUB_PATH
+          echo "Updated PATH: $PATH"
 
       - name: Verify pnpm installation
-        run: pnpm --version
+        run: |
+          which pnpm
+          pnpm --version
 
       - name: Install dependencies
         run: pnpm install
@@ -56,3 +67,12 @@ jobs:
 
       - name: Run build
         run: pnpm build
+
+      - name: Debug info (optional)
+        if: always()
+        run: |
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "PNPM version: $(pnpm --version)"
+          echo "PATH: $PATH"
+          which pnpm
