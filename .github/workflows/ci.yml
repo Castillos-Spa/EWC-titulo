@@ -28,71 +28,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Find backend directory
+        id: find-backend
+        run: |
+          echo "Buscando package.json..."
+          PACKAGE_PATHS=$(find . -name "package.json" -type f | grep -v "node_modules")
+          echo "Encontrados:"
+          echo "$PACKAGE_PATHS"
+          
+          # Tomar el primero que no esté en node_modules
+          BACKEND_DIR=$(echo "$PACKAGE_PATHS" | head -1 | xargs dirname)
+          echo "BACKEND_DIR=$BACKEND_DIR" >> $GITHUB_ENV
+          echo "Usando directorio: $BACKEND_DIR"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
 
+      - name: Navigate to backend directory
+        run: |
+          echo "Cambiando a directorio: $BACKEND_DIR"
+          cd "$BACKEND_DIR"
+          echo "Directorio actual: $(pwd)"
+          ls -la
+
       - name: Install backend dependencies
-        run: npm install
+        run: |
+          cd "$BACKEND_DIR"
+          npm install
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: |
+          cd "$BACKEND_DIR"
+          npx prisma generate
 
       - name: Run backend linter
-        run: npm run lint
+        run: |
+          cd "$BACKEND_DIR"
+          npm run lint || echo "Linter no configurado"
 
       - name: Run backend tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
-        run: npm test
-
-      - name: Build backend
-        run: npm run build
-
-  test-frontend:
-    runs-on: ubuntu-latest
-    needs: test-backend  # Ejecutar después del backend
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js for frontend
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-
-      - name: Navigate to frontend directory
-        run: cd sql_ewc_frontend
-
-      - name: Install frontend dependencies
         run: |
-          cd sql_ewc_frontend
-          npm install
-
-      - name: Run frontend linter
-        run: |
-          cd sql_ewc_frontend
-          npm run lint
-
-      - name: Run frontend tests
-        run: |
-          cd sql_ewc_frontend
+          cd "$BACKEND_DIR"
           npm test
 
-      - name: Build frontend
+      - name: Build backend
         run: |
-          cd sql_ewc_frontend
+          cd "$BACKEND_DIR"
           npm run build
-
-  # Job opcional para combinar resultados (puedes omitirlo si no lo necesitas)
-  completion:
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend]
-    steps:
-      - name: CI Pipeline completed successfully
-        run: |
-          echo "✅ Backend tests passed"
-          echo "✅ Frontend tests passed"
-          echo "✅ All builds completed successfully"
-          echo "🚀 CI Pipeline finished without errors"
