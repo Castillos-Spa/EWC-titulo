@@ -39,6 +39,9 @@ jobs:
         with:
           version: 8
 
+      - name: Verify pnpm installation
+        run: pnpm --version
+
       - name: Install dependencies
         run: pnpm install
 
