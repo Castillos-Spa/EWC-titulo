@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  username    String
+  email       String       @unique
+  area        String
+  password    String
+  roles       Role[]       @default([])
+  permissions Permission[] @default([])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+/// Enum de roles
+enum Role {
+  Admin
+  Transporte
+  Driver
+  Obras
+  Aseo
+  IT
+  User
+}
+
+/// Enum de permisos
+enum Permission {
+  // General
+  VIEW_DASHBOARD
+  VIEW_TICKETS
+  MANAGE_TICKETS
+
+  // Transporte
+  VIEW_TRIP_REPORTS
+  MANAGE_TRIP_REPORTS
+  VIEW_ROUTES
+  MANAGE_ROUTES
+  VIEW_FLEET
+  MANAGE_FLEET
+  VIEW_MAINTENANCE
+  MANAGE_MAINTENANCE
+
+  // Obras
+  VIEW_CIVIL_WORKS
+  MANAGE_CIVIL_WORKS
+
+  // Aseo
+  VIEW_CLEANING_REPORTS
+  MANAGE_CLEANING_REPORTS
+}
