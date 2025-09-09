@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, User, Mail, Shield, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, User, Mail, Shield, Edit, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 interface User {
   id: string;
@@ -106,23 +106,23 @@ const UserManagement: React.FC = () => {
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'admin': return 'Administrator';
-      case 'transport_supervisor': return 'Transport Supervisor';
-      case 'driver': return 'Driver';
-      case 'general_services': return 'General Services';
-      case 'it_staff': return 'IT Staff';
-      case 'cleaning': return 'Cleaning Staff';
-      case 'civil_works': return 'Civil Works';
+      case 'admin': return 'Administrador';
+      case 'transport_supervisor': return 'Supervisor Transporte';
+      case 'driver': return 'Conductor';
+      case 'general_services': return 'Servicios Generales';
+      case 'it_staff': return 'Personal IT';
+      case 'cleaning': return 'Personal Limpieza';
+      case 'civil_works': return 'Obras Civiles';
       default: return role.replace('_', ' ');
     }
   };
 
   const getAreaLabel = (area: string) => {
     switch (area) {
-      case 'water_transport': return 'Water Transport';
-      case 'general_services': return 'General Services';
+      case 'water_transport': return 'Transporte Acuático';
+      case 'general_services': return 'Servicios Generales';
       case 'it': return 'IT';
-      case 'admin': return 'Administration';
+      case 'admin': return 'Administración';
       default: return area.replace('_', ' ');
     }
   };
@@ -149,11 +149,11 @@ const UserManagement: React.FC = () => {
     const diffDays = Math.floor(diffHours / 24);
     
     if (diffDays > 0) {
-      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      return `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
     } else if (diffHours > 0) {
-      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      return `hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
     } else {
-      return 'Just now';
+      return 'Ahora mismo';
     }
   };
 
@@ -162,15 +162,15 @@ const UserManagement: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
-          <p className="text-gray-600">Manage user accounts, roles, and permissions</p>
+          <h2 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h2>
+          <p className="text-gray-600">Gestiona cuentas de usuario, roles y permisos</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
-          <span>Add User</span>
+          <span>Agregar Usuario</span>
         </button>
       </div>
 
@@ -179,7 +179,7 @@ const UserManagement: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Users</p>
+              <p className="text-sm text-gray-600">Total Usuarios</p>
               <p className="text-2xl font-bold text-gray-900">{users.length}</p>
             </div>
             <User className="w-8 h-8 text-blue-600" />
@@ -188,7 +188,7 @@ const UserManagement: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Active Users</p>
+              <p className="text-sm text-gray-600">Usuarios Activos</p>
               <p className="text-2xl font-bold text-green-600">{users.filter(u => u.status === 'active').length}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -197,7 +197,7 @@ const UserManagement: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Inactive Users</p>
+              <p className="text-sm text-gray-600">Usuarios Inactivos</p>
               <p className="text-2xl font-bold text-red-600">{users.filter(u => u.status === 'inactive').length}</p>
             </div>
             <XCircle className="w-8 h-8 text-red-600" />
@@ -221,7 +221,7 @@ const UserManagement: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by name or email..."
+              placeholder="Buscar por nombre o correo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -232,23 +232,23 @@ const UserManagement: React.FC = () => {
             onChange={(e) => setFilterRole(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="all">All Roles</option>
-            <option value="admin">Administrator</option>
-            <option value="transport_supervisor">Transport Supervisor</option>
-            <option value="driver">Driver</option>
-            <option value="general_services">General Services</option>
-            <option value="it_staff">IT Staff</option>
-            <option value="cleaning">Cleaning Staff</option>
-            <option value="civil_works">Civil Works</option>
+            <option value="all">Todos los Roles</option>
+            <option value="admin">Administrador</option>
+            <option value="transport_supervisor">Supervisor Transporte</option>
+            <option value="driver">Conductor</option>
+            <option value="general_services">Servicios Generales</option>
+            <option value="it_staff">Personal IT</option>
+            <option value="cleaning">Personal Limpieza</option>
+            <option value="civil_works">Obras Civiles</option>
           </select>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="all">Todos los Estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
           </select>
         </div>
       </div>
@@ -260,22 +260,22 @@ const UserManagement: React.FC = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                  Usuario
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role & Area
+                  Rol y Área
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  Estado
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Login
+                  Último Acceso
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
+                  Creado
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  Acciones
                 </th>
               </tr>
             </thead>
@@ -317,7 +317,7 @@ const UserManagement: React.FC = () => {
                       ) : (
                         <XCircle className="w-3 h-3 mr-1" />
                       )}
-                      {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                      {user.status === 'active' ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -347,8 +347,8 @@ const UserManagement: React.FC = () => {
       {filteredUsers.length === 0 && (
         <div className="text-center py-12">
           <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-          <p className="text-gray-600">Try adjusting your search or filters.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron usuarios</h3>
+          <p className="text-gray-600">Intenta ajustar tu búsqueda o filtros.</p>
         </div>
       )}
 
@@ -357,14 +357,14 @@ const UserManagement: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">Add New User</h3>
-              <p className="text-gray-600 mt-1">Create a new user account with role-based access</p>
+              <h3 className="text-xl font-semibold text-gray-900">Agregar Nuevo Usuario</h3>
+              <p className="text-gray-600 mt-1">Crear una nueva cuenta de usuario con acceso basado en roles</p>
             </div>
             
             <form className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
                   <input
                     type="text"
                     placeholder="John Smith"
@@ -372,7 +372,7 @@ const UserManagement: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
                   <input
                     type="email"
                     placeholder="john.smith@company.com"
@@ -383,70 +383,70 @@ const UserManagement: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Select role</option>
-                    <option value="admin">Administrator</option>
-                    <option value="transport_supervisor">Transport Supervisor</option>
-                    <option value="driver">Driver</option>
-                    <option value="general_services">General Services Manager</option>
-                    <option value="it_staff">IT Staff</option>
-                    <option value="cleaning">Cleaning Staff</option>
-                    <option value="civil_works">Civil Works</option>
+                    <option value="">Seleccionar rol</option>
+                    <option value="admin">Administrador</option>
+                    <option value="transport_supervisor">Supervisor Transporte</option>
+                    <option value="driver">Conductor</option>
+                    <option value="general_services">Gerente Servicios Generales</option>
+                    <option value="it_staff">Personal IT</option>
+                    <option value="cleaning">Personal Limpieza</option>
+                    <option value="civil_works">Obras Civiles</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Area</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Área</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Select area</option>
-                    <option value="admin">Administration</option>
-                    <option value="water_transport">Water Transport</option>
-                    <option value="general_services">General Services</option>
-                    <option value="it">IT Department</option>
+                    <option value="">Seleccionar área</option>
+                    <option value="admin">Administración</option>
+                    <option value="water_transport">Transporte Acuático</option>
+                    <option value="general_services">Servicios Generales</option>
+                    <option value="it">Departamento IT</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
                   <input
                     type="password"
-                    placeholder="Enter secure password"
+                    placeholder="Ingresa contraseña segura"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirmar Contraseña</label>
                   <input
                     type="password"
-                    placeholder="Confirm password"
+                    placeholder="Confirmar contraseña"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                 <div className="flex space-x-4">
                   <label className="flex items-center">
                     <input type="radio" name="status" value="active" className="mr-2" defaultChecked />
-                    <span className="text-sm text-gray-700">Active</span>
+                    <span className="text-sm text-gray-700">Activo</span>
                   </label>
                   <label className="flex items-center">
                     <input type="radio" name="status" value="inactive" className="mr-2" />
-                    <span className="text-sm text-gray-700">Inactive</span>
+                    <span className="text-sm text-gray-700">Inactivo</span>
                   </label>
                 </div>
               </div>
 
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">Role Permissions:</h4>
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Permisos del Rol:</h4>
                 <div className="text-sm text-blue-800 space-y-1">
-                  <p>• Access to assigned area modules</p>
-                  <p>• Create and manage tickets</p>
-                  <p>• View reports and analytics</p>
-                  <p>• Role-specific functionality based on selection</p>
+                  <p>• Acceso a módulos del área asignada</p>
+                  <p>• Crear y gestionar tickets</p>
+                  <p>• Ver reportes y análisis</p>
+                  <p>• Funcionalidad específica según el rol seleccionado</p>
                 </div>
               </div>
 
@@ -456,13 +456,13 @@ const UserManagement: React.FC = () => {
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Create User
+                  Crear Usuario
                 </button>
               </div>
             </form>

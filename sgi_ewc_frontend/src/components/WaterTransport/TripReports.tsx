@@ -60,9 +60,9 @@ const TripReports: React.FC = () => {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'completed': return 'Completed';
-      case 'in_progress': return 'In Progress';
-      case 'pending': return 'Pending';
+      case 'completed': return 'Completado';
+      case 'in_progress': return 'En Progreso';
+      case 'pending': return 'Pendiente';
       default: return status;
     }
   };
@@ -78,15 +78,15 @@ const TripReports: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Trip Reports</h2>
-          <p className="text-gray-600">Manage water transport trips and deliveries</p>
+          <h2 className="text-2xl font-bold text-gray-900">Reportes de Viajes</h2>
+          <p className="text-gray-600">Gestiona viajes y entregas de transporte de agua</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
-          <span>New Trip Report</span>
+          <span>Nuevo Reporte de Viaje</span>
         </button>
       </div>
 
@@ -134,17 +134,17 @@ const TripReports: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">Date:</span>
+                    <span className="text-gray-600">Fecha:</span>
                     <span className="font-medium">{trip.date}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <User className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">Driver:</span>
+                    <span className="text-gray-600">Conductor:</span>
                     <span className="font-medium">{trip.driver}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Truck className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">Vehicle:</span>
+                    <span className="text-gray-600">Vehículo:</span>
                     <span className="font-medium">{trip.vehicle}</span>
                   </div>
                 </div>
@@ -152,12 +152,12 @@ const TripReports: React.FC = () => {
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                   <div className="flex items-center space-x-2">
                     <MapPin className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">Volume:</span>
+                    <span className="text-sm text-gray-600">Volumen:</span>
                     <span className="text-sm font-medium">{trip.volumeTransported.toLocaleString()} L</span>
                   </div>
                   {trip.observations && (
                     <div className="text-sm text-gray-600 max-w-xs">
-                      <span className="font-medium">Notes:</span> {trip.observations}
+                      <span className="font-medium">Notas:</span> {trip.observations}
                     </div>
                   )}
                 </div>
@@ -165,10 +165,10 @@ const TripReports: React.FC = () => {
 
               <div className="flex space-x-2">
                 <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                  View Details
+                  Ver Detalles
                 </button>
                 <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Edit
+                  Editar
                 </button>
               </div>
             </div>
@@ -179,8 +179,8 @@ const TripReports: React.FC = () => {
       {filteredTrips.length === 0 && (
         <div className="text-center py-12">
           <Truck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No trips found</h3>
-          <p className="text-gray-600">Try adjusting your search or create a new trip report.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron viajes</h3>
+          <p className="text-gray-600">Intenta ajustar tu búsqueda o crear un nuevo reporte de viaje.</p>
         </div>
       )}
 
@@ -189,8 +189,8 @@ const TripReports: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">New Trip Report</h3>
-              <p className="text-gray-600 mt-1">Create a new water transport trip report</p>
+              <h3 className="text-xl font-semibold text-gray-900">Nuevo Reporte de Viaje</h3>
+              <p className="text-gray-600 mt-1">Crear un nuevo reporte de viaje de transporte de agua</p>
             </div>
             
             <form className="p-6 space-y-4">
@@ -203,9 +203,9 @@ const TripReports: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehículo</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option>Select vehicle</option>
+                    <option>Seleccionar vehículo</option>
                     <option>TK-001</option>
                     <option>TK-002</option>
                     <option>TK-003</option>
@@ -214,26 +214,26 @@ const TripReports: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Route</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Ruta</label>
                 <input
                   type="text"
-                  placeholder="Origin → Destination"
+                  placeholder="Origen → Destino"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Driver</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Conductor</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option>Select driver</option>
+                    <option>Seleccionar conductor</option>
                     <option>John Driver</option>
                     <option>Maria Santos</option>
                     <option>Carlos Rodriguez</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Volume (Liters)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Volumen (Litros)</label>
                   <input
                     type="number"
                     placeholder="15000"
@@ -243,10 +243,10 @@ const TripReports: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Observations</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
                 <textarea
                   rows={3}
-                  placeholder="Any observations or incidents during the trip..."
+                  placeholder="Cualquier observación o incidente durante el viaje..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 ></textarea>
               </div>
@@ -257,13 +257,13 @@ const TripReports: React.FC = () => {
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Create Trip Report
+                  Crear Reporte de Viaje
                 </button>
               </div>
             </form>

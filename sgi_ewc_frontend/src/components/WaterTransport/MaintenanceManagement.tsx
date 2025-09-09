@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Wrench, Calendar, DollarSign, User, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 interface MaintenanceRecord {
   id: string;
@@ -19,7 +18,6 @@ interface MaintenanceRecord {
 }
 
 const MaintenanceManagement: React.FC = () => {
-  const { t } = useLanguage();
   const [maintenanceRecords] = useState<MaintenanceRecord[]>([
     {
       id: '1',
@@ -129,15 +127,15 @@ const MaintenanceManagement: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t('maintenance.title')}</h2>
-          <p className="text-gray-600">{t('maintenance.subtitle')}</p>
+          <h2 className="text-2xl font-bold text-gray-900">Gestión de Mantenimiento</h2>
+          <p className="text-gray-600">Programa y gestiona mantenimientos de vehículos</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
-          <span>{t('maintenance.newMaintenance')}</span>
+          <span>Nuevo Mantenimiento</span>
         </button>
       </div>
 
@@ -146,7 +144,7 @@ const MaintenanceManagement: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('maintenance.scheduled')}</p>
+              <p className="text-sm text-gray-600">Programados</p>
               <p className="text-2xl font-bold text-yellow-600">{maintenanceRecords.filter(r => r.status === 'scheduled').length}</p>
             </div>
             <Clock className="w-8 h-8 text-yellow-600" />
@@ -155,7 +153,7 @@ const MaintenanceManagement: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('maintenance.completed')}</p>
+              <p className="text-sm text-gray-600">Completados</p>
               <p className="text-2xl font-bold text-green-600">{maintenanceRecords.filter(r => r.status === 'completed').length}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -164,7 +162,7 @@ const MaintenanceManagement: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('maintenance.overdue')}</p>
+              <p className="text-sm text-gray-600">Vencidos</p>
               <p className="text-2xl font-bold text-red-600">{maintenanceRecords.filter(r => r.status === 'overdue').length}</p>
             </div>
             <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -173,7 +171,7 @@ const MaintenanceManagement: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('maintenance.totalCost')}</p>
+              <p className="text-sm text-gray-600">Costo Total</p>
               <p className="text-2xl font-bold text-blue-600">${totalCost.toLocaleString()}</p>
             </div>
             <DollarSign className="w-8 h-8 text-blue-600" />
@@ -188,7 +186,7 @@ const MaintenanceManagement: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder={`${t('common.search')} por vehículo, descripción o técnico...`}
+              placeholder="Buscar por vehículo, descripción o técnico..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -240,7 +238,8 @@ const MaintenanceManagement: React.FC = () => {
                       <span className="capitalize">{record.status.replace('_', ' ')}</span>
                     </span>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeColor(record.type)}`}>
-                      {t(`maintenance.${record.type}`)}
+                      {record.type === 'preventive' ? 'Preventivo' : 
+                       record.type === 'corrective' ? 'Correctivo' : 'Emergencia'}
                     </span>
                   </div>
                 </div>
@@ -251,11 +250,11 @@ const MaintenanceManagement: React.FC = () => {
                     <p className="font-medium">{record.scheduledDate}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">{t('maintenance.technician')}</p>
+                    <p className="text-gray-600">Técnico</p>
                     <p className="font-medium">{record.technician}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">{t('maintenance.cost')}</p>
+                    <p className="text-gray-600">Costo</p>
                     <p className="font-medium">${record.cost.toLocaleString()}</p>
                   </div>
                   {record.completedDate && (
@@ -268,7 +267,7 @@ const MaintenanceManagement: React.FC = () => {
 
                 <div className="space-y-3">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">{t('maintenance.partsUsed')}:</h4>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">Repuestos Utilizados:</h4>
                     <div className="flex flex-wrap gap-2">
                       {record.partsUsed.map((part, index) => (
                         <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
@@ -302,10 +301,10 @@ const MaintenanceManagement: React.FC = () => {
                   onClick={() => setSelectedRecord(record)}
                   className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  {t('common.viewDetails')}
+                  Ver Detalles
                 </button>
                 <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
-                  {t('common.edit')}
+                  Editar
                 </button>
                 {record.status === 'scheduled' && (
                   <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
@@ -338,16 +337,16 @@ const MaintenanceManagement: React.FC = () => {
             <form className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('maintenance.vehicle')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehículo</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option>Seleccionar vehículo</option>
-                    <option>TK-001 - Volvo Water Tank</option>
-                    <option>TK-002 - Mercedes Water Tank</option>
-                    <option>TK-003 - Scania Water Tank</option>
+                    <option>TK-001 - Volvo Cisterna</option>
+                    <option>TK-002 - Mercedes Cisterna</option>
+                    <option>TK-003 - Scania Cisterna</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('maintenance.type')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="preventive">Preventivo</option>
                     <option value="corrective">Correctivo</option>
@@ -374,7 +373,7 @@ const MaintenanceManagement: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('maintenance.technician')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Técnico</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option>Seleccionar técnico</option>
                     <option>Carlos Mecánico</option>
@@ -418,7 +417,7 @@ const MaintenanceManagement: React.FC = () => {
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  {t('common.cancel')}
+                  Cancelar
                 </button>
                 <button
                   type="submit"
@@ -452,7 +451,8 @@ const MaintenanceManagement: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tipo</label>
                   <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getTypeColor(selectedRecord.type)}`}>
-                    {t(`maintenance.${selectedRecord.type}`)}
+                    {selectedRecord.type === 'preventive' ? 'Preventivo' : 
+                     selectedRecord.type === 'corrective' ? 'Correctivo' : 'Emergencia'}
                   </span>
                 </div>
               </div>

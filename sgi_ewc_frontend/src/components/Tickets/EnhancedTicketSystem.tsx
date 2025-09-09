@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, MessageSquare, Paperclip, Calendar, User, AlertCircle, CheckCircle, Clock, Send, Eye, UserPlus, Tag, Star } from 'lucide-react';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Comment {
   id: string;
@@ -30,7 +29,6 @@ interface Ticket {
 }
 
 const EnhancedTicketSystem: React.FC = () => {
-  const { t } = useLanguage();
   const [tickets, setTickets] = useState<Ticket[]>([
     {
       id: 'TK-001',
@@ -268,8 +266,8 @@ const EnhancedTicketSystem: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t('tickets.title')}</h2>
-          <p className="text-gray-600">{t('tickets.subtitle')}</p>
+          <h2 className="text-2xl font-bold text-gray-900">Sistema de Tickets</h2>
+          <p className="text-gray-600">Gestiona solicitudes de soporte y seguimiento de tareas</p>
         </div>
         <div className="flex items-center space-x-3">
           <div className="flex bg-gray-100 rounded-lg p-1">
@@ -295,7 +293,7 @@ const EnhancedTicketSystem: React.FC = () => {
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
             <Plus className="w-4 h-4" />
-            <span>{t('tickets.newTicket')}</span>
+            <span>Nuevo Ticket</span>
           </button>
         </div>
       </div>
@@ -305,7 +303,7 @@ const EnhancedTicketSystem: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('tickets.totalTickets')}</p>
+              <p className="text-sm text-gray-600">Total Tickets</p>
               <p className="text-2xl font-bold text-gray-900">{tickets.length}</p>
             </div>
             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
@@ -314,7 +312,7 @@ const EnhancedTicketSystem: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('tickets.pending')}</p>
+              <p className="text-sm text-gray-600">Pendientes</p>
               <p className="text-2xl font-bold text-gray-600">{tickets.filter(t => t.status === 'pending').length}</p>
             </div>
             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
@@ -323,7 +321,7 @@ const EnhancedTicketSystem: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('tickets.inProgress')}</p>
+              <p className="text-sm text-gray-600">En Progreso</p>
               <p className="text-2xl font-bold text-blue-600">{tickets.filter(t => t.status === 'in_progress').length}</p>
             </div>
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -332,7 +330,7 @@ const EnhancedTicketSystem: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{t('tickets.resolved')}</p>
+              <p className="text-sm text-gray-600">Resueltos</p>
               <p className="text-2xl font-bold text-green-600">{tickets.filter(t => t.status === 'resolved').length}</p>
             </div>
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -806,13 +804,13 @@ const EnhancedTicketSystem: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">{t('tickets.createNew')}</h3>
-              <p className="text-gray-600 mt-1">{t('tickets.submitRequest')}</p>
+              <h3 className="text-xl font-semibold text-gray-900">Crear Nuevo Ticket</h3>
+              <p className="text-gray-600 mt-1">Envía una nueva solicitud de soporte o ticket</p>
             </div>
             
             <form className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('tickets.title_field')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Título</label>
                 <input
                   type="text"
                   placeholder="Descripción breve del problema o solicitud"
@@ -822,7 +820,7 @@ const EnhancedTicketSystem: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('tickets.category')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="">Seleccionar categoría</option>
                     <option value="it_support">Soporte IT</option>
@@ -832,7 +830,7 @@ const EnhancedTicketSystem: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('tickets.priority')}</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="low">Baja</option>
                     <option value="medium">Media</option>
@@ -862,7 +860,7 @@ const EnhancedTicketSystem: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('tickets.description')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
                 <textarea
                   rows={4}
                   placeholder="Proporciona información detallada sobre el problema o solicitud..."
@@ -871,7 +869,7 @@ const EnhancedTicketSystem: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('tickets.attachments')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Adjuntos</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                   <Paperclip className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm text-gray-600">Arrastra archivos aquí o haz clic para subir</p>
@@ -886,7 +884,7 @@ const EnhancedTicketSystem: React.FC = () => {
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  {t('common.cancel')}
+                  Cancelar
                 </button>
                 <button
                   type="submit"
