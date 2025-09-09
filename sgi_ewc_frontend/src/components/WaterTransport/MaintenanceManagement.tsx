@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Wrench, Calendar, DollarSign, User, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Search, Wrench, Calendar, DollarSign, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 interface MaintenanceRecord {
   id: string;

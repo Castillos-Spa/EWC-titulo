@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, MessageSquare, Paperclip, Calendar, User, AlertCircle, CheckCircle, Clock, Send, Eye, UserPlus, Tag, Star } from 'lucide-react';
+import { Plus, Search, MessageSquare, Paperclip, Calendar, User, AlertCircle, CheckCircle, Clock, Send, Eye, UserPlus, Tag, Star } from 'lucide-react';
 
 interface Comment {
   id: string;
@@ -199,18 +199,18 @@ const EnhancedTicketSystem: React.FC = () => {
   const handleStatusChange = (ticketId: string, newStatus: string) => {
     setTickets(tickets.map(ticket => 
       ticket.id === ticketId 
-        ? { ...ticket, status: newStatus as any, updatedAt: new Date().toISOString() }
+        ? { ...ticket, status: newStatus as Ticket["status"], updatedAt: new Date().toISOString() }
         : ticket
     ));
   };
 
-  const handleAssignTicket = (ticketId: string, assignee: string) => {
-    setTickets(tickets.map(ticket => 
-      ticket.id === ticketId 
-        ? { ...ticket, assignedTo: assignee, updatedAt: new Date().toISOString() }
-        : ticket
-    ));
-  };
+  // const handleAssignTicket = (ticketId: string, assignee: string) => {
+  //   setTickets(tickets.map(ticket => 
+  //     ticket.id === ticketId 
+  //       ? { ...ticket, assignedTo: assignee, updatedAt: new Date().toISOString() }
+  //       : ticket
+  //   ));
+  // };
 
   const handleAddComment = (ticketId: string) => {
     if (!newComment.trim()) return;
