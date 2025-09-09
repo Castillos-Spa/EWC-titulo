@@ -14,16 +14,56 @@ datasource db {
 }
 
 model User {
-  id          Int          @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   username    String
-  email       String       @unique
+  email       String   @unique
   area        String
   password    String
-  roles       Role[]       @default([])
+  roles       Role[]   @default([])
   permissions Permission[] @default([])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones con los tickets
+  assignedTickets Ticket[] @relation("AssignedTickets")
+  createdTickets  Ticket[] @relation("CreatedTickets")
 }
+
+// Modelo de tickets
+model Ticket {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  status      TicketStatus   @default(Pendiente)
+  priority    TicketPriority @default(Media)
+  category    String // e.g., Soporte IT, Mantenimiento, Suministros
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relación con el usuario que lo creó
+  createdBy   User @relation("CreatedTickets", fields: [createdById], references: [id])
+  createdById Int
+
+  // Relación con el usuario asignado (opcional)
+  assignedTo   User? @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  assignedToId Int?
+}
+
+enum TicketStatus {
+  Pendiente
+  EnProgreso
+  Resuelto
+  Cerrado
+}
+
+enum TicketPriority {
+  Baja
+  Media
+  Alta
+  Urgente
+}
+
 
 /// Enum de roles
 enum Role {
