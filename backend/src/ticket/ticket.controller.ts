@@ -22,7 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 /// Nueva seguridad global para el controlador de tickets
 /// Cualquier petición a tickets ahora requiere un token de autenticación válido.
 @UseGuards(JwtAuthGuard)
-export class TicketsController {
+export class TicketController {
   constructor(private readonly ticketsService: TicketService) {}
 
   @Post()
@@ -62,4 +62,5 @@ export class TicketsController {
     return this.ticketsService.remove(id);
   }
 }
+
 
