@@ -95,13 +95,6 @@ model Repuesto {
   createdAt         DateTime         @default(now())
 }
 
-enum VehiculoStatus {
-  disponible
-  en_mantenimiento
-  inactivo
-  en_uso
-}
-
 enum TicketStatus {
   Pendiente
   EnProgreso
@@ -123,14 +116,6 @@ enum TicketStatus {
   Resuelto
   Cerrado
 }
-
-enum TicketPriority {
-  Baja
-  Media
-  Alta
-  Urgente
-}
-
 
 /// Enum de roles
 enum Role {
