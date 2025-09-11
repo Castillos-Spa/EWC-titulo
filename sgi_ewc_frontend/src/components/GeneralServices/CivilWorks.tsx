@@ -27,7 +27,7 @@ const CivilWorks: React.FC = () => {
       location: 'Perímetro Norte - Warehouse A',
       workType: 'repair',
       tasks: ['Demolición parcial', 'Preparación de superficie', 'Aplicación de mortero', 'Acabado final'],
-      responsibleStaff: ['Carlos Constructor', 'Miguel Albañil', 'Ana Ayudante'],
+      responsibleStaff: ['Carlos Constructor', 'Miguel', 'Ana Ayudante'],
       materialsUsed: [
         { name: 'Cemento', quantity: 10, unit: 'sacos' },
         { name: 'Arena', quantity: 2, unit: 'm³' },
