@@ -27,6 +27,7 @@ import { TicketModule } from './ticket/ticket.module';
     RepuestoModule,
     TicketModule,
   ],
+
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })

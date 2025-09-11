@@ -6,7 +6,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
+ 
 model User {
   id              Int          @id @default(autoincrement())
   username        String
@@ -114,7 +114,23 @@ enum TicketPriority {
   Media
   Alta
   Urgente
+
 }
+
+enum TicketStatus {
+  Pendiente
+  EnProgreso
+  Resuelto
+  Cerrado
+}
+
+enum TicketPriority {
+  Baja
+  Media
+  Alta
+  Urgente
+}
+
 
 /// Enum de roles
 enum Role {
