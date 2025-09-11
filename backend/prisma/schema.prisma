@@ -109,14 +109,12 @@ enum TicketPriority {
   Urgente
 
 }
-
-enum TicketStatus {
-  Pendiente
-  EnProgreso
-  Resuelto
-  Cerrado
+enum VehiculoStatus {
+  disponible
+  en_mantenimiento
+  inactivo
+  en_uso
 }
-
 /// Enum de roles
 enum Role {
   Admin
