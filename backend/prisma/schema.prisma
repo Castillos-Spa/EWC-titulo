@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,42 +6,115 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
+ 
 model User {
-  id          Int      @id @default(autoincrement())
-  username    String
-  email       String   @unique
-  area        String
-  password    String
-  roles       Role[]   @default([])
-  permissions Permission[] @default([])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relaciones con los tickets
-  assignedTickets Ticket[] @relation("AssignedTickets")
-  createdTickets  Ticket[] @relation("CreatedTickets")
+  id              Int          @id @default(autoincrement())
+  username        String
+  email           String       @unique
+  area            String
+  password        String
+  roles           Role[]       @default([])
+  permissions     Permission[] @default([])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  assignedTickets Ticket[]     @relation("AssignedTickets")
+  createdTickets  Ticket[]     @relation("CreatedTickets")
 }
 
-// Modelo de tickets
 model Ticket {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String?
-  status      TicketStatus   @default(Pendiente)
-  priority    TicketPriority @default(Media)
-  category    String // e.g., Soporte IT, Mantenimiento, Suministros
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relación con el usuario que lo creó
-  createdBy   User @relation("CreatedTickets", fields: [createdById], references: [id])
-  createdById Int
-
-  // Relación con el usuario asignado (opcional)
-  assignedTo   User? @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  id           Int            @id @default(autoincrement())
+  title        String
+  description  String?
+  status       TicketStatus   @default(Pendiente)
+  priority     TicketPriority @default(Media)
+  category     String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  createdById  Int
   assignedToId Int?
+  assignedTo   User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdBy    User           @relation("CreatedTickets", fields: [createdById], references: [id])
+}
+
+model Vehiculo {
+  id         Int            @id @default(autoincrement())
+  patente    String
+  capacidad  Float
+  odometro   Int
+  estado     VehiculoStatus @default(disponible)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  documentos Documento[] // Relación con la tabla Documento
+  ordenes    OrdenTrabajo[]
+}
+
+model Documento {
+  id          Int      @id @default(autoincrement())
+  vehiculoId  Int
+  vehiculo    Vehiculo @relation(fields: [vehiculoId], references: [id])
+  tipo        String // Ej: "factura", "certificado", "foto"
+  url         String // URL o path del archivo subido (ej: S3, local storage)
+  fechaSubida DateTime @default(now())
+  descripcion String?
+}
+
+model OrdenTrabajo {
+  id         Int      @id @default(autoincrement())
+  tipo       String
+  estado     String   @default("abierta")
+  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id])
+  vehiculoId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  qa         QA[]
+}
+
+model QA {
+  id        Int          @id @default(autoincrement())
+  checklist String
+  resultado String
+  ot        OrdenTrabajo @relation(fields: [otId], references: [id])
+  otId      Int
+  createdAt DateTime     @default(now())
+}
+
+model SolicitudCompra {
+  id        Int        @id @default(autoincrement())
+  monto     Float
+  createdAt DateTime   @default(now())
+  repuestos Repuesto[]
+}
+
+model Repuesto {
+  id                Int              @id @default(autoincrement())
+  nombre            String
+  stock             Int              @default(0)
+  costoUnitario     Float
+  solicitudCompra   SolicitudCompra? @relation(fields: [solicitudCompraId], references: [id])
+  solicitudCompraId Int?
+  createdAt         DateTime         @default(now())
+}
+
+enum VehiculoStatus {
+  disponible
+  en_mantenimiento
+  inactivo
+  en_uso
+}
+
+enum TicketStatus {
+  Pendiente
+  EnProgreso
+  Resuelto
+  Cerrado
+}
+
+enum TicketPriority {
+  Baja
+  Media
+  Alta
+  Urgente
+
 }
 
 enum TicketStatus {
@@ -78,12 +145,9 @@ enum Role {
 
 /// Enum de permisos
 enum Permission {
-  // General
   VIEW_DASHBOARD
   VIEW_TICKETS
   MANAGE_TICKETS
-
-  // Transporte
   VIEW_TRIP_REPORTS
   MANAGE_TRIP_REPORTS
   VIEW_ROUTES
@@ -92,12 +156,8 @@ enum Permission {
   MANAGE_FLEET
   VIEW_MAINTENANCE
   MANAGE_MAINTENANCE
-
-  // Obras
   VIEW_CIVIL_WORKS
   MANAGE_CIVIL_WORKS
-
-  // Aseo
   VIEW_CLEANING_REPORTS
   MANAGE_CLEANING_REPORTS
 }
