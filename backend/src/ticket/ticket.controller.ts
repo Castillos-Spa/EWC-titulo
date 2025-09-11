@@ -10,7 +10,7 @@ import {
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
-import { TicketsService } from './ticket.service';
+import { TicketService } from './ticket.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Role } from '@prisma/client';
@@ -23,7 +23,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 /// Cualquier petición a tickets ahora requiere un token de autenticación válido.
 @UseGuards(JwtAuthGuard)
 export class TicketsController {
-  constructor(private readonly ticketsService: TicketsService) {}
+  constructor(private readonly ticketsService: TicketService) {}
 
   @Post()
   create(@Body() createTicketDto: CreateTicketDto) {
@@ -62,3 +62,4 @@ export class TicketsController {
     return this.ticketsService.remove(id);
   }
 }
+
