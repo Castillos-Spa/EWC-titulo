@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, MessageSquare, Paperclip, Calendar, User, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Search, MessageSquare, Paperclip, Calendar, User, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 interface Ticket {
   id: string;
@@ -110,15 +110,15 @@ const TicketSystem: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-gray-100 text-gray-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'closed': return 'bg-gray-100 text-gray-600';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case 'pending': return 'bg-gray-100 text-gray-800';
+  //     case 'in_progress': return 'bg-blue-100 text-blue-800';
+  //     case 'resolved': return 'bg-green-100 text-green-800';
+  //     case 'closed': return 'bg-gray-100 text-gray-600';
+  //     default: return 'bg-gray-100 text-gray-800';
+  //   }
+  // };
 
   const getCategoryLabel = (category: string) => {
     switch (category) {
@@ -139,10 +139,10 @@ const TicketSystem: React.FC = () => {
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  // const formatDate = (dateString: string) => {
+  //   const date = new Date(dateString);
+  //   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // };
 
   // Kanban columns
   const columns = [

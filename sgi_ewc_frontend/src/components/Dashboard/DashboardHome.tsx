@@ -18,49 +18,49 @@ const DashboardHome: React.FC = () => {
     switch (user?.role) {
       case 'admin':
         return [
-          { label: 'Active Users', value: '47', icon: Users, color: 'bg-blue-500', change: '+2.5%' },
-          { label: 'Open Tickets', value: '23', icon: Ticket, color: 'bg-yellow-500', change: '-5.2%' },
-          { label: 'Fleet Vehicles', value: '18', icon: Truck, color: 'bg-green-500', change: '+1' },
-          { label: 'Pending Tasks', value: '12', icon: Clock, color: 'bg-purple-500', change: '+3' },
+          { label: 'Usuarios Activos', value: '47', icon: Users, color: 'bg-blue-500', change: '+2.5%' },
+          { label: 'Tickets Abiertos', value: '23', icon: Ticket, color: 'bg-yellow-500', change: '-5.2%' },
+          { label: 'Vehículos de Flota', value: '18', icon: Truck, color: 'bg-green-500', change: '+1' },
+          { label: 'Tareas Pendientes', value: '12', icon: Clock, color: 'bg-purple-500', change: '+3' },
         ];
       case 'transport_supervisor':
         return [
-          { label: 'Active Drivers', value: '12', icon: Users, color: 'bg-blue-500', change: '0%' },
-          { label: 'Trips Today', value: '8', icon: Truck, color: 'bg-green-500', change: '+2' },
-          { label: 'Maintenance Due', value: '3', icon: Wrench, color: 'bg-yellow-500', change: '+1' },
-          { label: 'Incidents', value: '1', icon: AlertTriangle, color: 'bg-red-500', change: '0' },
+          { label: 'Conductores Activos', value: '12', icon: Users, color: 'bg-blue-500', change: '0%' },
+          { label: 'Viajes Hoy', value: '8', icon: Truck, color: 'bg-green-500', change: '+2' },
+          { label: 'Mantenimiento Vencido', value: '3', icon: Wrench, color: 'bg-yellow-500', change: '+1' },
+          { label: 'Incidentes', value: '1', icon: AlertTriangle, color: 'bg-red-500', change: '0' },
         ];
       case 'driver':
         return [
-          { label: 'Trips Completed', value: '156', icon: CheckCircle, color: 'bg-green-500', change: '+5' },
-          { label: 'Hours Driven', value: '42.5', icon: Clock, color: 'bg-blue-500', change: '+8.2' },
-          { label: 'Fuel Efficiency', value: '8.5L', icon: TrendingUp, color: 'bg-purple-500', change: '-0.3L' },
-          { label: 'Route Score', value: '95%', icon: Truck, color: 'bg-green-500', change: '+2%' },
+          { label: 'Viajes Completados', value: '156', icon: CheckCircle, color: 'bg-green-500', change: '+5' },
+          { label: 'Horas Conducidas', value: '42.5', icon: Clock, color: 'bg-blue-500', change: '+8.2' },
+          { label: 'Eficiencia Combustible', value: '8.5L', icon: TrendingUp, color: 'bg-purple-500', change: '-0.3L' },
+          { label: 'Puntuación Ruta', value: '95%', icon: Truck, color: 'bg-green-500', change: '+2%' },
         ];
       case 'it_staff':
         return [
-          { label: 'Open Tickets', value: '15', icon: Ticket, color: 'bg-yellow-500', change: '+3' },
-          { label: 'Resolved Today', value: '7', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
-          { label: 'High Priority', value: '4', icon: AlertTriangle, color: 'bg-red-500', change: '+1' },
-          { label: 'Avg Response', value: '2.3h', icon: Clock, color: 'bg-blue-500', change: '-0.5h' },
+          { label: 'Tickets Abiertos', value: '15', icon: Ticket, color: 'bg-yellow-500', change: '+3' },
+          { label: 'Resueltos Hoy', value: '7', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
+          { label: 'Alta Prioridad', value: '4', icon: AlertTriangle, color: 'bg-red-500', change: '+1' },
+          { label: 'Respuesta Promedio', value: '2.3h', icon: Clock, color: 'bg-blue-500', change: '-0.5h' },
         ];
       default:
         return [
-          { label: 'Tasks Today', value: '8', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
-          { label: 'Pending Items', value: '3', icon: Clock, color: 'bg-yellow-500', change: '-1' },
-          { label: 'Completed', value: '24', icon: TrendingUp, color: 'bg-blue-500', change: '+6' },
-          { label: 'Team Score', value: '92%', icon: Users, color: 'bg-purple-500', change: '+3%' },
+          { label: 'Tareas Hoy', value: '8', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
+          { label: 'Elementos Pendientes', value: '3', icon: Clock, color: 'bg-yellow-500', change: '-1' },
+          { label: 'Completados', value: '24', icon: TrendingUp, color: 'bg-blue-500', change: '+6' },
+          { label: 'Puntuación Equipo', value: '92%', icon: Users, color: 'bg-purple-500', change: '+3%' },
         ];
     }
   };
 
   const getRecentActivities = () => {
     const activities = [
-      { id: 1, action: 'Trip completed', details: 'Route A-B by John Driver', time: '10 min ago', type: 'success' },
-      { id: 2, action: 'Maintenance scheduled', details: 'Truck TK-001 brake inspection', time: '25 min ago', type: 'warning' },
-      { id: 3, action: 'Ticket resolved', details: 'Network connectivity issue fixed', time: '1 hour ago', type: 'success' },
-      { id: 4, action: 'Supply request', details: 'Cleaning supplies requested', time: '2 hours ago', type: 'info' },
-      { id: 5, action: 'User added', details: 'New driver Maria Santos', time: '3 hours ago', type: 'info' },
+      { id: 1, action: 'Viaje completado', details: 'Ruta A-B por John Driver', time: 'hace 10 min', type: 'success' },
+      { id: 2, action: 'Mantenimiento programado', details: 'Camión TK-001 inspección frenos', time: 'hace 25 min', type: 'warning' },
+      { id: 3, action: 'Ticket resuelto', details: 'Problema de conectividad solucionado', time: 'hace 1 hora', type: 'success' },
+      { id: 4, action: 'Solicitud de suministros', details: 'Suministros de limpieza solicitados', time: 'hace 2 horas', type: 'info' },
+      { id: 5, action: 'Usuario agregado', details: 'Nueva conductora Maria Santos', time: 'hace 3 horas', type: 'info' },
     ];
 
     return activities.slice(0, user?.role === 'admin' ? 5 : 3);
@@ -73,13 +73,13 @@ const DashboardHome: React.FC = () => {
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Welcome back, {user?.name}!</h2>
+        <h2 className="text-2xl font-bold mb-2">¡Bienvenido de nuevo, {user?.name}!</h2>
         <p className="text-blue-100">
-          {user?.role === 'admin' ? 'System overview and management tools' :
-           user?.role === 'transport_supervisor' ? 'Monitor your fleet and operations' :
-           user?.role === 'driver' ? 'Your driving performance and assignments' :
-           user?.role === 'it_staff' ? 'Support tickets and system status' :
-           'Your daily tasks and progress'}
+          {user?.role === 'admin' ? 'Resumen del sistema y herramientas de gestión' :
+           user?.role === 'transport_supervisor' ? 'Monitorea tu flota y operaciones' :
+           user?.role === 'driver' ? 'Tu rendimiento de conducción y asignaciones' :
+           user?.role === 'it_staff' ? 'Tickets de soporte y estado del sistema' :
+           'Tus tareas diarias y progreso'}
         </p>
       </div>
 
@@ -116,7 +116,7 @@ const DashboardHome: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Actividad Reciente</h3>
           <div className="space-y-4">
             {activities.map((activity) => (
               <div key={activity.id} className="flex items-start space-x-3">
@@ -137,17 +137,17 @@ const DashboardHome: React.FC = () => {
 
         {/* Quick Actions */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
           <div className="grid grid-cols-2 gap-3">
             {user?.role === 'transport_supervisor' && (
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <Truck className="w-6 h-6 text-blue-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">New Trip</p>
+                  <p className="text-sm font-medium text-gray-900">Nuevo Viaje</p>
                 </button>
                 <button className="p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left">
                   <Wrench className="w-6 h-6 text-green-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Schedule Maintenance</p>
+                  <p className="text-sm font-medium text-gray-900">Programar Mantenimiento</p>
                 </button>
               </>
             )}
@@ -155,11 +155,11 @@ const DashboardHome: React.FC = () => {
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <CheckCircle className="w-6 h-6 text-blue-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Report Trip</p>
+                  <p className="text-sm font-medium text-gray-900">Reportar Viaje</p>
                 </button>
                 <button className="p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors text-left">
                   <AlertTriangle className="w-6 h-6 text-yellow-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Report Incident</p>
+                  <p className="text-sm font-medium text-gray-900">Reportar Incidente</p>
                 </button>
               </>
             )}
@@ -167,11 +167,11 @@ const DashboardHome: React.FC = () => {
               <>
                 <button className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left">
                   <Ticket className="w-6 h-6 text-purple-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">View Tickets</p>
+                  <p className="text-sm font-medium text-gray-900">Ver Tickets</p>
                 </button>
                 <button className="p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left">
                   <Users className="w-6 h-6 text-green-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">User Support</p>
+                  <p className="text-sm font-medium text-gray-900">Soporte Usuario</p>
                 </button>
               </>
             )}
@@ -179,11 +179,11 @@ const DashboardHome: React.FC = () => {
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <CheckCircle className="w-6 h-6 text-blue-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Daily Report</p>
+                  <p className="text-sm font-medium text-gray-900">Reporte Diario</p>
                 </button>
                 <button className="p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left">
                   <Ticket className="w-6 h-6 text-green-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Request Supplies</p>
+                  <p className="text-sm font-medium text-gray-900">Solicitar Suministros</p>
                 </button>
               </>
             )}
@@ -191,11 +191,11 @@ const DashboardHome: React.FC = () => {
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <Users className="w-6 h-6 text-blue-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Manage Users</p>
+                  <p className="text-sm font-medium text-gray-900">Gestionar Usuarios</p>
                 </button>
                 <button className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left">
                   <Ticket className="w-6 h-6 text-purple-600 mb-2" />
-                  <p className="text-sm font-medium text-gray-900">System Reports</p>
+                  <p className="text-sm font-medium text-gray-900">Reportes del Sistema</p>
                 </button>
               </>
             )}
