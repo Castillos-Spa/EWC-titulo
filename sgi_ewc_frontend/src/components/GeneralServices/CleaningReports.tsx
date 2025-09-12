@@ -81,15 +81,15 @@ const CleaningReports: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Cleaning Reports</h2>
-          <p className="text-gray-600">Daily cleaning activities and maintenance reports</p>
+          <h2 className="text-2xl font-bold text-gray-900">Reportes de Limpieza</h2>
+          <p className="text-gray-600">Actividades diarias de limpieza y reportes de mantenimiento</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
-          <span>New Report</span>
+          <span>Nuevo Reporte</span>
         </button>
       </div>
 
@@ -98,7 +98,7 @@ const CleaningReports: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Today's Tasks</p>
+              <p className="text-sm text-gray-600">Tareas de Hoy</p>
               <p className="text-2xl font-bold text-gray-900">{reports.length}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-blue-600" />
@@ -107,7 +107,7 @@ const CleaningReports: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Completed</p>
+              <p className="text-sm text-gray-600">Completadas</p>
               <p className="text-2xl font-bold text-green-600">{reports.filter(r => r.status === 'completed').length}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -116,7 +116,7 @@ const CleaningReports: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Hours Worked</p>
+              <p className="text-sm text-gray-600">Horas Trabajadas</p>
               <p className="text-2xl font-bold text-blue-600">{reports.reduce((sum, r) => sum + r.timeSpent, 0)}h</p>
             </div>
             <Clock className="w-8 h-8 text-blue-600" />
@@ -125,7 +125,7 @@ const CleaningReports: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Issues Found</p>
+              <p className="text-sm text-gray-600">Problemas Encontrados</p>
               <p className="text-2xl font-bold text-yellow-600">{reports.reduce((sum, r) => sum + r.issues.length, 0)}</p>
             </div>
             <AlertTriangle className="w-8 h-8 text-yellow-600" />
@@ -139,7 +139,7 @@ const CleaningReports: React.FC = () => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="Search by area or staff member..."
+            placeholder="Buscar por área o personal..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -174,23 +174,23 @@ const CleaningReports: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">Date:</span>
+                    <span className="text-gray-600">Fecha:</span>
                     <span className="font-medium">{report.date}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-600">Time Spent:</span>
+                    <span className="text-gray-600">Tiempo:</span>
                     <span className="font-medium">{report.timeSpent}h</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-gray-600">Staff:</span>
+                    <span className="text-gray-600">Personal:</span>
                     <span className="font-medium">{report.responsibleStaff}</span>
                   </div>
                 </div>
 
                 {/* Tasks */}
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Completed Tasks:</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Tareas Completadas:</h4>
                   <div className="flex flex-wrap gap-2">
                     {report.tasks.map((task, index) => (
                       <span key={index} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
@@ -205,7 +205,7 @@ const CleaningReports: React.FC = () => {
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center space-x-2">
                       <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                      <span>Issues Found:</span>
+                      <span>Problemas Encontrados:</span>
                     </h4>
                     <div className="space-y-1">
                       {report.issues.map((issue, index) => (
@@ -221,7 +221,7 @@ const CleaningReports: React.FC = () => {
                 {/* Observations */}
                 {report.observations && (
                   <div className="pt-3 border-t border-gray-100">
-                    <h4 className="text-sm font-medium text-gray-900 mb-1">Observations:</h4>
+                    <h4 className="text-sm font-medium text-gray-900 mb-1">Observaciones:</h4>
                     <p className="text-sm text-gray-600">{report.observations}</p>
                   </div>
                 )}
@@ -230,10 +230,10 @@ const CleaningReports: React.FC = () => {
               {/* Actions */}
               <div className="flex space-x-2">
                 <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                  View Details
+                  Ver Detalles
                 </button>
                 <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Edit
+                  Editar
                 </button>
               </div>
             </div>
@@ -244,8 +244,8 @@ const CleaningReports: React.FC = () => {
       {filteredReports.length === 0 && (
         <div className="text-center py-12">
           <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No reports found</h3>
-          <p className="text-gray-600">Try adjusting your search or create a new cleaning report.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron reportes</h3>
+          <p className="text-gray-600">Intenta ajustar tu búsqueda o crear un nuevo reporte de limpieza.</p>
         </div>
       )}
 
@@ -254,14 +254,14 @@ const CleaningReports: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">New Cleaning Report</h3>
-              <p className="text-gray-600 mt-1">Record daily cleaning activities and any issues found</p>
+              <h3 className="text-xl font-semibold text-gray-900">Nuevo Reporte de Limpieza</h3>
+              <p className="text-gray-600 mt-1">Registrar actividades diarias de limpieza y problemas encontrados</p>
             </div>
             
             <form className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
                   <input
                     type="date"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -269,7 +269,7 @@ const CleaningReports: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Time Spent (hours)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tiempo Trabajado (horas)</label>
                   <input
                     type="number"
                     step="0.5"
@@ -280,18 +280,18 @@ const CleaningReports: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Area/Location</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Área/Ubicación</label>
                 <input
                   type="text"
-                  placeholder="Warehouse A - Main Floor"
+                  placeholder="Almacén A - Planta Principal"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Responsible Staff</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Personal Responsable</label>
                 <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  <option>Select staff member</option>
+                  <option>Seleccionar personal</option>
                   <option>Maria Cleaning</option>
                   <option>Ana Rodriguez</option>
                   <option>Carlos Maintenance</option>
@@ -299,9 +299,9 @@ const CleaningReports: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tasks Completed</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tareas Completadas</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['Floor mopping', 'Window cleaning', 'Trash collection', 'Restroom sanitization', 'Desk cleaning', 'Vacuum carpets', 'Kitchen area', 'Meeting rooms'].map((task) => (
+                  {['Trapear pisos', 'Limpiar ventanas', 'Recolección basura', 'Sanitización baños', 'Limpiar escritorios', 'Aspirar alfombras', 'Área cocina', 'Salas reuniones'].map((task) => (
                     <label key={task} className="flex items-center space-x-2">
                       <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                       <span className="text-sm text-gray-700">{task}</span>
@@ -311,29 +311,29 @@ const CleaningReports: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Issues Found</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Problemas Encontrados</label>
                 <textarea
                   rows={3}
-                  placeholder="Describe any issues or problems encountered during cleaning..."
+                  placeholder="Describe cualquier problema encontrado durante la limpieza..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 ></textarea>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Observations</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
                 <textarea
                   rows={3}
-                  placeholder="Additional observations or notes..."
+                  placeholder="Observaciones adicionales o notas..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 ></textarea>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                 <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                  <option value="completed">Completed</option>
-                  <option value="partial">Partially Completed</option>
-                  <option value="pending">Pending</option>
+                  <option value="completed">Completado</option>
+                  <option value="partial">Parcialmente Completado</option>
+                  <option value="pending">Pendiente</option>
                 </select>
               </div>
 
@@ -343,13 +343,13 @@ const CleaningReports: React.FC = () => {
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Save Report
+                  Guardar Reporte
                 </button>
               </div>
             </form>

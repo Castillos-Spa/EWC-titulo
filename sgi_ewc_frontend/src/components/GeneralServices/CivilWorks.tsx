@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Plus, Search, Calendar, MapPin, HardHat, CheckCircle, Clock, AlertTriangle, Hammer } from 'lucide-react';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 interface CivilWorksReport {
   id: string;
@@ -20,7 +19,6 @@ interface CivilWorksReport {
 }
 
 const CivilWorks: React.FC = () => {
-  const { t } = useLanguage();
   const [reports] = useState<CivilWorksReport[]>([
     {
       id: '1',
@@ -29,7 +27,7 @@ const CivilWorks: React.FC = () => {
       location: 'Perímetro Norte - Warehouse A',
       workType: 'repair',
       tasks: ['Demolición parcial', 'Preparación de superficie', 'Aplicación de mortero', 'Acabado final'],
-      responsibleStaff: ['Carlos Constructor', 'Miguel Albañil', 'Ana Ayudante'],
+      responsibleStaff: ['Carlos Constructor', 'Miguel', 'Ana Ayudante'],
       materialsUsed: [
         { name: 'Cemento', quantity: 10, unit: 'sacos' },
         { name: 'Arena', quantity: 2, unit: 'm³' },
@@ -478,7 +476,7 @@ const CivilWorks: React.FC = () => {
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  {t('common.cancel')}
+                  Cancelar
                 </button>
                 <button
                   type="submit"

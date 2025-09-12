@@ -1,15 +1,58 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 
-interface LanguageContextType {
-  language: 'en' | 'es';
-  setLanguage: (lang: 'en' | 'es') => void;
+// Tipado explícito para evitar TS7053 al indexar con string
+type Languages = 'en' | 'es';
+
+type LanguageContextType = {
   t: (key: string) => string;
-}
+  language: Languages;
+  setLanguage: React.Dispatch<React.SetStateAction<Languages>>;
+};
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
-
-const translations = {
+const translations: Record<Languages, Record<string, string>> = {
   en: {
+    // Common
+    'common.save': 'Save',
+    'common.cancel': 'Cancel',
+    'common.edit': 'Edit',
+    'common.delete': 'Delete',
+    'common.add': 'Add',
+    'common.search': 'Search',
+    'common.filter': 'Filter',
+    'common.status': 'Status',
+    'common.actions': 'Actions',
+    'common.date': 'Date',
+    'common.time': 'Time',
+    'common.description': 'Description',
+    'common.priority': 'Priority',
+    'common.category': 'Category',
+    'common.loading': 'Loading...',
+    'common.submit': 'Submit',
+    'common.close': 'Close',
+    'common.view': 'View',
+    'common.details': 'Details',
+    'common.viewDetails': 'View Details',
+    'common.name': 'Name',
+    'common.email': 'Email',
+    'common.role': 'Role',
+    'common.area': 'Area',
+    'common.active': 'Active',
+    'common.inactive': 'Inactive',
+    'common.all': 'All',
+    'common.yes': 'Yes',
+    'common.no': 'No',
+    'common.confirm': 'Confirm',
+    
+    // Login
+    'login.title': 'Login',
+    'login.subtitle': 'Business Management System',
+    'login.email': 'Email',
+    'login.password': 'Password',
+    'login.signIn': 'Sign In',
+    'login.signingIn': 'Signing In...',
+    'login.demoAccounts': 'Demo Accounts',
+    'login.invalidCredentials': 'Invalid credentials',
+    
     // Navigation
     'nav.dashboard': 'Dashboard',
     'nav.tripReports': 'Trip Reports',
@@ -22,101 +65,85 @@ const translations = {
     'nav.userManagement': 'User Management',
     'nav.logout': 'Logout',
     
-    // Common
-    'common.search': 'Search',
-    'common.filter': 'Filter',
-    'common.add': 'Add',
-    'common.edit': 'Edit',
-    'common.delete': 'Delete',
-    'common.save': 'Save',
-    'common.cancel': 'Cancel',
-    'common.submit': 'Submit',
-    'common.loading': 'Loading...',
-    'common.date': 'Date',
-    'common.status': 'Status',
-    'common.actions': 'Actions',
-    'common.viewDetails': 'View Details',
-    'common.noResults': 'No results found',
-    
-    // Login
-    'login.title': 'Enterprise System',
-    'login.subtitle': 'Sign in to your account',
-    'login.email': 'Email Address',
-    'login.password': 'Password',
-    'login.signIn': 'Sign In',
-    'login.signingIn': 'Signing in...',
-    'login.demoAccounts': 'Demo Accounts:',
-    'login.invalidCredentials': 'Invalid credentials. Try any email from the demo with password: password123',
-    
     // Dashboard
-    'dashboard.welcome': 'Welcome back',
-    'dashboard.systemOverview': 'System overview and management tools',
-    'dashboard.monitorFleet': 'Monitor your fleet and operations',
-    'dashboard.drivingPerformance': 'Your driving performance and assignments',
-    'dashboard.supportTickets': 'Support tickets and system status',
-    'dashboard.dailyTasks': 'Your daily tasks and progress',
-    'dashboard.recentActivity': 'Recent Activity',
-    'dashboard.quickActions': 'Quick Actions',
+    'dashboard.welcome': 'Welcome',
     
     // Tickets
     'tickets.title': 'Ticket System',
-    'tickets.subtitle': 'Manage support tickets and requests across all areas',
+    'tickets.subtitle': 'Manage support requests and task tracking',
     'tickets.newTicket': 'New Ticket',
-    'tickets.totalTickets': 'Total Tickets',
-    'tickets.pending': 'Pending',
-    'tickets.inProgress': 'In Progress',
-    'tickets.resolved': 'Resolved',
-    'tickets.closed': 'Closed',
     'tickets.createNew': 'Create New Ticket',
-    'tickets.submitRequest': 'Submit a new support ticket or request',
+    'tickets.submitRequest': 'Submit a new support request or ticket',
     'tickets.title_field': 'Title',
     'tickets.category': 'Category',
     'tickets.priority': 'Priority',
     'tickets.description': 'Description',
     'tickets.attachments': 'Attachments',
-    'tickets.assignedTo': 'Assigned to',
-    'tickets.createdBy': 'Created by',
-    'tickets.comments': 'Comments',
-    'tickets.addComment': 'Add Comment',
-    'tickets.changeStatus': 'Change Status',
-    'tickets.assignTicket': 'Assign Ticket',
-    
-    // Fleet
-    'fleet.title': 'Fleet Registry',
-    'fleet.subtitle': 'Manage all company vehicles and their assignments',
-    'fleet.addVehicle': 'Add Vehicle',
-    'fleet.totalVehicles': 'Total Vehicles',
-    'fleet.active': 'Active',
-    'fleet.inMaintenance': 'In Maintenance',
-    'fleet.maintenanceDue': 'Maintenance Due',
-    'fleet.plateNumber': 'Plate Number',
-    'fleet.brand': 'Brand',
-    'fleet.model': 'Model',
-    'fleet.year': 'Year',
-    'fleet.mileage': 'Mileage',
-    'fleet.assignedArea': 'Assigned Area',
-    'fleet.assignedDriver': 'Assigned Driver',
-    'fleet.nextMaintenance': 'Next Maintenance',
-    'fleet.scheduleMaintenance': 'Schedule Maintenance',
+    'tickets.totalTickets': 'Total Tickets',
+    'tickets.pending': 'Pending',
+    'tickets.inProgress': 'In Progress',
+    'tickets.resolved': 'Resolved',
     
     // Maintenance
     'maintenance.title': 'Maintenance Management',
-    'maintenance.subtitle': 'Track and manage vehicle maintenance activities',
+    'maintenance.subtitle': 'Schedule and manage vehicle maintenance',
     'maintenance.newMaintenance': 'New Maintenance',
-    'maintenance.scheduled': 'Scheduled',
-    'maintenance.completed': 'Completed',
-    'maintenance.overdue': 'Overdue',
-    'maintenance.totalCost': 'Total Cost',
-    'maintenance.type': 'Type',
     'maintenance.vehicle': 'Vehicle',
-    'maintenance.cost': 'Cost',
+    'maintenance.type': 'Type',
     'maintenance.technician': 'Technician',
+    'maintenance.cost': 'Cost',
+    'maintenance.totalCost': 'Total Cost',
     'maintenance.partsUsed': 'Parts Used',
     'maintenance.preventive': 'Preventive',
     'maintenance.corrective': 'Corrective',
     'maintenance.emergency': 'Emergency',
+    'maintenance.scheduled': 'Scheduled',
+    'maintenance.completed': 'Completed',
+    'maintenance.overdue': 'Overdue',
   },
   es: {
+    // Common
+    'common.save': 'Guardar',
+    'common.cancel': 'Cancelar',
+    'common.edit': 'Editar',
+    'common.delete': 'Eliminar',
+    'common.add': 'Agregar',
+    'common.search': 'Buscar',
+    'common.filter': 'Filtrar',
+    'common.status': 'Estado',
+    'common.actions': 'Acciones',
+    'common.date': 'Fecha',
+    'common.time': 'Hora',
+    'common.description': 'Descripción',
+    'common.priority': 'Prioridad',
+    'common.category': 'Categoría',
+    'common.loading': 'Cargando...',
+    'common.submit': 'Enviar',
+    'common.close': 'Cerrar',
+    'common.view': 'Ver',
+    'common.details': 'Detalles',
+    'common.viewDetails': 'Ver Detalles',
+    'common.name': 'Nombre',
+    'common.email': 'Correo Electrónico',
+    'common.role': 'Rol',
+    'common.area': 'Área',
+    'common.active': 'Activo',
+    'common.inactive': 'Inactivo',
+    'common.all': 'Todos',
+    'common.yes': 'Sí',
+    'common.no': 'No',
+    'common.confirm': 'Confirmar',
+    
+    // Login
+    'login.title': 'Iniciar Sesión',
+    'login.subtitle': 'Sistema de Gestión Empresarial',
+    'login.email': 'Correo Electrónico',
+    'login.password': 'Contraseña',
+    'login.signIn': 'Iniciar Sesión',
+    'login.signingIn': 'Iniciando Sesión...',
+    'login.demoAccounts': 'Cuentas de Demostración',
+    'login.invalidCredentials': 'Credenciales inválidas',
+    
     // Navigation
     'nav.dashboard': 'Panel Principal',
     'nav.tripReports': 'Reportes de Viajes',
@@ -129,103 +156,47 @@ const translations = {
     'nav.userManagement': 'Gestión de Usuarios',
     'nav.logout': 'Cerrar Sesión',
     
-    // Common
-    'common.search': 'Buscar',
-    'common.filter': 'Filtrar',
-    'common.add': 'Agregar',
-    'common.edit': 'Editar',
-    'common.delete': 'Eliminar',
-    'common.save': 'Guardar',
-    'common.cancel': 'Cancelar',
-    'common.submit': 'Enviar',
-    'common.loading': 'Cargando...',
-    'common.date': 'Fecha',
-    'common.status': 'Estado',
-    'common.actions': 'Acciones',
-    'common.viewDetails': 'Ver Detalles',
-    'common.noResults': 'No se encontraron resultados',
-    
-    // Login
-    'login.title': 'Sistema Empresarial',
-    'login.subtitle': 'Inicia sesión en tu cuenta',
-    'login.email': 'Correo Electrónico',
-    'login.password': 'Contraseña',
-    'login.signIn': 'Iniciar Sesión',
-    'login.signingIn': 'Iniciando sesión...',
-    'login.demoAccounts': 'Cuentas de Demostración:',
-    'login.invalidCredentials': 'Credenciales inválidas. Prueba cualquier email de la demo con contraseña: password123',
-    
     // Dashboard
-    'dashboard.welcome': 'Bienvenido de nuevo',
-    'dashboard.systemOverview': 'Resumen del sistema y herramientas de gestión',
-    'dashboard.monitorFleet': 'Monitorea tu flota y operaciones',
-    'dashboard.drivingPerformance': 'Tu rendimiento de conducción y asignaciones',
-    'dashboard.supportTickets': 'Tickets de soporte y estado del sistema',
-    'dashboard.dailyTasks': 'Tus tareas diarias y progreso',
-    'dashboard.recentActivity': 'Actividad Reciente',
-    'dashboard.quickActions': 'Acciones Rápidas',
+    'dashboard.welcome': 'Bienvenido',
     
     // Tickets
     'tickets.title': 'Sistema de Tickets',
-    'tickets.subtitle': 'Gestiona tickets de soporte y solicitudes de todas las áreas',
+    'tickets.subtitle': 'Gestiona solicitudes de soporte y seguimiento de tareas',
     'tickets.newTicket': 'Nuevo Ticket',
-    'tickets.totalTickets': 'Total de Tickets',
-    'tickets.pending': 'Pendientes',
-    'tickets.inProgress': 'En Progreso',
-    'tickets.resolved': 'Resueltos',
-    'tickets.closed': 'Cerrados',
     'tickets.createNew': 'Crear Nuevo Ticket',
-    'tickets.submitRequest': 'Envía un nuevo ticket de soporte o solicitud',
+    'tickets.submitRequest': 'Envía una nueva solicitud de soporte o ticket',
     'tickets.title_field': 'Título',
     'tickets.category': 'Categoría',
     'tickets.priority': 'Prioridad',
     'tickets.description': 'Descripción',
     'tickets.attachments': 'Adjuntos',
-    'tickets.assignedTo': 'Asignado a',
-    'tickets.createdBy': 'Creado por',
-    'tickets.comments': 'Comentarios',
-    'tickets.addComment': 'Agregar Comentario',
-    'tickets.changeStatus': 'Cambiar Estado',
-    'tickets.assignTicket': 'Asignar Ticket',
-    
-    // Fleet
-    'fleet.title': 'Registro de Flota',
-    'fleet.subtitle': 'Gestiona todos los vehículos de la empresa y sus asignaciones',
-    'fleet.addVehicle': 'Agregar Vehículo',
-    'fleet.totalVehicles': 'Total de Vehículos',
-    'fleet.active': 'Activos',
-    'fleet.inMaintenance': 'En Mantenimiento',
-    'fleet.maintenanceDue': 'Mantenimiento Pendiente',
-    'fleet.plateNumber': 'Número de Placa',
-    'fleet.brand': 'Marca',
-    'fleet.model': 'Modelo',
-    'fleet.year': 'Año',
-    'fleet.mileage': 'Kilometraje',
-    'fleet.assignedArea': 'Área Asignada',
-    'fleet.assignedDriver': 'Conductor Asignado',
-    'fleet.nextMaintenance': 'Próximo Mantenimiento',
-    'fleet.scheduleMaintenance': 'Programar Mantenimiento',
+    'tickets.totalTickets': 'Total Tickets',
+    'tickets.pending': 'Pendientes',
+    'tickets.inProgress': 'En Progreso',
+    'tickets.resolved': 'Resueltos',
     
     // Maintenance
     'maintenance.title': 'Gestión de Mantenimiento',
-    'maintenance.subtitle': 'Rastrea y gestiona las actividades de mantenimiento de vehículos',
+    'maintenance.subtitle': 'Programa y gestiona mantenimientos de vehículos',
     'maintenance.newMaintenance': 'Nuevo Mantenimiento',
-    'maintenance.scheduled': 'Programados',
-    'maintenance.completed': 'Completados',
-    'maintenance.overdue': 'Vencidos',
-    'maintenance.totalCost': 'Costo Total',
-    'maintenance.type': 'Tipo',
     'maintenance.vehicle': 'Vehículo',
-    'maintenance.cost': 'Costo',
+    'maintenance.type': 'Tipo',
     'maintenance.technician': 'Técnico',
+    'maintenance.cost': 'Costo',
+    'maintenance.totalCost': 'Costo Total',
     'maintenance.partsUsed': 'Repuestos Utilizados',
     'maintenance.preventive': 'Preventivo',
     'maintenance.corrective': 'Correctivo',
     'maintenance.emergency': 'Emergencia',
-  }
+    'maintenance.scheduled': 'Programados',
+    'maintenance.completed': 'Completados',
+    'maintenance.overdue': 'Vencidos',
+  },
 };
 
-export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<'en' | 'es'>('en');
 
   useEffect(() => {
@@ -235,25 +206,25 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, []);
 
-  const handleSetLanguage = (lang: 'en' | 'es') => {
-    setLanguage(lang);
-    localStorage.setItem('language', lang);
-  };
+  // Persistir cambios de idioma
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
 
-  const t = (key: string): string => {
-    return translations[language][key as keyof typeof translations['en']] || key;
-  };
+  // t() ahora indexa un Record<string, string>
+  const t = (key: string) => translations[language][key] ?? key;
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, t }}>
+    <LanguageContext.Provider value={{ t, language, setLanguage }}>
       {children}
     </LanguageContext.Provider>
   );
 };
 
-export const useLanguage = () => {
+// eslint-disable-next-line react-refresh/only-export-components
+export const useLanguage = (): LanguageContextType => {
   const context = useContext(LanguageContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;

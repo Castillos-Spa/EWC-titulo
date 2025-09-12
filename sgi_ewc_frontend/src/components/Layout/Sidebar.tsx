@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { 
   Truck, 
   Wrench, 
@@ -24,29 +23,28 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, logout } = useAuth();
-  const { t } = useLanguage();
 
   const getMenuItems = () => {
     const baseItems = [
-      { id: 'dashboard', label: t('nav.dashboard'), icon: Home, show: true },
+      { id: 'dashboard', label: 'Panel Principal', icon: Home, show: true },
     ];
 
     const roleBasedItems = [
       // Water Transport
-      { id: 'trip-reports', label: t('nav.tripReports'), icon: Truck, show: ['admin', 'transport_supervisor', 'driver'].includes(user?.role || '') },
-      { id: 'route-management', label: t('nav.routeManagement'), icon: ClipboardList, show: ['admin', 'transport_supervisor'].includes(user?.role || '') },
-      { id: 'fleet-registry', label: t('nav.fleetRegistry'), icon: Wrench, show: ['admin', 'transport_supervisor'].includes(user?.role || '') },
-      { id: 'maintenance', label: t('nav.maintenance'), icon: Settings, show: ['admin', 'transport_supervisor'].includes(user?.role || '') },
+      { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: ['admin', 'transport_supervisor', 'driver'].includes(user?.role || '') },
+      { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: ['admin', 'transport_supervisor'].includes(user?.role || '') },
+      { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: ['admin', 'transport_supervisor'].includes(user?.role || '') },
+      { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: ['admin', 'transport_supervisor'].includes(user?.role || '') },
       
       // General Services
-      { id: 'cleaning-reports', label: t('nav.cleaningReports'), icon: HardHat, show: ['admin', 'general_services', 'cleaning'].includes(user?.role || '') },
-      { id: 'civil-works', label: t('nav.civilWorks'), icon: HardHat, show: ['admin', 'general_services', 'civil_works'].includes(user?.role || '') },
+      { id: 'cleaning-reports', label: 'Reportes de Limpieza', icon: HardHat, show: ['admin', 'general_services', 'cleaning'].includes(user?.role || '') },
+      { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: ['admin', 'general_services', 'civil_works'].includes(user?.role || '') },
       
       // IT
-      { id: 'tickets', label: t('nav.tickets'), icon: Ticket, show: ['admin', 'it_staff'].includes(user?.role || '') || user?.area !== 'admin' },
+      { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: ['admin', 'it_staff'].includes(user?.role || '') || user?.area !== 'admin' },
       
       // Admin
-      { id: 'user-management', label: t('nav.userManagement'), icon: Users, show: user?.role === 'admin' },
+      { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: user?.role === 'admin' },
     ];
 
     return [...baseItems, ...roleBasedItems.filter(item => item.show)];
@@ -69,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="font-bold text-lg">Sistema</h1>
+                <h1 className="font-bold text-lg">EmpresaSystem</h1>
                 <p className="text-xs text-gray-400">Empresarial</p>
               </div>
             </div>
@@ -128,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
           className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-red-600 hover:text-white transition-colors"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span className="font-medium">{t('nav.logout')}</span>}
+          {!isCollapsed && <span className="font-medium">Cerrar Sesión</span>}
         </button>
       </div>
     </div>

@@ -112,15 +112,15 @@ const FleetRegistry: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Fleet Registry</h2>
-          <p className="text-gray-600">Manage all company vehicles and their assignments</p>
+          <h2 className="text-2xl font-bold text-gray-900">Registro de Flota</h2>
+          <p className="text-gray-600">Gestiona todos los vehículos de la empresa y sus asignaciones</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Vehicle</span>
+          <span>Agregar Vehículo</span>
         </button>
       </div>
 
@@ -129,7 +129,7 @@ const FleetRegistry: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Vehicles</p>
+              <p className="text-sm text-gray-600">Total Vehículos</p>
               <p className="text-2xl font-bold text-gray-900">{vehicles.length}</p>
             </div>
             <Truck className="w-8 h-8 text-blue-600" />
@@ -138,7 +138,7 @@ const FleetRegistry: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Active</p>
+              <p className="text-sm text-gray-600">Activos</p>
               <p className="text-2xl font-bold text-green-600">{vehicles.filter(v => v.status === 'active').length}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -147,7 +147,7 @@ const FleetRegistry: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">In Maintenance</p>
+              <p className="text-sm text-gray-600">En Mantenimiento</p>
               <p className="text-2xl font-bold text-yellow-600">{vehicles.filter(v => v.status === 'maintenance').length}</p>
             </div>
             <Wrench className="w-8 h-8 text-yellow-600" />
@@ -156,7 +156,7 @@ const FleetRegistry: React.FC = () => {
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Maintenance Due</p>
+              <p className="text-sm text-gray-600">Mantenimiento Vencido</p>
               <p className="text-2xl font-bold text-red-600">{vehicles.filter(v => isMaintenanceDue(v.nextMaintenance)).length}</p>
             </div>
             <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -171,7 +171,7 @@ const FleetRegistry: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by plate, brand, driver, or area..."
+              placeholder="Buscar por placa, marca, conductor o área..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -179,7 +179,7 @@ const FleetRegistry: React.FC = () => {
           </div>
           <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2">
             <Filter className="w-4 h-4" />
-            <span>Filter</span>
+            <span>Filtrar</span>
           </button>
         </div>
       </div>
@@ -217,19 +217,19 @@ const FleetRegistry: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-600">Mileage</p>
+                    <p className="text-gray-600">Kilometraje</p>
                     <p className="font-medium">{vehicle.mileage.toLocaleString()} km</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Assigned Area</p>
+                    <p className="text-gray-600">Área Asignada</p>
                     <p className="font-medium">{vehicle.assignedArea}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Assigned Driver</p>
+                    <p className="text-gray-600">Conductor Asignado</p>
                     <p className="font-medium">{vehicle.assignedDriver}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Next Maintenance</p>
+                    <p className="text-gray-600">Próximo Mantenimiento</p>
                     <p className={`font-medium ${isMaintenanceDue(vehicle.nextMaintenance) ? 'text-red-600' : 'text-gray-900'}`}>
                       {vehicle.nextMaintenance}
                     </p>
@@ -240,7 +240,7 @@ const FleetRegistry: React.FC = () => {
                   <div className="flex items-center space-x-6 text-sm">
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-600">Last Maintenance:</span>
+                      <span className="text-gray-600">Último Mantenimiento:</span>
                       <span className="font-medium">{vehicle.lastMaintenance}</span>
                     </div>
                   </div>
@@ -250,13 +250,13 @@ const FleetRegistry: React.FC = () => {
               {/* Actions */}
               <div className="flex flex-col space-y-2 lg:flex-row lg:space-y-0 lg:space-x-2">
                 <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                  View Details
+                  Ver Detalles
                 </button>
                 <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
-                  Schedule Maintenance
+                  Programar Mantenimiento
                 </button>
                 <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-                  Edit
+                  Editar
                 </button>
               </div>
             </div>
@@ -267,8 +267,8 @@ const FleetRegistry: React.FC = () => {
       {filteredVehicles.length === 0 && (
         <div className="text-center py-12">
           <Truck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No vehicles found</h3>
-          <p className="text-gray-600">Try adjusting your search or add a new vehicle to the fleet.</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron vehículos</h3>
+          <p className="text-gray-600">Intenta ajustar tu búsqueda o agregar un nuevo vehículo a la flota.</p>
         </div>
       )}
 
@@ -277,14 +277,14 @@ const FleetRegistry: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">Add New Vehicle</h3>
-              <p className="text-gray-600 mt-1">Register a new vehicle to the fleet</p>
+              <h3 className="text-xl font-semibold text-gray-900">Agregar Nuevo Vehículo</h3>
+              <p className="text-gray-600 mt-1">Registrar un nuevo vehículo en la flota</p>
             </div>
             
             <form className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Plate Number</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Número de Placa</label>
                   <input
                     type="text"
                     placeholder="TK-004"
@@ -292,7 +292,7 @@ const FleetRegistry: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Marca</label>
                   <input
                     type="text"
                     placeholder="Volvo"
@@ -303,15 +303,15 @@ const FleetRegistry: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Modelo</label>
                   <input
                     type="text"
-                    placeholder="Water Tank Truck"
+                    placeholder="Camión Cisterna"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Año</label>
                   <input
                     type="number"
                     placeholder="2023"
@@ -322,7 +322,7 @@ const FleetRegistry: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Initial Mileage (km)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kilometraje Inicial (km)</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -330,28 +330,28 @@ const FleetRegistry: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="active">Active</option>
-                    <option value="maintenance">In Maintenance</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="active">Activo</option>
+                    <option value="maintenance">En Mantenimiento</option>
+                    <option value="inactive">Inactivo</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Area</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Área Asignada</label>
                   <input
                     type="text"
-                    placeholder="North Route"
+                    placeholder="Ruta Norte"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Driver</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Conductor Asignado</label>
                   <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option>Select driver</option>
+                    <option>Seleccionar conductor</option>
                     <option>John Driver</option>
                     <option>Maria Santos</option>
                     <option>Carlos Rodriguez</option>
@@ -366,13 +366,13 @@ const FleetRegistry: React.FC = () => {
                   onClick={() => setShowForm(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Add Vehicle
+                  Agregar Vehículo
                 </button>
               </div>
             </form>
