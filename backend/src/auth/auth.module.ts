@@ -15,7 +15,7 @@ import { RolesGuard } from './guards/roles.guard';
   imports: [
     UsersModule,
     PassportModule,
-    JwtModule.register({ global: true, secret: jwtConstants.secret, signOptions: { expiresIn: '60s' } }),
+    JwtModule.register({ global: true, secret: jwtConstants.secret, signOptions: { expiresIn: '5m' } }),
   ],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy, JwtAuthGuard, PermissionsGuard, RolesGuard],

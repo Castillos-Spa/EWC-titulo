@@ -491,7 +491,7 @@ const EnhancedTicketSystem: React.FC = () => {
                         <div className="flex items-center justify-between text-xs text-gray-600">
                           <span>Tiempo: {ticket.actualHours || 0}h / {ticket.estimatedHours}h</span>
                           <div className="w-16 bg-gray-200 rounded-full h-1">
-                            <div 
+                            <div
                               className="bg-blue-600 h-1 rounded-full" 
                               style={{ width: `${Math.min(((ticket.actualHours || 0) / ticket.estimatedHours) * 100, 100)}%` }}
                             ></div>
