@@ -7,7 +7,6 @@ import { IQaService } from '@/taller/interfaces/qa.interface';
 export class QaService implements IQaService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Crear un registro de QA
   async create(createQADto: CreateQADto) {
     return this.prisma.qA.create({
       data: {
@@ -18,14 +17,12 @@ export class QaService implements IQaService {
     });
   }
 
-  // Listar todos los registros de QA
   async findAll() {
     return this.prisma.qA.findMany({
       include: { ot: true },
     });
   }
 
-  // Buscar un registro de QA por ID
   async findOne(id: number) {
     return this.prisma.qA.findUnique({
       where: { id },
@@ -33,7 +30,14 @@ export class QaService implements IQaService {
     });
   }
 
-  // Eliminar un registro de QA
+  // Bloquear la liberación de un vehículo si no cumple con el QA
+  async bloquearLiberacion(otId: number) {
+    return this.prisma.ordenTrabajo.update({
+      where: { id: otId },
+      data: { estado: 'bloqueada' },
+    });
+  }
+
   async remove(id: number) {
     return this.prisma.qA.delete({
       where: { id },

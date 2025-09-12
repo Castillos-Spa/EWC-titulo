@@ -17,12 +17,18 @@ export class TallerService {
 
   // Cerrar una orden de trabajo desde el taller
   async cerrarOrdenTrabajo(otId: number, checklist: string, resultado: string) {
+    // Verificar si la orden de trabajo existe
+    const ordenTrabajo = await this.ordenTrabajoService.findOne(otId);
+    if (!ordenTrabajo) {
+      throw new Error(`Orden de trabajo con ID ${otId} no encontrada`);
+    }
+
     // Actualizar el estado de la OT a "Cerrada"
     await this.ordenTrabajoService.update(otId, { estado: 'Cerrada' });
 
     // Crear el registro en QA
     return this.qaService.create({
-      otId: otId, // Asegúrate de incluir el otId
+      otId: otId,
       checklist: checklist,
       resultado: resultado,
     });

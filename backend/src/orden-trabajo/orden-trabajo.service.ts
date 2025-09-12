@@ -13,6 +13,7 @@ export class OrdenTrabajoService {
       data: {
         vehiculoId: createOrdenTrabajoDto.vehiculoId,
         tipo: createOrdenTrabajoDto.tipo,
+        estado: 'abierta',
       },
     });
   }
@@ -23,7 +24,6 @@ export class OrdenTrabajoService {
     });
   }
 
-  // Buscar una orden de trabajo por ID
   async findOne(id: number) {
     return this.prisma.ordenTrabajo.findUnique({
       where: { id },
@@ -31,7 +31,6 @@ export class OrdenTrabajoService {
     });
   }
 
-  // Actualizar el estado de una orden de trabajo
   async update(id: number, updateOrdenTrabajoDto: UpdateOrdenTrabajoDto) {
     return this.prisma.ordenTrabajo.update({
       where: { id },
@@ -39,15 +38,28 @@ export class OrdenTrabajoService {
     });
   }
 
+  // Planificar tareas para la orden de trabajo
+  async planificarTareas(id: number, tareas: string[]) {
+    return this.prisma.ordenTrabajo.update({
+      where: { id },
+      data: { tareas },
+    });
+  }
+
+  // Asignar un responsable a la orden de trabajo
+  async asignarResponsable(id: number, responsableId: number) {
+    return this.prisma.ordenTrabajo.update({
+      where: { id },
+      data: { responsableId },
+    });
+  }
+
   // Cerrar una orden de trabajo y crear un registro en QA
   async cerrarOT(id: number, createQADto: CreateQADto) {
-    // Actualizar el estado de la OT a "Cerrada"
     await this.prisma.ordenTrabajo.update({
       where: { id },
       data: { estado: 'Cerrada' },
     });
-
-    // Crear el registro en QA
     return this.prisma.qA.create({
       data: {
         otId: id,
@@ -57,7 +69,6 @@ export class OrdenTrabajoService {
     });
   }
 
-  // Eliminar una orden de trabajo
   async remove(id: number) {
     return this.prisma.ordenTrabajo.delete({
       where: { id },

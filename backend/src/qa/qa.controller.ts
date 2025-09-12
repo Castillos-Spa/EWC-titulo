@@ -21,6 +21,11 @@ export class QaController {
     return this.qaService.findOne(+id);
   }
 
+  @Post(':otId/bloquear')
+  bloquearLiberacion(@Param('otId') otId: string) {
+    return this.qaService.bloquearLiberacion(+otId);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.qaService.remove(+id);

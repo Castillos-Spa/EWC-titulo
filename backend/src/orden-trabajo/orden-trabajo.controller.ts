@@ -28,6 +28,16 @@ export class OrdenTrabajoController {
     return this.ordenTrabajoService.update(+id, updateOrdenTrabajoDto);
   }
 
+  @Post(':id/tareas')
+  planificarTareas(@Param('id') id: string, @Body() tareasDto: { tareas: string[] }) {
+    return this.ordenTrabajoService.planificarTareas(+id, tareasDto.tareas);
+  }
+
+  @Post(':id/responsable')
+  asignarResponsable(@Param('id') id: string, @Body() responsableDto: { responsableId: number }) {
+    return this.ordenTrabajoService.asignarResponsable(+id, responsableDto.responsableId);
+  }
+
   @Post(':id/cerrar')
   cerrarOT(@Param('id') id: string, @Body() createQADto: CreateQADto) {
     return this.ordenTrabajoService.cerrarOT(+id, createQADto);

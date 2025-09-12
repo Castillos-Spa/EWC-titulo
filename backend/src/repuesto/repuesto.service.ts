@@ -6,7 +6,6 @@ import { PrismaService } from 'prisma/prisma.service';
 export class RepuestoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Crear un repuesto
   async create(createRepuestoDto: CreateRepuestoDto) {
     return this.prisma.repuesto.create({
       data: {
@@ -18,14 +17,12 @@ export class RepuestoService {
     });
   }
 
-  // Listar todos los repuestos
   async findAll() {
     return this.prisma.repuesto.findMany({
       include: { solicitudCompra: true },
     });
   }
 
-  // Buscar un repuesto por ID
   async findOne(id: number) {
     return this.prisma.repuesto.findUnique({
       where: { id },
@@ -33,7 +30,6 @@ export class RepuestoService {
     });
   }
 
-  // Actualizar stock de un repuesto
   async updateStock(id: number, stock: number) {
     return this.prisma.repuesto.update({
       where: { id },
@@ -41,7 +37,21 @@ export class RepuestoService {
     });
   }
 
-  // Eliminar un repuesto
+  // Generar alerta cuando el stock es mínimo
+  async generarAlertaStockMinimo(id: number, stockMinimo: number) {
+    const repuesto = await this.prisma.repuesto.findUnique({ where: { id } });
+
+    if (!repuesto) {
+      throw new Error(`Repuesto con ID ${id} no encontrado`);
+    }
+
+    if (repuesto.stock <= stockMinimo) {
+      console.log(`Alerta: Stock mínimo para el repuesto ${repuesto.nombre}`);
+    }
+
+    return repuesto;
+  }
+
   async remove(id: number) {
     return this.prisma.repuesto.delete({
       where: { id },

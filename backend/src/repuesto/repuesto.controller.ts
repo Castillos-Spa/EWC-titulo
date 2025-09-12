@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
 import { RepuestoService } from './repuesto.service';
 import { CreateRepuestoDto } from './dto/create-repuesto.dto';
 
@@ -24,6 +24,11 @@ export class RepuestoController {
   @Patch(':id/stock')
   updateStock(@Param('id') id: string, @Body('stock') stock: number) {
     return this.repuestoService.updateStock(+id, stock);
+  }
+
+  @Post(':id/alerta-stock-minimo')
+  generarAlertaStockMinimo(@Param('id') id: string, @Body() alertaDto: { stockMinimo: number }) {
+    return this.repuestoService.generarAlertaStockMinimo(+id, alertaDto.stockMinimo);
   }
 
   @Delete(':id')

@@ -6,7 +6,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
- 
+
 model User {
   id              Int          @id @default(autoincrement())
   username        String
@@ -59,14 +59,16 @@ model Documento {
 }
 
 model OrdenTrabajo {
-  id         Int      @id @default(autoincrement())
-  tipo       String
-  estado     String   @default("abierta")
-  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id])
-  vehiculoId Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  qa         QA[]
+  id            Int      @id @default(autoincrement())
+  tipo          String
+  estado        String   @default("abierta")
+  vehiculo      Vehiculo @relation(fields: [vehiculoId], references: [id])
+  vehiculoId    Int
+  tareas        String[]
+  responsableId Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  qa            QA[]
 }
 
 model QA {
@@ -81,6 +83,7 @@ model QA {
 model SolicitudCompra {
   id        Int        @id @default(autoincrement())
   monto     Float
+  aprobada  Boolean    @default(false)
   createdAt DateTime   @default(now())
   repuestos Repuesto[]
 }
@@ -107,14 +110,15 @@ enum TicketPriority {
   Media
   Alta
   Urgente
-
 }
+
 enum VehiculoStatus {
   disponible
   en_mantenimiento
   inactivo
   en_uso
 }
+
 /// Enum de roles
 enum Role {
   Admin

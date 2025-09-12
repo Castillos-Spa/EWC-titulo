@@ -25,4 +25,9 @@ export class SolicitudCompraController {
   remove(@Param('id') id: string) {
     return this.solicitudCompraService.removeSolicitudCompra(+id);
   }
+
+  @Post(':id/aprobar')
+  async aprobarSolicitud(@Param('id') id: string) {
+    return this.solicitudCompraService.aprobarSolicitud(+id);
+  }
 }

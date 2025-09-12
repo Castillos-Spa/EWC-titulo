@@ -40,4 +40,11 @@ export class SolicitudCompraService {
       where: { id },
     });
   }
+
+  async aprobarSolicitud(id: number) {
+    return this.prisma.solicitudCompra.update({
+      where: { id },
+      data: { aprobada: true }, // Asegúrate de que el modelo SolicitudCompra tenga un campo aprobada: Boolean
+    });
+  }
 }
