@@ -8,6 +8,17 @@ export class QaService implements IQaService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createQADto: CreateQADto) {
+    // Check if the work order (OT) exists
+    const ordenTrabajo = await this.prisma.ordenTrabajo.findUnique({
+      where: { id: createQADto.otId },
+    });
+
+    // If the OT doesn't exist, throw an error
+    if (!ordenTrabajo) {
+      throw new Error(`The work order with ID ${createQADto.otId} was not found.`);
+    }
+
+    // If the OT exists, proceed to create the QA record
     return this.prisma.qA.create({
       data: {
         otId: createQADto.otId,

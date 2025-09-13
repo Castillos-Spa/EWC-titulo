@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { QaService } from './qa.service';
 import { CreateQADto } from './dto/create-qa.dto';
 
@@ -17,17 +17,17 @@ export class QaController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.qaService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.qaService.findOne(id);
   }
 
   @Post(':otId/bloquear')
-  bloquearLiberacion(@Param('otId') otId: string) {
-    return this.qaService.bloquearLiberacion(+otId);
+  bloquearLiberacion(@Param('otId', ParseIntPipe) otId: number) {
+    return this.qaService.bloquearLiberacion(otId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.qaService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.qaService.remove(id);
   }
 }

@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { CreateOrdenTrabajoDto } from './dto/create-orden-trabajo.dto';
 import { UpdateOrdenTrabajoDto } from './dto/update-orden-trabajo.dto';
 import { PrismaService } from 'prisma/prisma.service';
-import { CreateQADto } from '@/qa/dto/create-qa.dto';
 
 @Injectable()
 export class OrdenTrabajoService {
@@ -55,16 +54,23 @@ export class OrdenTrabajoService {
   }
 
   // Cerrar una orden de trabajo y crear un registro en QA
-  async cerrarOT(id: number, createQADto: CreateQADto) {
+  async cerrarOT(id: number, checklist: string, resultado: string) {
+    // Verificar si la orden de OT existe
+    const ordenTrabajo = await this.prisma.ordenTrabajo.findUnique({ where: { id } });
+    if (!ordenTrabajo) {
+      throw new Error(`Orden de trabajo con ID ${id} no encontrada`);
+    } // Actualizar el estado de la OT a "Cerrada"
+
     await this.prisma.ordenTrabajo.update({
       where: { id },
       data: { estado: 'Cerrada' },
-    });
+    }); // Crear un registro en la tabla de QA
+
     return this.prisma.qA.create({
       data: {
         otId: id,
-        checklist: createQADto.checklist,
-        resultado: createQADto.resultado,
+        checklist: checklist,
+        resultado: resultado,
       },
     });
   }

@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateSolicitudCompraDto } from './dto/create-solicitud-compra.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class SolicitudCompraService {
@@ -36,15 +37,34 @@ export class SolicitudCompraService {
 
   // Eliminar una solicitud de compra
   async removeSolicitudCompra(id: number) {
-    return this.prisma.solicitudCompra.delete({
-      where: { id },
-    });
+    try {
+      return await this.prisma.solicitudCompra.delete({
+        where: { id },
+      });
+    } catch (error) {
+      // Captura el error de Prisma si no se encuentra el registro
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException(`Solicitud de compra con ID ${id} no encontrada.`);
+      }
+      // Re-lanza cualquier otro error
+      throw error;
+    }
   }
 
+  // Aprobar una solicitud de compra
   async aprobarSolicitud(id: number) {
-    return this.prisma.solicitudCompra.update({
-      where: { id },
-      data: { aprobada: true }, // Asegúrate de que el modelo SolicitudCompra tenga un campo aprobada: Boolean
-    });
+    try {
+      return await this.prisma.solicitudCompra.update({
+        where: { id },
+        data: { aprobada: true },
+      });
+    } catch (error) {
+      // Captura el error de Prisma si no se encuentra el registro
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException(`Solicitud de compra con ID ${id} no encontrada.`);
+      }
+      // Re-lanza cualquier otro error
+      throw error;
+    }
   }
 }

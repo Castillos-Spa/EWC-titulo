@@ -1,8 +1,7 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, ParseIntPipe } from '@nestjs/common';
 import { OrdenTrabajoService } from './orden-trabajo.service';
 import { CreateOrdenTrabajoDto } from './dto/create-orden-trabajo.dto';
 import { UpdateOrdenTrabajoDto } from './dto/update-orden-trabajo.dto';
-import { CreateQADto } from '@/qa/dto/create-qa.dto';
 
 @Controller('orden-trabajo')
 export class OrdenTrabajoController {
@@ -19,32 +18,32 @@ export class OrdenTrabajoController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ordenTrabajoService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.ordenTrabajoService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrdenTrabajoDto: UpdateOrdenTrabajoDto) {
-    return this.ordenTrabajoService.update(+id, updateOrdenTrabajoDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateOrdenTrabajoDto: UpdateOrdenTrabajoDto) {
+    return this.ordenTrabajoService.update(id, updateOrdenTrabajoDto);
   }
 
   @Post(':id/tareas')
-  planificarTareas(@Param('id') id: string, @Body() tareasDto: { tareas: string[] }) {
-    return this.ordenTrabajoService.planificarTareas(+id, tareasDto.tareas);
+  planificarTareas(@Param('id', ParseIntPipe) id: number, @Body() tareasDto: { tareas: string[] }) {
+    return this.ordenTrabajoService.planificarTareas(id, tareasDto.tareas);
   }
 
   @Post(':id/responsable')
-  asignarResponsable(@Param('id') id: string, @Body() responsableDto: { responsableId: number }) {
-    return this.ordenTrabajoService.asignarResponsable(+id, responsableDto.responsableId);
+  asignarResponsable(@Param('id', ParseIntPipe) id: number, @Body() responsableDto: { responsableId: number }) {
+    return this.ordenTrabajoService.asignarResponsable(id, responsableDto.responsableId);
   }
 
   @Post(':id/cerrar')
-  cerrarOT(@Param('id') id: string, @Body() createQADto: CreateQADto) {
-    return this.ordenTrabajoService.cerrarOT(+id, createQADto);
+  cerrarOT(@Param('id', ParseIntPipe) id: number, @Body() body: { checklist: string; resultado: string }) {
+    return this.ordenTrabajoService.cerrarOT(id, body.checklist, body.resultado);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.ordenTrabajoService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.ordenTrabajoService.remove(id);
   }
 }
