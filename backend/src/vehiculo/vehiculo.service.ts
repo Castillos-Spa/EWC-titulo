@@ -25,11 +25,20 @@ export class VehiculoService {
     });
   }
 
-  updateVehiculo(id: number, updateVehiculoDto: UpdateVehiculoDto) {
-    return this.prisma.vehiculo.update({
-      where: { id: id },
-      data: updateVehiculoDto,
-    });
+  async updateVehiculo(id: number, updateVehiculoDto: UpdateVehiculoDto) {
+    try {
+      return await this.prisma.vehiculo.update({
+        where: { id: id },
+        data: updateVehiculoDto,
+      });
+    } catch (error) {
+      // Captura el error de Prisma si no se encuentra el registro
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException(`Vehículo con ID ${id} no encontrado.`);
+      }
+      // Re-lanza cualquier otro error
+      throw error;
+    }
   }
 
   async removeVehiculo(id: number) {

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param } from '@nestjs/common';
+import { Controller, Post, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { TallerService } from './taller.service';
 import { CreateOrdenTrabajoTallerDto } from './dto/create-taller.dto';
 
@@ -13,10 +13,10 @@ export class TallerController {
 
   @Post('orden-trabajo/:otId/cerrar')
   cerrarOrdenTrabajo(
-    @Param('otId') otId: string,
+    @Param('otId', ParseIntPipe) otId: number,
     @Body('checklist') checklist: string,
     @Body('resultado') resultado: string,
   ) {
-    return this.tallerService.cerrarOrdenTrabajo(+otId, checklist, resultado);
+    return this.tallerService.cerrarOrdenTrabajo(otId, checklist, resultado);
   }
 }

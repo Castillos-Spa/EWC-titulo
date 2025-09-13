@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, ParseIntPipe } from '@nestjs/common';
 import { RepuestoService } from './repuesto.service';
 import { CreateRepuestoDto } from './dto/create-repuesto.dto';
 
@@ -17,22 +17,22 @@ export class RepuestoController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.repuestoService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.repuestoService.findOne(id);
   }
 
   @Patch(':id/stock')
-  updateStock(@Param('id') id: string, @Body('stock') stock: number) {
-    return this.repuestoService.updateStock(+id, stock);
+  updateStock(@Param('id', ParseIntPipe) id: number, @Body('stock') stock: number) {
+    return this.repuestoService.updateStock(id, stock);
   }
 
   @Post(':id/alerta-stock-minimo')
-  generarAlertaStockMinimo(@Param('id') id: string, @Body() alertaDto: { stockMinimo: number }) {
-    return this.repuestoService.generarAlertaStockMinimo(+id, alertaDto.stockMinimo);
+  generarAlertaStockMinimo(@Param('id', ParseIntPipe) id: number, @Body() alertaDto: { stockMinimo: number }) {
+    return this.repuestoService.generarAlertaStockMinimo(id, alertaDto.stockMinimo);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.repuestoService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.repuestoService.remove(id);
   }
 }

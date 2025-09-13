@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRepuestoDto } from './dto/create-repuesto.dto';
 import { PrismaService } from 'prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class RepuestoService {
@@ -31,10 +32,17 @@ export class RepuestoService {
   }
 
   async updateStock(id: number, stock: number) {
-    return this.prisma.repuesto.update({
-      where: { id },
-      data: { stock },
-    });
+    try {
+      return await this.prisma.repuesto.update({
+        where: { id },
+        data: { stock },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException(`Repuesto con ID ${id} no encontrado.`);
+      }
+      throw error;
+    }
   }
 
   // Generar alerta cuando el stock es mínimo
@@ -53,8 +61,15 @@ export class RepuestoService {
   }
 
   async remove(id: number) {
-    return this.prisma.repuesto.delete({
-      where: { id },
-    });
+    try {
+      return await this.prisma.repuesto.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException(`Repuesto con ID ${id} no encontrado.`);
+      }
+      throw error;
+    }
   }
 }

@@ -8,5 +8,8 @@ module.exports = {
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
- 
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
+    '^prisma/(.*)$': '<rootDir>/../prisma/$1', // ← COMENTA O ELIMINA ESTA LÍNEA
+  },
 };
