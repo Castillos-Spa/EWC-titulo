@@ -17,6 +17,7 @@ import {
 interface SidebarProps {
   currentPage: string;
   onPageChange: (page: string) => void;
+  showProfile?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {

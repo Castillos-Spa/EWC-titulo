@@ -12,6 +12,7 @@ import EnhancedTicketSystem from './components/Tickets/EnhancedTicketSystem';
 import CleaningReports from './components/GeneralServices/CleaningReports';
 import CivilWorks from './components/GeneralServices/CivilWorks';
 import UserManagement from './components/Admin/UserManagement';
+import UserProfile from './components/Profile/UserProfile';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import { changePassword as apiChangePassword } from './utils/userApi';
 
@@ -19,6 +20,7 @@ const AppContent: React.FC = () => {
   const { user, isLoading, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     // Debug visual para ver el valor de user y mustChangePassword
@@ -71,11 +73,26 @@ const AppContent: React.FC = () => {
       case 'civil-works': return 'Civil Works Reports';
       case 'tickets': return 'Ticket System';
       case 'user-management': return 'User Management';
+      case 'profile': return 'Mi Perfil';
       default: return 'Dashboard';
     }
   };
 
+  const handleProfileClick = () => {
+    setCurrentPage('profile');
+    setShowProfile(true);
+  };
+
+
   const renderPage = () => {
+    if (showProfile || currentPage === 'profile') {
+      return <UserProfile />;
+    }
+
+    if (showProfile || currentPage === 'profile') {
+      return <UserProfile />;
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return <DashboardHome />;
@@ -116,10 +133,14 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-      
+      <Sidebar currentPage={currentPage} 
+      onPageChange={(page) => {
+        setCurrentPage(page);
+        setShowProfile(false);
+      }}
+      showProfile={showProfile} />
       <div className="flex flex-col flex-1 overflow-hidden">
-        <Header title={getPageTitle(currentPage)} />
+        <Header title={getPageTitle(currentPage)} onProfileClick={handleProfileClick} />
         
         <main className="flex-1 p-6 overflow-y-auto">
           {renderPage()}
