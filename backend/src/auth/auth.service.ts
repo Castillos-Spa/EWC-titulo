@@ -41,8 +41,15 @@ export class AuthService {
     };
     const access_token = this.jwtService.sign(payload, { expiresIn: '5m' });
     const refresh_token = this.jwtService.sign(payload, { expiresIn: '7d' });
-    // Guarda el refresh_token (o su hash) en la base de datos si quieres invalidarlo luego
+
+    const hashedRefreshToken = await bcrypt.hash(refresh_token, 10);
+    await this.usersService.setRefreshToken(user.id, hashedRefreshToken);
+
     return { access_token, refresh_token };
+  }
+
+  async logout(userId: number): Promise<void> {
+    await this.usersService.setRefreshToken(userId, null);
   }
 
   async register(registerDto: RegisterDto) {
@@ -55,8 +62,14 @@ export class AuthService {
       const payload = this.jwtService.verify(token);
       const user = await this.usersService.findById(payload.sub);
 
-      if (!user || !user.active) {
-        throw new UnauthorizedException('User not found or inactive');
+      if (!user || !user.active || !user.refreshToken) {
+        throw new UnauthorizedException('Access Denied');
+      }
+
+      const isRefreshTokenMatching = await bcrypt.compare(token, user.refreshToken);
+
+      if (!isRefreshTokenMatching) {
+        throw new UnauthorizedException('Access Denied');
       }
 
       // El usuario es válido, se crea un nuevo access token con datos actualizados

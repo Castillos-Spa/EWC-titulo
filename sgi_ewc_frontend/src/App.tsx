@@ -130,11 +130,11 @@ const AppContent: React.FC = () => {
         <ChangePasswordModal
           onSubmit={async (newPassword: string) => {
             await apiChangePassword(user.id, newPassword);
-            logout();
+            await logout();
             setShowChangePassword(false);
           }}
-          onCancel={() => {
-            logout();
+          onCancel={async () => {
+            await logout();
             setShowChangePassword(false);
           }}
         />

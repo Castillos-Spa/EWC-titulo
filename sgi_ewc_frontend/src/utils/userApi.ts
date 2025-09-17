@@ -1,3 +1,26 @@
+import apiFetch from "./api";
+import { User } from "../types/User";
+
+// --- Auth ---
+
+export async function login(
+  email: string,
+  password: string
+): Promise<{ access_token: string; refresh_token: string }> {
+  return apiFetch("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function getProfile(): Promise<User> {
+  return apiFetch("/auth/profile", { method: "GET" });
+}
+
+export async function logoutUser(): Promise<{ message: string }> {
+  return apiFetch("/auth/logout", { method: "POST" });
+}
+
 // Obtener la contraseña temporal de un usuario (solo si mustChangePassword=true)
 export async function getTempPassword(userId: number): Promise<string> {
   const res = await apiFetch(`/users/${userId}/temp-password`, {
@@ -19,9 +42,8 @@ export async function changePassword(
     body: JSON.stringify({ password: newPassword }),
   });
 }
-import apiFetch from "./api";
-import { User } from "../types/User";
 
+// --- User Management ---
 export async function getUsers(): Promise<User[]> {
   return apiFetch("/users", { method: "GET" });
 }

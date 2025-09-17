@@ -22,6 +22,7 @@ model User {
   active             Boolean      @default(true)
   lastLogin          DateTime?
   mustChangePassword Boolean      @default(false)
+  refreshToken       String?      @unique
 }
 
 model Ticket {
@@ -125,10 +126,10 @@ enum VehiculoStatus {
 /// Enum de roles
 enum Role {
   Admin
-  Transporte
+  Transporte //Solo supervisora
   Driver
-  Obras
-  Aseo
+  Obras //Solo supervisora
+  Aseo //Solo supervisora
   IT
   User //TODO eliminarlo
   //TODO crear mecanico

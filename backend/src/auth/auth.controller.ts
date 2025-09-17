@@ -30,10 +30,11 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
-  @Public()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout() {
+  async logout(@Request() req) {
+    // req.user contiene el payload del JWT validado por el guard global
+    await this.authService.logout(req.user.userId);
     return { message: 'Se ha cerrado la sesión con éxito' };
   }
 
