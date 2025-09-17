@@ -65,11 +65,11 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
           className="w-full px-3 py-2 border rounded-lg"
         >
           <option value="">Seleccionar rol</option>
-          <option value="admin">Administrador</option>
-          <option value="transport_supervisor">Supervisor Transporte</option>
-          <option value="driver">Conductor</option>
-          <option value="civil_works">Obras Civiles</option>
-          <option value="cleaning">Personal Limpieza</option>
+          <option value="Admin">Administrador</option>
+          <option value="Transporte">Supervisor Transporte</option>
+          <option value="Driver">Conductor</option>
+          <option value="Obras">Obras Civiles</option>
+          <option value="Aseo">Personal Limpieza</option>
           <option value="IT">Personal IT</option>
           <option value="user">Usuario</option>
         </select>
