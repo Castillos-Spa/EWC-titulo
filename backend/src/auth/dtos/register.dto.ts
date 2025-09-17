@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEmail, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsEmail, MinLength, IsArray, IsBoolean, IsOptional } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -14,7 +14,21 @@ export class RegisterDto {
   area: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MinLength(6)
-  password: string;
+  password?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  roles?: string[];
+
+  @IsBoolean()
+  @IsOptional()
+  active?: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  permissions?: string[];
 }

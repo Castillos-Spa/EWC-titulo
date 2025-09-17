@@ -25,6 +25,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!payload.email) {
       throw new UnauthorizedException('Token invalido: falta email');
     }
-    return { userId: payload.sub, email: payload.email, roles: payload.roles, permissions: payload.permissions };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      username: payload.username,
+      roles: payload.roles,
+      permissions: payload.permissions,
+      area: payload.area,
+      active: payload.active,
+      mustChangePassword: payload.mustChangePassword,
+    };
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dtos/register.dto';
@@ -29,14 +29,56 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { email: user.email, sub: user.id, roles: user.roles, permissions: user.permissions };
-    return {
-      access_token: this.jwtService.sign(payload),
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+      roles: user.roles,
+      area: user.area,
+      permissions: user.permissions,
+      mustChangePassword: user.mustChangePassword,
+      active: user.active,
     };
+    const access_token = this.jwtService.sign(payload, { expiresIn: '5m' });
+    const refresh_token = this.jwtService.sign(payload, { expiresIn: '7d' });
+    // Guarda el refresh_token (o su hash) en la base de datos si quieres invalidarlo luego
+    return { access_token, refresh_token };
   }
 
   async register(registerDto: RegisterDto) {
     const user = await this.usersService.register(registerDto);
     return user;
+  }
+
+  async refreshToken(token: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      const user = await this.usersService.findById(payload.sub);
+
+      if (!user || !user.active) {
+        throw new UnauthorizedException('User not found or inactive');
+      }
+
+      // El usuario es válido, se crea un nuevo access token con datos actualizados
+      const newPayload = {
+        sub: user.id,
+        email: user.email,
+        username: user.username,
+        roles: user.roles,
+        area: user.area,
+        permissions: user.permissions,
+        mustChangePassword: user.mustChangePassword,
+        active: user.active,
+      };
+
+      const newAccessToken = this.jwtService.sign(newPayload, { expiresIn: '5m' });
+
+      return { access_token: newAccessToken };
+    } catch (e) {
+      if (e instanceof UnauthorizedException) {
+        throw e; // Re-lanzar la excepción específica si ya es del tipo correcto
+      }
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
   }
 }

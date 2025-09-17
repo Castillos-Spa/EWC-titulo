@@ -23,6 +23,9 @@ describe('UsersService', () => {
     permissions: [Permission.VIEW_DASHBOARD],
     createdAt: new Date(),
     updatedAt: new Date(),
+    active: true,
+    lastLogin: null,
+    mustChangePassword: false,
   };
 
   const mockUserWithoutPassword = {
@@ -34,6 +37,9 @@ describe('UsersService', () => {
     permissions: [Permission.VIEW_DASHBOARD],
     createdAt: expect.any(Date),
     updatedAt: expect.any(Date),
+    active: true,
+    lastLogin: null,
+    mustChangePassword: false,
   };
 
   beforeEach(async () => {
@@ -49,6 +55,7 @@ describe('UsersService', () => {
               findMany: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
             },
           },
         },
@@ -132,12 +139,18 @@ describe('UsersService', () => {
         area: 'Administración',
       };
 
+      const createdUser: User = {
+        ...mockUser,
+        mustChangePassword: false,
+      };
+
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-      jest.spyOn(prismaService.user, 'create').mockResolvedValue(mockUser);
+      jest.spyOn(prismaService.user, 'create').mockResolvedValue(createdUser);
 
       const result = await usersService.register(registerDto);
 
-      expect(result).toEqual(mockUserWithoutPassword);
+      const { password, ...expectedUser } = createdUser;
+      expect(result).toEqual({ user: expectedUser, tempPassword: undefined });
       expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
       expect(prismaService.user.create).toHaveBeenCalledWith({
         data: {
@@ -145,6 +158,45 @@ describe('UsersService', () => {
           email: 'test@example.com',
           area: 'Administración',
           password: 'hashedPassword',
+          mustChangePassword: false,
+          roles: [Role.User],
+          permissions: [Permission.VIEW_DASHBOARD],
+        },
+      });
+    });
+
+    it('debería crear un usuario con contraseña temporal si no se proporciona una', async () => {
+      const registerDto: RegisterDto = {
+        username: 'newuser',
+        email: 'new@example.com',
+        area: 'IT',
+      };
+
+      const createdUser: User = {
+        ...mockUser,
+        id: 2,
+        username: 'newuser',
+        email: 'new@example.com',
+        area: 'IT',
+        mustChangePassword: true,
+      };
+
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedTempPassword');
+      jest.spyOn(prismaService.user, 'create').mockResolvedValue(createdUser);
+      jest.spyOn(usersService, 'generateTempPassword').mockReturnValue('temp_password_123');
+
+      const result = await usersService.register(registerDto);
+
+      const { password, ...expectedUser } = createdUser;
+      expect(result).toEqual({ user: expectedUser, tempPassword: 'temp_password_123' });
+      expect(bcrypt.hash).toHaveBeenCalledWith('temp_password_123', 10);
+      expect(prismaService.user.create).toHaveBeenCalledWith({
+        data: {
+          username: 'newuser',
+          email: 'new@example.com',
+          area: 'IT',
+          password: 'hashedTempPassword',
+          mustChangePassword: true,
           roles: [Role.User],
           permissions: [Permission.VIEW_DASHBOARD],
         },
@@ -169,6 +221,9 @@ describe('UsersService', () => {
           permissions: true,
           createdAt: true,
           updatedAt: true,
+          active: true,
+          lastLogin: true,
+          mustChangePassword: true,
         },
       });
     });

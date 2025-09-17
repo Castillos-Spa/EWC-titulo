@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Request,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { Public } from './decorators/public.decorator';
@@ -27,14 +37,22 @@ export class AuthController {
     return { message: 'Se ha cerrado la sesión con éxito' };
   }
 
+  @Post('refresh')
+  @Public()
+  async refresh(@Body() { refreshToken }: { refreshToken: string }) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is missing');
+    }
+    return this.authService.refreshToken(refreshToken);
+  }
+
   @Get('profile')
-  @UseGuards(RolesGuard, PermissionsGuard)
-  @Roles(Role.Admin, Role.Driver)
-  @RequirePermissions(Permission.VIEW_ROUTES)
   getProfile(@Request() req) {
     return req.user;
   }
 
+  @Roles(Role.Admin)
+  @UseGuards(RolesGuard)
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);

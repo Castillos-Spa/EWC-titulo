@@ -8,17 +8,20 @@ datasource db {
 }
 
 model User {
-  id              Int          @id @default(autoincrement())
-  username        String
-  email           String       @unique
-  area            String
-  password        String
-  roles           Role[]       @default([])
-  permissions     Permission[] @default([])
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  assignedTickets Ticket[]     @relation("AssignedTickets")
-  createdTickets  Ticket[]     @relation("CreatedTickets")
+  id                 Int          @id @default(autoincrement())
+  username           String
+  email              String       @unique
+  area               String
+  password           String
+  roles              Role[]       @default([])
+  permissions        Permission[] @default([])
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  assignedTickets    Ticket[]     @relation("AssignedTickets")
+  createdTickets     Ticket[]     @relation("CreatedTickets")
+  active             Boolean      @default(true)
+  lastLogin          DateTime?
+  mustChangePassword Boolean      @default(false)
 }
 
 model Ticket {
@@ -127,24 +130,35 @@ enum Role {
   Obras
   Aseo
   IT
-  User
+  User //TODO eliminarlo
+  //TODO crear mecanico
 }
 
 /// Enum de permisos
 enum Permission {
+  //ALL users y IT
   VIEW_DASHBOARD
   VIEW_TICKETS
   MANAGE_TICKETS
-  VIEW_TRIP_REPORTS
-  MANAGE_TRIP_REPORTS
-  VIEW_ROUTES
+
+  //Sup Transporte 
   MANAGE_ROUTES
-  VIEW_FLEET
   MANAGE_FLEET
+  //Sup Transporte y  Driver 
+  VIEW_TRIP_REPORTS
+  MANAGE_TRIP_REPORTS //Driver crea solamente reportes
+  VIEW_ROUTES
+  //Sup transporte y mecanico
+  VIEW_FLEET
   VIEW_MAINTENANCE
   MANAGE_MAINTENANCE
+
+  //Obras 
   VIEW_CIVIL_WORKS
   MANAGE_CIVIL_WORKS
+
+  //Aseo  
   VIEW_CLEANING_REPORTS
   MANAGE_CLEANING_REPORTS
+  //  TODO agregar permiso de CRUD management user
 }
