@@ -7,12 +7,7 @@ import * as crypto from 'crypto';
 
 const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   Admin: Object.values(Permission),
-  IT: [
-    Permission.VIEW_DASHBOARD,
-    Permission.VIEW_TICKETS,
-    Permission.MANAGE_TICKETS,
-    // Agrega más si lo necesitas
-  ],
+  IT: [Permission.VIEW_DASHBOARD, Permission.VIEW_TICKETS, Permission.MANAGE_TICKETS],
   // Otros roles...
 };
 
@@ -138,6 +133,7 @@ export class UsersService {
         active: true,
         lastLogin: true,
         mustChangePassword: true,
+        refreshToken: true, // Añadir este campo para que coincida con el tipo de retorno
       },
     });
     return users;
@@ -191,5 +187,12 @@ export class UsersService {
       },
     });
     return { tempPassword }; // Devuelve la nueva password temporal
+  }
+
+  async setRefreshToken(userId: number, refreshTokenHash: string | null) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: refreshTokenHash },
+    });
   }
 }
