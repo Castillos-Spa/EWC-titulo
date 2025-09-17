@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin, getProfile } from '../utils/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { login as apiLogin, getProfile, logoutUser } from '../utils/userApi';
 import { User } from '../types/User';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -36,10 +36,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const result = await apiLogin(email, password); // { access_token }
-      const token = result?.access_token;
-      if (!token) throw new Error('No token received');
-      localStorage.setItem('authToken', token);
+      // El backend devuelve access_token y refresh_token
+      const { access_token, refresh_token } = await apiLogin(email, password);
+      if (!access_token || !refresh_token) {
+        throw new Error('No se recibieron los tokens necesarios');
+      }
+
+      localStorage.setItem('authToken', access_token);
+      localStorage.setItem('refreshToken', refresh_token); // ¡Guardar el refresh token!
       // Obtener perfil desde backend
       const profile = await getProfile();
       // mapear/normalizar si es necesario (ejemplo mínimo)
@@ -65,11 +69,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    setUser(null);
-  };
+  const logout = useCallback(async () => {
+    try {
+      // Llama al backend para invalidar la sesión en el servidor.
+      await logoutUser();
+    } catch (error) {
+      // Incluso si la llamada a la API falla, el logout del frontend debe continuar.
+      console.error("Fallo al cerrar sesión en el servidor:", error);
+    } finally {
+      // Limpia los tokens y el estado local sin importar el resultado de la API.
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userData');
+      setUser(null);
+    }
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoading }}>

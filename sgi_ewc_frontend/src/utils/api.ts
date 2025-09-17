@@ -28,10 +28,21 @@ async function apiFetch(path: string, options: FetchOptions = {}) {
       // Reintenta la petición original con el nuevo token
       headers["Authorization"] = `Bearer ${access_token}`;
       const retryRes = await fetch(url, { ...options, headers });
-      if (!retryRes.ok) throw new Error(retryRes.statusText);
+      if (!retryRes.ok) {
+        // Si el reintento también falla, es un logout definitivo.
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("refreshToken");
+        window.dispatchEvent(new Event("force-logout"));
+        throw new Error(retryRes.statusText);
+      }
       return await retryRes.json();
     } else {
-      throw new Error("Unauthorized");
+      // Si el refresh token es inválido o expiró, limpiamos todo y forzamos el logout.
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("refreshToken");
+      // Disparamos un evento global para que la UI reaccione.
+      window.dispatchEvent(new Event("force-logout"));
+      throw new Error("Unauthorized: Session expired");
     }
   }
   const text = await res.text();
@@ -43,20 +54,6 @@ async function apiFetch(path: string, options: FetchOptions = {}) {
     throw err;
   }
   return data;
-}
-
-export async function login(email: string, password: string) {
-  // POST /auth/login -> { access_token: '...' }
-  return apiFetch("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-    authenticate: false, // login no lleva token
-  });
-}
-
-export async function getProfile() {
-  // GET /auth/profile (asegúrate que backend exponga este endpoint)
-  return apiFetch("/auth/profile", { method: "GET" });
 }
 
 export default apiFetch;
