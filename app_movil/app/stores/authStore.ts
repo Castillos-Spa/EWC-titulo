@@ -1,10 +1,63 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
-import { AuthService, User, LoginCredentials, AuthTokens } from '../services/AuthService';
+import { SafeStorage } from '../services/SafeStorage';
+import { AuthService, User, AuthTokens } from '../services/AuthService';
 import { BiometricService } from '../services/BiometricService';
 import { NotificationService } from '../services/NotificationService';
 
 export type { User } from '../services/AuthService';
+
+type StoredAuth = { user: User; tokens: AuthTokens };
+
+const isExpired = (expiresAt: string): boolean => {
+  const now = Date.now();
+  const exp = new Date(expiresAt).getTime();
+  return now >= exp;
+};
+
+async function tryBiometricLogin(): Promise<StoredAuth | null> {
+  const biometricData = await BiometricService.authenticateWithBiometric();
+  if (!biometricData) return null;
+  try {
+    if ('refreshToken' in biometricData) {
+      const newTokens = await AuthService.refreshToken(biometricData.refreshToken);
+      const validatedUser = await AuthService.validateToken(newTokens.accessToken);
+      if (!validatedUser) throw new Error('No se pudo validar sesión biométrica');
+      return { user: validatedUser, tokens: newTokens };
+    }
+    const res = await AuthService.login(biometricData);
+    return { user: res.user, tokens: res.tokens };
+  } catch (err) {
+    console.warn('Biometric login failed, fallback to stored tokens:', err);
+    return null;
+  }
+}
+
+async function readStoredAuthFromStorage(): Promise<StoredAuth | null> {
+  const accessToken = await SafeStorage.getItem('accessToken');
+  const refreshToken = await SafeStorage.getItem('refreshToken');
+  const expiresAt = await SafeStorage.getItem('expiresAt');
+  const userData = await SafeStorage.getItem('userData');
+  if (!accessToken || !refreshToken || !expiresAt || !userData) return null;
+  try {
+    const user: User = JSON.parse(userData);
+    const tokens: AuthTokens = { accessToken, refreshToken, expiresAt };
+    return { user, tokens };
+  } catch (err) {
+    console.error('Failed to parse stored user data:', err);
+    return null;
+  }
+}
+
+async function refreshTokensIfNeeded(tokens: AuthTokens): Promise<AuthTokens | null> {
+  if (!isExpired(tokens.expiresAt)) return tokens;
+  try {
+    const newTokens = await AuthService.refreshToken(tokens.refreshToken);
+    return newTokens;
+  } catch (err) {
+    console.warn('Token refresh failed:', err);
+    return null;
+  }
+}
 
 interface AuthState {
   user: User | null;
@@ -18,6 +71,7 @@ interface AuthState {
   refreshAuth: () => Promise<void>;
   clearError: () => void;
   setupNotifications: () => Promise<void>;
+  enableBiometricForCurrentSession: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -34,10 +88,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { user, tokens } = await AuthService.login({ email, password });
 
       // Guardar tokens de forma segura
-      await SecureStore.setItemAsync('accessToken', tokens.accessToken);
-      await SecureStore.setItemAsync('refreshToken', tokens.refreshToken);
-      await SecureStore.setItemAsync('expiresAt', tokens.expiresAt);
-      await SecureStore.setItemAsync('userData', JSON.stringify(user));
+  await SafeStorage.setItem('accessToken', tokens.accessToken);
+  await SafeStorage.setItem('refreshToken', tokens.refreshToken);
+  await SafeStorage.setItem('expiresAt', tokens.expiresAt);
+  await SafeStorage.setItem('userData', JSON.stringify(user));
 
       set({ 
         user, 
@@ -61,10 +115,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await AuthService.logout();
       
       // Limpiar tokens seguros
-      await SecureStore.deleteItemAsync('accessToken');
-      await SecureStore.deleteItemAsync('refreshToken');
-      await SecureStore.deleteItemAsync('expiresAt');
-      await SecureStore.deleteItemAsync('userData');
+  await SafeStorage.deleteItem('accessToken');
+  await SafeStorage.deleteItem('refreshToken');
+  await SafeStorage.deleteItem('expiresAt');
+  await SafeStorage.deleteItem('userData');
       
       set({ 
         user: null, 
@@ -79,78 +133,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loadStoredAuth: async () => {
     set({ isLoading: true });
-    
     try {
-      // Try biometric authentication first if enabled
-      const biometricCredentials = await BiometricService.authenticateWithBiometric();
-      if (biometricCredentials) {
-        try {
-          const { user, tokens } = await AuthService.login(biometricCredentials);
-          set({ 
-            user, 
-            tokens,
-            isAuthenticated: true, 
-            isLoading: false 
-          });
-          return;
-        } catch (biometricLoginError) {
-          console.warn('Biometric login failed, falling back to stored tokens:', biometricLoginError);
-        }
+      const bio = await tryBiometricLogin();
+      if (bio) {
+        await SafeStorage.setItem('accessToken', bio.tokens.accessToken);
+        await SafeStorage.setItem('refreshToken', bio.tokens.refreshToken);
+        await SafeStorage.setItem('expiresAt', bio.tokens.expiresAt);
+        await SafeStorage.setItem('userData', JSON.stringify(bio.user));
+        set({ user: bio.user, tokens: bio.tokens, isAuthenticated: true, isLoading: false });
+        return;
       }
 
-      const accessToken = await SecureStore.getItemAsync('accessToken');
-      const refreshToken = await SecureStore.getItemAsync('refreshToken');
-      const expiresAt = await SecureStore.getItemAsync('expiresAt');
-      const userData = await SecureStore.getItemAsync('userData');
-      
-      if (accessToken && refreshToken && expiresAt && userData) {
-        const user = JSON.parse(userData);
-        const tokens: AuthTokens = { accessToken, refreshToken, expiresAt };
-        
-        set({ 
-          user, 
-          tokens,
-          isAuthenticated: true, 
-          isLoading: false 
-        });
-        
-        // Verificar si el token ha expirado
-        const now = new Date().getTime();
-        const expiration = new Date(expiresAt).getTime();
-        
-        if (now >= expiration) {
-          // Token expirado, intentar refresh
-          try {
-            const newTokens = await AuthService.refreshToken(refreshToken);
-            await SecureStore.setItemAsync('accessToken', newTokens.accessToken);
-            await SecureStore.setItemAsync('refreshToken', newTokens.refreshToken);
-            await SecureStore.setItemAsync('expiresAt', newTokens.expiresAt);
-            
-            set({ 
-              user, 
-              tokens: newTokens,
-              isAuthenticated: true, 
-              isLoading: false 
-            });
-          } catch (refreshError) {
-            // Refresh falló, hacer logout
-            await get().logout();
-            set({ isLoading: false });
-          }
-        } else {
-          // Token válido
-          set({ 
-            user, 
-            tokens,
-            isAuthenticated: true, 
-            isLoading: false 
-          });
-        }
-      } else {
+      const stored = await readStoredAuthFromStorage();
+      if (!stored) {
         set({ isLoading: false });
+        return;
+      }
+
+      set({ user: stored.user, tokens: stored.tokens, isAuthenticated: true, isLoading: false });
+
+      const refreshed = await refreshTokensIfNeeded(stored.tokens);
+      if (!refreshed) {
+        console.warn('Stored tokens invalid or refresh failed. Logging out.');
+        await get().logout();
+        set({ isLoading: false, error: 'La sesión ha expirado. Por favor, inicia sesión nuevamente.' });
+        return;
+      }
+
+      if (refreshed.expiresAt !== stored.tokens.expiresAt || refreshed.accessToken !== stored.tokens.accessToken) {
+        await SafeStorage.setItem('accessToken', refreshed.accessToken);
+        await SafeStorage.setItem('refreshToken', refreshed.refreshToken);
+        await SafeStorage.setItem('expiresAt', refreshed.expiresAt);
+        set({ tokens: refreshed });
       }
     } catch (error) {
-      set({ isLoading: false });
+      console.error('Failed to load stored auth:', error);
+      set({ isLoading: false, error: 'No se pudo restaurar la sesión.' });
     }
   },
 
@@ -160,13 +178,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     try {
       const newTokens = await AuthService.refreshToken(tokens.refreshToken);
-      await SecureStore.setItemAsync('accessToken', newTokens.accessToken);
-      await SecureStore.setItemAsync('refreshToken', newTokens.refreshToken);
-      await SecureStore.setItemAsync('expiresAt', newTokens.expiresAt);
+      await SafeStorage.setItem('accessToken', newTokens.accessToken);
+      await SafeStorage.setItem('refreshToken', newTokens.refreshToken);
+      await SafeStorage.setItem('expiresAt', newTokens.expiresAt);
       
       set({ tokens: newTokens });
     } catch (error) {
-      // Refresh falló, hacer logout
+      console.warn('Refresh auth failed, logging out:', error);
       await get().logout();
     }
   },
@@ -180,5 +198,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  clearError: () => set({ error: null })
+  clearError: () => set({ error: null }),
+
+  enableBiometricForCurrentSession: async () => {
+    try {
+      const success = await BiometricService.enableBiometricUsingSession();
+      return success;
+    } catch (e) {
+      console.warn('Failed to enable biometric for session:', e);
+      return false;
+    }
+  }
 }));

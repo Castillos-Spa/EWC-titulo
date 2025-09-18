@@ -76,6 +76,47 @@ interface TicketState {
   clearError: () => void;
 }
 
+function updateChecklistInTicket(
+  ticket: Ticket,
+  checklistItemId: string,
+  completed: boolean,
+  notes?: string
+): Ticket {
+  const checklist = ticket.checklist?.map((item) =>
+    item.id === checklistItemId ? { ...item, completed, notes } : item
+  );
+  return {
+    ...ticket,
+    checklist,
+    updatedAt: new Date().toISOString(),
+    syncStatus: 'pending',
+  };
+}
+
+function applyChecklistToTickets(
+  tickets: Ticket[],
+  ticketId: string,
+  checklistItemId: string,
+  completed: boolean,
+  notes?: string
+): Ticket[] {
+  return tickets.map((t) => (t.id === ticketId ? updateChecklistInTicket(t, checklistItemId, completed, notes) : t));
+}
+
+function updateMaterialInTicket(ticket: Ticket, materialId: string, used: number): Ticket {
+  const materials = ticket.materials?.map((m) => (m.id === materialId ? { ...m, used } : m));
+  return {
+    ...ticket,
+    materials,
+    updatedAt: new Date().toISOString(),
+    syncStatus: 'pending',
+  };
+}
+
+function applyMaterialToTickets(tickets: Ticket[], ticketId: string, materialId: string, used: number): Ticket[] {
+  return tickets.map((t) => (t.id === ticketId ? updateMaterialInTicket(t, materialId, used) : t));
+}
+
 export const useTicketStore = create<TicketState>((set, get) => ({
   tickets: [],
   currentTicket: null,
@@ -190,6 +231,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       await DatabaseService.saveTickets(mockTickets);
       set({ tickets: mockTickets, isLoading: false });
     } catch (error) {
+      console.error('Error al cargar tickets:', error);
       set({ error: 'Error al cargar tickets', isLoading: false });
     }
   },
@@ -212,6 +254,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         isSubmitting: false,
       }));
     } catch (error) {
+      console.error('Error al crear ticket:', error);
       set({ error: 'Error al crear ticket', isSubmitting: false });
     }
   },
@@ -232,6 +275,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar ticket:', error);
       set({ error: 'Error al actualizar ticket' });
     }
   },
@@ -253,6 +297,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al iniciar ticket:', error);
       set({ error: 'Error al iniciar ticket' });
     }
   },
@@ -284,6 +329,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         currentTicket: null,
       }));
     } catch (error) {
+      console.error('Error al completar ticket:', error);
       set({ error: 'Error al completar ticket' });
     }
   },
@@ -329,61 +375,25 @@ export const useTicketStore = create<TicketState>((set, get) => ({
   },
 
   updateChecklist: (ticketId: string, checklistItemId: string, completed: boolean, notes?: string) => {
-    set(state => ({
-      tickets: state.tickets.map(ticket =>
-        ticket.id === ticketId
-          ? {
-              ...ticket,
-              checklist: ticket.checklist?.map(item =>
-                item.id === checklistItemId
-                  ? { ...item, completed, notes }
-                  : item
-              ),
-              updatedAt: new Date().toISOString(),
-              syncStatus: 'pending' as const,
-            }
-          : ticket
-      ),
-      currentTicket: state.currentTicket?.id === ticketId
-        ? {
-            ...state.currentTicket,
-            checklist: state.currentTicket.checklist?.map(item =>
-              item.id === checklistItemId
-                ? { ...item, completed, notes }
-                : item
-            ),
-          }
-        : state.currentTicket,
-    }));
+    set((state) => {
+      const tickets = applyChecklistToTickets(state.tickets, ticketId, checklistItemId, completed, notes);
+      const currentTicket =
+        state.currentTicket?.id === ticketId
+          ? updateChecklistInTicket(state.currentTicket, checklistItemId, completed, notes)
+          : state.currentTicket;
+      return { tickets, currentTicket };
+    });
   },
 
   updateMaterialUsage: (ticketId: string, materialId: string, used: number) => {
-    set(state => ({
-      tickets: state.tickets.map(ticket =>
-        ticket.id === ticketId
-          ? {
-              ...ticket,
-              materials: ticket.materials?.map(material =>
-                material.id === materialId
-                  ? { ...material, used }
-                  : material
-              ),
-              updatedAt: new Date().toISOString(),
-              syncStatus: 'pending' as const,
-            }
-          : ticket
-      ),
-      currentTicket: state.currentTicket?.id === ticketId
-        ? {
-            ...state.currentTicket,
-            materials: state.currentTicket.materials?.map(material =>
-              material.id === materialId
-                ? { ...material, used }
-                : material
-            ),
-          }
-        : state.currentTicket,
-    }));
+    set((state) => {
+      const tickets = applyMaterialToTickets(state.tickets, ticketId, materialId, used);
+      const currentTicket =
+        state.currentTicket?.id === ticketId
+          ? updateMaterialInTicket(state.currentTicket, materialId, used)
+          : state.currentTicket;
+      return { tickets, currentTicket };
+    });
   },
 
   setCurrentTicket: (ticket: Ticket | null) => {

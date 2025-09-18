@@ -51,7 +51,7 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       // Simular datos de incidentes para evitar errores de base de datos
-      const mockIncidents = [
+      const mockIncidents: Incident[] = [
         {
           id: 'incident-001',
           type: 'vehicle_breakdown',
@@ -97,6 +97,7 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
       
       set({ incidents: mockIncidents, isLoading: false });
     } catch (error) {
+      console.error('Error al cargar incidentes:', error);
       set({ error: 'Error al cargar incidentes', isLoading: false });
     }
   },
@@ -122,6 +123,7 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
         isSubmitting: false,
       }));
     } catch (error) {
+      console.error('Error al crear incidente:', error);
       set({ error: 'Error al crear incidente', isSubmitting: false });
     }
   },
@@ -138,6 +140,7 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar incidente:', error);
       set({ error: 'Error al actualizar incidente' });
     }
   },

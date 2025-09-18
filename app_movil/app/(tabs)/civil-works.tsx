@@ -6,12 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HardHat, Plus, Filter, RefreshCw, Calendar, CircleCheck as CheckCircle, Clock, MapPin, FileText, Package, TriangleAlert as AlertTriangle, Camera, Shield } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HardHat, Filter, RefreshCw, FileText, TriangleAlert as AlertTriangle, Shield } from 'lucide-react-native';
 import { useCivilWorksStore } from '../stores/civilWorksStore';
 import { useThemeStore } from '../stores/themeStore';
 import { WorkOrderCard } from '../components/WorkOrderCard';
@@ -24,7 +21,6 @@ export default function CivilWorksScreen() {
   const {
     workOrders,
     currentWorkOrder,
-    isLoading,
     error,
     loadWorkOrders,
     setCurrentWorkOrder,

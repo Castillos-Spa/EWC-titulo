@@ -6,12 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ticket, Plus, Filter, RefreshCw, Calendar, CircleCheck as CheckCircle, Clock, TriangleAlert as AlertTriangle, FileText } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ticket, Filter, RefreshCw, Calendar, TriangleAlert as AlertTriangle, FileText } from 'lucide-react-native';
 import { useTicketStore } from '../stores/ticketStore';
 import { useThemeStore } from '../stores/themeStore';
 import { TicketCard } from '../components/TicketCard';
@@ -23,7 +20,6 @@ export default function TicketsScreen() {
   const {
     tickets,
     currentTicket,
-    isLoading,
     error,
     loadTickets,
     setCurrentTicket,

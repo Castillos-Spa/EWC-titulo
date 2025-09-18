@@ -6,14 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Fuel, Plus, Filter, RefreshCw, TrendingUp, TrendingDown, ChartBar as BarChart3, Calendar } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Fuel, Filter, RefreshCw, TrendingUp, TrendingDown, ChartBar as BarChart3, Calendar } from 'lucide-react-native';
 import { useFuelStore } from '../stores/fuelStore';
-import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { FuelCard } from '../components/FuelCard';
 import { CreateFuelRecordModal } from '../components/CreateFuelRecordModal';
@@ -27,14 +23,12 @@ export default function FuelScreen() {
     records,
     analytics,
     currentRecord,
-    isLoading,
     error,
     loadFuelRecords,
     setCurrentRecord,
     clearError,
   } = useFuelStore();
 
-  const { user } = useAuthStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Monitor, Plus, Filter, RefreshCw, MessageCircle, Bell, CircleCheck as CheckCircle, Clock, TriangleAlert as AlertTriangle, FileText, Users, Zap } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Monitor, Plus, Filter, RefreshCw, MessageCircle, Bell, FileText } from 'lucide-react-native';
 import { useITSupportStore } from '../stores/itSupportStore';
 import { useThemeStore } from '../stores/themeStore';
 import { ITTicketCard } from '../components/ITTicketCard';
@@ -25,7 +22,6 @@ export default function ITSupportScreen() {
   const {
     tickets,
     currentTicket,
-    isLoading,
     error,
     loadITTickets,
     setCurrentTicket,
@@ -37,7 +33,7 @@ export default function ITSupportScreen() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [filterPriority] = useState<string>('all');
 
   useEffect(() => {
     loadITTickets();

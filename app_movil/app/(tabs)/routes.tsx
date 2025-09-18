@@ -11,11 +11,11 @@ import { MapPin, Clock, Truck, Plus } from 'lucide-react-native';
 import { useRouteStore } from '../stores/routeStore';
 import { useThemeStore } from '../stores/themeStore';
 import { RouteCard } from '../components/RouteCard';
-import { RouteDetailModal } from '../components/RouteDetailModal';
-import { TripModal } from '../components/TripModal';
+import RouteDetailModal from '../components/RouteDetailModal';
+import TripModal from '../components/TripModal';
 
 export default function RoutesScreen() {
-  const { routes, refreshRoutes } = useRouteStore();
+  const { routes, loadRoutes, selectedTrip } = useRouteStore();
   const { getColors } = useThemeStore();
   const colors = getColors();
   
@@ -26,7 +26,8 @@ export default function RoutesScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refreshRoutes();
+    const today = new Date().toISOString().split('T')[0];
+    await loadRoutes(today);
     setRefreshing(false);
   };
 
@@ -39,9 +40,9 @@ export default function RoutesScreen() {
     setShowTripModal(true);
   };
 
-  const activeRoutes = routes.filter(route => route.status === 'active');
+  const activeRoutes = routes.filter(route => route.status === 'in_progress');
   const completedRoutes = routes.filter(route => route.status === 'completed');
-  const pendingRoutes = routes.filter(route => route.status === 'pending');
+  const pendingRoutes = routes.filter(route => route.status === 'planned');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -102,6 +103,7 @@ export default function RoutesScreen() {
               key={route.id}
               route={route}
               onPress={() => handleRoutePress(route)}
+              progress={`${route.stops.filter((s: any) => s.status === 'completed').length}/${route.stops.length}`}
             />
           ))
         ) : (
@@ -129,8 +131,10 @@ export default function RoutesScreen() {
         />
       )}
 
-      {showTripModal && (
+      {/* Trip modal requiere un trip desde el store (selectedTrip) */}
+      {showTripModal && selectedTrip && (
         <TripModal
+          trip={selectedTrip}
           visible={showTripModal}
           onClose={() => setShowTripModal(false)}
         />

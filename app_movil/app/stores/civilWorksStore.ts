@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { DatabaseService } from '../services/DatabaseService';
 
 export interface WorkOrder {
   id: string;
@@ -71,6 +70,94 @@ export interface ProgressPhoto {
   takenBy: string;
   stage: 'before' | 'during' | 'after' | 'issue';
 }
+
+const updateOrderMaterialUsage = (
+  orders: WorkOrder[],
+  orderId: string,
+  materialId: string,
+  used: number
+): WorkOrder[] =>
+  orders.map(order =>
+    order.id === orderId
+      ? {
+          ...order,
+          materials: order.materials.map(material =>
+            material.id === materialId ? { ...material, used } : material
+          ),
+          updatedAt: new Date().toISOString(),
+          syncStatus: 'pending',
+        }
+      : order
+  );
+
+const updateCurrentOrderMaterialUsage = (
+  current: WorkOrder | null,
+  orderId: string,
+  materialId: string,
+  used: number
+): WorkOrder | null => {
+  if (!current || current.id !== orderId) return current;
+  return {
+    ...current,
+    materials: current.materials.map(material =>
+      material.id === materialId ? { ...material, used } : material
+    ),
+  };
+};
+
+const updateOrderSafetyChecklist = (
+  orders: WorkOrder[],
+  orderId: string,
+  itemId: string,
+  completed: boolean,
+  notes?: string,
+  photoPath?: string
+): WorkOrder[] =>
+  orders.map(order =>
+    order.id === orderId
+      ? {
+          ...order,
+          safetyChecklist: order.safetyChecklist.map(item =>
+            item.id === itemId
+              ? {
+                  ...item,
+                  completed,
+                  notes,
+                  photoPath,
+                  completedAt: completed ? new Date().toISOString() : undefined,
+                }
+              : item
+          ),
+          updatedAt: new Date().toISOString(),
+          syncStatus: 'pending',
+        }
+      : order
+  );
+
+const updateCurrentOrderSafetyChecklist = (
+  current: WorkOrder | null,
+  orderId: string,
+  itemId: string,
+  completed: boolean,
+  notes?: string,
+  photoPath?: string
+): WorkOrder | null => {
+  if (!current || current.id !== orderId) return current;
+  return {
+    ...current,
+    safetyChecklist: current.safetyChecklist.map(item =>
+      item.id === itemId
+        ? {
+            ...item,
+            completed,
+            notes,
+            photoPath,
+            completedAt: completed ? new Date().toISOString() : undefined,
+          }
+        : item
+    ),
+  };
+};
 
 interface CivilWorksState {
   workOrders: WorkOrder[];
@@ -231,6 +318,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
 
       set({ workOrders: mockWorkOrders, isLoading: false });
     } catch (error) {
+      console.error('Error al cargar órdenes de trabajo:', error);
       set({ error: 'Error al cargar órdenes de trabajo', isLoading: false });
     }
   },
@@ -251,6 +339,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         isSubmitting: false,
       }));
     } catch (error) {
+      console.error('Error al crear orden de trabajo:', error);
       set({ error: 'Error al crear orden de trabajo', isSubmitting: false });
     }
   },
@@ -270,6 +359,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar orden de trabajo:', error);
       set({ error: 'Error al actualizar orden de trabajo' });
     }
   },
@@ -290,6 +380,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al iniciar orden de trabajo:', error);
       set({ error: 'Error al iniciar orden de trabajo' });
     }
   },
@@ -320,6 +411,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         currentWorkOrder: null,
       }));
     } catch (error) {
+      console.error('Error al completar orden de trabajo:', error);
       set({ error: 'Error al completar orden de trabajo' });
     }
   },
@@ -352,71 +444,15 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
 
   updateMaterialUsage: (orderId: string, materialId: string, used: number) => {
     set(state => ({
-      workOrders: state.workOrders.map(order =>
-        order.id === orderId
-          ? {
-              ...order,
-              materials: order.materials.map(material =>
-                material.id === materialId
-                  ? { ...material, used }
-                  : material
-              ),
-              updatedAt: new Date().toISOString(),
-              syncStatus: 'pending' as const,
-            }
-          : order
-      ),
-      currentWorkOrder: state.currentWorkOrder?.id === orderId
-        ? {
-            ...state.currentWorkOrder,
-            materials: state.currentWorkOrder.materials.map(material =>
-              material.id === materialId
-                ? { ...material, used }
-                : material
-            ),
-          }
-        : state.currentWorkOrder,
+      workOrders: updateOrderMaterialUsage(state.workOrders, orderId, materialId, used),
+      currentWorkOrder: updateCurrentOrderMaterialUsage(state.currentWorkOrder, orderId, materialId, used),
     }));
   },
 
   updateSafetyChecklist: (orderId: string, itemId: string, completed: boolean, notes?: string, photoPath?: string) => {
     set(state => ({
-      workOrders: state.workOrders.map(order =>
-        order.id === orderId
-          ? {
-              ...order,
-              safetyChecklist: order.safetyChecklist.map(item =>
-                item.id === itemId
-                  ? { 
-                      ...item, 
-                      completed, 
-                      notes, 
-                      photoPath,
-                      completedAt: completed ? new Date().toISOString() : undefined,
-                    }
-                  : item
-              ),
-              updatedAt: new Date().toISOString(),
-              syncStatus: 'pending' as const,
-            }
-          : order
-      ),
-      currentWorkOrder: state.currentWorkOrder?.id === orderId
-        ? {
-            ...state.currentWorkOrder,
-            safetyChecklist: state.currentWorkOrder.safetyChecklist.map(item =>
-              item.id === itemId
-                ? { 
-                    ...item, 
-                    completed, 
-                    notes, 
-                    photoPath,
-                    completedAt: completed ? new Date().toISOString() : undefined,
-                  }
-                : item
-            ),
-          }
-        : state.currentWorkOrder,
+      workOrders: updateOrderSafetyChecklist(state.workOrders, orderId, itemId, completed, notes, photoPath),
+      currentWorkOrder: updateCurrentOrderSafetyChecklist(state.currentWorkOrder, orderId, itemId, completed, notes, photoPath),
     }));
   },
 

@@ -208,9 +208,9 @@ export default function HomeScreen() {
       <View style={styles.quickActions}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Acciones Rápidas</Text>
         <View style={styles.actionsGrid}>
-          {quickActions.map((action, index) => (
+          {quickActions.map((action) => (
             <TouchableOpacity 
-              key={index} 
+              key={`qa-${action.title}`} 
               style={[styles.actionCard, { backgroundColor: action.bgColor }]}
               onPress={action.onPress}
             >

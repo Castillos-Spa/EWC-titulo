@@ -70,6 +70,7 @@ export const useFuelStore = create<FuelState>((set, get) => ({
         await get().calculateAnalytics(vehicleId);
       }
     } catch (error) {
+      console.error('Error al cargar registros de combustible:', error);
       set({ error: 'Error al cargar registros de combustible', isLoading: false });
     }
   },
@@ -100,6 +101,7 @@ export const useFuelStore = create<FuelState>((set, get) => ({
         await get().calculateAnalytics(recordData.vehicleId);
       }
     } catch (error) {
+      console.error('Error al crear registro de combustible:', error);
       set({ error: 'Error al crear registro de combustible', isSubmitting: false });
     }
   },
@@ -115,6 +117,7 @@ export const useFuelStore = create<FuelState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar registro:', error);
       set({ error: 'Error al actualizar registro' });
     }
   },
@@ -127,6 +130,7 @@ export const useFuelStore = create<FuelState>((set, get) => ({
         records: state.records.filter(record => record.id !== recordId),
       }));
     } catch (error) {
+      console.error('Error al eliminar registro:', error);
       set({ error: 'Error al eliminar registro' });
     }
   },
@@ -149,9 +153,8 @@ export const useFuelStore = create<FuelState>((set, get) => ({
       // Calculate average consumption (L/100km)
       let averageConsumption = 0;
       if (consumptionRecords.length >= 2) {
-        const sortedRecords = consumptionRecords.sort((a, b) => 
-          new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
-        );
+        const sortedRecords = [...consumptionRecords];
+        sortedRecords.sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
         
         const totalDistance = sortedRecords[sortedRecords.length - 1].odometer - sortedRecords[0].odometer;
         if (totalDistance > 0) {
@@ -164,13 +167,12 @@ export const useFuelStore = create<FuelState>((set, get) => ({
       if (averageConsumption > 0) {
         if (averageConsumption <= 25) efficiency = 'excellent';
         else if (averageConsumption <= 30) efficiency = 'good';
-        else if (averageConsumption <= 40) efficiency = 'average';
-        else efficiency = 'poor';
+        else if (averageConsumption > 40) efficiency = 'poor';
       }
 
-      const lastRefuel = refuelRecords.sort((a, b) => 
-        new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
-      )[0];
+      const sortedRefuels = [...refuelRecords];
+      sortedRefuels.sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+      const lastRefuel = sortedRefuels[0];
 
       // Estimate next refuel (assuming 500L tank, 80% refuel threshold)
       let nextRefuelEstimate;

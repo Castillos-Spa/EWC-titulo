@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { DatabaseService } from '../services/DatabaseService';
 
 export interface ITTicket {
   id: string;
@@ -85,13 +84,13 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
   loadITTickets: async (status?: string, assignedTo?: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Mock data for IT tickets
       const mockTickets: ITTicket[] = [
         {
           id: 'it-ticket-001',
           ticketNumber: 'TIC-2025-001',
-          title: 'Problema con Impresora de Oficina',
-          description: 'La impresora HP LaserJet de la oficina de contabilidad no imprime. Muestra error de papel atascado pero no hay papel atascado visible.',
+          title: 'Impresora no imprime',
+          description:
+            'La impresora HP LaserJet de contabilidad no imprime. Muestra error de papel atascado pero no hay papel atascado visible.',
           category: 'printer',
           priority: 'medium',
           status: 'open',
@@ -109,7 +108,8 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
               ticketId: 'it-ticket-001',
               authorId: 'user-013',
               authorName: 'Andrea González',
-              content: 'Ticket recibido. Revisaré la impresora en los próximos 30 minutos.',
+              content:
+                'Ticket recibido. Revisaré la impresora en los próximos 30 minutos.',
               type: 'comment',
               createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
               isInternal: false,
@@ -124,7 +124,7 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
           id: 'it-ticket-002',
           ticketNumber: 'TIC-2025-002',
           title: 'Solicitud de Acceso a Sistema',
-          description: 'Nuevo empleado necesita acceso al sistema de gestión de inventarios',
+          description: 'Nuevo empleado necesita acceso al sistema de inventarios',
           category: 'software',
           priority: 'low',
           status: 'in_progress',
@@ -142,7 +142,8 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
               ticketId: 'it-ticket-002',
               authorId: 'user-013',
               authorName: 'Andrea González',
-              content: 'Creando usuario en el sistema. Necesito confirmación del nivel de acceso requerido.',
+              content:
+                'Creando usuario en el sistema. Necesito confirmación del nivel de acceso requerido.',
               type: 'comment',
               createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
               isInternal: false,
@@ -155,8 +156,15 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
         },
       ];
 
-      set({ tickets: mockTickets, isLoading: false });
+      const filtered = mockTickets.filter((t) => {
+        const statusOk = status ? t.status === status : true;
+        const assigneeOk = assignedTo ? t.assignedTo === assignedTo : true;
+        return statusOk && assigneeOk;
+      });
+
+      set({ tickets: filtered, isLoading: false });
     } catch (error) {
+      console.error('Error al cargar tickets de TIC:', error);
       set({ error: 'Error al cargar tickets de TIC', isLoading: false });
     }
   },
@@ -169,26 +177,28 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
         id: `it-ticket-${Date.now()}`,
         ticketNumber: `TIC-2025-${String(Date.now()).slice(-3)}`,
         comments: [],
+        attachments: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         syncStatus: 'pending',
       };
 
-      set(state => ({
+      set((state) => ({
         tickets: [newTicket, ...state.tickets],
         isSubmitting: false,
       }));
     } catch (error) {
+      console.error('Error al crear ticket de TIC:', error);
       set({ error: 'Error al crear ticket de TIC', isSubmitting: false });
     }
   },
 
   updateTicketStatus: async (ticketId: string, status: ITTicket['status'], resolution?: string) => {
     try {
-      const updateData: any = {
+      const updateData: Partial<ITTicket> = {
         status,
         updatedAt: new Date().toISOString(),
-        syncStatus: 'pending' as const,
+        syncStatus: 'pending',
       };
 
       if (status === 'resolved' && resolution) {
@@ -196,42 +206,44 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
         updateData.resolvedAt = new Date().toISOString();
       }
 
-      set(state => ({
-        tickets: state.tickets.map(ticket =>
+      set((state) => ({
+        tickets: state.tickets.map((ticket) =>
           ticket.id === ticketId ? { ...ticket, ...updateData } : ticket
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar ticket:', error);
       set({ error: 'Error al actualizar ticket' });
     }
   },
 
   assignTicket: async (ticketId: string, assignedTo: string) => {
     try {
-      set(state => ({
-        tickets: state.tickets.map(ticket =>
-          ticket.id === ticketId 
-            ? { 
-                ...ticket, 
+      set((state) => ({
+        tickets: state.tickets.map((ticket) =>
+          ticket.id === ticketId
+            ? {
+                ...ticket,
                 assignedTo,
-                status: 'in_progress' as const,
+                status: 'in_progress',
                 updatedAt: new Date().toISOString(),
-                syncStatus: 'pending' as const,
+                syncStatus: 'pending',
               }
             : ticket
         ),
       }));
     } catch (error) {
+      console.error('Error al asignar ticket:', error);
       set({ error: 'Error al asignar ticket' });
     }
   },
 
-  addComment: async (ticketId: string, content: string, isInternal = false, attachments = []) => {
+  addComment: async (ticketId: string, content: string, isInternal = false, attachments: string[] = []) => {
     try {
       const newComment: ITComment = {
         id: `comment-${Date.now()}`,
         ticketId,
-        authorId: 'current-user-id', // In real app, get from auth
+        authorId: 'current-user-id',
         authorName: 'Usuario Actual',
         content,
         type: 'comment',
@@ -240,53 +252,49 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
         isInternal,
       };
 
-      set(state => ({
-        tickets: state.tickets.map(ticket =>
+      set((state) => ({
+        tickets: state.tickets.map((ticket) =>
           ticket.id === ticketId
             ? {
                 ...ticket,
                 comments: [...ticket.comments, newComment],
                 updatedAt: new Date().toISOString(),
-                syncStatus: 'pending' as const,
+                syncStatus: 'pending',
               }
             : ticket
         ),
-        currentTicket: state.currentTicket?.id === ticketId
-          ? {
-              ...state.currentTicket,
-              comments: [...state.currentTicket.comments, newComment],
-            }
-          : state.currentTicket,
+        currentTicket:
+          state.currentTicket?.id === ticketId
+            ? { ...state.currentTicket, comments: [...state.currentTicket.comments, newComment] }
+            : state.currentTicket,
       }));
     } catch (error) {
+      console.error('Error al agregar comentario:', error);
       set({ error: 'Error al agregar comentario' });
     }
   },
 
   addAttachment: (ticketId: string, attachmentUri: string) => {
-    set(state => ({
-      tickets: state.tickets.map(ticket =>
+    set((state) => ({
+      tickets: state.tickets.map((ticket) =>
         ticket.id === ticketId
-          ? { 
-              ...ticket, 
+          ? {
+              ...ticket,
               attachments: [...ticket.attachments, attachmentUri],
               updatedAt: new Date().toISOString(),
-              syncStatus: 'pending' as const,
+              syncStatus: 'pending',
             }
           : ticket
       ),
-      currentTicket: state.currentTicket?.id === ticketId
-        ? { 
-            ...state.currentTicket, 
-            attachments: [...state.currentTicket.attachments, attachmentUri] 
-          }
-        : state.currentTicket,
+      currentTicket:
+        state.currentTicket?.id === ticketId
+          ? { ...state.currentTicket, attachments: [...state.currentTicket.attachments, attachmentUri] }
+          : state.currentTicket,
     }));
   },
 
   loadNotifications: async (userId: string) => {
     try {
-      // Mock notifications
       const mockNotifications: ITNotification[] = [
         {
           id: 'notif-001',
@@ -302,16 +310,15 @@ export const useITSupportStore = create<ITSupportState>((set, get) => ({
 
       set({ notifications: mockNotifications });
     } catch (error) {
+      console.error('Error al cargar notificaciones:', error);
       set({ error: 'Error al cargar notificaciones' });
     }
   },
 
   markNotificationAsRead: (notificationId: string) => {
-    set(state => ({
-      notifications: state.notifications.map(notification =>
-        notification.id === notificationId
-          ? { ...notification, read: true }
-          : notification
+    set((state) => ({
+      notifications: state.notifications.map((notification) =>
+        notification.id === notificationId ? { ...notification, read: true } : notification
       ),
     }));
   },

@@ -6,11 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TriangleAlert as AlertTriangle, Plus, Filter, RefreshCw, FileText } from 'lucide-react-native';
 import { useIncidentStore } from '../stores/incidentStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -24,7 +21,6 @@ export default function IncidentsScreen() {
   const {
     incidents,
     currentIncident,
-    isLoading,
     error,
     loadIncidents,
     setCurrentIncident,

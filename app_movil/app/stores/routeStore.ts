@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { DatabaseService } from '../services/DatabaseService';
 
+// Type aliases to reduce repetition and satisfy S4323
+type RouteStatus = 'planned' | 'in_progress' | 'completed';
+type TripStatus = 'planned' | 'in_progress' | 'completed';
+type SyncStatus = 'pending' | 'synced' | 'failed';
+
 export interface Stop {
   id: string;
   routeId: string;
@@ -8,7 +13,7 @@ export interface Stop {
   jobDescription: string;
   address: string;
   timeSlot: string;
-  status: 'planned' | 'in_progress' | 'completed';
+  status: RouteStatus;
   order: number;
 }
 
@@ -23,8 +28,8 @@ export interface Trip {
   notes?: string;
   startTime?: string;
   endTime?: string;
-  status: 'planned' | 'in_progress' | 'completed';
-  syncStatus: 'pending' | 'synced' | 'failed';
+  status: TripStatus;
+  syncStatus: SyncStatus;
 }
 
 export interface Route {
@@ -33,7 +38,7 @@ export interface Route {
   vehicleId: string;
   vehiclePlate: string;
   driverName: string;
-  status: 'planned' | 'in_progress' | 'completed';
+  status: RouteStatus;
   stops: Stop[];
   trips: Trip[];
 }
@@ -115,6 +120,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
       await DatabaseService.saveRoutes(mockRoutes);
       set({ routes: mockRoutes, isLoading: false });
     } catch (error) {
+      console.error('Error al cargar rutas:', error);
       set({ error: 'Error al cargar rutas', isLoading: false });
     }
   },
