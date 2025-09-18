@@ -26,9 +26,9 @@ import { useRouteStore } from '../stores/routeStore';
 import { SignatureModal } from './SignatureModal';
 
 interface TripModalProps {
-  trip: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly trip: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export default function TripModal({ trip, visible, onClose }: TripModalProps) {
@@ -51,16 +51,16 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0] && trip) {
+      if (!result.canceled && result.assets?.[0]?.uri && trip) {
         addTripPhoto(trip.id, result.assets[0].uri);
       }
     } catch (error) {
+      console.error('Error taking trip photo:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -94,6 +94,7 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
       onClose();
       Alert.alert('Éxito', 'Viaje completado correctamente');
     } catch (error) {
+      console.error('Error completing trip:', error);
       Alert.alert('Error', 'No se pudo completar el viaje');
     } finally {
       setIsSubmitting(false);
@@ -195,7 +196,7 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
                 * Se requiere al menos 1 foto
               </Text>
               
-              <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+              <TouchableOpacity style={styles.photoButton} onPress={() => { void handleTakePhoto(); }}>
                 <Camera size={24} color="#2563EB" />
                 <Text style={styles.photoButtonText}>Tomar Foto</Text>
               </TouchableOpacity>
@@ -203,7 +204,7 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
               {trip.photos && trip.photos.length > 0 && (
                 <View style={styles.photoGrid}>
                   {trip.photos.map((photo: string, index: number) => (
-                    <View key={index} style={styles.photoContainer}>
+                    <View key={photo} style={styles.photoContainer}>
                       <Image source={{ uri: photo }} style={styles.photo} />
                       <Text style={styles.photoIndex}>{index + 1}</Text>
                     </View>
@@ -244,7 +245,7 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.completeButton, isSubmitting && styles.buttonDisabled]} 
-            onPress={handleComplete}
+            onPress={() => { void handleComplete(); }}
             disabled={isSubmitting}
           >
             <Save size={20} color="#FFFFFF" />

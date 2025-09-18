@@ -34,7 +34,7 @@ export default function TicketsScreen() {
 
   useEffect(() => {
     loadTickets(filterStatus === 'all' ? undefined : filterStatus, getDateRange(selectedPeriod));
-  }, [filterStatus, selectedPeriod]);
+  }, [filterStatus, selectedPeriod, loadTickets]);
 
   const getDateRange = (period: string) => {
     const now = new Date();

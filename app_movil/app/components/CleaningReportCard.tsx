@@ -9,8 +9,8 @@ import { Sparkles as Cleaning, Clock, MapPin, Users, CircleCheck as CheckCircle,
 import { useThemeStore } from '../stores/themeStore';
 
 interface CleaningReportCardProps {
-  report: any;
-  onPress: () => void;
+  readonly report: any;
+  readonly onPress: () => void;
 }
 
 export function CleaningReportCard({ report, onPress }: CleaningReportCardProps) {

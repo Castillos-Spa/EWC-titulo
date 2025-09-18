@@ -9,13 +9,13 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { X, Save, Package, Plus, Minus, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { X, Save, Plus, Minus } from 'lucide-react-native';
 import { useCleaningStore } from '../stores/cleaningStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface SupplyRequestModalProps {
-  visible: boolean;
-  onClose: () => void;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 interface RequestItem {
@@ -113,6 +113,7 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
       onClose();
       Alert.alert('Éxito', 'Solicitud de insumos enviada correctamente');
     } catch (error) {
+      console.error('Error al enviar solicitud de insumos:', error);
       Alert.alert('Error', 'No se pudo enviar la solicitud');
     }
   };
@@ -318,7 +319,7 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
-            onPress={handleSubmit}
+            onPress={() => { void handleSubmit(); }}
             disabled={isSubmitting}
           >
             <Save size={20} color="#FFFFFF" />

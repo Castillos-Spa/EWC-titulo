@@ -23,8 +23,8 @@ interface FuelRecord {
 }
 
 interface FuelCardProps {
-  record: FuelRecord;
-  onPress: () => void;
+  readonly record: FuelRecord;
+  readonly onPress: () => void;
 }
 
 export function FuelCard({ record, onPress }: FuelCardProps) {

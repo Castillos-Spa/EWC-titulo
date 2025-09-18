@@ -36,7 +36,7 @@ export default function KanbanScreen() {
     if (user) {
       loadUserTasks(user.id);
     }
-  }, [user]);
+  }, [user, loadUserTasks]);
 
   const handleRefresh = async () => {
     if (!user) return;

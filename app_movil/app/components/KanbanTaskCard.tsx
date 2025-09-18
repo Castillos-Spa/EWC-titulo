@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { Route, Sparkles as Cleaning, HardHat, Monitor, CircleCheck as CheckCircle, Clock, TriangleAlert as AlertTriangle, User, Calendar } from 'lucide-react-native';
+import { Route, Sparkles as Cleaning, HardHat, Monitor, CircleCheck as CheckCircle, Calendar } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 
 interface KanbanTaskCardProps {
-  task: any;
-  onPress: () => void;
+  readonly task: any;
+  readonly onPress: () => void;
 }
 
 export function KanbanTaskCard({ task, onPress }: KanbanTaskCardProps) {
@@ -125,8 +125,8 @@ export function KanbanTaskCard({ task, onPress }: KanbanTaskCardProps) {
         {/* Tags */}
         {task.tags.length > 0 && (
           <View style={styles.tagsSection}>
-            {task.tags.slice(0, 2).map((tag: string, index: number) => (
-              <View key={index} style={styles.tag}>
+            {task.tags.slice(0, 2).map((tag: string) => (
+              <View key={tag} style={styles.tag}>
                 <Text style={styles.tagText}>{tag}</Text>
               </View>
             ))}

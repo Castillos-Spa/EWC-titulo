@@ -37,7 +37,7 @@ export default function ITSupportScreen() {
 
   useEffect(() => {
     loadITTickets();
-  }, []);
+  }, [loadITTickets]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

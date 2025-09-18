@@ -9,8 +9,8 @@ import { HardHat, Clock, MapPin, Users, CircleCheck as CheckCircle, Circle, Play
 import { useThemeStore } from '../stores/themeStore';
 
 interface WorkOrderCardProps {
-  workOrder: any;
-  onPress: () => void;
+  readonly workOrder: any;
+  readonly onPress: () => void;
 }
 
 export function WorkOrderCard({ workOrder, onPress }: WorkOrderCardProps) {
@@ -106,6 +106,11 @@ export function WorkOrderCard({ workOrder, onPress }: WorkOrderCardProps) {
   const StatusIcon = getStatusIcon(workOrder.status);
   const TypeIcon = getTypeIcon(workOrder.type);
   const safetyProgress = getSafetyProgress();
+  const getSafetyProgressColor = (p: number) => {
+    if (p >= 80) return '#16A34A';
+    if (p >= 50) return '#F59E0B';
+    return '#DC2626';
+  };
 
   return (
     <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
@@ -177,7 +182,7 @@ export function WorkOrderCard({ workOrder, onPress }: WorkOrderCardProps) {
                   styles.safetyFill, 
                   { 
                     width: `${safetyProgress}%`,
-                    backgroundColor: safetyProgress >= 80 ? '#16A34A' : safetyProgress >= 50 ? '#F59E0B' : '#DC2626'
+                    backgroundColor: getSafetyProgressColor(safetyProgress)
                   }
                 ]} 
               />

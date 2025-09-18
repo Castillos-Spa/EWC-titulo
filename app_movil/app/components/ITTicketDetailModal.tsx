@@ -10,15 +10,15 @@ import {
   TextInput,
   Image,
 } from 'react-native';
-import { X, Monitor, Clock, MapPin, User, MessageCircle, Paperclip, Camera, Send, CircleCheck as CheckCircle, Play, Smartphone, Wifi, Mail, Phone, Printer, TriangleAlert as AlertTriangle, Building, Users, Save } from 'lucide-react-native';
+import { X, Monitor, Clock, User, MessageCircle, Paperclip, Camera, Send, CircleCheck as CheckCircle, Play, Smartphone, Wifi, Mail, Phone, Printer, TriangleAlert as AlertTriangle, Building, Users, Save } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useITSupportStore } from '../stores/itSupportStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface ITTicketDetailModalProps {
-  ticket: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly ticket: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetailModalProps) {
@@ -121,7 +121,6 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -132,6 +131,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
         Alert.alert('Éxito', 'Foto agregada al ticket');
       }
     } catch (error) {
+      console.error('Error al acceder a la cámara:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -147,6 +147,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
       setNewComment('');
       Alert.alert('Éxito', 'Comentario agregado');
     } catch (error) {
+      console.error('Error al agregar comentario:', error);
       Alert.alert('Error', 'No se pudo agregar el comentario');
     }
   };
@@ -161,13 +162,16 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Asignar', 
-          onPress: async () => {
-            try {
-              await assignTicket(ticket.id, user.name);
-              Alert.alert('Éxito', 'Ticket asignado correctamente');
-            } catch (error) {
-              Alert.alert('Error', 'No se pudo asignar el ticket');
-            }
+          onPress: () => {
+            void (async () => {
+              try {
+                await assignTicket(ticket.id, user.name);
+                Alert.alert('Éxito', 'Ticket asignado correctamente');
+              } catch (error) {
+                console.error('Error al asignar ticket:', error);
+                Alert.alert('Error', 'No se pudo asignar el ticket');
+              }
+            })();
           }
         },
       ]
@@ -179,6 +183,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
       await updateTicketStatus(ticket.id, 'in_progress');
       Alert.alert('Éxito', 'Trabajo iniciado en el ticket');
     } catch (error) {
+      console.error('Error al iniciar trabajo:', error);
       Alert.alert('Error', 'No se pudo iniciar el trabajo');
     }
   };
@@ -196,6 +201,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
       setResolution('');
       Alert.alert('Éxito', 'Ticket resuelto correctamente');
     } catch (error) {
+      console.error('Error al resolver ticket:', error);
       Alert.alert('Error', 'No se pudo resolver el ticket');
     } finally {
       setIsSubmitting(false);
@@ -317,7 +323,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.attachmentsRow}>
                   {ticket.attachments.map((attachment: string, index: number) => (
-                    <View key={index} style={styles.attachmentContainer}>
+                    <View key={attachment} style={styles.attachmentContainer}>
                       <Image source={{ uri: attachment }} style={styles.attachment} />
                       <Text style={styles.attachmentIndex}>{index + 1}</Text>
                     </View>
@@ -361,8 +367,8 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
                 
                 {comment.attachments && comment.attachments.length > 0 && (
                   <View style={styles.commentAttachments}>
-                    {comment.attachments.map((attachment: string, index: number) => (
-                      <Image key={index} source={{ uri: attachment }} style={styles.commentAttachment} />
+                    {comment.attachments.map((attachment: string) => (
+                      <Image key={attachment} source={{ uri: attachment }} style={styles.commentAttachment} />
                     ))}
                   </View>
                 )}
@@ -382,13 +388,13 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
               />
               
               <View style={styles.commentActions}>
-                <TouchableOpacity style={styles.attachButton} onPress={handleTakePhoto}>
+                <TouchableOpacity style={styles.attachButton} onPress={() => { void handleTakePhoto(); }}>
                   <Camera size={20} color="#64748B" />
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
                   style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
-                  onPress={handleAddComment}
+                  onPress={() => { void handleAddComment(); }}
                   disabled={!newComment.trim()}
                 >
                   <Send size={20} color="#FFFFFF" />
@@ -437,7 +443,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
           {ticket.status === 'open' && !ticket.assignedTo && (
             <TouchableOpacity 
               style={styles.assignButton} 
-              onPress={handleAssignToMe}
+              onPress={() => { void handleAssignToMe(); }}
             >
               <User size={20} color="#FFFFFF" />
               <Text style={styles.assignButtonText}>Asignarme</Text>
@@ -447,7 +453,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
           {ticket.status === 'open' && ticket.assignedTo && (
             <TouchableOpacity 
               style={styles.startButton} 
-              onPress={handleStartWork}
+              onPress={() => { void handleStartWork(); }}
             >
               <Play size={20} color="#FFFFFF" />
               <Text style={styles.startButtonText}>Iniciar Trabajo</Text>
@@ -474,7 +480,7 @@ export function ITTicketDetailModal({ ticket, visible, onClose }: ITTicketDetail
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
-                onPress={handleResolveTicket}
+                onPress={() => { void handleResolveTicket(); }}
                 disabled={isSubmitting}
               >
                 <Save size={20} color="#FFFFFF" />

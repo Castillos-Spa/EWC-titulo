@@ -10,8 +10,8 @@ import { TriangleAlert as AlertTriangle, Clock, MapPin, Camera, CircleCheck as C
 import { useThemeStore } from '../stores/themeStore';
 
 interface IncidentCardProps {
-  incident: any;
-  onPress: () => void;
+  readonly incident: any;
+  readonly onPress: () => void;
 }
 
 export function IncidentCard({ incident, onPress }: IncidentCardProps) {
@@ -141,8 +141,8 @@ export function IncidentCard({ incident, onPress }: IncidentCardProps) {
             <Text style={[styles.photosText, { color: colors.textSecondary }]}>
               {incident.photos.length} foto{incident.photos.length !== 1 ? 's' : ''}
             </Text>
-            {incident.photos.slice(0, 3).map((photo: string, index: number) => (
-              <Image key={index} source={{ uri: photo }} style={styles.photoThumbnail} />
+            {incident.photos.slice(0, 3).map((photo: string) => (
+              <Image key={photo} source={{ uri: photo }} style={styles.photoThumbnail} />
             ))}
             {incident.photos.length > 3 && (
               <View style={styles.morePhotos}>

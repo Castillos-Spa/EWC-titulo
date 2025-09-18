@@ -24,9 +24,9 @@ import {
 } from 'lucide-react-native';
 
 interface IncidentDetailModalProps {
-  incident: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly incident: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function IncidentDetailModal({ incident, visible, onClose }: IncidentDetailModalProps) {
@@ -95,32 +95,26 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
   };
 
   const formatDateTime = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (error) {
-      return 'Fecha no válida';
-    }
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'Fecha no válida';
+    return date.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const openInMaps = () => {
-    try {
-      if (!incident.location || typeof incident.location.latitude !== 'number' || typeof incident.location.longitude !== 'number') {
-        return;
-      }
-      
-      const { latitude, longitude } = incident.location;
-      const url = `https://maps.google.com/?q=${latitude},${longitude}`;
-      Linking.openURL(url);
-    } catch (error) {
-      console.warn('Error opening maps:', error);
+    if (!incident.location || typeof incident.location.latitude !== 'number' || typeof incident.location.longitude !== 'number') {
+      return;
     }
+    const { latitude, longitude } = incident.location;
+    const url = `https://maps.google.com/?q=${latitude},${longitude}`;
+    void Linking.openURL(url).catch((err) => {
+      console.error('Error opening maps:', err);
+    });
   };
 
   const severityColor = getSeverityColor(incident.severity || 'low');
@@ -234,7 +228,7 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.photosRow}>
                   {photos.map((photo: string, index: number) => (
-                    <View key={index} style={styles.photoContainer}>
+                    <View key={photo} style={styles.photoContainer}>
                       <Image 
                         source={{ uri: photo }} 
                         style={styles.photo}

@@ -8,18 +8,18 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { X, MapPin, Clock, CircleCheck as CheckCircle, Circle, Play, Truck, User, ChevronRight } from 'lucide-react-native';
+import { X, MapPin, Clock, CircleCheck as CheckCircle, Circle, Play, Truck, ChevronRight } from 'lucide-react-native';
 import { useRouteStore } from '../stores/routeStore';
 
 interface RouteDetailModalProps {
-  route: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly route: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export default function RouteDetailModal({ route, visible, onClose }: RouteDetailModalProps) {
   const { startTrip, setSelectedTrip } = useRouteStore();
-  const [isStarting, setIsStarting] = useState<string | null>(null);
+  const [startingStopId, setStartingStopId] = useState<string | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -46,7 +46,7 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
   };
 
   const handleStartTrip = async (stopId: string) => {
-    setIsStarting(stopId);
+    setStartingStopId(stopId);
     try {
       await startTrip(stopId);
       // Find the created trip and open it
@@ -55,9 +55,10 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
         setSelectedTrip(trip);
       }
     } catch (error) {
+      console.error('Error al iniciar el viaje', error);
       Alert.alert('Error', 'No se pudo iniciar el viaje');
     } finally {
-      setIsStarting(null);
+      setStartingStopId(null);
     }
   };
 
@@ -68,7 +69,7 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
         `¿Deseas iniciar el viaje a ${stop.clientName}?`,
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Iniciar', onPress: () => handleStartTrip(stop.id) },
+          { text: 'Iniciar', onPress: () => { void handleStartTrip(stop.id); } },
         ]
       );
     } else if (stop.status === 'in_progress') {
@@ -129,7 +130,7 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
             {route.stops.map((stop: any, index: number) => {
               const StatusIcon = getStatusIcon(stop.status);
               const statusColor = getStatusColor(stop.status);
-              const isStarting = isStarting === stop.id;
+              const isStartingForThisStop = startingStopId === stop.id;
 
               return (
                 <TouchableOpacity
@@ -139,7 +140,7 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
                     stop.status === 'in_progress' && styles.stopCardActive,
                   ]}
                   onPress={() => handleStopPress(stop)}
-                  disabled={isStarting}
+                  disabled={isStartingForThisStop}
                   activeOpacity={0.7}
                 >
                   <View style={styles.stopCardHeader}>
@@ -175,7 +176,7 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
                     )}
                   </View>
 
-                  {isStarting && (
+                  {isStartingForThisStop && (
                     <View style={styles.loadingOverlay}>
                       <Text style={styles.loadingText}>Iniciando...</Text>
                     </View>

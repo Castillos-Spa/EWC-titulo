@@ -11,14 +11,14 @@ import {
   Image,
   Linking,
 } from 'react-native';
-import { X, MapPin, Clock, User, Play, CircleCheck as CheckCircle, Camera, Navigation, Package, FileText, Save, PenTool, Wrench, Eye, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { X, MapPin, Clock, User, Play, CircleCheck as CheckCircle, Camera, Navigation, Package, FileText, Save, Wrench, Eye, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTicketStore } from '../stores/ticketStore';
 
 interface TicketDetailModalProps {
-  ticket: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly ticket: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModalProps) {
@@ -112,7 +112,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
         hour: '2-digit',
         minute: '2-digit',
       });
-    } catch (error) {
+    } catch {
       return 'Fecha no válida';
     }
   };
@@ -137,6 +137,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
       const url = `https://maps.google.com/?q=${latitude},${longitude}`;
       Linking.openURL(url);
     } catch (error) {
+      console.error('Error opening maps:', error);
       Alert.alert('Error', 'No se pudo abrir el mapa');
     }
   };
@@ -150,13 +151,12 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets?.[0]?.uri) {
         addTicketPhoto(ticket.id, result.assets[0].uri);
         Alert.alert('Éxito', 'Foto agregada correctamente');
       }
@@ -175,25 +175,27 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
           { text: 'Cancelar', style: 'cancel' },
           { 
             text: 'Iniciar', 
-            onPress: async () => {
+            onPress: () => { void (async () => {
               try {
                 await startTicket(ticket.id);
                 Alert.alert('Éxito', 'Ticket iniciado correctamente');
               } catch (error) {
+                console.error('Error starting ticket:', error);
                 Alert.alert('Error', 'No se pudo iniciar el ticket');
               }
-            }
+            })(); }
           },
         ]
       );
     } catch (error) {
+      console.error('Error handling start ticket alert:', error);
       Alert.alert('Error', 'Error al procesar la solicitud');
     }
   };
 
   const handleCompleteTicket = async () => {
     try {
-      if (ticket.checklist && ticket.checklist.some((item: any) => !item.completed)) {
+      if (ticket.checklist?.some((item: any) => !item.completed)) {
         Alert.alert('Error', 'Debes completar todos los elementos del checklist antes de finalizar');
         return;
       }
@@ -209,6 +211,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
       onClose();
       Alert.alert('Éxito', 'Ticket completado correctamente');
     } catch (error) {
+      console.error('Error completing ticket:', error);
       Alert.alert('Error', 'No se pudo completar el ticket');
     }
   };
@@ -217,6 +220,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
     try {
       updateChecklist(ticket.id, itemId, completed);
     } catch (error) {
+      console.error('Error updating checklist:', error);
       Alert.alert('Error', 'No se pudo actualizar el checklist');
     }
   };
@@ -226,6 +230,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
       const usedAmount = parseFloat(used) || 0;
       updateMaterialUsage(ticket.id, materialId, usedAmount);
     } catch (error) {
+      console.error('Error updating material usage:', error);
       Alert.alert('Error', 'No se pudo actualizar el material');
     }
   };
@@ -467,7 +472,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
             </Text>
             
             {ticket.status === 'in_progress' && (
-              <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+              <TouchableOpacity style={styles.photoButton} onPress={() => { void handleTakePhoto(); }}>
                 <Camera size={24} color="#2563EB" />
                 <Text style={styles.photoButtonText}>Tomar Foto</Text>
               </TouchableOpacity>
@@ -477,7 +482,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.photosRow}>
                   {photos.map((photo: string, index: number) => (
-                    <View key={index} style={styles.photoContainer}>
+                    <View key={photo} style={styles.photoContainer}>
                       <Image 
                         source={{ uri: photo }} 
                         style={styles.photo}
@@ -554,7 +559,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
           {ticket.status === 'assigned' && (
             <TouchableOpacity 
               style={[styles.startButton, isSubmitting && styles.buttonDisabled]} 
-              onPress={handleStartTicket}
+              onPress={() => { void handleStartTicket(); }}
               disabled={isSubmitting}
             >
               <Play size={20} color="#FFFFFF" />
@@ -584,7 +589,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
-                onPress={handleCompleteTicket}
+                onPress={() => { void handleCompleteTicket(); }}
                 disabled={isSubmitting}
               >
                 <Save size={20} color="#FFFFFF" />

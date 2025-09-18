@@ -16,21 +16,24 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 
-const makeTabBarIcon = (Icon: LucideIcon) =>
-  ({ size, color }: { size: number; color: string }) => (
+const makeTabBarIcon = (Icon: LucideIcon, name: string) => {
+  const TabIcon = ({ size, color }: { size: number; color: string }) => (
     <Icon size={size} color={color} strokeWidth={2} />
   );
+  TabIcon.displayName = name;
+  return TabIcon;
+};
 
-const homeTabIcon = makeTabBarIcon(Home);
-const routeTabIcon = makeTabBarIcon(Route);
-const cleaningTabIcon = makeTabBarIcon(Cleaning);
-const hardHatTabIcon = makeTabBarIcon(HardHat);
-const monitorTabIcon = makeTabBarIcon(Monitor);
-const kanbanTabIcon = makeTabBarIcon(Kanban);
-const fuelTabIcon = makeTabBarIcon(Fuel);
-const alertTabIcon = makeTabBarIcon(AlertTriangle);
-const ticketTabIcon = makeTabBarIcon(Ticket);
-const settingsTabIcon = makeTabBarIcon(Settings);
+const homeTabIcon = makeTabBarIcon(Home, 'HomeTabIcon');
+const routeTabIcon = makeTabBarIcon(Route, 'RouteTabIcon');
+const cleaningTabIcon = makeTabBarIcon(Cleaning, 'CleaningTabIcon');
+const hardHatTabIcon = makeTabBarIcon(HardHat, 'HardHatTabIcon');
+const monitorTabIcon = makeTabBarIcon(Monitor, 'MonitorTabIcon');
+const kanbanTabIcon = makeTabBarIcon(Kanban, 'KanbanTabIcon');
+const fuelTabIcon = makeTabBarIcon(Fuel, 'FuelTabIcon');
+const alertTabIcon = makeTabBarIcon(AlertTriangle, 'AlertTabIcon');
+const ticketTabIcon = makeTabBarIcon(Ticket, 'TicketTabIcon');
+const settingsTabIcon = makeTabBarIcon(Settings, 'SettingsTabIcon');
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();

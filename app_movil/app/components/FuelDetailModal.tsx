@@ -15,7 +15,6 @@ import {
   Clock, 
   User, 
   Fuel, 
-  Camera, 
   Navigation, 
   Gauge,
   Receipt,
@@ -25,9 +24,9 @@ import {
 } from 'lucide-react-native';
 
 interface FuelDetailModalProps {
-  record: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly record: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalProps) {

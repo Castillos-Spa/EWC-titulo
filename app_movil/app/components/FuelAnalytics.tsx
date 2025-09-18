@@ -7,7 +7,7 @@ import {
 import { TrendingUp, TrendingDown, Gauge, Fuel, Award, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 
 interface FuelAnalyticsProps {
-  analytics: any;
+  readonly analytics: any;
 }
 
 export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {

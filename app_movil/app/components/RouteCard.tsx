@@ -9,9 +9,9 @@ import { Truck, MapPin, Clock, CircleCheck as CheckCircle, Circle, Play, Chevron
 import { useThemeStore } from '../stores/themeStore';
 
 interface RouteCardProps {
-  route: any;
-  onPress: () => void;
-  progress: string;
+  readonly route: any;
+  readonly onPress: () => void;
+  readonly progress: string;
 }
 
 export function RouteCard({ route, onPress, progress }: RouteCardProps) {

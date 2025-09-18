@@ -9,7 +9,6 @@ import {
   ScrollView,
   Alert,
   Image,
-  Switch,
 } from 'react-native';
 import { 
   X, 
@@ -19,7 +18,7 @@ import {
   Save, 
   Navigation, 
   Gauge,
-  Receipt,
+  // Receipt,
   TrendingUp,
   TrendingDown,
 } from 'lucide-react-native';
@@ -29,11 +28,11 @@ import { useFuelStore } from '../stores/fuelStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface CreateFuelRecordModalProps {
-  visible: boolean;
-  onClose: () => void;
-  initialType?: 'consumption' | 'refuel';
-  vehicleId?: string;
-  vehiclePlate?: string;
+  readonly visible: boolean;
+  readonly onClose: () => void;
+  readonly initialType?: 'consumption' | 'refuel';
+  readonly vehicleId?: string;
+  readonly vehiclePlate?: string;
 }
 
 export function CreateFuelRecordModal({ 
@@ -89,6 +88,7 @@ export function CreateFuelRecordModal({
           undefined,
       });
     } catch (error) {
+      console.error('Error al obtener ubicación actual', error);
       Alert.alert('Error', 'No se pudo obtener la ubicación actual');
     } finally {
       setIsGettingLocation(false);
@@ -103,7 +103,6 @@ export function CreateFuelRecordModal({
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -161,6 +160,7 @@ export function CreateFuelRecordModal({
       onClose();
       Alert.alert('Éxito', 'Registro de combustible guardado correctamente');
     } catch (error) {
+      console.error('Error al guardar registro de combustible', error);
       Alert.alert('Error', 'No se pudo guardar el registro');
     }
   };
@@ -272,29 +272,38 @@ export function CreateFuelRecordModal({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ubicación</Text>
             <View style={styles.locationCard}>
-              {isGettingLocation ? (
-                <View style={styles.locationLoading}>
-                  <Navigation size={24} color="#2563EB" />
-                  <Text style={styles.locationLoadingText}>Obteniendo ubicación...</Text>
-                </View>
-              ) : location ? (
-                <View style={styles.locationInfo}>
-                  <MapPin size={20} color="#16A34A" />
-                  <View style={styles.locationDetails}>
-                    <Text style={styles.locationAddress}>
-                      {location.address || 'Ubicación capturada'}
-                    </Text>
-                    <Text style={styles.locationCoords}>
-                      {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
-                  <MapPin size={24} color="#2563EB" />
-                  <Text style={styles.locationButtonText}>Obtener Ubicación Actual</Text>
-                </TouchableOpacity>
-              )}
+              {/* Extraído ternario anidado para mejorar legibilidad */}
+              {(() => {
+                if (isGettingLocation) {
+                  return (
+                    <View style={styles.locationLoading}>
+                      <Navigation size={24} color="#2563EB" />
+                      <Text style={styles.locationLoadingText}>Obteniendo ubicación...</Text>
+                    </View>
+                  );
+                }
+                if (location) {
+                  return (
+                    <View style={styles.locationInfo}>
+                      <MapPin size={20} color="#16A34A" />
+                      <View style={styles.locationDetails}>
+                        <Text style={styles.locationAddress}>
+                          {location.address || 'Ubicación capturada'}
+                        </Text>
+                        <Text style={styles.locationCoords}>
+                          {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }
+                return (
+                  <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
+                    <MapPin size={24} color="#2563EB" />
+                    <Text style={styles.locationButtonText}>Obtener Ubicación Actual</Text>
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
           </View>
 

@@ -10,17 +10,16 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
-import { X, Send, MessageCircle, User, Clock, Paperclip, Camera } from 'lucide-react-native';
+import { X, Send, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '../stores/authStore';
 
 interface ChatModalProps {
-  visible: boolean;
-  onClose: () => void;
-  title?: string;
-  channelId?: string;
+  readonly visible: boolean;
+  readonly onClose: () => void;
+  readonly title?: string;
+  readonly channelId?: string;
 }
 
 interface ChatMessage {
@@ -137,7 +136,6 @@ export function ChatModal({
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -157,6 +155,7 @@ export function ChatModal({
         setMessages(prev => [...prev, imageMessage]);
       }
     } catch (error) {
+      console.error('No se pudo acceder a la cámara:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -263,8 +262,8 @@ export function ChatModal({
                 
                 {message.attachments && message.attachments.length > 0 && (
                   <View style={styles.attachments}>
-                    {message.attachments.map((attachment, index) => (
-                      <View key={index} style={styles.attachment}>
+                    {message.attachments.map((attachment) => (
+                      <View key={attachment} style={styles.attachment}>
                         <Camera size={16} color="#64748B" />
                         <Text style={styles.attachmentText}>Imagen</Text>
                       </View>

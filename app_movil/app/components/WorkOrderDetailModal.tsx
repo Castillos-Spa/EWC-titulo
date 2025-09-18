@@ -36,14 +36,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCivilWorksStore } from '../stores/civilWorksStore';
 
 interface WorkOrderDetailModalProps {
-  workOrder: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly workOrder: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderDetailModalProps) {
   const { 
-    updateWorkOrderStatus, 
     startWorkOrder, 
     completeWorkOrder, 
     addProgressPhoto, 
@@ -140,10 +139,15 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
 
   const openInMaps = () => {
     try {
-      const { latitude, longitude } = workOrder.location;
+      const { latitude, longitude } = workOrder.location || {};
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        Alert.alert('Error', 'Ubicación no disponible');
+        return;
+      }
       const url = `https://maps.google.com/?q=${latitude},${longitude}`;
       Linking.openURL(url);
     } catch (error) {
+      console.error('Error opening maps (work order):', error);
       Alert.alert('Error', 'No se pudo abrir el mapa');
     }
   };
@@ -157,13 +161,12 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets?.[0]?.uri) {
         const photo = {
           uri: result.assets[0].uri,
           description: `Foto de ${stage}`,
@@ -176,11 +179,12 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
         Alert.alert('Éxito', 'Foto agregada al progreso');
       }
     } catch (error) {
+      console.error('Error taking progress photo:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
 
-  const handleStartWork = async () => {
+  const handleStartWork = () => {
     Alert.alert(
       'Iniciar Orden de Trabajo',
       '¿Deseas iniciar esta orden de trabajo?',
@@ -188,14 +192,15 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Iniciar', 
-          onPress: async () => {
+          onPress: () => { void (async () => {
             try {
               await startWorkOrder(workOrder.id);
               Alert.alert('Éxito', 'Orden de trabajo iniciada');
             } catch (error) {
+              console.error('Error starting work order:', error);
               Alert.alert('Error', 'No se pudo iniciar la orden');
             }
-          }
+          })(); }
         },
       ]
     );
@@ -232,6 +237,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
       onClose();
       Alert.alert('Éxito', 'Orden de trabajo completada');
     } catch (error) {
+      console.error('Error completing work order:', error);
       Alert.alert('Error', 'No se pudo completar la orden');
     } finally {
       setIsSubmitting(false);
@@ -258,6 +264,11 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
   const statusColor = getStatusColor(workOrder.status);
   const TypeIcon = getTypeIcon(workOrder.type);
   const safetyProgress = getSafetyProgress();
+  const getSafetyProgressColor = () => {
+    if (safetyProgress >= 80) return '#16A34A';
+    if (safetyProgress >= 50) return '#F59E0B';
+    return '#DC2626';
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -395,7 +406,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                   styles.safetyProgressFill, 
                   { 
                     width: `${safetyProgress}%`,
-                    backgroundColor: safetyProgress >= 80 ? '#16A34A' : safetyProgress >= 50 ? '#F59E0B' : '#DC2626'
+                    backgroundColor: getSafetyProgressColor(),
                   }
                 ]} 
               />
@@ -497,7 +508,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
               <View style={styles.photoActions}>
                 <TouchableOpacity 
                   style={styles.photoActionButton}
-                  onPress={() => handleTakeProgressPhoto('before')}
+                  onPress={() => { void handleTakeProgressPhoto('before'); }}
                 >
                   <Camera size={20} color="#2563EB" />
                   <Text style={styles.photoActionText}>Antes</Text>
@@ -505,7 +516,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                 
                 <TouchableOpacity 
                   style={styles.photoActionButton}
-                  onPress={() => handleTakeProgressPhoto('during')}
+                  onPress={() => { void handleTakeProgressPhoto('during'); }}
                 >
                   <Camera size={20} color="#F59E0B" />
                   <Text style={styles.photoActionText}>Durante</Text>
@@ -513,7 +524,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                 
                 <TouchableOpacity 
                   style={styles.photoActionButton}
-                  onPress={() => handleTakeProgressPhoto('after')}
+                  onPress={() => { void handleTakeProgressPhoto('after'); }}
                 >
                   <Camera size={20} color="#16A34A" />
                   <Text style={styles.photoActionText}>Después</Text>
@@ -521,7 +532,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                 
                 <TouchableOpacity 
                   style={styles.photoActionButton}
-                  onPress={() => handleTakeProgressPhoto('issue')}
+                  onPress={() => { void handleTakeProgressPhoto('issue'); }}
                 >
                   <Camera size={20} color="#DC2626" />
                   <Text style={styles.photoActionText}>Problema</Text>
@@ -622,7 +633,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
           {workOrder.status === 'assigned' && (
             <TouchableOpacity 
               style={styles.startButton} 
-              onPress={handleStartWork}
+              onPress={() => { handleStartWork(); }}
             >
               <Play size={20} color="#FFFFFF" />
               <Text style={styles.startButtonText}>Iniciar Trabajo</Text>
@@ -632,7 +643,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
           {workOrder.status === 'in_progress' && !showCompletionForm && (
             <TouchableOpacity 
               style={styles.completeButton} 
-              onPress={handleCompleteWork}
+              onPress={() => { handleCompleteWork(); }}
             >
               <CheckCircle size={20} color="#FFFFFF" />
               <Text style={styles.completeButtonText}>Completar Orden</Text>
@@ -649,7 +660,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
-                onPress={handleSubmitCompletion}
+                onPress={() => { void handleSubmitCompletion(); }}
                 disabled={isSubmitting}
               >
                 <Save size={20} color="#FFFFFF" />

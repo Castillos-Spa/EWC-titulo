@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,19 +11,24 @@ import {
 } from 'react-native';
 import { X, Save, Users, Clock, MapPin } from 'lucide-react-native';
 import { useCleaningStore } from '../stores/cleaningStore';
+import type { CleaningArea } from '../stores/cleaningStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface CreateCleaningReportModalProps {
-  visible: boolean;
-  onClose: () => void;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
+
+type CrewMember = { id: string; name: string };
 
 export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningReportModalProps) {
   const { createCleaningReport, isSubmitting } = useCleaningStore();
   const { user } = useAuthStore();
   
   const [shift, setShift] = useState<'morning' | 'afternoon' | 'night'>('morning');
-  const [crewMembers, setCrewMembers] = useState<string[]>([user?.name || '']);
+  const [crewMembers, setCrewMembers] = useState<CrewMember[]>([
+    { id: `member-${Date.now()}`, name: user?.name || '' },
+  ]);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
 
@@ -33,7 +38,7 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
     { value: 'night', label: 'Noche (22:00 - 06:00)' },
   ];
 
-  const availableAreas = [
+  const availableAreas: Pick<CleaningArea, 'id' | 'name' | 'type'>[] = [
     { id: 'area-001', name: 'Oficinas Administrativas', type: 'office' },
     { id: 'area-002', name: 'Baños Planta Baja', type: 'bathroom' },
     { id: 'area-003', name: 'Baños Planta Alta', type: 'bathroom' },
@@ -48,13 +53,24 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
       return;
     }
 
-    if (crewMembers.filter(member => member.trim()).length === 0) {
+    if (crewMembers.filter(member => member.name.trim()).length === 0) {
       Alert.alert('Error', 'Agrega al menos un miembro del equipo');
       return;
     }
 
     try {
-      const areas = availableAreas.filter(area => selectedAreas.includes(area.id));
+      const areasBase = availableAreas.filter(area => selectedAreas.includes(area.id));
+      const defaultEstimatedByType: Record<CleaningArea['type'], number> = {
+        office: 60,
+        bathroom: 30,
+        warehouse: 45,
+        exterior: 40,
+        common_area: 30,
+      };
+      const areas: CleaningArea[] = areasBase.map(area => ({
+        ...area,
+        estimatedTime: defaultEstimatedByType[area.type],
+      }));
       const tasks = areas.map(area => ({
         id: `task-${Date.now()}-${area.id}`,
         areaId: area.id,
@@ -66,7 +82,9 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
       await createCleaningReport({
         date: new Date().toISOString().split('T')[0],
         shift,
-        crewMembers: crewMembers.filter(member => member.trim()),
+        crewMembers: crewMembers
+          .filter(member => member.name.trim())
+          .map(member => member.name),
         areas,
         tasks,
         startTime: new Date().toISOString(),
@@ -80,13 +98,14 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
 
       // Reset form
       setShift('morning');
-      setCrewMembers([user?.name || '']);
+      setCrewMembers([{ id: `member-${Date.now()}`, name: user?.name || '' }]);
       setSelectedAreas([]);
       setNotes('');
       
       onClose();
       Alert.alert('Éxito', 'Parte diario creado correctamente');
     } catch (error) {
+      console.error('Error al crear el parte diario de limpieza', error);
       Alert.alert('Error', 'No se pudo crear el parte diario');
     }
   };
@@ -100,16 +119,17 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
   };
 
   const addCrewMember = () => {
-    setCrewMembers(prev => [...prev, '']);
+    const id = `member-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setCrewMembers(prev => [...prev, { id, name: '' }]);
   };
 
-  const updateCrewMember = (index: number, value: string) => {
-    setCrewMembers(prev => prev.map((member, i) => i === index ? value : member));
+  const updateCrewMember = (id: string, value: string) => {
+    setCrewMembers(prev => prev.map(member => member.id === id ? { ...member, name: value } : member));
   };
 
-  const removeCrewMember = (index: number) => {
+  const removeCrewMember = (id: string) => {
     if (crewMembers.length > 1) {
-      setCrewMembers(prev => prev.filter((_, i) => i !== index));
+      setCrewMembers(prev => prev.filter(member => member.id !== id));
     }
   };
 
@@ -154,19 +174,19 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
           {/* Crew Members */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Equipo de Trabajo</Text>
-            {crewMembers.map((member, index) => (
-              <View key={index} style={styles.crewMemberRow}>
+            {crewMembers.map((member) => (
+              <View key={member.id} style={styles.crewMemberRow}>
                 <TextInput
                   style={styles.crewInput}
-                  value={member}
-                  onChangeText={(value) => updateCrewMember(index, value)}
+                  value={member.name}
+                  onChangeText={(value) => updateCrewMember(member.id, value)}
                   placeholder="Nombre del trabajador"
                   placeholderTextColor="#94A3B8"
                 />
                 {crewMembers.length > 1 && (
                   <TouchableOpacity
                     style={styles.removeButton}
-                    onPress={() => removeCrewMember(index)}
+                    onPress={() => removeCrewMember(member.id)}
                   >
                     <X size={20} color="#EF4444" />
                   </TouchableOpacity>

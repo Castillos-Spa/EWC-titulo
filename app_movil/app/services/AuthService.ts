@@ -184,7 +184,7 @@ class AuthServiceClass {
   // ...eliminados helpers del JWT simulado
 
   // Método para mock de UI en LoginScreen (dejar vacío si no hay lista)
-  getTestUsers(): Array<{ email: string; password: string; role: string; name: string }> {
+  getTestUsers(): { email: string; password: string; role: string; name: string }[] {
     return [];
   }
 }

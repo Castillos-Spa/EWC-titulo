@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,25 +7,15 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  Platform,
 } from 'react-native';
-import { X, RotateCcw, Save } from 'lucide-react-native';
-import { Platform } from 'react-native';
-
-// Only import signature canvas on native platforms
-let SignatureScreen: any = null;
-if (Platform.OS !== 'web') {
-  try {
-    SignatureScreen = require('react-native-signature-canvas').default;
-  } catch (error) {
-    console.warn('Signature canvas not available:', error);
-  }
-}
+import { X, RotateCcw, Save, Shield } from 'lucide-react-native';
 
 interface SignatureModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onSave: (signature: string) => void;
-  title?: string;
+  readonly visible: boolean;
+  readonly onClose: () => void;
+  readonly onSave: (signature: string) => void;
+  readonly title?: string;
 }
 
 export function SignatureModal({ 
@@ -35,9 +25,27 @@ export function SignatureModal({
   title = "Capturar Firma" 
 }: SignatureModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [SignatureScreenCmp, setSignatureScreenCmp] = useState<any>(null);
   const signatureRef = useRef<any>(null);
 
-  const { width, height } = Dimensions.get('window');
+  useEffect(() => {
+    let mounted = true;
+    if (Platform.OS !== 'web') {
+      // Dynamic import to avoid require() and to skip web platform
+      import('react-native-signature-canvas')
+        .then(mod => {
+          if (mounted) setSignatureScreenCmp(mod.default);
+        })
+        .catch(err => {
+          console.warn('Signature canvas not available:', err);
+        });
+    }
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const { height } = Dimensions.get('window');
   const signatureHeight = Math.min(height * 0.4, 300);
 
   const handleOK = (signature: string) => {
@@ -51,6 +59,7 @@ export function SignatureModal({
       onSave(signature);
       onClose();
     } catch (error) {
+      console.error('Error al guardar la firma', error);
       Alert.alert('Error', 'No se pudo guardar la firma');
     } finally {
       setIsLoading(false);
@@ -76,7 +85,7 @@ export function SignatureModal({
   };
 
   // If signature canvas is not available, show alternative
-  if (!SignatureScreen) {
+  if (!SignatureScreenCmp) {
     return (
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
         <View style={styles.container}>
@@ -150,7 +159,7 @@ export function SignatureModal({
 
         {/* Signature Area */}
         <View style={[styles.signatureContainer, { height: signatureHeight }]}>
-          <SignatureScreen
+          <SignatureScreenCmp
             ref={signatureRef}
             onOK={handleOK}
             onEmpty={handleEmpty}

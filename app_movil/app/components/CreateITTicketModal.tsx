@@ -8,15 +8,14 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  Platform,
 } from 'react-native';
 import { X, Save, Monitor, Smartphone, Wifi, Mail, Phone, Printer, TriangleAlert as AlertTriangle, MapPin, Users, Plus, Minus } from 'lucide-react-native';
 import { useITSupportStore } from '../stores/itSupportStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface CreateITTicketModalProps {
-  visible: boolean;
-  onClose: () => void;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function CreateITTicketModal({ visible, onClose }: CreateITTicketModalProps) {
@@ -25,8 +24,10 @@ export function CreateITTicketModal({ visible, onClose }: CreateITTicketModalPro
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [priority, setPriority] = useState('');
+  const [category, setCategory] = useState<
+    'hardware' | 'software' | 'network' | 'email' | 'phone' | 'printer' | 'other'
+  >('other');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
   const [reportedBy, setReportedBy] = useState(user?.name || '');
   const [building, setBuilding] = useState('');
   const [floor, setFloor] = useState('');
@@ -42,14 +43,14 @@ export function CreateITTicketModal({ visible, onClose }: CreateITTicketModalPro
     { value: 'phone', label: 'Teléfono', icon: Phone, color: '#EF4444' },
     { value: 'printer', label: 'Impresora', icon: Printer, color: '#6B7280' },
     { value: 'other', label: 'Otro', icon: AlertTriangle, color: '#EC4899' },
-  ];
+  ] as const;
 
   const priorities = [
     { value: 'low', label: 'Baja', description: 'No afecta operaciones', color: '#16A34A' },
     { value: 'medium', label: 'Media', description: 'Afecta parcialmente', color: '#F59E0B' },
     { value: 'high', label: 'Alta', description: 'Afecta operaciones críticas', color: '#EF4444' },
     { value: 'urgent', label: 'Urgente', description: 'Detiene operaciones', color: '#DC2626' },
-  ];
+  ] as const;
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -97,8 +98,8 @@ export function CreateITTicketModal({ visible, onClose }: CreateITTicketModalPro
       // Reset form
       setTitle('');
       setDescription('');
-      setCategory('');
-      setPriority('');
+  setCategory('other');
+  setPriority('medium');
       setBuilding('');
       setFloor('');
       setOffice('');
@@ -108,6 +109,7 @@ export function CreateITTicketModal({ visible, onClose }: CreateITTicketModalPro
       onClose();
       Alert.alert('Éxito', 'Ticket TIC creado correctamente');
     } catch (error) {
+      console.error('Error al crear ticket TIC', error);
       Alert.alert('Error', 'No se pudo crear el ticket');
     }
   };
@@ -308,8 +310,8 @@ export function CreateITTicketModal({ visible, onClose }: CreateITTicketModalPro
 
             {affectedUsers.length > 0 && (
               <View style={styles.usersList}>
-                {affectedUsers.map((userName, index) => (
-                  <View key={index} style={styles.userTag}>
+                {affectedUsers.map((userName) => (
+                  <View key={userName} style={styles.userTag}>
                     <Text style={styles.userTagText}>{userName}</Text>
                     <TouchableOpacity
                       style={styles.removeUserButton}

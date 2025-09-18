@@ -10,14 +10,14 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { X, Sparkles as Cleaning, Clock, Users, MapPin, Camera, CircleCheck as CheckCircle, Circle, Package, FileText, Play, Save, SquareCheck as CheckSquare, Square } from 'lucide-react-native';
+import { X, Sparkles as Cleaning, Clock, Users, MapPin, Camera, CircleCheck as CheckCircle, Circle, Package, FileText, Play, SquareCheck as CheckSquare } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCleaningStore } from '../stores/cleaningStore';
 
 interface CleaningDetailModalProps {
-  report: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly report: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function CleaningDetailModal({ report, visible, onClose }: CleaningDetailModalProps) {
@@ -75,6 +75,7 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
       await completeTask(report.id, taskId, notes);
       Alert.alert('Éxito', completed ? 'Tarea completada' : 'Tarea marcada como pendiente');
     } catch (error) {
+      console.error('No se pudo actualizar la tarea:', error);
       Alert.alert('Error', 'No se pudo actualizar la tarea');
     } finally {
       setIsUpdating(false);
@@ -90,7 +91,6 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -101,6 +101,7 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
         Alert.alert('Éxito', 'Foto agregada al reporte');
       }
     } catch (error) {
+      console.error('No se pudo acceder a la cámara:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -110,6 +111,7 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
       await updateReportStatus(report.id, 'in_progress');
       Alert.alert('Éxito', 'Reporte iniciado');
     } catch (error) {
+      console.error('No se pudo iniciar el reporte:', error);
       Alert.alert('Error', 'No se pudo iniciar el reporte');
     }
   };
@@ -125,13 +127,15 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
           { text: 'Cancelar', style: 'cancel' },
           { 
             text: 'Completar', 
-            onPress: async () => {
-              try {
-                await updateReportStatus(report.id, 'completed');
-                Alert.alert('Éxito', 'Reporte completado');
-              } catch (error) {
-                Alert.alert('Error', 'No se pudo completar el reporte');
-              }
+            onPress: () => {
+              void updateReportStatus(report.id, 'completed')
+                .then(() => {
+                  Alert.alert('Éxito', 'Reporte completado');
+                })
+                .catch((error) => {
+                  console.error('No se pudo completar el reporte:', error);
+                  Alert.alert('Error', 'No se pudo completar el reporte');
+                });
             }
           },
         ]
@@ -141,6 +145,7 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
         await updateReportStatus(report.id, 'completed');
         Alert.alert('Éxito', 'Reporte completado');
       } catch (error) {
+        console.error('No se pudo completar el reporte:', error);
         Alert.alert('Error', 'No se pudo completar el reporte');
       }
     }
@@ -212,8 +217,8 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
               <Users size={20} color="#374151" /> Equipo de Trabajo
             </Text>
             <View style={styles.crewCard}>
-              {report.crewMembers.map((member: string, index: number) => (
-                <View key={index} style={styles.crewMember}>
+              {report.crewMembers.map((member: string) => (
+                <View key={member} style={styles.crewMember}>
                   <View style={styles.crewAvatar}>
                     <Text style={styles.crewInitial}>
                       {member.charAt(0).toUpperCase()}
@@ -360,12 +365,9 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
             {report.photos && report.photos.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.photosRow}>
-                  {report.photos.map((photo: string, index: number) => (
-                    <View key={index} style={styles.photoContainer}>
+                  {report.photos.map((photo: string) => (
+                    <View key={photo} style={styles.photoContainer}>
                       <Image source={{ uri: photo }} style={styles.photo} />
-                      <View style={styles.photoIndex}>
-                        <Text style={styles.photoIndexText}>{index + 1}</Text>
-                      </View>
                     </View>
                   ))}
                 </View>

@@ -10,30 +10,31 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { X, Camera, MapPin, TriangleAlert as AlertTriangle, Save, Navigation } from 'lucide-react-native';
+import { X, Camera, MapPin, Save, Navigation } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useIncidentStore } from '../stores/incidentStore';
+import type { Incident } from '../stores/incidentStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface CreateIncidentModalProps {
-  visible: boolean;
-  onClose: () => void;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalProps) {
   const { createIncident, isSubmitting } = useIncidentStore();
   const { user } = useAuthStore();
   
-  const [type, setType] = useState('other');
-  const [severity, setSeverity] = useState('medium');
+  const [type, setType] = useState<Incident['type']>('other');
+  const [severity, setSeverity] = useState<Incident['severity']>('medium');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [location, setLocation] = useState<any>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
-  const incidentTypes = [
+  const incidentTypes: readonly { value: Incident['type']; label: string; icon: string }[] = [
     { value: 'vehicle_breakdown', label: 'Avería de Vehículo', icon: '🚛' },
     { value: 'accident', label: 'Accidente', icon: '⚠️' },
     { value: 'traffic_delay', label: 'Retraso de Tráfico', icon: '🚦' },
@@ -42,7 +43,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
     { value: 'other', label: 'Otro', icon: '📝' },
   ];
 
-  const severityLevels = [
+  const severityLevels: readonly { value: Incident['severity']; label: string; color: string }[] = [
     { value: 'low', label: 'Bajo', color: '#16A34A' },
     { value: 'medium', label: 'Medio', color: '#D97706' },
     { value: 'high', label: 'Alto', color: '#EA580C' },
@@ -85,6 +86,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
         });
       } catch (addressError) {
         // If reverse geocoding fails, still save the coordinates
+        console.warn('Fallo el reverseGeocode, usando solo coordenadas', addressError);
         setLocation({
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
@@ -92,6 +94,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
         });
       }
     } catch (error) {
+      console.error('Error al obtener la ubicación actual', error);
       Alert.alert('Error', 'No se pudo obtener la ubicación actual');
     } finally {
       setIsGettingLocation(false);
@@ -107,7 +110,6 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -117,6 +119,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
         setPhotos(prev => [...prev, result.assets[0].uri]);
       }
     } catch (error) {
+      console.error('Error al acceder a la cámara', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -165,6 +168,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
       onClose();
       Alert.alert('Éxito', 'Incidente reportado correctamente');
     } catch (error) {
+      console.error('Error al crear incidente', error);
       Alert.alert('Error', 'No se pudo crear el incidente');
     }
   };
@@ -274,29 +278,37 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ubicación</Text>
             <View style={styles.locationCard}>
-              {isGettingLocation ? (
-                <View style={styles.locationLoading}>
-                  <Navigation size={24} color="#2563EB" />
-                  <Text style={styles.locationLoadingText}>Obteniendo ubicación...</Text>
-                </View>
-              ) : location ? (
-                <View style={styles.locationInfo}>
-                  <MapPin size={20} color="#16A34A" />
-                  <View style={styles.locationDetails}>
-                    <Text style={styles.locationAddress}>
-                      {location.address || 'Ubicación capturada'}
-                    </Text>
-                    <Text style={styles.locationCoords}>
-                      {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
-                  <MapPin size={24} color="#2563EB" />
-                  <Text style={styles.locationButtonText}>Obtener Ubicación Actual</Text>
-                </TouchableOpacity>
-              )}
+              {(() => {
+                if (isGettingLocation) {
+                  return (
+                    <View style={styles.locationLoading}>
+                      <Navigation size={24} color="#2563EB" />
+                      <Text style={styles.locationLoadingText}>Obteniendo ubicación...</Text>
+                    </View>
+                  );
+                }
+                if (location) {
+                  return (
+                    <View style={styles.locationInfo}>
+                      <MapPin size={20} color="#16A34A" />
+                      <View style={styles.locationDetails}>
+                        <Text style={styles.locationAddress}>
+                          {location.address || 'Ubicación capturada'}
+                        </Text>
+                        <Text style={styles.locationCoords}>
+                          {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }
+                return (
+                  <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
+                    <MapPin size={24} color="#2563EB" />
+                    <Text style={styles.locationButtonText}>Obtener Ubicación Actual</Text>
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
           </View>
 
@@ -315,7 +327,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
             {photos.length > 0 && (
               <View style={styles.photoGrid}>
                 {photos.map((photo, index) => (
-                  <View key={index} style={styles.photoContainer}>
+                  <View key={photo} style={styles.photoContainer}>
                     <Image source={{ uri: photo }} style={styles.photo} />
                     <TouchableOpacity
                       style={styles.removePhotoButton}

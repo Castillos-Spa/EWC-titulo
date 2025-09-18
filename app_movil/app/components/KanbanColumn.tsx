@@ -4,17 +4,16 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
 } from 'react-native';
 import { KanbanTaskCard } from './KanbanTaskCard';
 import { useThemeStore } from '../stores/themeStore';
 
 interface KanbanColumnProps {
-  title: string;
-  status: string;
-  tasks: any[];
-  onTaskPress: (task: any) => void;
-  color: string;
+  readonly title: string;
+  readonly status: string;
+  readonly tasks: any[];
+  readonly onTaskPress: (task: any) => void;
+  readonly color: string;
 }
 
 export function KanbanColumn({ title, status, tasks, onTaskPress, color }: KanbanColumnProps) {

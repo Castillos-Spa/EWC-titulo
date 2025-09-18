@@ -37,7 +37,7 @@ export default function CleaningScreen() {
 
   useEffect(() => {
     loadCleaningReports(getDateRange(selectedPeriod));
-  }, [selectedPeriod]);
+  }, [selectedPeriod, loadCleaningReports]);
 
   const getDateRange = (period: string) => {
     const now = new Date();

@@ -14,8 +14,8 @@ import { X, Shield, Camera, Save, CircleCheck as CheckCircle, Circle, HardHat, E
 import * as ImagePicker from 'expo-image-picker';
 
 interface SafetyChecklistModalProps {
-  visible: boolean;
-  onClose: () => void;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 interface SafetyItem {
@@ -28,7 +28,94 @@ interface SafetyItem {
   photoPath?: string;
 }
 
+// Subcomponente extraído para reducir anidación
+const ChecklistItemRow = ({
+  item,
+  index,
+  total,
+  onToggle,
+  onTakePhoto,
+  notes,
+  setNotes,
+}: {
+  item: SafetyItem;
+  index: number;
+  total: number;
+  onToggle: (id: string) => void;
+  onTakePhoto: (id: string) => Promise<void> | void;
+  notes: { [key: string]: string };
+  setNotes: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>;
+}) => {
+  const borderStyle = index < total - 1 ? styles.checklistItemBorder : undefined;
+  return (
+    <View key={item.id} style={[styles.checklistItem, borderStyle]}>
+      <View style={styles.itemHeader}>
+        <TouchableOpacity
+          style={[styles.checkbox, item.completed && styles.checkboxCompleted]}
+          onPress={() => onToggle(item.id)}
+        >
+          {item.completed ? (
+            <CheckCircle size={20} color="#16A34A" />
+          ) : (
+            <Circle size={20} color="#94A3B8" />
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.itemContent}>
+          <Text style={[styles.itemDescription, item.completed && styles.itemDescriptionCompleted]}>
+            {item.description}
+          </Text>
+          {item.photoRequired && (
+            <View style={styles.photoRequirement}>
+              <Camera size={14} color="#EA580C" />
+              <Text style={styles.photoRequirementText}>Foto requerida</Text>
+            </View>
+          )}
+        </View>
+
+        {item.photoRequired && (
+          <TouchableOpacity style={styles.photoButton} onPress={() => { onTakePhoto(item.id); }}>
+            <Camera size={20} color="#2563EB" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {item.photoPath && (
+        <View style={styles.photoPreview}>
+          <Image source={{ uri: item.photoPath }} style={styles.photo} />
+          <View style={styles.photoStatus}>
+            <CheckCircle size={16} color="#16A34A" />
+            <Text style={styles.photoStatusText}>Foto capturada</Text>
+          </View>
+        </View>
+      )}
+
+      <TextInput
+        style={styles.notesInput}
+        value={notes[item.id] || ''}
+        onChangeText={(value) => setNotes(prev => ({ ...prev, [item.id]: value }))}
+        placeholder="Notas adicionales (opcional)..."
+        placeholderTextColor="#94A3B8"
+        multiline
+        numberOfLines={2}
+      />
+
+      {item.completed && (
+        <View style={styles.completionInfo}>
+          <CheckCircle size={16} color="#16A34A" />
+          <Text style={styles.completionText}>Verificado correctamente</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalProps) {
+  const getProgressColor = (pct: number) => {
+    if (pct >= 80) return '#16A34A';
+    if (pct >= 50) return '#F59E0B';
+    return '#DC2626';
+  };
   const [checklist, setChecklist] = useState<SafetyItem[]>([
     {
       id: 'safety-001',
@@ -136,7 +223,6 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -151,6 +237,7 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
         Alert.alert('Éxito', 'Foto agregada al checklist');
       }
     } catch (error) {
+      console.error('Error cámara checklist:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -166,11 +253,11 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
         `Faltan ${incompleteRequired.length} elementos obligatorios de seguridad. ¿Deseas continuar de todas formas?`,
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Continuar', onPress: () => saveChecklist() },
+          { text: 'Continuar', onPress: () => { void saveChecklist(); } },
         ]
       );
     } else {
-      saveChecklist();
+      void saveChecklist();
     }
   };
 
@@ -189,6 +276,7 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
         [{ text: 'Entendido', onPress: onClose }]
       );
     } catch (error) {
+      console.error('Error al guardar checklist:', error);
       Alert.alert('Error', 'No se pudo guardar el checklist');
     } finally {
       setIsSubmitting(false);
@@ -245,7 +333,7 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
                   styles.progressFill, 
                   { 
                     width: `${progress.percentage}%`,
-                    backgroundColor: progress.percentage >= 80 ? '#16A34A' : progress.percentage >= 50 ? '#F59E0B' : '#DC2626'
+                    backgroundColor: getProgressColor(progress.percentage)
                   }
                 ]} 
               />
@@ -280,88 +368,16 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
 
                 <View style={styles.categoryCard}>
                   {items.map((item, index) => (
-                    <View 
-                      key={item.id} 
-                      style={[
-                        styles.checklistItem,
-                        index < items.length - 1 && styles.checklistItemBorder,
-                      ]}
-                    >
-                      <View style={styles.itemHeader}>
-                        <TouchableOpacity
-                          style={[
-                            styles.checkbox,
-                            item.completed && styles.checkboxCompleted,
-                          ]}
-                          onPress={() => handleItemToggle(item.id)}
-                        >
-                          {item.completed ? (
-                            <CheckCircle size={20} color="#16A34A" />
-                          ) : (
-                            <Circle size={20} color="#94A3B8" />
-                          )}
-                        </TouchableOpacity>
-                        
-                        <View style={styles.itemContent}>
-                          <Text style={[
-                            styles.itemDescription,
-                            item.completed && styles.itemDescriptionCompleted,
-                          ]}>
-                            {item.description}
-                          </Text>
-                          
-                          {item.photoRequired && (
-                            <View style={styles.photoRequirement}>
-                              <Camera size={14} color="#EA580C" />
-                              <Text style={styles.photoRequirementText}>
-                                Foto requerida
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-
-                        {item.photoRequired && (
-                          <TouchableOpacity
-                            style={styles.photoButton}
-                            onPress={() => handleTakePhoto(item.id)}
-                          >
-                            <Camera size={20} color="#2563EB" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-
-                      {/* Photo Preview */}
-                      {item.photoPath && (
-                        <View style={styles.photoPreview}>
-                          <Image source={{ uri: item.photoPath }} style={styles.photo} />
-                          <View style={styles.photoStatus}>
-                            <CheckCircle size={16} color="#16A34A" />
-                            <Text style={styles.photoStatusText}>Foto capturada</Text>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* Notes Input */}
-                      <TextInput
-                        style={styles.notesInput}
-                        value={itemNotes[item.id] || ''}
-                        onChangeText={(value) => setItemNotes(prev => ({ ...prev, [item.id]: value }))}
-                        placeholder="Notas adicionales (opcional)..."
-                        placeholderTextColor="#94A3B8"
-                        multiline
-                        numberOfLines={2}
-                      />
-
-                      {/* Completion Info */}
-                      {item.completed && (
-                        <View style={styles.completionInfo}>
-                          <CheckCircle size={16} color="#16A34A" />
-                          <Text style={styles.completionText}>
-                            Verificado correctamente
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                    <ChecklistItemRow
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      total={items.length}
+                      onToggle={handleItemToggle}
+                      onTakePhoto={handleTakePhoto}
+                      notes={itemNotes}
+                      setNotes={setItemNotes}
+                    />
                   ))}
                 </View>
               </View>
@@ -393,7 +409,7 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
-            onPress={handleSubmit}
+            onPress={() => { void handleSubmit(); }}
             disabled={isSubmitting}
           >
             <Save size={20} color="#FFFFFF" />

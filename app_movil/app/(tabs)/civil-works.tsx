@@ -35,7 +35,7 @@ export default function CivilWorksScreen() {
 
   useEffect(() => {
     loadWorkOrders();
-  }, []);
+  }, [loadWorkOrders]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

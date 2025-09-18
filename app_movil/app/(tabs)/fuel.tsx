@@ -45,7 +45,7 @@ export default function FuelScreen() {
 
   useEffect(() => {
     loadFuelRecords(currentVehicle.id, getDateRange(selectedPeriod));
-  }, [selectedPeriod]);
+  }, [selectedPeriod, currentVehicle.id, loadFuelRecords]);
 
   const getDateRange = (period: string) => {
     const now = new Date();

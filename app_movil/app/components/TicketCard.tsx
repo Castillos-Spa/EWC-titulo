@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { Ticket, Clock, MapPin, User, CircleCheck as CheckCircle, Circle, Play, Pause, X, Wrench, Package, Eye, TriangleAlert as AlertTriangle, FileText, Camera } from 'lucide-react-native';
+import { Clock, MapPin, User, CircleCheck as CheckCircle, Circle, Play, Pause, X, Wrench, Package, Eye, TriangleAlert as AlertTriangle, FileText, Camera } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 
 interface TicketCardProps {
-  ticket: any;
-  onPress: () => void;
+  readonly ticket: any;
+  readonly onPress: () => void;
 }
 
 export function TicketCard({ ticket, onPress }: TicketCardProps) {

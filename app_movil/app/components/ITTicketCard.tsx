@@ -9,8 +9,8 @@ import { Monitor, Clock, MapPin, User, CircleCheck as CheckCircle, Circle, Play,
 import { useThemeStore } from '../stores/themeStore';
 
 interface ITTicketCardProps {
-  ticket: any;
-  onPress: () => void;
+  readonly ticket: any;
+  readonly onPress: () => void;
 }
 
 export function ITTicketCard({ ticket, onPress }: ITTicketCardProps) {

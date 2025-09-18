@@ -34,7 +34,7 @@ export default function IncidentsScreen() {
 
   useEffect(() => {
     loadIncidents();
-  }, []);
+  }, [loadIncidents]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

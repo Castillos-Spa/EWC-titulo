@@ -10,16 +10,15 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { X, Calendar, Clock, User, Tag, FileText, Camera, Send, CircleCheck as CheckCircle, Circle, Play, Pause, TrendingUp, MessageCircle, Paperclip, Save, Route, Sparkles as Cleaning, HardHat, Monitor, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { X, Calendar, Clock, User, Tag, FileText, Camera, Send, CircleCheck as CheckCircle, Play, Pause, TrendingUp, MessageCircle, Paperclip, Route, Sparkles as Cleaning, HardHat, Monitor } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useKanbanStore } from '../stores/kanbanStore';
-import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 
 interface TaskDetailModalProps {
-  task: any;
-  visible: boolean;
-  onClose: () => void;
+  readonly task: any;
+  readonly visible: boolean;
+  readonly onClose: () => void;
 }
 
 export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps) {
@@ -30,7 +29,6 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
     addTaskAttachment,
     requestApproval 
   } = useKanbanStore();
-  const { user } = useAuthStore();
   
   const [newComment, setNewComment] = useState('');
   const [progressValue, setProgressValue] = useState(task?.progress?.toString() || '0');
@@ -133,11 +131,12 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
     return `${hours}h`;
   };
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: 'in_progress' | 'completed' | 'cancelled' | 'pending') => {
     try {
       await updateTaskStatus(task.id, newStatus);
       Alert.alert('Éxito', `Tarea marcada como ${getStatusLabel(newStatus).toLowerCase()}`);
     } catch (error) {
+      console.error('Error al actualizar estado de tarea:', error);
       Alert.alert('Error', 'No se pudo actualizar el estado');
     }
   };
@@ -153,6 +152,7 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
       await updateTaskProgress(task.id, progress);
       Alert.alert('Éxito', 'Progreso actualizado correctamente');
     } catch (error) {
+      console.error('Error al actualizar progreso de tarea:', error);
       Alert.alert('Error', 'No se pudo actualizar el progreso');
     }
   };
@@ -169,6 +169,7 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
       setNewComment('');
       Alert.alert('Éxito', 'Comentario agregado');
     } catch (error) {
+      console.error('Error al agregar comentario a tarea:', error);
       Alert.alert('Error', 'No se pudo agregar el comentario');
     } finally {
       setIsSubmitting(false);
@@ -184,7 +185,6 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -195,6 +195,7 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
         Alert.alert('Éxito', 'Foto agregada a la tarea');
       }
     } catch (error) {
+      console.error('Error cámara en tarea:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -207,18 +208,27 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Solicitar', 
-          onPress: async () => {
-            try {
-              // En una app real, seleccionarías los aprobadores
-              await requestApproval(task.id, ['supervisor-1', 'manager-1']);
-              Alert.alert('Éxito', 'Solicitud de aprobación enviada');
-            } catch (error) {
-              Alert.alert('Error', 'No se pudo enviar la solicitud');
-            }
+          onPress: () => {
+            void (async () => {
+              try {
+                // En una app real, seleccionarías los aprobadores
+                await requestApproval(task.id, ['supervisor-1', 'manager-1']);
+                Alert.alert('Éxito', 'Solicitud de aprobación enviada');
+              } catch (error) {
+                console.error('Error al solicitar aprobación de tarea:', error);
+                Alert.alert('Error', 'No se pudo enviar la solicitud');
+              }
+            })();
           }
         },
       ]
     );
+  };
+
+  const getApprovalStyle = (status: string) => {
+    if (status === 'approved') return { bg: '#F0FDF4', color: '#16A34A', label: 'Aprobado' } as const;
+    if (status === 'rejected') return { bg: '#FEF2F2', color: '#DC2626', label: 'Rechazado' } as const;
+    return { bg: '#FEF3F2', color: '#F59E0B', label: 'Pendiente' } as const;
   };
 
   const TypeIcon = getTypeIcon(task.type);
@@ -388,8 +398,8 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
                 <Tag size={20} color="#374151" /> Etiquetas
               </Text>
               <View style={styles.tagsContainer}>
-                {task.tags.map((tag: string, index: number) => (
-                  <View key={index} style={[styles.tag, { backgroundColor: `${typeColor}15` }]}>
+                {task.tags.map((tag: string) => (
+                  <View key={tag} style={[styles.tag, { backgroundColor: `${typeColor}15` }]}>
                     <Text style={[styles.tagText, { color: typeColor }]}>{tag}</Text>
                   </View>
                 ))}
@@ -418,17 +428,13 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
                       </View>
                     </View>
                     
-                    <View style={[
-                      styles.approvalStatus,
-                      { backgroundColor: approval.status === 'approved' ? '#F0FDF4' : approval.status === 'rejected' ? '#FEF2F2' : '#FEF3F2' }
-                    ]}>
-                      <Text style={[
-                        styles.approvalStatusText,
-                        { color: approval.status === 'approved' ? '#16A34A' : approval.status === 'rejected' ? '#DC2626' : '#F59E0B' }
-                      ]}>
-                        {approval.status === 'approved' ? 'Aprobado' : approval.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
-                      </Text>
-                    </View>
+                    {(() => { const st = getApprovalStyle(approval.status); return (
+                      <View style={[styles.approvalStatus, { backgroundColor: st.bg }]}>
+                        <Text style={[styles.approvalStatusText, { color: st.color }]}>
+                          {st.label}
+                        </Text>
+                      </View>
+                    ); })()}
                   </View>
                   
                   {approval.notes && (
@@ -453,10 +459,10 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.attachmentsRow}>
-                  {task.attachments.map((attachment: string, index: number) => (
-                    <View key={index} style={styles.attachmentContainer}>
+                  {task.attachments.map((attachment: string) => (
+                    <View key={attachment} style={styles.attachmentContainer}>
                       <Image source={{ uri: attachment }} style={styles.attachment} />
-                      <Text style={styles.attachmentIndex}>{index + 1}</Text>
+                      <Text style={styles.attachmentIndex}>Adjunto</Text>
                     </View>
                   ))}
                 </View>
@@ -492,8 +498,8 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
                 
                 {comment.attachments && comment.attachments.length > 0 && (
                   <View style={styles.commentAttachments}>
-                    {comment.attachments.map((attachment: string, index: number) => (
-                      <Image key={index} source={{ uri: attachment }} style={styles.commentAttachment} />
+                    {comment.attachments.map((attachment: string) => (
+                      <Image key={attachment} source={{ uri: attachment }} style={styles.commentAttachment} />
                     ))}
                   </View>
                 )}
