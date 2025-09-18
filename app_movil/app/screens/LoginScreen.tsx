@@ -13,17 +13,14 @@ import {
   Dimensions,
 } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
-import { Building2, Lock, Mail, Eye, EyeOff, Users, Info } from 'lucide-react-native';
-import { AuthService } from '../services/AuthService';
+import { Building2, Lock, Mail, Eye, EyeOff } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
-
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showTestUsers, setShowTestUsers] = useState(false);
   const { login, isLoading, error, clearError } = useAuthStore();
   const { getColors } = useThemeStore();
 
@@ -45,43 +42,7 @@ export default function LoginScreen() {
     await login(email.trim(), password);
   };
 
-  const handleTestUserSelect = (testUser: any) => {
-    setEmail(testUser.email);
-    setPassword(testUser.password);
-    setShowTestUsers(false);
-  };
-
-  const testUsers = AuthService.getTestUsers();
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'driver': return '#2563EB';
-      case 'supervisor': return '#7C3AED';
-      case 'technician': return '#16A34A';
-      case 'admin': return '#DC2626';
-      case 'cleaning_crew': return '#06B6D4';
-      case 'civil_works': return '#F59E0B';
-      case 'it_support': return '#8B5CF6';
-      case 'manager': return '#1F2937';
-      case 'finance': return '#059669';
-      default: return '#6B7280';
-    }
-  };
-
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'driver': return 'Conductor';
-      case 'supervisor': return 'Supervisor';
-      case 'technician': return 'Técnico';
-      case 'admin': return 'Administrador';
-      case 'cleaning_crew': return 'Personal de Aseo';
-      case 'civil_works': return 'Obras Civiles';
-      case 'it_support': return 'Soporte TIC';
-      case 'manager': return 'Gerente';
-      case 'finance': return 'Finanzas';
-      default: return role;
-    }
-  };
+  // Variables y utilidades de usuarios de prueba eliminadas por no utilizarse
 
   return (
     <KeyboardAvoidingView 
@@ -159,52 +120,6 @@ export default function LoginScreen() {
                 <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
               )}
             </TouchableOpacity>
-
-            {/* Test Users */}
-            <TouchableOpacity 
-              style={[styles.testUsersToggle, { backgroundColor: colors.background, borderColor: colors.border }]}
-              onPress={() => setShowTestUsers(!showTestUsers)}
-            >
-              <Users size={18} color="#2563EB" />
-              <Text style={[styles.testUsersToggleText, { color: colors.primary }]}>
-                {showTestUsers ? 'Ocultar' : 'Ver'} Usuarios de Prueba
-              </Text>
-            </TouchableOpacity>
-
-            {showTestUsers && (
-              <View style={[styles.testUsersContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View style={[styles.testUsersHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-                  <Info size={16} color="#2563EB" />
-                  <Text style={[styles.testUsersTitle, { color: colors.primary }]}>Usuarios de Prueba</Text>
-                </View>
-                
-                <ScrollView style={styles.testUsersList} nestedScrollEnabled>
-                  {testUsers.map((testUser, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[styles.testUserCard, { borderBottomColor: colors.border }]}
-                      onPress={() => handleTestUserSelect(testUser)}
-                    >
-                      <View style={styles.testUserInfo}>
-                        <Text style={[styles.testUserName, { color: colors.text }]}>{testUser.name}</Text>
-                        <Text style={[styles.testUserEmail, { color: colors.textSecondary }]}>{testUser.email}</Text>
-                        <View style={[
-                          styles.testUserRole,
-                          { backgroundColor: `${getRoleColor(testUser.role)}15` }
-                        ]}>
-                          <Text style={[
-                            styles.testUserRoleText,
-                            { color: getRoleColor(testUser.role) }
-                          ]}>
-                            {getRoleLabel(testUser.role)}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
           </View>
         </View>
 

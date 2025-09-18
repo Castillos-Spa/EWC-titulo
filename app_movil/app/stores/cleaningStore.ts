@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { DatabaseService } from '../services/DatabaseService';
 
 export interface CleaningArea {
   id: string;
@@ -102,6 +101,45 @@ interface CleaningState {
   clearError: () => void;
 }
 
+const completeTaskInReports = (
+  reports: CleaningReport[],
+  reportId: string,
+  taskId: string,
+  notes?: string,
+  photoPath?: string
+): CleaningReport[] =>
+  reports.map(report =>
+    report.id === reportId
+      ? {
+          ...report,
+          tasks: report.tasks.map(task =>
+            task.id === taskId
+              ? { ...task, completed: true, notes, photoPath, completedAt: new Date().toISOString() }
+              : task
+          ),
+          syncStatus: 'pending',
+        }
+      : report
+  );
+
+const addPhotoToReports = (
+  reports: CleaningReport[],
+  reportId: string,
+  photoUri: string
+): CleaningReport[] =>
+  reports.map(report =>
+    report.id === reportId ? { ...report, photos: [...report.photos, photoUri] } : report
+  );
+
+const addPhotoToCurrentReport = (
+  current: CleaningReport | null,
+  reportId: string,
+  photoUri: string
+): CleaningReport | null => {
+  if (!current || current.id !== reportId) return current;
+  return { ...current, photos: [...current.photos, photoUri] };
+};
+
 export const useCleaningStore = create<CleaningState>((set, get) => ({
   reports: [],
   supplyRequests: [],
@@ -184,6 +222,7 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
 
       set({ reports: mockReports, isLoading: false });
     } catch (error) {
+      console.error('Error al cargar reportes de limpieza:', error);
       set({ error: 'Error al cargar reportes de limpieza', isLoading: false });
     }
   },
@@ -203,6 +242,7 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
         isSubmitting: false,
       }));
     } catch (error) {
+      console.error('Error al crear reporte de limpieza:', error);
       set({ error: 'Error al crear reporte de limpieza', isSubmitting: false });
     }
   },
@@ -217,6 +257,7 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar reporte:', error);
       set({ error: 'Error al actualizar reporte' });
     }
   },
@@ -224,41 +265,18 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
   completeTask: async (reportId: string, taskId: string, notes?: string, photoPath?: string) => {
     try {
       set(state => ({
-        reports: state.reports.map(report =>
-          report.id === reportId
-            ? {
-                ...report,
-                tasks: report.tasks.map(task =>
-                  task.id === taskId
-                    ? {
-                        ...task,
-                        completed: true,
-                        notes,
-                        photoPath,
-                        completedAt: new Date().toISOString(),
-                      }
-                    : task
-                ),
-                syncStatus: 'pending' as const,
-              }
-            : report
-        ),
+        reports: completeTaskInReports(state.reports, reportId, taskId, notes, photoPath),
       }));
     } catch (error) {
+      console.error('Error al completar tarea:', error);
       set({ error: 'Error al completar tarea' });
     }
   },
 
   addReportPhoto: (reportId: string, photoUri: string) => {
     set(state => ({
-      reports: state.reports.map(report =>
-        report.id === reportId
-          ? { ...report, photos: [...report.photos, photoUri] }
-          : report
-      ),
-      currentReport: state.currentReport?.id === reportId
-        ? { ...state.currentReport, photos: [...state.currentReport.photos, photoUri] }
-        : state.currentReport,
+      reports: addPhotoToReports(state.reports, reportId, photoUri),
+      currentReport: addPhotoToCurrentReport(state.currentReport, reportId, photoUri),
     }));
   },
 
@@ -277,6 +295,7 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
         isSubmitting: false,
       }));
     } catch (error) {
+      console.error('Error al crear solicitud de insumos:', error);
       set({ error: 'Error al crear solicitud de insumos', isSubmitting: false });
     }
   },
@@ -308,6 +327,7 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
 
       set({ supplyRequests: mockRequests });
     } catch (error) {
+      console.error('Error al cargar solicitudes de insumos:', error);
       set({ error: 'Error al cargar solicitudes de insumos' });
     }
   },

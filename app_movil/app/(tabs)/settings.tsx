@@ -7,11 +7,9 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, User, Shield, Fingerprint, Bell, Moon, Globe, CircleHelp as HelpCircle, LogOut, ChevronRight, Smartphone, Lock, Eye, Info } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Settings, User, Shield, Fingerprint, Bell, Moon, Globe, CircleHelp as HelpCircle, LogOut, ChevronRight, Lock, Info } from 'lucide-react-native';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { BiometricService } from '../services/BiometricService';
@@ -19,7 +17,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuthStore();
+  const { user, logout, enableBiometricForCurrentSession } = useAuthStore();
   const { isDarkMode, toggleTheme, getColors } = useThemeStore();
   
   const [biometricSupported, setBiometricSupported] = useState(false);
@@ -71,18 +69,18 @@ export default function SettingsScreen() {
     
     try {
       if (enabled) {
-        // Enable biometric
-        Alert.alert(
-          'Habilitar Biometría',
-          'Para habilitar el acceso biométrico, necesitamos verificar tu identidad con tus credenciales actuales.',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { 
-              text: 'Continuar', 
-              onPress: () => promptForCredentials()
-            },
-          ]
-        );
+        try {
+          const ok = await enableBiometricForCurrentSession();
+          if (ok) {
+            setBiometricEnabled(true);
+            Alert.alert('Éxito', 'Autenticación biométrica habilitada correctamente');
+          } else {
+            Alert.alert('Error', 'No se pudo habilitar la autenticación biométrica');
+          }
+        } catch (e) {
+          console.error('enableBiometricForCurrentSession failed', e);
+          Alert.alert('Error', 'No se pudo habilitar la autenticación biométrica');
+        }
       } else {
         // Disable biometric
         Alert.alert(
@@ -93,14 +91,16 @@ export default function SettingsScreen() {
             { 
               text: 'Deshabilitar', 
               style: 'destructive',
-              onPress: async () => {
-                try {
-                  await BiometricService.disableBiometric();
-                  setBiometricEnabled(false);
-                  Alert.alert('Éxito', 'Autenticación biométrica deshabilitada');
-                } catch (error) {
-                  Alert.alert('Error', 'No se pudo deshabilitar la autenticación biométrica');
-                }
+              onPress: () => {
+                BiometricService.disableBiometric()
+                  .then(() => {
+                    setBiometricEnabled(false);
+                    Alert.alert('Éxito', 'Autenticación biométrica deshabilitada');
+                  })
+                  .catch((error) => {
+                    console.error('disableBiometric failed', error);
+                    Alert.alert('Error', 'No se pudo deshabilitar la autenticación biométrica');
+                  });
               }
             },
           ]
@@ -111,50 +111,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const promptForCredentials = () => {
-    Alert.prompt(
-      'Confirmar Email',
-      'Ingresa tu email para confirmar tu identidad:',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Siguiente', 
-          onPress: (email) => {
-            if (email) {
-              promptForPassword(email);
-            }
-          }
-        },
-      ],
-      'plain-text',
-      user?.email || ''
-    );
-  };
-
-  const promptForPassword = (email: string) => {
-    Alert.prompt(
-      'Confirmar Contraseña',
-      'Ingresa tu contraseña:',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Habilitar', 
-          onPress: async (password) => {
-            if (password) {
-              try {
-                await BiometricService.enableBiometric(email, password);
-                setBiometricEnabled(true);
-                Alert.alert('Éxito', 'Autenticación biométrica habilitada correctamente');
-              } catch (error) {
-                Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo habilitar la autenticación biométrica');
-              }
-            }
-          }
-        },
-      ],
-      'secure-text'
-    );
-  };
+  // Flujos con prompts de email/contraseña se reemplazaron por enableBiometricForCurrentSession
 
   const handleNotificationsToggle = async (enabled: boolean) => {
     setNotificationsEnabled(enabled);
@@ -195,7 +152,7 @@ export default function SettingsScreen() {
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Siguiente', 
-          onPress: (currentPassword) => {
+          onPress: (currentPassword?: string) => {
             if (currentPassword) {
               promptForNewPassword();
             }
@@ -214,7 +171,7 @@ export default function SettingsScreen() {
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Cambiar', 
-          onPress: (newPassword) => {
+          onPress: (newPassword?: string) => {
             if (newPassword && newPassword.length >= 6) {
               Alert.alert('Éxito', 'Contraseña cambiada correctamente');
             } else {
@@ -318,7 +275,7 @@ export default function SettingsScreen() {
         { 
           text: 'Cerrar Sesión', 
           style: 'destructive',
-          onPress: logout
+          onPress: () => { void logout(); }
         },
       ]
     );
@@ -370,6 +327,11 @@ export default function SettingsScreen() {
     return languages[lang as keyof typeof languages] || lang;
   };
 
+  const biometricStatusText = biometricEnabled ? 'Habilitada' : 'Deshabilitada';
+  const biometricSubtitle = biometricSupported
+    ? `${getBiometricTypeText()} • ${biometricStatusText}`
+    : 'No disponible en este dispositivo';
+
   const settingsSections = [
     {
       title: 'Seguridad',
@@ -377,12 +339,10 @@ export default function SettingsScreen() {
         {
           icon: Fingerprint,
           title: 'Autenticación Biométrica',
-          subtitle: biometricSupported 
-            ? `${getBiometricTypeText()} • ${biometricEnabled ? 'Habilitada' : 'Deshabilitada'}`
-            : 'No disponible en este dispositivo',
+          subtitle: biometricSubtitle,
           hasSwitch: biometricSupported,
           switchValue: biometricEnabled,
-          onSwitchChange: handleBiometricToggle,
+          onSwitchChange: (v: boolean) => { void handleBiometricToggle(v); },
           disabled: !biometricSupported || isLoading,
         },
         {
@@ -390,12 +350,14 @@ export default function SettingsScreen() {
           title: 'Cambiar Contraseña',
           subtitle: 'Actualiza tu contraseña de acceso',
           onPress: handleChangePassword,
+          disabled: false,
         },
         {
           icon: Shield,
           title: 'Privacidad y Seguridad',
           subtitle: 'Configuración de privacidad y datos',
           onPress: handlePrivacySettings,
+          disabled: false,
         },
       ],
     },
@@ -408,7 +370,8 @@ export default function SettingsScreen() {
           subtitle: notificationsEnabled ? 'Habilitadas' : 'Deshabilitadas',
           hasSwitch: true,
           switchValue: notificationsEnabled,
-          onSwitchChange: handleNotificationsToggle,
+          onSwitchChange: (v: boolean) => { void handleNotificationsToggle(v); },
+          disabled: false,
         },
         {
           icon: Moon,
@@ -416,13 +379,15 @@ export default function SettingsScreen() {
           subtitle: isDarkMode ? 'Oscuro' : 'Claro',
           hasSwitch: true,
           switchValue: isDarkMode,
-          onSwitchChange: handleDarkModeToggle,
+          onSwitchChange: (v: boolean) => { void handleDarkModeToggle(v); },
+          disabled: false,
         },
         {
           icon: Globe,
           title: 'Idioma',
           subtitle: getLanguageLabel(language),
           onPress: handleLanguageChange,
+          disabled: false,
         },
       ],
     },
@@ -434,12 +399,14 @@ export default function SettingsScreen() {
           title: 'Ayuda y Soporte',
           subtitle: 'FAQ, contacto y reportar problemas',
           onPress: handleHelpSupport,
+          disabled: false,
         },
         {
           icon: Info,
           title: 'Acerca de',
           subtitle: 'Versión 1.0.0 • Build 2025.01.001',
           onPress: handleAbout,
+          disabled: false,
         },
       ],
     },
@@ -490,16 +457,17 @@ export default function SettingsScreen() {
         </View>
 
         {/* Settings Sections */}
-        {settingsSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
+        {settingsSections.map((section) => (
+          <View key={section.title} style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
             <View style={[styles.sectionCard, { backgroundColor: colors.surface }]}>
-              {section.items.map((item, itemIndex) => (
+              {section.items.map((item) => (
                 <TouchableOpacity
-                  key={itemIndex}
+                  key={`${section.title}-${item.title}`}
                   style={[
                     styles.settingItem,
-                    itemIndex < section.items.length - 1 && styles.settingItemBorder,
+                    // border for all but last item
+                    section.items.findIndex(i => i.title === item.title) < section.items.length - 1 && styles.settingItemBorder,
                     item.disabled && styles.settingItemDisabled,
                   ]}
                   onPress={item.onPress}
@@ -520,10 +488,10 @@ export default function SettingsScreen() {
                     {item.hasSwitch ? (
                       <Switch
                         value={item.switchValue}
-                        onValueChange={item.onSwitchChange}
+                        onValueChange={(v) => { item.onSwitchChange?.(v); }}
                         disabled={item.disabled}
                         trackColor={{ false: colors.border, true: colors.success }}
-                        thumbColor={item.switchValue ? '#FFFFFF' : '#FFFFFF'}
+                        thumbColor="#FFFFFF"
                         ios_backgroundColor={colors.border}
                       />
                     ) : (

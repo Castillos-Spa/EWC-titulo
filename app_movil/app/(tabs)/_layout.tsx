@@ -2,18 +2,35 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { useThemeStore } from '../stores/themeStore';
-import { 
-  Chrome as Home, 
-  Route, 
-  TriangleAlert as AlertTriangle, 
-  Fuel, 
-  Ticket, 
+import {
+  Home,
+  Route,
+  TriangleAlert as AlertTriangle,
+  Fuel,
+  Ticket,
   Sparkles as Cleaning,
   HardHat,
   Monitor,
   Kanban,
-  Settings 
+  Settings,
+  type LucideIcon,
 } from 'lucide-react-native';
+
+const makeTabBarIcon = (Icon: LucideIcon) =>
+  ({ size, color }: { size: number; color: string }) => (
+    <Icon size={size} color={color} strokeWidth={2} />
+  );
+
+const homeTabIcon = makeTabBarIcon(Home);
+const routeTabIcon = makeTabBarIcon(Route);
+const cleaningTabIcon = makeTabBarIcon(Cleaning);
+const hardHatTabIcon = makeTabBarIcon(HardHat);
+const monitorTabIcon = makeTabBarIcon(Monitor);
+const kanbanTabIcon = makeTabBarIcon(Kanban);
+const fuelTabIcon = makeTabBarIcon(Fuel);
+const alertTabIcon = makeTabBarIcon(AlertTriangle);
+const ticketTabIcon = makeTabBarIcon(Ticket);
+const settingsTabIcon = makeTabBarIcon(Settings);
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -61,90 +78,70 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: homeTabIcon,
         }}
       />
       <Tabs.Screen
         name="routes"
         options={{
           title: 'Rutas',
-          tabBarIcon: ({ size, color }) => (
-            <Route size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: routeTabIcon,
         }}
       />
       <Tabs.Screen
         name="cleaning"
         options={{
           title: 'Aseo',
-          tabBarIcon: ({ size, color }) => (
-            <Cleaning size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: cleaningTabIcon,
         }}
       />
       <Tabs.Screen
         name="civil-works"
         options={{
           title: 'Obras',
-          tabBarIcon: ({ size, color }) => (
-            <HardHat size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: hardHatTabIcon,
         }}
       />
       <Tabs.Screen
         name="it-support"
         options={{
           title: 'TIC',
-          tabBarIcon: ({ size, color }) => (
-            <Monitor size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: monitorTabIcon,
         }}
       />
       <Tabs.Screen
         name="kanban"
         options={{
           title: 'Kanban',
-          tabBarIcon: ({ size, color }) => (
-            <Kanban size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: kanbanTabIcon,
         }}
       />
       <Tabs.Screen
         name="fuel"
         options={{
           title: 'Combustible',
-          tabBarIcon: ({ size, color }) => (
-            <Fuel size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: fuelTabIcon,
         }}
       />
       <Tabs.Screen
         name="incidents"
         options={{
           title: 'Incidentes',
-          tabBarIcon: ({ size, color }) => (
-            <AlertTriangle size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: alertTabIcon,
         }}
       />
       <Tabs.Screen
         name="tickets"
         options={{
           title: 'Tickets',
-          tabBarIcon: ({ size, color }) => (
-            <Ticket size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: ticketTabIcon,
         }}
       />
       <Tabs.Screen
-        name="Configuración"
+        name="settings"
         options={{
           title: 'Config',
-          tabBarIcon: ({ size, color }) => (
-            <Settings size={size} color={color} strokeWidth={2} />
-          ),
+          tabBarIcon: settingsTabIcon,
         }}
       />
     </Tabs>

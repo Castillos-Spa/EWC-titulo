@@ -8,9 +8,14 @@ export interface BiometricSettings {
   lastUsed?: string;
 }
 
+export type BiometricAuthData =
+  | { email: string; password: string }
+  | { refreshToken: string };
+
 class BiometricServiceClass {
   private readonly BIOMETRIC_ENABLED_KEY = 'biometric_enabled';
   private readonly BIOMETRIC_CREDENTIALS_KEY = 'biometric_credentials';
+  private readonly BIOMETRIC_REFRESH_TOKEN_KEY = 'biometric_refresh_token';
 
   async isSupported(): Promise<boolean> {
     try {
@@ -85,17 +90,45 @@ class BiometricServiceClass {
     }
   }
 
+  // Recomendado: habilitar usando la sesión actual (usa refreshToken almacenado por la app)
+  async enableBiometricUsingSession(): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      throw new Error('La autenticación biométrica no está disponible en la web');
+    }
+    const isSupported = await this.isSupported();
+    if (!isSupported) {
+      throw new Error('La autenticación biométrica no está disponible en este dispositivo');
+    }
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Confirma tu identidad para habilitar el acceso biométrico',
+      cancelLabel: 'Cancelar',
+      fallbackLabel: 'Usar contraseña',
+    });
+    if (!result.success) {
+      throw new Error('Autenticación biométrica fallida');
+    }
+    const refreshToken = await SecureStore.getItemAsync('refreshToken');
+    if (!refreshToken) {
+      throw new Error('No hay sesión válida para habilitar biometría');
+    }
+    await SecureStore.setItemAsync(this.BIOMETRIC_REFRESH_TOKEN_KEY, refreshToken);
+    await SecureStore.setItemAsync(this.BIOMETRIC_ENABLED_KEY, 'true');
+    await SecureStore.setItemAsync('biometric_last_used', new Date().toISOString());
+    return true;
+  }
+
   async disableBiometric(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(this.BIOMETRIC_ENABLED_KEY);
       await SecureStore.deleteItemAsync(this.BIOMETRIC_CREDENTIALS_KEY);
+      await SecureStore.deleteItemAsync(this.BIOMETRIC_REFRESH_TOKEN_KEY);
       await SecureStore.deleteItemAsync('biometric_last_used');
     } catch (error) {
       console.warn('Error disabling biometric:', error);
     }
   }
 
-  async authenticateWithBiometric(): Promise<{ email: string; password: string } | null> {
+  async authenticateWithBiometric(): Promise<BiometricAuthData | null> {
     try {
       if (Platform.OS === 'web') {
         return null; // Biometric not supported on web
@@ -114,6 +147,13 @@ class BiometricServiceClass {
 
       if (!result.success) {
         return null;
+      }
+
+      // Primero, intentar con refreshToken si existe (estrategia recomendada)
+      const storedRefresh = await SecureStore.getItemAsync(this.BIOMETRIC_REFRESH_TOKEN_KEY);
+      if (storedRefresh) {
+        await SecureStore.setItemAsync('biometric_last_used', new Date().toISOString());
+        return { refreshToken: storedRefresh };
       }
 
       const credentialsString = await SecureStore.getItemAsync(this.BIOMETRIC_CREDENTIALS_KEY);

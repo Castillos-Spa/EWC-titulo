@@ -5,13 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Kanban as KanbanIcon, Filter, RefreshCw, Calendar, CircleCheck as CheckCircle, Clock, TriangleAlert as AlertTriangle, FileText, Users, TrendingUp, Eye } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Kanban as KanbanIcon, Filter, RefreshCw } from 'lucide-react-native';
 import { useKanbanStore } from '../stores/kanbanStore';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -26,14 +22,12 @@ export default function KanbanScreen() {
   const {
     tasks,
     currentTask,
-    isLoading,
     error,
     loadUserTasks,
     setCurrentTask,
     clearError,
   } = useKanbanStore();
 
-  const [refreshing, setRefreshing] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
@@ -46,9 +40,7 @@ export default function KanbanScreen() {
 
   const handleRefresh = async () => {
     if (!user) return;
-    setRefreshing(true);
     await loadUserTasks(user.id);
-    setRefreshing(false);
   };
 
   const handleTaskPress = (task: any) => {

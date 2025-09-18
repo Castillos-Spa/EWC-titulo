@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { DatabaseService } from '../services/DatabaseService';
 
 export interface KanbanTask {
   id: string;
@@ -64,6 +63,25 @@ interface KanbanState {
   processApproval: (taskId: string, approvalId: string, status: 'approved' | 'rejected', notes?: string) => Promise<void>;
   setCurrentTask: (task: KanbanTask | null) => void;
   clearError: () => void;
+}
+
+function applyApprovalToTasks(
+  tasks: KanbanTask[],
+  taskId: string,
+  approvalId: string,
+  status: 'approved' | 'rejected',
+  notes?: string
+): KanbanTask[] {
+  const approvedAt = new Date().toISOString();
+  return tasks.map((task) => {
+    if (task.id !== taskId) return task;
+    const approvals = task.approvals?.map((approval) =>
+      approval.id === approvalId
+        ? { ...approval, status, notes, approvedAt }
+        : approval
+    );
+    return { ...task, approvals, updatedAt: approvedAt, syncStatus: 'pending' };
+  });
 }
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
@@ -191,6 +209,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
       set({ tasks: userTasks, isLoading: false });
     } catch (error) {
+      console.error('Error al cargar tareas:', error);
       set({ error: 'Error al cargar tareas', isLoading: false });
     }
   },
@@ -216,6 +235,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar estado de tarea:', error);
       set({ error: 'Error al actualizar estado de tarea' });
     }
   },
@@ -235,6 +255,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al actualizar progreso:', error);
       set({ error: 'Error al actualizar progreso' });
     }
   },
@@ -270,6 +291,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           : state.currentTask,
       }));
     } catch (error) {
+      console.error('Error al agregar comentario:', error);
       set({ error: 'Error al agregar comentario' });
     }
   },
@@ -319,34 +341,17 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         ),
       }));
     } catch (error) {
+      console.error('Error al solicitar aprobación:', error);
       set({ error: 'Error al solicitar aprobación' });
     }
   },
 
   processApproval: async (taskId: string, approvalId: string, status: 'approved' | 'rejected', notes?: string) => {
     try {
-      set(state => ({
-        tasks: state.tasks.map(task =>
-          task.id === taskId
-            ? {
-                ...task,
-                approvals: task.approvals?.map(approval =>
-                  approval.id === approvalId
-                    ? {
-                        ...approval,
-                        status,
-                        notes,
-                        approvedAt: new Date().toISOString(),
-                      }
-                    : approval
-                ),
-                updatedAt: new Date().toISOString(),
-                syncStatus: 'pending' as const,
-              }
-            : task
-        ),
-      }));
+      const updated = applyApprovalToTasks(get().tasks, taskId, approvalId, status, notes);
+      set({ tasks: updated });
     } catch (error) {
+      console.error('Error al procesar aprobación:', error);
       set({ error: 'Error al procesar aprobación' });
     }
   },

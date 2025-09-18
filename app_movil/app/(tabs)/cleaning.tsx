@@ -6,12 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Sparkles as Cleaning, Plus, Filter, RefreshCw, Calendar, CircleCheck as CheckCircle, Clock, MapPin, FileText, Package, TriangleAlert as AlertTriangle, Users } from 'lucide-react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Sparkles as Cleaning, Plus, Filter, RefreshCw, Calendar, FileText, Package } from 'lucide-react-native';
 import { useCleaningStore } from '../stores/cleaningStore';
 import { useThemeStore } from '../stores/themeStore';
 import { CleaningReportCard } from '../components/CleaningReportCard';
@@ -25,8 +22,6 @@ export default function CleaningScreen() {
   const {
     reports,
     currentReport,
-    supplyRequests,
-    isLoading,
     error,
     loadCleaningReports,
     setCurrentReport,
