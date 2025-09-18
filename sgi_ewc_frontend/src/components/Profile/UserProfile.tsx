@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Lock, Mail, Phone, MapPin, Save, Eye, EyeOff, Shield, Bell, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { changePassword as apiChangePassword } from '../../utils/userApi';
 
 const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -49,29 +50,39 @@ const UserProfile: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
       alert('Las contraseñas no coinciden');
       return;
     }
-    // Aquí iría la lógica para cambiar la contraseña
-    console.log('Cambiando contraseña');
-    setFormData(prev => ({
-      ...prev,
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    }));
+    if (!user) {
+      alert('Error: No se pudo identificar al usuario.');
+      return;
+    }
+
+    try {
+      await apiChangePassword(user.id, formData.currentPassword, formData.newPassword);
+      alert('Contraseña cambiada con éxito.');
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }));
+    } catch (error) {
+      console.error('Error al cambiar la contraseña:', error);
+      alert(`Error al cambiar la contraseña: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
   };
 
   const getRoleLabel = (role: string) => {
     switch (role) {
-      case 'admin': return 'Administrador';
+      case 'Admin': return 'Administrador';
       case 'transport_supervisor': return 'Supervisor de Transporte';
       case 'driver': return 'Conductor';
       case 'general_services': return 'Servicios Generales';
-      case 'it_staff': return 'Personal IT';
+      case 'IT': return 'Personal IT';
       case 'cleaning': return 'Personal de Limpieza';
       case 'civil_works': return 'Obras Civiles';
       default: return role;
@@ -82,8 +93,8 @@ const UserProfile: React.FC = () => {
     switch (area) {
       case 'water_transport': return 'Transporte Acuático';
       case 'general_services': return 'Servicios Generales';
-      case 'it': return 'Tecnología';
-      case 'admin': return 'Administración';
+      case 'IT': return 'Tecnología';
+      case 'Admin': return 'Administración';
       default: return area;
     }
   };
@@ -97,19 +108,19 @@ const UserProfile: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
         <div className="flex items-center space-x-6">
-          <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center">
+          <div className="flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full">
             <span className="text-2xl font-bold text-white">{user?.username?.charAt(0) ?? '?'}</span>
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">{user?.username}</h1>
             <p className="text-gray-600">{user?.email}</p>
-            <div className="flex items-center space-x-4 mt-2">
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+            <div className="flex items-center mt-2 space-x-4">
+              <span className="px-3 py-1 text-sm text-blue-800 bg-blue-100 rounded-full">
                 {getRoleLabel(Array.isArray(user?.roles) ? (user?.roles?.[0] ?? '') : (user?.roles ?? ''))}
               </span>
-              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+              <span className="px-3 py-1 text-sm text-green-800 bg-green-100 rounded-full">
                 {getAreaLabel(user?.area || '')}
               </span>
             </div>
@@ -118,9 +129,9 @@ const UserProfile: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
+          <nav className="flex px-6 space-x-8">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -149,54 +160,54 @@ const UserProfile: React.FC = () => {
                 <h3 className="text-lg font-medium text-gray-900">Información Personal</h3>
                 <button
                   onClick={() => setIsEditing(!isEditing)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
                 >
                   {isEditing ? 'Cancelar' : 'Editar'}
                 </button>
               </div>
 
               <form onSubmit={handleSavePersonal} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block mb-2 text-sm font-medium text-gray-700">
                       Nombre Completo
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <User className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="text"
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block mb-2 text-sm font-medium text-gray-700">
                       Correo Electrónico
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Mail className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block mb-2 text-sm font-medium text-gray-700">
                       Teléfono
                     </label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Phone className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="tel"
                         name="phone"
@@ -204,17 +215,17 @@ const UserProfile: React.FC = () => {
                         onChange={handleInputChange}
                         disabled={!isEditing}
                         placeholder="Número de teléfono"
-                        className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block mb-2 text-sm font-medium text-gray-700">
                       Dirección
                     </label>
                     <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <MapPin className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="text"
                         name="address"
@@ -222,7 +233,7 @@ const UserProfile: React.FC = () => {
                         onChange={handleInputChange}
                         disabled={!isEditing}
                         placeholder="Dirección completa"
-                        className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+                        className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                       />
                     </div>
                   </div>
@@ -230,17 +241,17 @@ const UserProfile: React.FC = () => {
 
                 {/* Información del Sistema */}
                 <div className="pt-6 border-t border-gray-200">
-                  <h4 className="text-md font-medium text-gray-900 mb-4">Información del Sistema</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <h4 className="mb-4 font-medium text-gray-900 text-md">Información del Sistema</h4>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
+                      <label className="block mb-2 text-sm font-medium text-gray-700">Rol</label>
                       <div className="flex items-center space-x-2">
                         <Shield className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-900">{getRoleLabel(Array.isArray(user?.roles) ? (user?.roles?.[0] ?? '') : (user?.roles ?? ''))}</span>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Área</label>
+                      <label className="block mb-2 text-sm font-medium text-gray-700">Área</label>
                       <div className="flex items-center space-x-2">
                         <Globe className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-900">{getAreaLabel(user?.area || '')}</span>
@@ -250,17 +261,17 @@ const UserProfile: React.FC = () => {
                 </div>
 
                 {isEditing && (
-                  <div className="flex justify-end space-x-3 pt-4">
+                  <div className="flex justify-end pt-4 space-x-3">
                     <button
                       type="button"
                       onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                      className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
                     >
                       <Save className="w-4 h-4" />
                       <span>Guardar Cambios</span>
@@ -278,23 +289,23 @@ const UserProfile: React.FC = () => {
               
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">
                     Contraseña Actual
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Lock className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                     <input
                       type={showCurrentPassword ? 'text' : 'password'}
                       name="currentPassword"
                       value={formData.currentPassword}
                       onChange={handleInputChange}
-                      className="pl-10 pr-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Ingresa tu contraseña actual"
                     />
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute text-gray-400 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-600"
                     >
                       {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -302,23 +313,23 @@ const UserProfile: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">
                     Nueva Contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Lock className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
                       name="newPassword"
                       value={formData.newPassword}
                       onChange={handleInputChange}
-                      className="pl-10 pr-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Ingresa tu nueva contraseña"
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute text-gray-400 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-600"
                     >
                       {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -326,32 +337,32 @@ const UserProfile: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">
                     Confirmar Nueva Contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Lock className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className="pl-10 pr-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Confirma tu nueva contraseña"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute text-gray-400 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-600"
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Requisitos de Contraseña:</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                <div className="p-4 rounded-lg bg-blue-50">
+                  <h4 className="mb-2 text-sm font-medium text-blue-900">Requisitos de Contraseña:</h4>
+                  <ul className="space-y-1 text-sm text-blue-800">
                     <li>• Mínimo 8 caracteres</li>
                     <li>• Al menos una letra mayúscula</li>
                     <li>• Al menos una letra minúscula</li>
@@ -363,7 +374,7 @@ const UserProfile: React.FC = () => {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                    className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
                   >
                     <Lock className="w-4 h-4" />
                     <span>Cambiar Contraseña</span>
@@ -379,7 +390,7 @@ const UserProfile: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-900">Preferencias de Notificaciones</h3>
               
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
                   <div>
                     <h4 className="text-sm font-medium text-gray-900">Notificaciones por Email</h4>
                     <p className="text-sm text-gray-600">Recibir notificaciones importantes por correo electrónico</p>
@@ -395,7 +406,7 @@ const UserProfile: React.FC = () => {
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
                   <div>
                     <h4 className="text-sm font-medium text-gray-900">Notificaciones Push</h4>
                     <p className="text-sm text-gray-600">Recibir notificaciones en tiempo real en el navegador</p>
@@ -411,7 +422,7 @@ const UserProfile: React.FC = () => {
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
                   <div>
                     <h4 className="text-sm font-medium text-gray-900">Alertas de Mantenimiento</h4>
                     <p className="text-sm text-gray-600">Notificaciones sobre mantenimientos programados y vencidos</p>
@@ -427,7 +438,7 @@ const UserProfile: React.FC = () => {
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
                   <div>
                     <h4 className="text-sm font-medium text-gray-900">Actualizaciones de Viajes</h4>
                     <p className="text-sm text-gray-600">Notificaciones sobre el estado de los viajes asignados</p>
@@ -447,7 +458,7 @@ const UserProfile: React.FC = () => {
               <div className="flex justify-end">
                 <button
                   onClick={() => console.log('Guardando preferencias:', notifications)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                  className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
                 >
                   <Save className="w-4 h-4" />
                   <span>Guardar Preferencias</span>

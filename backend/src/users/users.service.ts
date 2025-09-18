@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { User, Role, Permission } from '@prisma/client';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
 const ROLE_PERMISSIONS: Record<string, Permission[]> = {
+  //TODO definir permisos para cada rol
   Admin: Object.values(Permission),
   IT: [Permission.VIEW_DASHBOARD, Permission.VIEW_TICKETS, Permission.MANAGE_TICKETS],
   // Otros roles...
@@ -154,7 +155,17 @@ export class UsersService {
   }
 
   // Cambiar password y quitar flag de cambio obligatorio
-  async changePassword(id: number, newPassword: string) {
+  async changePassword(id: number, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('La contraseña actual es incorrecta');
+    }
+
     const hashed = await bcrypt.hash(newPassword, 10);
     return this.prisma.user.update({
       where: { id },
@@ -193,6 +204,13 @@ export class UsersService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { refreshToken: refreshTokenHash },
+    });
+  }
+
+  async updateLastLogin(userId: number): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastLogin: new Date() },
     });
   }
 }

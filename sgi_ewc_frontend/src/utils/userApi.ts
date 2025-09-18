@@ -35,11 +35,12 @@ export async function getTempPassword(userId: number): Promise<string> {
 }
 export async function changePassword(
   userId: number,
+  currentPassword: string,
   newPassword: string
 ): Promise<void> {
   return apiFetch(`/users/${userId}/password`, {
     method: "PATCH",
-    body: JSON.stringify({ password: newPassword }),
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
 

@@ -65,13 +65,13 @@ const UserManagement: React.FC = () => {
   const getRoleColor = (role: string) => {
     if (!role) return 'bg-gray-100 text-gray-800';
     switch (role) {
-      case 'admin': return 'bg-purple-100 text-purple-800';
-      case 'transport_supervisor': return 'bg-blue-100 text-blue-800';
-      case 'driver': return 'bg-green-100 text-green-800';
-      case 'general_services': return 'bg-yellow-100 text-yellow-800';
-      case 'it_staff': return 'bg-indigo-100 text-indigo-800';
-      case 'cleaning': return 'bg-teal-100 text-teal-800';
-      case 'civil_works': return 'bg-orange-100 text-orange-800';
+      case 'Admin': return 'bg-purple-100 text-purple-800';
+      case 'Transporte': return 'bg-blue-100 text-blue-800';
+      case 'Driver': return 'bg-green-100 text-green-800';
+      // case 'general_services': return 'bg-yellow-100 text-yellow-800';
+      case 'IT': return 'bg-indigo-100 text-indigo-800';
+      case 'Aseo': return 'bg-teal-100 text-teal-800';
+      case 'Obras': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -79,13 +79,13 @@ const UserManagement: React.FC = () => {
   const getRoleLabel = (role: string) => {
     if (!role) return 'Sin Rol';
     switch (role) {
-      case 'admin': return 'Administrador';
-      case 'transport_supervisor': return 'Supervisor Transporte';
-      case 'driver': return 'Conductor';
-      case 'general_services': return 'Servicios Generales';
-      case 'it_staff': return 'Personal IT';
-      case 'cleaning': return 'Personal Limpieza';
-      case 'civil_works': return 'Obras Civiles';
+      case 'Admin': return 'Administrador';
+      case 'Transporte': return 'Supervisor Transporte';
+      case 'Driver': return 'Conductor';
+      // case 'general_services': return 'Servicios Generales';
+      case 'IT': return 'Personal IT';
+      case 'Aseo': return 'Personal Limpieza';
+      case 'Obras': return 'Obras Civiles';
       default: return role.replace('_', ' ');
     }
   };
@@ -94,8 +94,8 @@ const UserManagement: React.FC = () => {
     switch (area) {
       case 'water_transport': return 'Transporte Acuático';
       case 'general_services': return 'Servicios Generales';
-      case 'it': return 'IT';
-      case 'admin': return 'Administración';
+      case 'IT': return 'IT';
+      case 'Admin': return 'Administración';
       default: return area.replace('_', ' ');
     }
   };

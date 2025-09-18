@@ -46,6 +46,7 @@ describe('AuthService', () => {
         active: true,
         mustChangePassword: false,
         lastLogin: null,
+        refreshToken: 'some-hashed-token',
       };
 
       jest.spyOn(usersService, 'findByEmail').mockResolvedValue(mockUser);
@@ -65,6 +66,7 @@ describe('AuthService', () => {
         active: true,
         mustChangePassword: false,
         lastLogin: null,
+        refreshToken: 'some-hashed-token',
       });
       expect(usersService.findByEmail).toHaveBeenCalledWith('john@example.com');
       expect(bcrypt.compare).toHaveBeenCalledWith('admin123', 'hashedPassword');
@@ -93,6 +95,7 @@ describe('AuthService', () => {
         active: true,
         mustChangePassword: false,
         lastLogin: null,
+        refreshToken: 'some-hashed-token',
       };
 
       jest.spyOn(usersService, 'findByEmail').mockResolvedValue(mockUser);
@@ -120,7 +123,11 @@ describe('AuthService', () => {
 
       const mockAccessToken = 'access-token';
       const mockRefreshToken = 'refresh-token';
+      const mockHashedRefreshToken = 'hashed-refresh-token';
       (jwtService.sign as jest.Mock).mockReturnValueOnce(mockAccessToken).mockReturnValueOnce(mockRefreshToken);
+      (bcrypt.hash as jest.Mock).mockResolvedValue(mockHashedRefreshToken);
+      (usersService.setRefreshToken as jest.Mock).mockResolvedValue(undefined);
+      (usersService.updateLastLogin as jest.Mock).mockResolvedValue(undefined);
 
       const result = await authService.login(mockUser);
 
@@ -128,6 +135,9 @@ describe('AuthService', () => {
         access_token: mockAccessToken,
         refresh_token: mockRefreshToken,
       });
+      expect(bcrypt.hash).toHaveBeenCalledWith(mockRefreshToken, 10);
+      expect(usersService.setRefreshToken).toHaveBeenCalledWith(mockUser.id, mockHashedRefreshToken);
+      expect(usersService.updateLastLogin).toHaveBeenCalledWith(mockUser.id);
       expect(jwtService.sign).toHaveBeenCalledTimes(2);
       const expectedPayload = {
         email: 'john@example.com',
@@ -141,6 +151,17 @@ describe('AuthService', () => {
       };
       expect(jwtService.sign).toHaveBeenCalledWith(expectedPayload, { expiresIn: '5m' });
       expect(jwtService.sign).toHaveBeenCalledWith(expectedPayload, { expiresIn: '7d' });
+    });
+  });
+
+  describe('logout', () => {
+    it('debería llamar a usersService.setRefreshToken con null', async () => {
+      const userId = 1;
+      (usersService.setRefreshToken as jest.Mock).mockResolvedValue(undefined);
+
+      await authService.logout(userId);
+
+      expect(usersService.setRefreshToken).toHaveBeenCalledWith(userId, null);
     });
   });
 
@@ -193,6 +214,7 @@ describe('AuthService', () => {
       active: true,
       mustChangePassword: false,
       lastLogin: null,
+      refreshToken: 'hashed-old-refresh-token',
     };
     const oldToken = 'old-refresh-token';
 
@@ -200,6 +222,7 @@ describe('AuthService', () => {
       const newAccessToken = 'new-access-token';
       (jwtService.verify as jest.Mock).mockReturnValue({ sub: mockUser.id });
       (usersService.findById as jest.Mock).mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       (jwtService.sign as jest.Mock).mockReturnValue(newAccessToken);
 
       const result = await authService.refreshToken(oldToken);
@@ -207,6 +230,7 @@ describe('AuthService', () => {
       expect(result).toEqual({ access_token: newAccessToken });
       expect(jwtService.verify).toHaveBeenCalledWith(oldToken);
       expect(usersService.findById).toHaveBeenCalledWith(mockUser.id);
+      expect(bcrypt.compare).toHaveBeenCalledWith(oldToken, mockUser.refreshToken);
       expect(jwtService.sign).toHaveBeenCalledWith(expect.objectContaining({ sub: mockUser.id }), { expiresIn: '5m' });
     });
 
@@ -224,9 +248,7 @@ describe('AuthService', () => {
       (jwtService.verify as jest.Mock).mockReturnValue({ sub: mockUser.id });
       (usersService.findById as jest.Mock).mockResolvedValue(null);
 
-      await expect(authService.refreshToken(oldToken)).rejects.toThrow(
-        new UnauthorizedException('User not found or inactive'),
-      );
+      await expect(authService.refreshToken(oldToken)).rejects.toThrow(new UnauthorizedException('Access Denied'));
     });
 
     it('debería lanzar UnauthorizedException si el usuario está inactivo', async () => {
@@ -236,9 +258,25 @@ describe('AuthService', () => {
         active: false,
       });
 
-      await expect(authService.refreshToken(oldToken)).rejects.toThrow(
-        new UnauthorizedException('User not found or inactive'),
-      );
+      await expect(authService.refreshToken(oldToken)).rejects.toThrow(new UnauthorizedException('Access Denied'));
+    });
+
+    it('debería lanzar UnauthorizedException si el usuario no tiene un refreshToken en la BD', async () => {
+      (jwtService.verify as jest.Mock).mockReturnValue({ sub: mockUser.id });
+      (usersService.findById as jest.Mock).mockResolvedValue({
+        ...mockUser,
+        refreshToken: null,
+      });
+
+      await expect(authService.refreshToken(oldToken)).rejects.toThrow(new UnauthorizedException('Access Denied'));
+    });
+
+    it('debería lanzar UnauthorizedException si el refreshToken no coincide', async () => {
+      (jwtService.verify as jest.Mock).mockReturnValue({ sub: mockUser.id });
+      (usersService.findById as jest.Mock).mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.refreshToken(oldToken)).rejects.toThrow(new UnauthorizedException('Access Denied'));
     });
   });
 });

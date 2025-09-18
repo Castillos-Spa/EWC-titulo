@@ -149,8 +149,8 @@ const AppContent: React.FC = () => {
 
       {showChangePassword && (
         <ChangePasswordModal
-          onSubmit={async (newPassword: string) => {
-            await apiChangePassword(user.id, newPassword);
+          onSubmit={async (currentPassword: string, newPassword: string) => {
+            await apiChangePassword(user.id, currentPassword, newPassword);
             await logout();
             setShowChangePassword(false);
           }}
