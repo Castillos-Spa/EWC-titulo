@@ -26,6 +26,7 @@ describe('UsersService', () => {
     active: true,
     lastLogin: null,
     mustChangePassword: false,
+    refreshToken: null,
   };
 
   const mockUserWithoutPassword = {
@@ -40,6 +41,7 @@ describe('UsersService', () => {
     active: true,
     lastLogin: null,
     mustChangePassword: false,
+    refreshToken: null,
   };
 
   beforeEach(async () => {
@@ -224,6 +226,7 @@ describe('UsersService', () => {
           active: true,
           lastLogin: true,
           mustChangePassword: true,
+          refreshToken: true,
         },
       });
     });

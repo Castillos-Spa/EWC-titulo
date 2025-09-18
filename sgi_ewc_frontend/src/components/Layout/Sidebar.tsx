@@ -28,13 +28,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const hasRole = (role: string) => user?.roles?.some(r => r.toLowerCase() === role);
 
   const groupedMenu = [
+  // TODO arreglar grupos de vistas por roles
     {
       area: 'Water Transport',
       items: [
-        { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: hasRole('admin') || hasRole('transport_supervisor') || hasRole('driver') },
-        { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: hasRole('admin') || hasRole('transport_supervisor') },
-        { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: hasRole('admin') || hasRole('transport_supervisor') },
-        { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: hasRole('admin') || hasRole('transport_supervisor') },
+        { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: hasRole('Admin') || hasRole('Transporte') || hasRole('Driver') },
+        { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: hasRole('admin') || hasRole('Transporte') },
+        { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: hasRole('Admin') || hasRole('Transporte') },
+        { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: hasRole('admin') || hasRole('Transporte') },
       ],
     },
     {
@@ -47,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     {
       area: 'IT',
       items: [
-        { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: hasRole('admin') || hasRole('it_staff') || user?.area !== 'admin' },
+        { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: hasRole('Admin') || hasRole('IT') || user?.area !== 'Admin' },
       ],
     },
     {

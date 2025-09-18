@@ -13,6 +13,7 @@ const mockAuthService = {
   login: jest.fn(),
   register: jest.fn(),
   refreshToken: jest.fn(),
+  logout: jest.fn(),
 };
 
 const mockLocalAuthGuard = {
@@ -76,10 +77,14 @@ describe('AuthController', () => {
   });
 
   describe('logout', () => {
-    it('debería retornar un mensaje de éxito', async () => {
-      const result = await controller.logout();
+    it('debería llamar a authService.logout y retornar un mensaje de éxito', async () => {
+      const mockRequest = { user: { userId: 1 } };
+      jest.spyOn(authService, 'logout').mockResolvedValue(undefined);
+
+      const result = await controller.logout(mockRequest);
 
       expect(result).toEqual({ message: 'Se ha cerrado la sesión con éxito' });
+      expect(authService.logout).toHaveBeenCalledWith(1);
     });
   });
 

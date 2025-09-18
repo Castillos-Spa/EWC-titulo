@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Patch, Delete, Param, Body, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Param, Body, ForbiddenException, Request } from '@nestjs/common';
 
 import { UsersService } from './users.service';
 import { RegisterDto } from '../auth/dtos/register.dto';
+import { Role } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
@@ -30,12 +31,23 @@ export class UsersController {
   }
 
   @Patch(':id/password')
-  async changePassword(@Param('id') id: string, @Body() dto: { password: string }) {
+  async changePassword(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: { currentPassword: string; newPassword: string },
+  ) {
     const userId = Number(id);
+    const requestingUser = req.user;
+
+    // Un usuario puede cambiar su propia contraseña, o un admin puede cambiar la de cualquiera.
+    if (requestingUser.userId !== userId && !requestingUser.roles.includes(Role.Admin)) {
+      throw new ForbiddenException('No tienes permiso para cambiar la contraseña de este usuario.');
+    }
+
     if (!userId || userId <= 0) {
       throw new ForbiddenException('ID de usuario inválido');
     }
-    return this.usersService.changePassword(userId, dto.password);
+    return this.usersService.changePassword(userId, dto.currentPassword, dto.newPassword);
   }
 
   @Put(':id/regenerate-password')
