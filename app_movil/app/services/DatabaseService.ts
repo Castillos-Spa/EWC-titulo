@@ -1,22 +1,49 @@
-import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 
 export interface SyncQueueItem {
   id: string;
   entity: string;
-  payload: any;
+  payload: unknown;
   attempts: number;
   lastAttempt?: string;
   status: 'pending' | 'sent' | 'failed';
 }
 
+// Interfaz mínima para un driver de BD compatible (SQLite nativo o stub web)
+interface DBLike {
+  execAsync: (sql: string) => Promise<void>;
+  runAsync: (sql: string, params?: readonly unknown[]) => Promise<void>;
+  getAllAsync: (
+    sql: string,
+    params?: readonly unknown[]
+  ) => Promise<Record<string, unknown>[]>;
+  getFirstAsync: (
+    sql: string,
+    params?: readonly unknown[]
+  ) => Promise<Record<string, unknown> | null>;
+}
+
 class DatabaseServiceClass {
-  private db: SQLite.SQLiteDatabase | null = null;
+  // Usamos any para simplificar tipos entre nativo (SQLite) y stub web
+  private db: DBLike | null = null;
 
   async init() {
     if (this.db) return;
     
     try {
-      this.db = await SQLite.openDatabaseAsync('fieldops.db');
+      if (Platform.OS === 'web') {
+        // Stub para web: evita importar expo-sqlite y rompe el build de wasm
+        this.db = {
+          execAsync: async () => { /* no-op web */ },
+          runAsync: async () => { /* no-op web */ },
+          getAllAsync: async () => [],
+          getFirstAsync: async () => null,
+        } as DBLike;
+        return;
+      }
+
+      const SQLite = await import('expo-sqlite');
+      this.db = (await SQLite.openDatabaseAsync('fieldops.db')) as unknown as DBLike;
       await this.createTables();
     } catch (error) {
       console.warn('Database initialization failed:', error);
@@ -638,7 +665,7 @@ class DatabaseServiceClass {
     }));
   }
 
-  async updateTicket(ticketId: string, updates: any) {
+  async updateTicket(ticketId: string, updates: Record<string, unknown>) {
     if (!this.db) await this.init();
     
     const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
@@ -653,11 +680,11 @@ class DatabaseServiceClass {
     await this.addToSyncQueue('ticket_update', { id: ticketId, ...updates });
   }
 
-  async addToSyncQueue(entity: string, payload: any) {
+  async addToSyncQueue(entity: string, payload: unknown) {
     if (!this.db) await this.init();
     
     const queueItem = {
-      id: `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `sync-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       entity,
       payload: JSON.stringify(payload),
       attempts: 0,

@@ -14,6 +14,7 @@ import {
 import { X, MapPin, Clock, User, Play, CircleCheck as CheckCircle, Camera, Navigation, Package, FileText, Save, Wrench, Eye, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTicketStore } from '../stores/ticketStore';
+import { useThemeStore } from '../stores/themeStore';
 
 interface TicketDetailModalProps {
   readonly ticket: any;
@@ -30,6 +31,8 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
     updateMaterialUsage,
     isSubmitting 
   } = useTicketStore();
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   
   const [completionNotes, setCompletionNotes] = useState('');
   const [showCompletionForm, setShowCompletionForm] = useState(false);
@@ -252,19 +255,19 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <X size={24} color="#64748B" />
           </TouchableOpacity>
-          <Text style={styles.title}>Detalle del Ticket</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Detalle del Ticket</Text>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Ticket Info */}
-          <View style={styles.ticketInfo}>
+          <View style={[styles.ticketInfo, { backgroundColor: colors.surface }]}> 
             <View style={styles.ticketHeader}>
               <View style={styles.ticketTypeSection}>
                 <TypeIcon size={24} color="#2563EB" />
@@ -288,8 +291,8 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
               </View>
             </View>
 
-            <Text style={styles.ticketTitle}>{ticket.title || 'Sin título'}</Text>
-            <Text style={styles.ticketDescription}>{ticket.description || 'Sin descripción'}</Text>
+            <Text style={[styles.ticketTitle, { color: colors.text }]}>{ticket.title || 'Sin título'}</Text>
+            <Text style={[styles.ticketDescription, { color: colors.textSecondary }]}>{ticket.description || 'Sin descripción'}</Text>
 
             {ticket.clientName && (
               <View style={styles.clientSection}>
@@ -302,7 +305,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
           {/* Schedule and Duration */}
           <View style={styles.scheduleSection}>
             <Text style={styles.sectionTitle}>Programación</Text>
-            <View style={styles.scheduleCard}>
+            <View style={[styles.scheduleCard, { backgroundColor: colors.surface }]}>
               <View style={styles.scheduleItem}>
                 <Clock size={20} color="#64748B" />
                 <View style={styles.scheduleDetails}>
@@ -341,7 +344,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
           {ticket.location && (
             <View style={styles.locationSection}>
               <Text style={styles.sectionTitle}>Ubicación</Text>
-              <View style={styles.locationCard}>
+              <View style={[styles.locationCard, { backgroundColor: colors.surface }]}>
                 <View style={styles.locationInfo}>
                   <MapPin size={20} color="#2563EB" />
                   <View style={styles.locationDetails}>
@@ -506,7 +509,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
               <Text style={styles.sectionTitle}>
                 <FileText size={20} color="#374151" /> Notas de Finalización
               </Text>
-              <View style={styles.completionCard}>
+              <View style={[styles.completionCard, { backgroundColor: colors.surface }]}>
                 <Text style={styles.completionText}>{ticket.completionNotes}</Text>
               </View>
             </View>
@@ -555,7 +558,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
         </ScrollView>
 
         {/* Footer Actions */}
-        <View style={styles.footer}>
+  <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           {ticket.status === 'assigned' && (
             <TouchableOpacity 
               style={[styles.startButton, isSubmitting && styles.buttonDisabled]} 

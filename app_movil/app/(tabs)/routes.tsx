@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,12 @@ import RouteDetailModal from '../components/RouteDetailModal';
 import TripModal from '../components/TripModal';
 
 export default function RoutesScreen() {
-  const { routes, loadRoutes, selectedTrip } = useRouteStore();
+  const { routes, loadRoutes, selectedTrip, selectRoute } = useRouteStore();
   const { getColors } = useThemeStore();
   const colors = getColors();
   
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [selectedRoute, setSelectedRoute] = useState<any>(null);
   const [showRouteDetail, setShowRouteDetail] = useState(false);
   const [showTripModal, setShowTripModal] = useState(false);
 
@@ -31,18 +31,41 @@ export default function RoutesScreen() {
     setRefreshing(false);
   };
 
+  // Cargar rutas al montar la pantalla
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    void loadRoutes(today);
+  }, [loadRoutes]);
+
   const handleRoutePress = (route: any) => {
+    // Guardar la ruta seleccionada en el store para que startTrip funcione
+    selectRoute(route);
     setSelectedRoute(route);
     setShowRouteDetail(true);
   };
 
   const handleStartTrip = () => {
-    setShowTripModal(true);
+    // En web el TripModal requiere selectedTrip; abrimos el detalle de la primera ruta para seleccionar parada
+    const firstRoute = routes[0];
+    if (firstRoute) {
+      selectRoute(firstRoute);
+      setSelectedRoute(firstRoute);
+      setShowRouteDetail(true);
+    }
   };
 
   const activeRoutes = routes.filter(route => route.status === 'in_progress');
   const completedRoutes = routes.filter(route => route.status === 'completed');
   const pendingRoutes = routes.filter(route => route.status === 'planned');
+
+  // Abrir TripModal automáticamente cuando se selecciona un trip desde el store
+  useEffect(() => {
+    if (selectedTrip) {
+      setShowTripModal(true);
+      // Opcional: cerrar el detalle de ruta para evitar modales superpuestos
+      setShowRouteDetail(false);
+    }
+  }, [selectedTrip]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -65,24 +88,24 @@ export default function RoutesScreen() {
       {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <View style={[styles.statIcon, { backgroundColor: '#3B82F620' }]}>
-            <Truck size={20} color="#3B82F6" />
+          <View style={[styles.statIcon, { backgroundColor: `${colors.primary}20` }]}>
+            <Truck size={20} color={colors.primary} />
           </View>
           <Text style={[styles.statNumber, { color: colors.text }]}>{activeRoutes.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Activas</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <View style={[styles.statIcon, { backgroundColor: '#10B98120' }]}>
-            <MapPin size={20} color="#10B981" />
+          <View style={[styles.statIcon, { backgroundColor: `${colors.success}20` }]}>
+            <MapPin size={20} color={colors.success} />
           </View>
           <Text style={[styles.statNumber, { color: colors.text }]}>{completedRoutes.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completadas</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <View style={[styles.statIcon, { backgroundColor: '#F59E0B20' }]}>
-            <Clock size={20} color="#F59E0B" />
+          <View style={[styles.statIcon, { backgroundColor: `${colors.warning}20` }]}>
+            <Clock size={20} color={colors.warning} />
           </View>
           <Text style={[styles.statNumber, { color: colors.text }]}>{pendingRoutes.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Pendientes</Text>

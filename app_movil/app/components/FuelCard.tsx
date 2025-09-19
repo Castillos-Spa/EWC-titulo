@@ -85,46 +85,46 @@ export function FuelCard({ record, onPress }: FuelCardProps) {
       <View style={styles.cardContent}>
         {/* Odometer */}
         <View style={styles.odometerSection}>
-          <Gauge size={16} color="#64748B" />
-          <Text style={[styles.odometerText, { color: colors.textSecondary }]}>
+            <Gauge size={16} color={colors.textSecondary} />
+            <Text style={[styles.odometerText, { color: colors.textSecondary }]}>
             {typeof record.odometer === 'number' ? `${record.odometer.toLocaleString()} km` : '—'}
           </Text>
         </View>
 
         {/* Location */}
         <View style={styles.locationSection}>
-          <MapPin size={16} color="#64748B" />
-          <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
+            <MapPin size={16} color={colors.textSecondary} />
+            <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
             {record.stationName || record.location?.address || 'Ubicación GPS'}
           </Text>
         </View>
 
         {/* Time */}
         <View style={styles.timeSection}>
-          <Clock size={16} color="#64748B" />
-          <Text style={[styles.timeText, { color: colors.textSecondary }]}>{date} • {time}</Text>
+         <Clock size={16} color={colors.textSecondary} />
+         <Text style={[styles.timeText, { color: colors.textSecondary }]}>{date} • {time}</Text>
         </View>
 
         {/* Additional Info */}
         <View style={styles.additionalInfo}>
-          {record.receiptPhoto && (
-            <View style={styles.receiptIndicator}>
-              <Receipt size={14} color="#16A34A" />
-              <Text style={styles.receiptText}>Recibo</Text>
-            </View>
-          )}
-          {record.notes && (
-            <View style={styles.notesIndicator}>
-              <Text style={styles.notesText}>Notas</Text>
-            </View>
-          )}
+            {record.receiptPhoto && (
+              <View style={[styles.receiptIndicator, { backgroundColor: colors.card }]}>
+                <Receipt size={14} color={colors.success} />
+                <Text style={[styles.receiptText, { color: colors.success }]}>Recibo</Text>
+              </View>
+            )}
+            {record.notes && (
+              <View style={[styles.notesIndicator, { backgroundColor: colors.card }]}>
+                <Text style={[styles.notesText, { color: colors.textSecondary }]}>Notas</Text>
+              </View>
+            )}
         </View>
       </View>
 
       {/* Sync Status Indicator */}
       {record.syncStatus === 'pending' && (
         <View style={styles.syncIndicator}>
-          <View style={styles.syncDot} />
+            <View style={[styles.syncDot, { backgroundColor: colors.warning }]} />
         </View>
       )}
     </TouchableOpacity>

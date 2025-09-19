@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { useIncidentStore } from '../stores/incidentStore';
 import type { Incident } from '../stores/incidentStore';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 
 interface CreateIncidentModalProps {
   readonly visible: boolean;
@@ -25,6 +26,8 @@ interface CreateIncidentModalProps {
 export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalProps) {
   const { createIncident, isSubmitting } = useIncidentStore();
   const { user } = useAuthStore();
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   
   const [type, setType] = useState<Incident['type']>('other');
   const [severity, setSeverity] = useState<Incident['severity']>('medium');
@@ -179,13 +182,13 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <X size={24} color="#64748B" />
           </TouchableOpacity>
-          <Text style={styles.title}>Reportar Incidente</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Reportar Incidente</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -196,13 +199,14 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
         >
           {/* Type Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tipo de Incidente</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Tipo de Incidente</Text>
             <View style={styles.typeGrid}>
               {incidentTypes.map((incidentType) => (
                 <TouchableOpacity
                   key={incidentType.value}
                   style={[
                     styles.typeCard,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
                     type === incidentType.value && styles.typeCardSelected,
                   ]}
                   onPress={() => setType(incidentType.value)}
@@ -210,6 +214,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
                   <Text style={styles.typeIcon}>{incidentType.icon}</Text>
                   <Text style={[
                     styles.typeLabel,
+                    { color: colors.textSecondary },
                     type === incidentType.value && styles.typeLabelSelected,
                   ]}>
                     {incidentType.label}
@@ -221,20 +226,21 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
 
           {/* Severity Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nivel de Severidad</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Nivel de Severidad</Text>
             <View style={styles.severityGrid}>
               {severityLevels.map((level) => (
                 <TouchableOpacity
                   key={level.value}
                   style={[
                     styles.severityButton,
-                    { borderColor: level.color },
+                    { borderColor: level.color, backgroundColor: colors.surface },
                     severity === level.value && { backgroundColor: `${level.color}15` },
                   ]}
                   onPress={() => setSeverity(level.value)}
                 >
                   <Text style={[
                     styles.severityLabel,
+                    { color: colors.textSecondary },
                     { color: level.color },
                     severity === level.value && styles.severityLabelSelected,
                   ]}>
@@ -247,43 +253,43 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
 
           {/* Title */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Título del Incidente</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Título del Incidente</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={title}
               onChangeText={setTitle}
               placeholder="Ej: Vehículo averiado en ruta principal"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textSecondary}
               maxLength={100}
             />
           </View>
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Descripción Detallada</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Descripción Detallada</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={description}
               onChangeText={setDescription}
               placeholder="Describe el incidente con el mayor detalle posible..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textSecondary}
               multiline
               numberOfLines={4}
               maxLength={500}
             />
-            <Text style={styles.charCount}>{description.length}/500</Text>
+            <Text style={[styles.charCount, { color: colors.textSecondary }]}>{description.length}/500</Text>
           </View>
 
           {/* Location */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ubicación</Text>
-            <View style={styles.locationCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Ubicación</Text>
+            <View style={[styles.locationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {(() => {
                 if (isGettingLocation) {
                   return (
                     <View style={styles.locationLoading}>
                       <Navigation size={24} color="#2563EB" />
-                      <Text style={styles.locationLoadingText}>Obteniendo ubicación...</Text>
+                      <Text style={[styles.locationLoadingText, { color: colors.primary }]}>Obteniendo ubicación...</Text>
                     </View>
                   );
                 }
@@ -292,10 +298,10 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
                     <View style={styles.locationInfo}>
                       <MapPin size={20} color="#16A34A" />
                       <View style={styles.locationDetails}>
-                        <Text style={styles.locationAddress}>
+                        <Text style={[styles.locationAddress, { color: colors.text }]}>
                           {location.address || 'Ubicación capturada'}
                         </Text>
-                        <Text style={styles.locationCoords}>
+                        <Text style={[styles.locationCoords, { color: colors.textSecondary }]}>
                           {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                         </Text>
                       </View>
@@ -305,7 +311,7 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
                 return (
                   <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
                     <MapPin size={24} color="#2563EB" />
-                    <Text style={styles.locationButtonText}>Obtener Ubicación Actual</Text>
+                    <Text style={[styles.locationButtonText, { color: colors.primary }]}>Obtener Ubicación Actual</Text>
                   </TouchableOpacity>
                 );
               })()}
@@ -314,14 +320,14 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
 
           {/* Photos */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Evidencia Fotográfica</Text>
-            <Text style={styles.photoRequirement}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Evidencia Fotográfica</Text>
+            <Text style={[styles.photoRequirement, { color: colors.error }]}>
               * Se requiere al menos 1 foto
             </Text>
             
-            <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+            <TouchableOpacity style={[styles.photoButton, { backgroundColor: colors.surface, borderColor: colors.primary }]} onPress={handleTakePhoto}>
               <Camera size={24} color="#2563EB" />
-              <Text style={styles.photoButtonText}>Tomar Foto</Text>
+              <Text style={[styles.photoButtonText, { color: colors.primary }]}>Tomar Foto</Text>
             </TouchableOpacity>
 
             {photos.length > 0 && (
@@ -343,9 +349,9 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
         </ScrollView>
 
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 

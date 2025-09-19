@@ -22,6 +22,7 @@ import {
   Circle as XCircle, 
   Zap 
 } from 'lucide-react-native';
+import { useThemeStore } from '../stores/themeStore';
 
 interface IncidentDetailModalProps {
   readonly incident: any;
@@ -30,6 +31,8 @@ interface IncidentDetailModalProps {
 }
 
 export function IncidentDetailModal({ incident, visible, onClose }: IncidentDetailModalProps) {
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   // Validación de props para evitar crashes
   if (!incident) {
     return null;
@@ -126,13 +129,13 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <X size={24} color="#64748B" />
           </TouchableOpacity>
-          <Text style={styles.title}>Detalle del Incidente</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Detalle del Incidente</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -155,25 +158,25 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
           </View>
 
           {/* Main Info */}
-          <View style={styles.mainInfo}>
-            <Text style={styles.incidentType}>
+          <View style={[styles.mainInfo, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.incidentType]}>
               {getTypeLabel(incident.type || 'other')}
             </Text>
-            <Text style={styles.incidentTitle}>
+            <Text style={[styles.incidentTitle, { color: colors.text }]}>
               {incident.title || 'Sin título'}
             </Text>
-            <Text style={styles.incidentDescription}>
+            <Text style={[styles.incidentDescription, { color: colors.textSecondary }]}>
               {incident.description || 'Sin descripción'}
             </Text>
           </View>
 
           {/* Meta Information */}
-          <View style={styles.metaSection}>
+          <View style={[styles.metaSection, { backgroundColor: colors.surface }]}>
             <View style={styles.metaItem}>
               <User size={20} color="#64748B" />
               <View style={styles.metaContent}>
-                <Text style={styles.metaLabel}>Reportado por</Text>
-                <Text style={styles.metaValue}>
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Reportado por</Text>
+                <Text style={[styles.metaValue, { color: colors.text }]}>
                   {incident.reportedBy || 'Usuario desconocido'}
                 </Text>
               </View>
@@ -182,8 +185,8 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
             <View style={styles.metaItem}>
               <Clock size={20} color="#64748B" />
               <View style={styles.metaContent}>
-                <Text style={styles.metaLabel}>Fecha y hora</Text>
-                <Text style={styles.metaValue}>
+                <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Fecha y hora</Text>
+                <Text style={[styles.metaValue, { color: colors.text }]}>
                   {formatDateTime(incident.reportedAt || new Date().toISOString())}
                 </Text>
               </View>
@@ -193,15 +196,15 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
           {/* Location */}
           {incident.location && (
             <View style={styles.locationSection}>
-              <Text style={styles.sectionTitle}>Ubicación</Text>
-              <View style={styles.locationCard}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Ubicación</Text>
+              <View style={[styles.locationCard, { backgroundColor: colors.surface }]}>
                 <View style={styles.locationInfo}>
                   <MapPin size={20} color="#2563EB" />
                   <View style={styles.locationDetails}>
-                    <Text style={styles.locationAddress}>
+                    <Text style={[styles.locationAddress, { color: colors.text }]}>
                       {incident.location.address || 'Ubicación GPS'}
                     </Text>
-                    <Text style={styles.locationCoords}>
+                    <Text style={[styles.locationCoords, { color: colors.textSecondary }]}>
                       {typeof incident.location.latitude === 'number' && typeof incident.location.longitude === 'number'
                         ? `${incident.location.latitude.toFixed(6)}, ${incident.location.longitude.toFixed(6)}`
                         : 'Coordenadas no disponibles'
@@ -222,7 +225,7 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
           {/* Photos */}
           {photos.length > 0 && (
             <View style={styles.photosSection}>
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 <Camera size={20} color="#374151" /> Evidencia Fotográfica
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -246,13 +249,13 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
 
           {/* Sync Status */}
           <View style={styles.syncSection}>
-            <Text style={styles.sectionTitle}>Estado de Sincronización</Text>
-            <View style={styles.syncCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Estado de Sincronización</Text>
+            <View style={[styles.syncCard, { backgroundColor: colors.surface }]}>
               <View style={[
                 styles.syncIndicator,
                 { backgroundColor: (incident.syncStatus === 'synced') ? '#16A34A' : '#F59E0B' }
               ]} />
-              <Text style={styles.syncText}>
+              <Text style={[styles.syncText, { color: colors.textSecondary }]}>
                 {(incident.syncStatus === 'synced') ? 'Sincronizado' : 'Pendiente de sincronización'}
               </Text>
             </View>

@@ -20,9 +20,9 @@ export function RouteCard({ route, onPress, progress }: RouteCardProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return '#16A34A';
-      case 'in_progress': return '#EA580C';
-      default: return '#6B7280';
+      case 'completed': return colors.success;
+      case 'in_progress': return colors.warning;
+      default: return colors.textSecondary;
     }
   };
 
@@ -47,12 +47,12 @@ export function RouteCard({ route, onPress, progress }: RouteCardProps) {
 
   return (
     <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.cardHeader}>
+      <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
         <View style={styles.vehicleInfo}>
-          <Truck size={24} color="#2563EB" />
+          <Truck size={24} color={colors.primary} />
           <Text style={[styles.vehiclePlate, { color: colors.text }]}>{route.vehiclePlate}</Text>
         </View>
-        <ChevronRight size={20} color="#94A3B8" />
+        <ChevronRight size={20} color={colors.textSecondary} />
       </View>
 
       <View style={styles.cardContent}>
@@ -66,7 +66,7 @@ export function RouteCard({ route, onPress, progress }: RouteCardProps) {
           <Text style={styles.progressText}>{progress} paradas</Text>
         </View>
 
-        <View style={styles.progressBar}>
+        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
           <View 
             style={[
               styles.progressFill, 
@@ -79,7 +79,7 @@ export function RouteCard({ route, onPress, progress }: RouteCardProps) {
         </View>
 
         <View style={styles.stopsInfo}>
-          <MapPin size={16} color="#64748B" />
+          <MapPin size={16} color={colors.textSecondary} />
           <Text style={[styles.stopsCount, { color: colors.textSecondary }]}>
             {route.stops.length} paradas programadas
           </Text>
@@ -90,7 +90,7 @@ export function RouteCard({ route, onPress, progress }: RouteCardProps) {
             <Text style={[styles.nextStopLabel, { color: colors.textSecondary }]}>Próxima parada:</Text>
             <Text style={[styles.nextStopClient, { color: colors.text }]}>{stop.clientName}</Text>
             <View style={styles.nextStopTime}>
-              <Clock size={14} color="#64748B" />
+              <Clock size={14} color={colors.textSecondary} />
               <Text style={[styles.timeText, { color: colors.textSecondary }]}>{stop.timeSlot}</Text>
             </View>
           </View>

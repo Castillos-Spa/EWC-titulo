@@ -181,6 +181,35 @@ class AuthServiceClass {
     }
   }
 
+  async changePassword(userId: string | number, currentPassword: string, newPassword: string): Promise<void> {
+    const accessToken = await SafeStorage.getItem('accessToken');
+    if (!accessToken) throw new Error('No autenticado');
+    const baseUrl = this.getBaseUrl();
+    const res = await fetch(`${baseUrl}/users/${userId}/password`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      try {
+        const data = await res.json();
+        let msg: string = 'No se pudo cambiar la contraseña';
+        if (typeof data?.message === 'string') {
+          msg = data.message;
+        } else if (Array.isArray(data?.message)) {
+          msg = data.message.join(', ');
+        }
+        throw new Error(msg);
+      } catch (e) {
+        if (e instanceof Error) throw e;
+        throw new Error('No se pudo cambiar la contraseña');
+      }
+    }
+  }
+
   // ...eliminados helpers del JWT simulado
 
   // Método para mock de UI en LoginScreen (dejar vacío si no hay lista)

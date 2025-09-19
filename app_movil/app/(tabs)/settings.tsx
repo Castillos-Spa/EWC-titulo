@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Settings, User, Shield, Fingerprint, Bell, Moon, Globe, CircleHelp as HelpCircle, LogOut, ChevronRight, Lock, Info } from 'lucide-react-native';
 import { useAuthStore } from '../stores/authStore';
+import { AuthService } from '../services/AuthService';
 import { useThemeStore } from '../stores/themeStore';
 import { BiometricService } from '../services/BiometricService';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -26,6 +29,16 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [language, setLanguage] = useState('es');
+  // Estado para cambio de contraseña (reemplaza Alert.prompt no soportado en web)
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  // Estado para confirmación de cierre de sesión (web-safe)
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     loadBiometricSettings();
@@ -145,43 +158,50 @@ export default function SettingsScreen() {
   };
 
   const handleChangePassword = () => {
-    Alert.prompt(
-      'Cambiar Contraseña',
-      'Ingresa tu contraseña actual:',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Siguiente', 
-          onPress: (currentPassword?: string) => {
-            if (currentPassword) {
-              promptForNewPassword();
-            }
-          }
-        },
-      ],
-      'secure-text'
-    );
+    // Abrimos modal propio para compatibilidad con web (Alert.prompt no está soportado)
+    setPasswordError(null);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPasswordModal(true);
   };
 
-  const promptForNewPassword = () => {
-    Alert.prompt(
-      'Nueva Contraseña',
-      'Ingresa tu nueva contraseña:',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Cambiar', 
-          onPress: (newPassword?: string) => {
-            if (newPassword && newPassword.length >= 6) {
-              Alert.alert('Éxito', 'Contraseña cambiada correctamente');
-            } else {
-              Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
-            }
-          }
-        },
-      ],
-      'secure-text'
-    );
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+  };
+
+  const submitPasswordChange = async () => {
+    // Validaciones simples
+    if (!currentPassword) {
+      setPasswordError('Debes ingresar tu contraseña actual.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('La confirmación no coincide con la nueva contraseña.');
+      return;
+    }
+
+    setChangingPassword(true);
+    setPasswordError(null);
+    try {
+      const userId = user?.id;
+      if (!userId) throw new Error('Usuario no disponible');
+      await AuthService.changePassword(userId, currentPassword, newPassword);
+      closePasswordModal();
+      // Cerrar sesión automáticamente para reingresar con la nueva contraseña
+      await logout();
+      Alert.alert('Contraseña actualizada', 'Inicia sesión nuevamente con tu nueva contraseña');
+    } catch (e) {
+      console.error('Error cambiando contraseña', e);
+      const msg = e instanceof Error ? e.message : 'No se pudo cambiar la contraseña';
+      setPasswordError(msg);
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const handlePrivacySettings = () => {
@@ -267,18 +287,22 @@ export default function SettingsScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que quieres cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Cerrar Sesión', 
-          style: 'destructive',
-          onPress: () => { void logout(); }
-        },
-      ]
-    );
+    // Abrimos modal propio en lugar de Alert con múltiples botones (compatibilidad web)
+    setShowLogoutModal(true);
+  };
+
+  const closeLogoutModal = () => setShowLogoutModal(false);
+  const confirmLogout = () => {
+    setLoggingOut(true);
+    try {
+      void logout();
+      // Si logout redirige, el modal se desmontará; en otro caso lo cerramos
+      setShowLogoutModal(false);
+    } catch (e) {
+      console.error('Error en logout', e);
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const getBiometricTypeText = () => {
@@ -525,6 +549,114 @@ export default function SettingsScreen() {
           </Text>
         </View>
       </ScrollView>
+      {/* Modal Cambio de Contraseña (compatible Web) */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closePasswordModal}
+      >
+        <View style={[styles.modalOverlay]}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Cambiar Contraseña</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Por favor ingresa tu contraseña actual y la nueva.</Text>
+
+            <View style={styles.modalField}>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Contraseña Actual</Text>
+              <TextInput
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textSecondary}
+                secureTextEntry
+                style={[styles.modalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.modalField}>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Nueva Contraseña</Text>
+              <TextInput
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Mínimo 6 caracteres"
+                placeholderTextColor={colors.textSecondary}
+                secureTextEntry
+                style={[styles.modalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.modalField}>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Confirmar Nueva Contraseña</Text>
+              <TextInput
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repite la nueva contraseña"
+                placeholderTextColor={colors.textSecondary}
+                secureTextEntry
+                style={[styles.modalInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
+                autoCapitalize="none"
+              />
+            </View>
+
+            {passwordError ? (
+              <Text style={[styles.modalError, { color: colors.error }]}>{passwordError}</Text>
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={closePasswordModal}
+                style={[styles.modalButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+                disabled={changingPassword}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={submitPasswordChange}
+                style={[styles.modalButtonPrimary, { backgroundColor: colors.primary }]}
+                disabled={changingPassword}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modalButtonTextPrimary]}>Cambiar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Modal Cerrar Sesión (compatible Web) */}
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={closeLogoutModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Cerrar Sesión</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>¿Estás seguro de que quieres cerrar sesión?</Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={closeLogoutModal}
+                style={[styles.modalButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+                disabled={loggingOut}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmLogout}
+                style={[styles.modalButtonPrimary, { backgroundColor: colors.error }]}
+                disabled={loggingOut}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalButtonTextPrimary}>Cerrar Sesión</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -744,5 +876,76 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94A3B8',
     textAlign: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  modalField: {
+    marginBottom: 12,
+  },
+  modalLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
+  modalError: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  modalButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  modalButtonPrimary: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  modalButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalButtonTextPrimary: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

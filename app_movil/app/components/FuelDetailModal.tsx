@@ -22,6 +22,7 @@ import {
   TrendingDown,
   FileText,
 } from 'lucide-react-native';
+import { useThemeStore } from '../stores/themeStore';
 
 interface FuelDetailModalProps {
   readonly record: any;
@@ -30,6 +31,8 @@ interface FuelDetailModalProps {
 }
 
 export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalProps) {
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   const getTypeColor = (type: string) => {
     return type === 'refuel' ? '#16A34A' : '#2563EB';
   };
@@ -64,19 +67,19 @@ export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalPro
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color="#64748B" />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Detalle del Registro</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Detalle del Registro</Text>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Type and Amount */}
-          <View style={styles.mainInfo}>
+          <View style={[styles.mainInfo, { backgroundColor: colors.surface }]}>
             <View style={[styles.typeBadge, { backgroundColor: `${typeColor}15` }]}>
               <TypeIcon size={24} color={typeColor} />
               <Text style={[styles.typeText, { color: typeColor }]}>
@@ -85,42 +88,42 @@ export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalPro
             </View>
             
             <View style={styles.amountSection}>
-              <Text style={styles.amountValue}>{record.amount.toFixed(1)}</Text>
-              <Text style={styles.amountUnit}>Litros</Text>
+              <Text style={[styles.amountValue, { color: colors.text }]}>{record.amount.toFixed(1)}</Text>
+              <Text style={[styles.amountUnit, { color: colors.textSecondary }]}>Litros</Text>
             </View>
           </View>
 
           {/* Vehicle and Driver Info */}
-          <View style={styles.infoSection}>
+          <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
             <View style={styles.infoItem}>
-              <Fuel size={20} color="#64748B" />
+              <Fuel size={20} color={colors.textSecondary} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Vehículo</Text>
-                <Text style={styles.infoValue}>{record.vehiclePlate}</Text>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Vehículo</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{record.vehiclePlate}</Text>
               </View>
             </View>
 
             <View style={styles.infoItem}>
-              <User size={20} color="#64748B" />
+              <User size={20} color={colors.textSecondary} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Conductor</Text>
-                <Text style={styles.infoValue}>{record.driverName}</Text>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Conductor</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{record.driverName}</Text>
               </View>
             </View>
 
             <View style={styles.infoItem}>
-              <Gauge size={20} color="#64748B" />
+              <Gauge size={20} color={colors.textSecondary} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Kilometraje</Text>
-                <Text style={styles.infoValue}>{record.odometer.toLocaleString()} km</Text>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Kilometraje</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{record.odometer.toLocaleString()} km</Text>
               </View>
             </View>
 
             <View style={styles.infoItem}>
-              <Clock size={20} color="#64748B" />
+              <Clock size={20} color={colors.textSecondary} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Fecha y hora</Text>
-                <Text style={styles.infoValue}>{formatDateTime(record.recordedAt)}</Text>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Fecha y hora</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{formatDateTime(record.recordedAt)}</Text>
               </View>
             </View>
           </View>
@@ -128,32 +131,32 @@ export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalPro
           {/* Station Name (for refuels) */}
           {record.stationName && (
             <View style={styles.stationSection}>
-              <Text style={styles.sectionTitle}>Estación de Servicio</Text>
-              <View style={styles.stationCard}>
-                <Fuel size={20} color="#16A34A" />
-                <Text style={styles.stationName}>{record.stationName}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Estación de Servicio</Text>
+              <View style={[styles.stationCard, { backgroundColor: colors.surface }]}>
+                <Fuel size={20} color={colors.success} />
+                <Text style={[styles.stationName, { color: colors.text }]}>{record.stationName}</Text>
               </View>
             </View>
           )}
 
           {/* Location */}
           <View style={styles.locationSection}>
-            <Text style={styles.sectionTitle}>Ubicación</Text>
-            <View style={styles.locationCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Ubicación</Text>
+            <View style={[styles.locationCard, { backgroundColor: colors.surface }]}>
               <View style={styles.locationInfo}>
-                <MapPin size={20} color="#2563EB" />
+                <MapPin size={20} color={colors.primary} />
                 <View style={styles.locationDetails}>
-                  <Text style={styles.locationAddress}>
+                  <Text style={[styles.locationAddress, { color: colors.text }]}>
                     {record.location.address || 'Ubicación GPS'}
                   </Text>
-                  <Text style={styles.locationCoords}>
+                  <Text style={[styles.locationCoords, { color: colors.textSecondary }]}>
                     {record.location.latitude.toFixed(6)}, {record.location.longitude.toFixed(6)}
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.mapsButton} onPress={openInMaps}>
-                <Navigation size={20} color="#2563EB" />
-                <Text style={styles.mapsButtonText}>Ver en Mapas</Text>
+              <TouchableOpacity style={[styles.mapsButton, { backgroundColor: colors.card, borderColor: colors.primary }]} onPress={openInMaps}>
+                <Navigation size={20} color={colors.primary} />
+                <Text style={[styles.mapsButtonText, { color: colors.primary }]}>Ver en Mapas</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -161,8 +164,8 @@ export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalPro
           {/* Receipt Photo */}
           {record.receiptPhoto && (
             <View style={styles.photoSection}>
-              <Text style={styles.sectionTitle}>
-                <Receipt size={20} color="#374151" /> Recibo
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                <Receipt size={20} color={colors.text} /> Recibo
               </Text>
               <View style={styles.photoContainer}>
                 <Image source={{ uri: record.receiptPhoto }} style={styles.photo} />
@@ -173,24 +176,24 @@ export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalPro
           {/* Notes */}
           {record.notes && (
             <View style={styles.notesSection}>
-              <Text style={styles.sectionTitle}>
-                <FileText size={20} color="#374151" /> Notas
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                <FileText size={20} color={colors.text} /> Notas
               </Text>
-              <View style={styles.notesCard}>
-                <Text style={styles.notesText}>{record.notes}</Text>
+              <View style={[styles.notesCard, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.notesText, { color: colors.text }]}>{record.notes}</Text>
               </View>
             </View>
           )}
 
           {/* Sync Status */}
           <View style={styles.syncSection}>
-            <Text style={styles.sectionTitle}>Estado de Sincronización</Text>
-            <View style={styles.syncCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Estado de Sincronización</Text>
+            <View style={[styles.syncCard, { backgroundColor: colors.surface }]}>
               <View style={[
                 styles.syncIndicator,
-                { backgroundColor: record.syncStatus === 'synced' ? '#16A34A' : '#F59E0B' }
+                { backgroundColor: record.syncStatus === 'synced' ? colors.success : colors.warning }
               ]} />
-              <Text style={styles.syncText}>
+              <Text style={[styles.syncText, { color: colors.text }]}>
                 {record.syncStatus === 'synced' ? 'Sincronizado' : 'Pendiente de sincronización'}
               </Text>
             </View>

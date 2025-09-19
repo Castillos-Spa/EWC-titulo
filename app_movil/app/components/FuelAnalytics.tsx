@@ -5,16 +5,19 @@ import {
   StyleSheet,
 } from 'react-native';
 import { TrendingUp, TrendingDown, Gauge, Fuel, Award, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { useThemeStore } from '../stores/themeStore';
 
 interface FuelAnalyticsProps {
   readonly analytics: any;
 }
 
 export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   if (!analytics) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.noDataText}>
+      <View style={[styles.container, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.noDataText, { color: colors.textSecondary }]}>
           No hay suficientes datos para mostrar análisis
         </Text>
       </View>
@@ -66,68 +69,68 @@ export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Análisis de Combustible</Text>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Análisis de Combustible</Text>
       
       {/* Main Stats */}
       <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <View style={styles.statIcon}>
-            <TrendingDown size={24} color="#2563EB" />
+            <TrendingDown size={24} color={colors.primary} />
           </View>
-          <Text style={styles.statValue}>
+          <Text style={[styles.statValue, { color: colors.text }]}>
             {analytics.totalConsumption.toFixed(1)}L
           </Text>
-          <Text style={styles.statLabel}>Consumo Total</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Consumo Total</Text>
         </View>
 
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <View style={styles.statIcon}>
-            <TrendingUp size={24} color="#16A34A" />
+            <TrendingUp size={24} color={colors.success} />
           </View>
-          <Text style={styles.statValue}>
+          <Text style={[styles.statValue, { color: colors.text }]}>
             {analytics.totalRefueled.toFixed(1)}L
           </Text>
-          <Text style={styles.statLabel}>Reabastecido</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Reabastecido</Text>
         </View>
 
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <View style={styles.statIcon}>
-            <Gauge size={24} color="#D97706" />
+            <Gauge size={24} color={colors.warning} />
           </View>
-          <Text style={styles.statValue}>
+          <Text style={[styles.statValue, { color: colors.text }]}>
             {analytics.averageConsumption > 0 ? `${analytics.averageConsumption.toFixed(1)}` : '--'}
           </Text>
-          <Text style={styles.statLabel}>L/100km</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>L/100km</Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: `${efficiencyColor}10` }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.card }]}> 
           <View style={styles.statIcon}>
             <EfficiencyIcon size={24} color={efficiencyColor} />
           </View>
           <Text style={[styles.statValue, { color: efficiencyColor }]}>
             {getEfficiencyLabel(analytics.efficiency)}
           </Text>
-          <Text style={styles.statLabel}>Eficiencia</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Eficiencia</Text>
         </View>
       </View>
 
       {/* Additional Info */}
       <View style={styles.additionalInfo}>
         <View style={styles.infoRow}>
-          <Fuel size={20} color="#64748B" />
+          <Fuel size={20} color={colors.textSecondary} />
           <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Último Reabastecimiento</Text>
-            <Text style={styles.infoValue}>{formatLastRefuel()}</Text>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Último Reabastecimiento</Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>{formatLastRefuel()}</Text>
           </View>
         </View>
 
         {analytics.nextRefuelEstimate && (
           <View style={styles.infoRow}>
-            <AlertTriangle size={20} color="#EA580C" />
+            <AlertTriangle size={20} color={colors.warning} />
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Próximo Reabastecimiento</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Próximo Reabastecimiento</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
                 En ~{Math.round(analytics.nextRefuelEstimate)} km
               </Text>
             </View>
@@ -137,11 +140,11 @@ export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
 
       {/* Efficiency Tips */}
       {analytics.efficiency === 'poor' && (
-        <View style={styles.tipsCard}>
-          <AlertTriangle size={20} color="#EA580C" />
+        <View style={[styles.tipsCard, { backgroundColor: `${colors.warning}15`, borderLeftColor: colors.warning }]}>
+          <AlertTriangle size={20} color={colors.warning} />
           <View style={styles.tipsContent}>
-            <Text style={styles.tipsTitle}>Consejos para Mejorar Eficiencia</Text>
-            <Text style={styles.tipsText}>
+            <Text style={[styles.tipsTitle, { color: colors.warning }]}>Consejos para Mejorar Eficiencia</Text>
+            <Text style={[styles.tipsText, { color: colors.text }]}>
               • Mantén velocidad constante{'\n'}
               • Evita aceleraciones bruscas{'\n'}
               • Revisa presión de neumáticos{'\n'}

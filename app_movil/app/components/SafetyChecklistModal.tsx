@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { X, Shield, Camera, Save, CircleCheck as CheckCircle, Circle, HardHat, Eye, Wrench, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useThemeStore } from '../stores/themeStore';
 
 interface SafetyChecklistModalProps {
   readonly visible: boolean;
@@ -111,6 +112,8 @@ const ChecklistItemRow = ({
 };
 
 export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalProps) {
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   const getProgressColor = (pct: number) => {
     if (pct >= 80) return '#16A34A';
     if (pct >= 50) return '#F59E0B';
@@ -302,32 +305,32 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <X size={24} color="#64748B" />
           </TouchableOpacity>
-          <Text style={styles.title}>Checklist de Seguridad</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Checklist de Seguridad</Text>
           <View style={styles.placeholder} />
         </View>
 
         {/* Progress Header */}
-        <View style={styles.progressHeader}>
+        <View style={[styles.progressHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={styles.progressInfo}>
             <Shield size={24} color="#F59E0B" />
             <View style={styles.progressDetails}>
-              <Text style={styles.progressTitle}>
+              <Text style={[styles.progressTitle, { color: colors.text }]}>
                 Progreso de Seguridad: {progress.completed}/{progress.total}
               </Text>
-              <Text style={styles.progressSubtitle}>
+              <Text style={[styles.progressSubtitle, { color: colors.textSecondary }]}>
                 {progress.percentage.toFixed(0)}% completado
               </Text>
             </View>
           </View>
           
           <View style={styles.progressBarContainer}>
-            <View style={styles.progressBar}>
+            <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
               <View 
                 style={[
                   styles.progressFill, 
@@ -357,16 +360,16 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
                 <View style={styles.categoryHeader}>
                   <View style={styles.categoryTitle}>
                     <CategoryIcon size={20} color={categoryColor} />
-                    <Text style={styles.categoryLabel}>
+                    <Text style={[styles.categoryLabel, { color: colors.text }]}>
                       {getCategoryLabel(category)}
                     </Text>
                   </View>
-                  <Text style={styles.categoryProgress}>
+                  <Text style={[styles.categoryProgress, { color: colors.textSecondary }]}>
                     {categoryCompleted}/{items.length}
                   </Text>
                 </View>
 
-                <View style={styles.categoryCard}>
+                <View style={[styles.categoryCard, { backgroundColor: colors.surface, shadowColor: colors.text }]}>
                   {items.map((item, index) => (
                     <ChecklistItemRow
                       key={item.id}
@@ -388,10 +391,10 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
           <View style={styles.tipsSection}>
             <View style={styles.tipsHeader}>
               <AlertTriangle size={20} color="#F59E0B" />
-              <Text style={styles.tipsTitle}>Recordatorios de Seguridad</Text>
+              <Text style={[styles.tipsTitle, { color: '#F59E0B' }]}>Recordatorios de Seguridad</Text>
             </View>
-            <View style={styles.tipsCard}>
-              <Text style={styles.tipsText}>
+            <View style={[styles.tipsCard, { backgroundColor: colors.surface, borderLeftColor: '#F59E0B' }]}>
+              <Text style={[styles.tipsText, { color: colors.text }]}>
                 • Nunca omitas el equipo de protección personal{'\n'}
                 • Verifica las condiciones del sitio antes de comenzar{'\n'}
                 • Mantén el área de trabajo señalizada{'\n'}
@@ -403,9 +406,9 @@ export function SafetyChecklistModal({ visible, onClose }: SafetyChecklistModalP
         </ScrollView>
 
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 

@@ -26,6 +26,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useFuelStore } from '../stores/fuelStore';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 
 interface CreateFuelRecordModalProps {
   readonly visible: boolean;
@@ -44,6 +45,8 @@ export function CreateFuelRecordModal({
 }: CreateFuelRecordModalProps) {
   const { createFuelRecord, isSubmitting } = useFuelStore();
   const { user } = useAuthStore();
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   
   const [type, setType] = useState<'consumption' | 'refuel'>(initialType);
   const [amount, setAmount] = useState('');
@@ -167,32 +170,34 @@ export function CreateFuelRecordModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color="#64748B" />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Registro de Combustible</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Registro de Combustible</Text>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Type Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tipo de Registro</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Tipo de Registro</Text>
             <View style={styles.typeSelector}>
               <TouchableOpacity
                 style={[
                   styles.typeButton,
-                  type === 'consumption' && styles.typeButtonSelected,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  type === 'consumption' && { borderColor: colors.primary },
                 ]}
                 onPress={() => setType('consumption')}
               >
-                <TrendingDown size={24} color={type === 'consumption' ? '#2563EB' : '#64748B'} />
+                <TrendingDown size={24} color={type === 'consumption' ? colors.primary : colors.textSecondary} />
                 <Text style={[
                   styles.typeButtonText,
-                  type === 'consumption' && styles.typeButtonTextSelected,
+                  { color: colors.textSecondary },
+                  type === 'consumption' && { color: colors.primary },
                 ]}>
                   Consumo
                 </Text>
@@ -201,14 +206,16 @@ export function CreateFuelRecordModal({
               <TouchableOpacity
                 style={[
                   styles.typeButton,
-                  type === 'refuel' && styles.typeButtonSelected,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  type === 'refuel' && { borderColor: colors.success },
                 ]}
                 onPress={() => setType('refuel')}
               >
-                <TrendingUp size={24} color={type === 'refuel' ? '#16A34A' : '#64748B'} />
+                <TrendingUp size={24} color={type === 'refuel' ? colors.success : colors.textSecondary} />
                 <Text style={[
                   styles.typeButtonText,
-                  type === 'refuel' && styles.typeButtonTextSelected,
+                  { color: colors.textSecondary },
+                  type === 'refuel' && { color: colors.success },
                 ]}>
                   Reabastecimiento
                 </Text>
@@ -217,80 +224,80 @@ export function CreateFuelRecordModal({
           </View>
 
           {/* Vehicle Info */}
-          <View style={styles.vehicleInfo}>
-            <Fuel size={20} color="#2563EB" />
-            <Text style={styles.vehicleText}>Vehículo: {vehiclePlate}</Text>
+          <View style={[styles.vehicleInfo, { backgroundColor: colors.card }]}>
+            <Fuel size={20} color={colors.primary} />
+            <Text style={[styles.vehicleText, { color: colors.primary }]}>Vehículo: {vehiclePlate}</Text>
           </View>
 
           {/* Amount */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Cantidad de Combustible (Litros)
             </Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={amount}
               onChangeText={setAmount}
               placeholder={type === 'refuel' ? 'Ej: 150.5' : 'Ej: 25.3'}
               keyboardType="numeric"
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textSecondary}
             />
           </View>
 
           {/* Odometer */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Kilometraje Actual</Text>
-            <View style={styles.inputWithIcon}>
-              <Gauge size={20} color="#64748B" />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Kilometraje Actual</Text>
+            <View style={[styles.inputWithIcon, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Gauge size={20} color={colors.textSecondary} />
               <TextInput
-                style={styles.inputWithIconText}
+                style={[styles.inputWithIconText, { color: colors.text }]}
                 value={odometer}
                 onChangeText={setOdometer}
                 placeholder="Ej: 125000"
                 keyboardType="numeric"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textSecondary}
               />
-              <Text style={styles.inputUnit}>km</Text>
+              <Text style={[styles.inputUnit, { color: colors.textSecondary }]}>km</Text>
             </View>
           </View>
 
           {/* Station Name (only for refuel) */}
           {type === 'refuel' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Estación de Servicio</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Estación de Servicio</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 value={stationName}
                 onChangeText={setStationName}
                 placeholder="Nombre de la estación"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
           )}
 
           {/* Location */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ubicación</Text>
-            <View style={styles.locationCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Ubicación</Text>
+            <View style={[styles.locationCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {/* Extraído ternario anidado para mejorar legibilidad */}
               {(() => {
                 if (isGettingLocation) {
                   return (
                     <View style={styles.locationLoading}>
-                      <Navigation size={24} color="#2563EB" />
-                      <Text style={styles.locationLoadingText}>Obteniendo ubicación...</Text>
+                      <Navigation size={24} color={colors.primary} />
+                      <Text style={[styles.locationLoadingText, { color: colors.primary }]}>Obteniendo ubicación...</Text>
                     </View>
                   );
                 }
                 if (location) {
                   return (
                     <View style={styles.locationInfo}>
-                      <MapPin size={20} color="#16A34A" />
+                      <MapPin size={20} color={colors.success} />
                       <View style={styles.locationDetails}>
-                        <Text style={styles.locationAddress}>
+                        <Text style={[styles.locationAddress, { color: colors.text }]}>
                           {location.address || 'Ubicación capturada'}
                         </Text>
-                        <Text style={styles.locationCoords}>
+                        <Text style={[styles.locationCoords, { color: colors.textSecondary }]}>
                           {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                         </Text>
                       </View>
@@ -298,9 +305,9 @@ export function CreateFuelRecordModal({
                   );
                 }
                 return (
-                  <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
-                    <MapPin size={24} color="#2563EB" />
-                    <Text style={styles.locationButtonText}>Obtener Ubicación Actual</Text>
+                  <TouchableOpacity style={styles.locationButton} onPress={() => void getCurrentLocation()}>
+                    <MapPin size={24} color={colors.primary} />
+                    <Text style={[styles.locationButtonText, { color: colors.primary }]}>Obtener Ubicación Actual</Text>
                   </TouchableOpacity>
                 );
               })()}
@@ -310,11 +317,11 @@ export function CreateFuelRecordModal({
           {/* Receipt Photo (optional for refuel) */}
           {type === 'refuel' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Foto del Recibo (Opcional)</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Foto del Recibo (Opcional)</Text>
               
-              <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                <Camera size={24} color="#2563EB" />
-                <Text style={styles.photoButtonText}>
+              <TouchableOpacity style={[styles.photoButton, { backgroundColor: colors.card, borderColor: colors.primary }]} onPress={() => void handleTakePhoto()}>
+                <Camera size={24} color={colors.primary} />
+                <Text style={[styles.photoButtonText, { color: colors.primary }]}>
                   {receiptPhoto ? 'Cambiar Foto' : 'Tomar Foto del Recibo'}
                 </Text>
               </TouchableOpacity>
@@ -323,7 +330,7 @@ export function CreateFuelRecordModal({
                 <View style={styles.photoPreview}>
                   <Image source={{ uri: receiptPhoto }} style={styles.photo} />
                   <TouchableOpacity
-                    style={styles.removePhotoButton}
+                    style={[styles.removePhotoButton, { backgroundColor: colors.error }]}
                     onPress={() => setReceiptPhoto(null)}
                   >
                     <X size={16} color="#FFFFFF" />
@@ -335,33 +342,33 @@ export function CreateFuelRecordModal({
 
           {/* Notes */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notas Adicionales (Opcional)</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Notas Adicionales (Opcional)</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Observaciones, comentarios..."
               multiline
               numberOfLines={3}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textSecondary}
               maxLength={300}
             />
-            <Text style={styles.charCount}>{notes.length}/300</Text>
+            <Text style={[styles.charCount, { color: colors.textSecondary }]}>{notes.length}/300</Text>
           </View>
         </ScrollView>
 
         {/* Footer */}
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
-            onPress={handleSubmit}
+            style={[styles.submitButton, { backgroundColor: colors.success }, isSubmitting && styles.buttonDisabled]} 
+            onPress={() => void handleSubmit()}
             disabled={isSubmitting}
           >
             <Save size={20} color="#FFFFFF" />
-            <Text style={styles.submitButtonText}>
+            <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>
               {isSubmitting ? 'Guardando...' : 'Guardar Registro'}
             </Text>
           </TouchableOpacity>

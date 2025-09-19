@@ -34,6 +34,7 @@ import {
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCivilWorksStore } from '../stores/civilWorksStore';
+import { useThemeStore } from '../stores/themeStore';
 
 interface WorkOrderDetailModalProps {
   readonly workOrder: any;
@@ -49,6 +50,8 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
     updateMaterialUsage, 
     updateSafetyChecklist 
   } = useCivilWorksStore();
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   
   const [completionNotes, setCompletionNotes] = useState('');
   const [showCompletionForm, setShowCompletionForm] = useState(false);
@@ -272,25 +275,25 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <X size={24} color="#64748B" />
           </TouchableOpacity>
-          <Text style={styles.title}>Detalle de Orden</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Detalle de Orden</Text>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Work Order Info */}
-          <View style={styles.workOrderInfo}>
+          <View style={[styles.workOrderInfo, { backgroundColor: colors.surface }]}>
             <View style={styles.workOrderHeader}>
               <View style={styles.typeSection}>
                 <TypeIcon size={24} color="#F59E0B" />
                 <View style={styles.orderDetails}>
                   <Text style={styles.orderNumber}>{workOrder.orderNumber}</Text>
-                  <Text style={styles.orderType}>{getTypeLabel(workOrder.type)}</Text>
+                  <Text style={[styles.orderType, { color: colors.textSecondary }]}>{getTypeLabel(workOrder.type)}</Text>
                 </View>
               </View>
               
@@ -308,8 +311,8 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
               </View>
             </View>
 
-            <Text style={styles.workOrderTitle}>{workOrder.title}</Text>
-            <Text style={styles.workOrderDescription}>{workOrder.description}</Text>
+            <Text style={[styles.workOrderTitle, { color: colors.text }]}>{workOrder.title}</Text>
+            <Text style={[styles.workOrderDescription, { color: colors.textSecondary }]}>{workOrder.description}</Text>
 
             {workOrder.clientName && (
               <View style={styles.clientSection}>
@@ -321,13 +324,13 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
 
           {/* Schedule and Team */}
           <View style={styles.scheduleSection}>
-            <Text style={styles.sectionTitle}>Programación y Equipo</Text>
-            <View style={styles.scheduleCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Programación y Equipo</Text>
+            <View style={[styles.scheduleCard, { backgroundColor: colors.surface }]}>
               <View style={styles.scheduleItem}>
                 <Clock size={20} color="#64748B" />
                 <View style={styles.scheduleDetails}>
-                  <Text style={styles.scheduleLabel}>Fecha programada</Text>
-                  <Text style={styles.scheduleValue}>
+                  <Text style={[styles.scheduleLabel, { color: colors.textSecondary }]}>Fecha programada</Text>
+                  <Text style={[styles.scheduleValue, { color: colors.text }]}>
                     {new Date(workOrder.scheduledDate).toLocaleDateString('es-ES')}
                   </Text>
                 </View>
@@ -336,8 +339,8 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
               <View style={styles.scheduleItem}>
                 <Clock size={20} color="#64748B" />
                 <View style={styles.scheduleDetails}>
-                  <Text style={styles.scheduleLabel}>Duración estimada</Text>
-                  <Text style={styles.scheduleValue}>
+                  <Text style={[styles.scheduleLabel, { color: colors.textSecondary }]}>Duración estimada</Text>
+                  <Text style={[styles.scheduleValue, { color: colors.text }]}>
                     {formatDuration(workOrder.estimatedDuration)}
                   </Text>
                 </View>
@@ -346,8 +349,8 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
               <View style={styles.scheduleItem}>
                 <Users size={20} color="#64748B" />
                 <View style={styles.scheduleDetails}>
-                  <Text style={styles.scheduleLabel}>Equipo asignado</Text>
-                  <Text style={styles.scheduleValue}>
+                  <Text style={[styles.scheduleLabel, { color: colors.textSecondary }]}>Equipo asignado</Text>
+                  <Text style={[styles.scheduleValue, { color: colors.text }]}>
                     {workOrder.assignedTo.join(', ')}
                   </Text>
                 </View>
@@ -357,8 +360,8 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                 <View style={styles.scheduleItem}>
                   <CheckCircle size={20} color="#16A34A" />
                   <View style={styles.scheduleDetails}>
-                    <Text style={styles.scheduleLabel}>Duración real</Text>
-                    <Text style={styles.scheduleValue}>
+                    <Text style={[styles.scheduleLabel, { color: colors.textSecondary }]}>Duración real</Text>
+                    <Text style={[styles.scheduleValue, { color: colors.text }]}>
                       {formatDuration(workOrder.actualDuration)}
                     </Text>
                   </View>
@@ -369,15 +372,15 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
 
           {/* Location */}
           <View style={styles.locationSection}>
-            <Text style={styles.sectionTitle}>Ubicación</Text>
-            <View style={styles.locationCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Ubicación</Text>
+            <View style={[styles.locationCard, { backgroundColor: colors.surface }]}>
               <View style={styles.locationInfo}>
                 <MapPin size={20} color="#2563EB" />
                 <View style={styles.locationDetails}>
-                  <Text style={styles.locationSite}>
+                  <Text style={[styles.locationSite, { color: colors.text }]}>
                     {workOrder.location.site}
                   </Text>
-                  <Text style={styles.locationAddress}>
+                  <Text style={[styles.locationAddress, { color: colors.textSecondary }]}>
                     {workOrder.location.address}
                   </Text>
                 </View>
@@ -392,15 +395,15 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
           {/* Safety Checklist */}
           <View style={styles.safetySection}>
             <View style={styles.safetyHeader}>
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 <Shield size={20} color="#374151" /> Checklist de Seguridad
               </Text>
-              <Text style={styles.safetyProgress}>
+              <Text style={[styles.safetyProgress, { color: colors.textSecondary }]}>
                 {safetyProgress.toFixed(0)}% completado
               </Text>
             </View>
             
-            <View style={styles.safetyProgressBar}>
+            <View style={[styles.safetyProgressBar, { backgroundColor: colors.border }]}>
               <View 
                 style={[
                   styles.safetyProgressFill, 
@@ -413,7 +416,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
             </View>
 
             {workOrder.safetyChecklist.map((item: any) => (
-              <View key={item.id} style={styles.safetyItem}>
+              <View key={item.id} style={[styles.safetyItem, { backgroundColor: colors.surface }]}>
                 <TouchableOpacity
                   style={[
                     styles.safetyCheckbox,
@@ -432,6 +435,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                 <View style={styles.safetyContent}>
                   <Text style={[
                     styles.safetyDescription,
+                    { color: item.completed ? colors.textSecondary : colors.text },
                     item.completed && styles.safetyDescriptionCompleted,
                   ]}>
                     {item.description}
@@ -440,12 +444,12 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                   {item.photoRequired && (
                     <View style={styles.photoRequirement}>
                       <Camera size={14} color="#EA580C" />
-                      <Text style={styles.photoRequirementText}>Foto requerida</Text>
+                      <Text style={[styles.photoRequirementText, { color: colors.textSecondary }]}>Foto requerida</Text>
                     </View>
                   )}
 
                   {item.completedAt && (
-                    <Text style={styles.completedAt}>
+                    <Text style={[styles.completedAt, { color: colors.success }]}>
                       Completado: {formatDateTime(item.completedAt)}
                     </Text>
                   )}
@@ -456,14 +460,14 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
 
           {/* Materials */}
           <View style={styles.materialsSection}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               <Package size={20} color="#374151" /> Materiales
             </Text>
             {workOrder.materials.map((material: any) => (
-              <View key={material.id} style={styles.materialCard}>
+              <View key={material.id} style={[styles.materialCard, { backgroundColor: colors.surface }]}>
                 <View style={styles.materialInfo}>
-                  <Text style={styles.materialName}>{material.name}</Text>
-                  <Text style={styles.materialQuantity}>
+                  <Text style={[styles.materialName, { color: colors.text }]}>{material.name}</Text>
+                  <Text style={[styles.materialQuantity, { color: colors.textSecondary }]}>
                     Requerido: {material.quantity} {material.unit}
                   </Text>
                   {material.cost && (
@@ -472,7 +476,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                     </Text>
                   )}
                   {material.used !== undefined && (
-                    <Text style={styles.materialUsed}>
+                    <Text style={[styles.materialUsed, { color: colors.primary }]}>
                       Usado: {material.used} {material.unit}
                     </Text>
                   )}
@@ -481,7 +485,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                 {workOrder.status === 'in_progress' && (
                   <View style={styles.materialInput}>
                     <TextInput
-                      style={styles.usageInput}
+                      style={[styles.usageInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
                       value={materialUsage[material.id] || material.used?.toString() || ''}
                       onChangeText={(value) => {
                         setMaterialUsage(prev => ({ ...prev, [material.id]: value }));
@@ -489,9 +493,9 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                       }}
                       placeholder="Usado"
                       keyboardType="numeric"
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={colors.textSecondary}
                     />
-                    <Text style={styles.inputUnit}>{material.unit}</Text>
+                    <Text style={[styles.inputUnit, { color: colors.textSecondary }]}>{material.unit}</Text>
                   </View>
                 )}
               </View>
@@ -500,42 +504,42 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
 
           {/* Progress Photos */}
           <View style={styles.photosSection}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               <Camera size={20} color="#374151" /> Fotos de Progreso
             </Text>
             
             {workOrder.status === 'in_progress' && (
               <View style={styles.photoActions}>
                 <TouchableOpacity 
-                  style={styles.photoActionButton}
+                  style={[styles.photoActionButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => { void handleTakeProgressPhoto('before'); }}
                 >
                   <Camera size={20} color="#2563EB" />
-                  <Text style={styles.photoActionText}>Antes</Text>
+                  <Text style={[styles.photoActionText, { color: colors.textSecondary }]}>Antes</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.photoActionButton}
+                  style={[styles.photoActionButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => { void handleTakeProgressPhoto('during'); }}
                 >
                   <Camera size={20} color="#F59E0B" />
-                  <Text style={styles.photoActionText}>Durante</Text>
+                  <Text style={[styles.photoActionText, { color: colors.textSecondary }]}>Durante</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.photoActionButton}
+                  style={[styles.photoActionButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => { void handleTakeProgressPhoto('after'); }}
                 >
                   <Camera size={20} color="#16A34A" />
-                  <Text style={styles.photoActionText}>Después</Text>
+                  <Text style={[styles.photoActionText, { color: colors.textSecondary }]}>Después</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
-                  style={styles.photoActionButton}
+                  style={[styles.photoActionButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => { void handleTakeProgressPhoto('issue'); }}
                 >
                   <Camera size={20} color="#DC2626" />
-                  <Text style={styles.photoActionText}>Problema</Text>
+                  <Text style={[styles.photoActionText, { color: colors.textSecondary }]}>Problema</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -560,18 +564,18 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                 </View>
               </ScrollView>
             ) : (
-              <Text style={styles.noPhotosText}>No hay fotos de progreso</Text>
+              <Text style={[styles.noPhotosText, { color: colors.textSecondary, backgroundColor: colors.surface }]}>No hay fotos de progreso</Text>
             )}
           </View>
 
           {/* Completion Notes */}
           {workOrder.completionNotes && (
             <View style={styles.completionSection}>
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 <FileText size={20} color="#374151" /> Notas de Finalización
               </Text>
-              <View style={styles.completionCard}>
-                <Text style={styles.completionText}>{workOrder.completionNotes}</Text>
+              <View style={[styles.completionCard, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.completionText, { color: colors.textSecondary }]}>{workOrder.completionNotes}</Text>
               </View>
             </View>
           )}
@@ -579,7 +583,7 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
           {/* Supervisor Approval */}
           {workOrder.supervisorApproval && (
             <View style={styles.approvalSection}>
-              <Text style={styles.sectionTitle}>Aprobación Supervisora</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Aprobación Supervisora</Text>
               <View style={[
                 styles.approvalCard,
                 { backgroundColor: workOrder.supervisorApproval.approved ? '#F0FDF4' : '#FEF2F2' }
@@ -596,14 +600,14 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
                     {workOrder.supervisorApproval.approved ? 'Aprobado' : 'Rechazado'}
                   </Text>
                 </View>
-                <Text style={styles.approvalBy}>
+                <Text style={[styles.approvalBy, { color: colors.textSecondary }]}>
                   Por: {workOrder.supervisorApproval.approvedBy}
                 </Text>
-                <Text style={styles.approvalDate}>
+                <Text style={[styles.approvalDate, { color: colors.textSecondary }]}>
                   {formatDateTime(workOrder.supervisorApproval.approvedAt)}
                 </Text>
                 {workOrder.supervisorApproval.notes && (
-                  <Text style={styles.approvalNotes}>
+                  <Text style={[styles.approvalNotes, { color: colors.textSecondary }]}>
                     {workOrder.supervisorApproval.notes}
                   </Text>
                 )}
@@ -613,23 +617,23 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
 
           {/* Completion Form */}
           {showCompletionForm && (
-            <View style={styles.completionForm}>
-              <Text style={styles.sectionTitle}>Finalizar Orden de Trabajo</Text>
+            <View style={[styles.completionForm, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Finalizar Orden de Trabajo</Text>
               <TextInput
-                style={styles.completionInput}
+                style={[styles.completionInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
                 value={completionNotes}
                 onChangeText={setCompletionNotes}
                 placeholder="Notas de finalización, observaciones, recomendaciones..."
                 multiline
                 numberOfLines={4}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
           )}
         </ScrollView>
 
         {/* Footer Actions */}
-        <View style={styles.footer}>
+  <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           {workOrder.status === 'assigned' && (
             <TouchableOpacity 
               style={styles.startButton} 

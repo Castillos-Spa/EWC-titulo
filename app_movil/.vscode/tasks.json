@@ -13,6 +13,15 @@
 				"$eslint-stylish"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Install dependencies (pnpm) - app_movil",
+			"type": "shell",
+			"command": "pnpm install",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		}
 	]
 }

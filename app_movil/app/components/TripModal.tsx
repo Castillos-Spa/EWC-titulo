@@ -24,6 +24,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useRouteStore } from '../stores/routeStore';
 import { SignatureModal } from './SignatureModal';
+import { useThemeStore } from '../stores/themeStore';
 
 interface TripModalProps {
   readonly trip: any;
@@ -33,6 +34,8 @@ interface TripModalProps {
 
 export default function TripModal({ trip, visible, onClose }: TripModalProps) {
   const { completeTrip, addTripPhoto, currentRoute } = useRouteStore();
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   const [fuelConsumption, setFuelConsumption] = useState('');
   const [recipient, setRecipient] = useState('');
   const [notes, setNotes] = useState('');
@@ -109,13 +112,13 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+  <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color="#64748B" />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Completar Viaje</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Completar Viaje</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -126,17 +129,17 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
         >
           {/* Stop Info */}
           {currentStop && (
-            <View style={styles.stopInfo}>
+            <View style={[styles.stopInfo, { backgroundColor: colors.surface, borderLeftColor: colors.primary }]}>
               <View style={styles.stopHeader}>
-                <MapPin size={20} color="#2563EB" />
-                <Text style={styles.stopTitle}>{currentStop.clientName}</Text>
+                <MapPin size={20} color={colors.primary} />
+                <Text style={[styles.stopTitle, { color: colors.text }]}>{currentStop.clientName}</Text>
               </View>
-              <Text style={styles.stopJob}>{currentStop.jobDescription}</Text>
+              <Text style={[styles.stopJob, { color: colors.textSecondary }]}>{currentStop.jobDescription}</Text>
               <View style={styles.stopDetails}>
-                <Clock size={16} color="#64748B" />
-                <Text style={styles.stopTime}>{currentStop.timeSlot}</Text>
+                <Clock size={16} color={colors.textSecondary} />
+                <Text style={[styles.stopTime, { color: colors.textSecondary }]}>{currentStop.timeSlot}</Text>
               </View>
-              <Text style={styles.stopAddress}>{currentStop.address}</Text>
+              <Text style={[styles.stopAddress, { color: colors.textSecondary }]}>{currentStop.address}</Text>
             </View>
           )}
 
@@ -144,60 +147,60 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
           <View style={styles.form}>
             {/* Fuel Consumption */}
             <View style={styles.field}>
-              <Text style={styles.label}>
-                <Fuel size={16} color="#64748B" /> Consumo de Combustible (L)
+              <Text style={[styles.label, { color: colors.text }]}>
+                <Fuel size={16} color={colors.textSecondary} /> Consumo de Combustible (L)
               </Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 value={fuelConsumption}
                 onChangeText={setFuelConsumption}
                 placeholder="Ej: 25.5"
                 keyboardType="numeric"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             {/* Recipient */}
             <View style={styles.field}>
-              <Text style={styles.label}>
-                <User size={16} color="#64748B" /> Receptor (Obligatorio)
+              <Text style={[styles.label, { color: colors.text }]}>
+                <User size={16} color={colors.textSecondary} /> Receptor (Obligatorio)
               </Text>
               <TextInput
-                style={[styles.input, !recipient.trim() && styles.inputRequired]}
+                style={[styles.input, !recipient.trim() && styles.inputRequired, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 value={recipient}
                 onChangeText={setRecipient}
                 placeholder="Nombre completo del receptor"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             {/* Notes */}
             <View style={styles.field}>
-              <Text style={styles.label}>
-                <FileText size={16} color="#64748B" /> Notas Adicionales
+              <Text style={[styles.label, { color: colors.text }]}>
+                <FileText size={16} color={colors.textSecondary} /> Notas Adicionales
               </Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Observaciones, comentarios..."
                 multiline
                 numberOfLines={3}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             {/* Photos Section */}
             <View style={styles.field}>
-              <Text style={styles.label}>
-                <Camera size={16} color="#64748B" /> Evidencia Fotográfica
+              <Text style={[styles.label, { color: colors.text }]}>
+                <Camera size={16} color={colors.textSecondary} /> Evidencia Fotográfica
               </Text>
               <Text style={styles.photoRequirement}>
                 * Se requiere al menos 1 foto
               </Text>
               
-              <TouchableOpacity style={styles.photoButton} onPress={() => { void handleTakePhoto(); }}>
-                <Camera size={24} color="#2563EB" />
+              <TouchableOpacity style={[styles.photoButton, { backgroundColor: colors.surface, borderColor: colors.primary }]} onPress={() => { void handleTakePhoto(); }}>
+                <Camera size={24} color={colors.primary} />
                 <Text style={styles.photoButtonText}>Tomar Foto</Text>
               </TouchableOpacity>
 
@@ -215,14 +218,14 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
 
             {/* Digital Signature */}
             <View style={styles.field}>
-              <Text style={styles.label}>
-                <PenTool size={16} color="#64748B" /> Firma Digital
+              <Text style={[styles.label, { color: colors.text }]}>
+                <PenTool size={16} color={colors.textSecondary} /> Firma Digital
               </Text>
               <TouchableOpacity 
-                style={styles.signatureButton}
+                style={[styles.signatureButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
                 onPress={() => setShowSignatureModal(true)}
               >
-                <PenTool size={24} color="#2563EB" />
+                <PenTool size={24} color={colors.primary} />
                 <Text style={styles.signatureButtonText}>
                   {signature ? 'Cambiar Firma' : 'Capturar Firma'}
                 </Text>
@@ -239,12 +242,12 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
         </ScrollView>
 
         {/* Footer Actions */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+            <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.completeButton, isSubmitting && styles.buttonDisabled]} 
+            style={[styles.completeButton, isSubmitting && styles.buttonDisabled, { backgroundColor: colors.success }]} 
             onPress={() => { void handleComplete(); }}
             disabled={isSubmitting}
           >

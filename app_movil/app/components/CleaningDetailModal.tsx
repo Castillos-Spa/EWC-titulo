@@ -13,6 +13,7 @@ import {
 import { X, Sparkles as Cleaning, Clock, Users, MapPin, Camera, CircleCheck as CheckCircle, Circle, Package, FileText, Play, SquareCheck as CheckSquare } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCleaningStore } from '../stores/cleaningStore';
+import { useThemeStore } from '../stores/themeStore';
 
 interface CleaningDetailModalProps {
   readonly report: any;
@@ -24,6 +25,8 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
   const { updateReportStatus, completeTask, addReportPhoto } = useCleaningStore();
   const [taskNotes, setTaskNotes] = useState<{ [key: string]: string }>({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const { getColors } = useThemeStore();
+  const colors = getColors();
 
   if (!report) return null;
 
@@ -96,8 +99,8 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        addReportPhoto(report.id, result.assets[0].uri);
+      if (!result.canceled && result.assets?.[0]) {
+        addReportPhoto(report.id, result.assets[0]?.uri ?? '');
         Alert.alert('Éxito', 'Foto agregada al reporte');
       }
     } catch (error) {
@@ -156,25 +159,25 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color="#64748B" />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Detalle del Reporte</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Detalle del Reporte</Text>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Report Info */}
-          <View style={styles.reportInfo}>
+          <View style={[styles.reportInfo, { backgroundColor: colors.surface }]}>
             <View style={styles.reportHeader}>
               <View style={styles.shiftSection}>
-                <Cleaning size={24} color="#06B6D4" />
+                <Cleaning size={24} color={colors.accent} />
                 <View style={styles.shiftDetails}>
-                  <Text style={styles.shiftText}>{getShiftLabel(report.shift)}</Text>
-                  <Text style={styles.dateText}>
+                  <Text style={[styles.shiftText, { color: colors.text }]}>{getShiftLabel(report.shift)}</Text>
+                  <Text style={[styles.dateText, { color: colors.textSecondary }]}>
                     {new Date(report.date).toLocaleDateString('es-ES', {
                       weekday: 'long',
                       day: '2-digit',
@@ -194,10 +197,10 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
 
             {/* Progress */}
             <View style={styles.progressSection}>
-              <Text style={styles.progressLabel}>
+              <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
                 Progreso: {completed}/{total} tareas completadas
               </Text>
-              <View style={styles.progressBar}>
+              <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
                 <View 
                   style={[
                     styles.progressFill, 
@@ -213,10 +216,10 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
 
           {/* Crew Information */}
           <View style={styles.crewSection}>
-            <Text style={styles.sectionTitle}>
-              <Users size={20} color="#374151" /> Equipo de Trabajo
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              <Users size={20} color={colors.text} /> Equipo de Trabajo
             </Text>
-            <View style={styles.crewCard}>
+            <View style={[styles.crewCard, { backgroundColor: colors.surface }]}>
               {report.crewMembers.map((member: string) => (
                 <View key={member} style={styles.crewMember}>
                   <View style={styles.crewAvatar}>
@@ -224,7 +227,7 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
                       {member.charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  <Text style={styles.crewName}>{member}</Text>
+                  <Text style={[styles.crewName, { color: colors.text }]}>{member}</Text>
                 </View>
               ))}
             </View>
@@ -232,17 +235,17 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
 
           {/* Areas */}
           <View style={styles.areasSection}>
-            <Text style={styles.sectionTitle}>
-              <MapPin size={20} color="#374151" /> Áreas Asignadas
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              <MapPin size={20} color={colors.text} /> Áreas Asignadas
             </Text>
             <View style={styles.areasGrid}>
               {report.areas.map((area: any) => (
-                <View key={area.id} style={styles.areaCard}>
-                  <Text style={styles.areaName}>{area.name}</Text>
-                  <Text style={styles.areaDetails}>
+                <View key={area.id} style={[styles.areaCard, { backgroundColor: colors.surface, borderLeftColor: colors.accent }]}>
+                  <Text style={[styles.areaName, { color: colors.text }]}>{area.name}</Text>
+                  <Text style={[styles.areaDetails, { color: colors.textSecondary }]}>
                     {area.building} - Piso {area.floor}
                   </Text>
-                  <Text style={styles.areaTime}>
+                  <Text style={[styles.areaTime, { color: colors.accent }]}>
                     ~{area.estimatedTime} min
                   </Text>
                 </View>
@@ -252,39 +255,40 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
 
           {/* Tasks Checklist */}
           <View style={styles.tasksSection}>
-            <Text style={styles.sectionTitle}>
-              <CheckSquare size={20} color="#374151" /> Lista de Tareas
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              <CheckSquare size={20} color={colors.text} /> Lista de Tareas
             </Text>
             {report.tasks.map((task: any) => (
-              <View key={task.id} style={styles.taskCard}>
+              <View key={task.id} style={[styles.taskCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.taskHeader}>
                   <TouchableOpacity
                     style={[
                       styles.taskCheckbox,
                       task.completed && styles.taskCheckboxCompleted,
                     ]}
-                    onPress={() => handleTaskToggle(task.id, !task.completed)}
+                    onPress={() => { void handleTaskToggle(task.id, !task.completed); }}
                     disabled={isUpdating || report.status === 'completed'}
                   >
                     {task.completed ? (
-                      <CheckCircle size={20} color="#16A34A" />
+                      <CheckCircle size={20} color={colors.success} />
                     ) : (
-                      <Circle size={20} color="#94A3B8" />
+                      <Circle size={20} color={colors.textSecondary} />
                     )}
                   </TouchableOpacity>
                   
                   <View style={styles.taskContent}>
                     <Text style={[
                       styles.taskDescription,
-                      task.completed && styles.taskDescriptionCompleted,
+                      { color: colors.text },
+                      task.completed && { color: colors.textSecondary, textDecorationLine: 'line-through' },
                     ]}>
                       {task.description}
                     </Text>
                     
                     {task.photoRequired && (
                       <View style={styles.photoRequirement}>
-                        <Camera size={14} color="#EA580C" />
-                        <Text style={styles.photoRequirementText}>Foto requerida</Text>
+                        <Camera size={14} color={colors.warning} />
+                        <Text style={[styles.photoRequirementText, { color: colors.warning }]}>Foto requerida</Text>
                       </View>
                     )}
                   </View>
@@ -293,11 +297,11 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
                 {/* Task Notes */}
                 {report.status === 'in_progress' && !task.completed && (
                   <TextInput
-                    style={styles.taskNotesInput}
+                    style={[styles.taskNotesInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                     value={taskNotes[task.id] || ''}
                     onChangeText={(value) => setTaskNotes(prev => ({ ...prev, [task.id]: value }))}
                     placeholder="Notas de la tarea (opcional)..."
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={colors.textSecondary}
                     multiline
                     numberOfLines={2}
                   />
@@ -305,18 +309,18 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
 
                 {/* Completion Info */}
                 {task.completed && task.completedAt && (
-                  <View style={styles.completionInfo}>
-                    <CheckCircle size={16} color="#16A34A" />
-                    <Text style={styles.completionText}>
+                  <View style={[styles.completionInfo, { borderTopColor: colors.border }]}>
+                    <CheckCircle size={16} color={colors.success} />
+                    <Text style={[styles.completionText, { color: colors.success }]}>
                       Completada: {formatDateTime(task.completedAt)}
                     </Text>
                   </View>
                 )}
 
                 {task.notes && (
-                  <View style={styles.taskNotesDisplay}>
-                    <FileText size={16} color="#64748B" />
-                    <Text style={styles.taskNotesText}>{task.notes}</Text>
+                  <View style={[styles.taskNotesDisplay, { borderTopColor: colors.border }]}>
+                    <FileText size={16} color={colors.textSecondary} />
+                    <Text style={[styles.taskNotesText, { color: colors.textSecondary }]}>{task.notes}</Text>
                   </View>
                 )}
               </View>
@@ -326,20 +330,20 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
           {/* Supplies Used */}
           {report.supplies && report.supplies.length > 0 && (
             <View style={styles.suppliesSection}>
-              <Text style={styles.sectionTitle}>
-                <Package size={20} color="#374151" /> Insumos Utilizados
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                <Package size={20} color={colors.text} /> Insumos Utilizados
               </Text>
-              <View style={styles.suppliesCard}>
+              <View style={[styles.suppliesCard, { backgroundColor: colors.surface }]}>
                 {report.supplies.map((supply: any) => (
-                  <View key={supply.id} style={styles.supplyItem}>
+                  <View key={supply.id} style={[styles.supplyItem, { borderBottomColor: colors.border }]}>
                     <View style={styles.supplyInfo}>
-                      <Text style={styles.supplyName}>{supply.name}</Text>
-                      <Text style={styles.supplyQuantity}>
+                      <Text style={[styles.supplyName, { color: colors.text }]}>{supply.name}</Text>
+                      <Text style={[styles.supplyQuantity, { color: colors.textSecondary }]}>
                         {supply.quantity} {supply.unit}
                       </Text>
                     </View>
-                    <View style={styles.supplyCategoryBadge}>
-                      <Text style={styles.supplyCategoryText}>
+                    <View style={[styles.supplyCategoryBadge, { backgroundColor: colors.card }]}>
+                      <Text style={[styles.supplyCategoryText, { color: colors.accent }]}>
                         {supply.category}
                       </Text>
                     </View>
@@ -351,14 +355,14 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
 
           {/* Photos */}
           <View style={styles.photosSection}>
-            <Text style={styles.sectionTitle}>
-              <Camera size={20} color="#374151" /> Evidencia Fotográfica
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              <Camera size={20} color={colors.text} /> Evidencia Fotográfica
             </Text>
             
             {report.status === 'in_progress' && (
-              <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                <Camera size={24} color="#06B6D4" />
-                <Text style={styles.photoButtonText}>Agregar Foto</Text>
+              <TouchableOpacity style={[styles.photoButton, { backgroundColor: colors.surface, borderColor: colors.accent }]} onPress={() => { void handleTakePhoto(); }}>
+                <Camera size={24} color={colors.accent} />
+                <Text style={[styles.photoButtonText, { color: colors.accent }]}>Agregar Foto</Text>
               </TouchableOpacity>
             )}
 
@@ -367,40 +371,40 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
                 <View style={styles.photosRow}>
                   {report.photos.map((photo: string) => (
                     <View key={photo} style={styles.photoContainer}>
-                      <Image source={{ uri: photo }} style={styles.photo} />
+                      <Image source={{ uri: photo }} style={[styles.photo, { backgroundColor: colors.card }]} />
                     </View>
                   ))}
                 </View>
               </ScrollView>
             ) : (
-              <Text style={styles.noPhotosText}>No hay fotos disponibles</Text>
+              <Text style={[styles.noPhotosText, { backgroundColor: colors.surface, color: colors.textSecondary }]}>No hay fotos disponibles</Text>
             )}
           </View>
 
           {/* Time Information */}
           <View style={styles.timeSection}>
-            <Text style={styles.sectionTitle}>
-              <Clock size={20} color="#374151" /> Horarios
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              <Clock size={20} color={colors.text} /> Horarios
             </Text>
-            <View style={styles.timeCard}>
+            <View style={[styles.timeCard, { backgroundColor: colors.surface }]}>
               <View style={styles.timeItem}>
-                <Text style={styles.timeLabel}>Inicio:</Text>
-                <Text style={styles.timeValue}>
+                <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Inicio:</Text>
+                <Text style={[styles.timeValue, { color: colors.text }]}>
                   {formatDateTime(report.startTime)}
                 </Text>
               </View>
               {report.endTime && (
                 <View style={styles.timeItem}>
-                  <Text style={styles.timeLabel}>Fin:</Text>
-                  <Text style={styles.timeValue}>
+                  <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Fin:</Text>
+                  <Text style={[styles.timeValue, { color: colors.text }]}>
                     {formatDateTime(report.endTime)}
                   </Text>
                 </View>
               )}
               {report.endTime && (
                 <View style={styles.timeItem}>
-                  <Text style={styles.timeLabel}>Duración:</Text>
-                  <Text style={styles.timeValue}>
+                  <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Duración:</Text>
+                  <Text style={[styles.timeValue, { color: colors.text }]}>
                     {Math.round((new Date(report.endTime).getTime() - new Date(report.startTime).getTime()) / (1000 * 60))} min
                   </Text>
                 </View>
@@ -411,11 +415,11 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
           {/* Notes */}
           {report.notes && (
             <View style={styles.notesSection}>
-              <Text style={styles.sectionTitle}>
-                <FileText size={20} color="#374151" /> Notas del Reporte
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                <FileText size={20} color={colors.text} /> Notas del Reporte
               </Text>
-              <View style={styles.notesCard}>
-                <Text style={styles.notesText}>{report.notes}</Text>
+              <View style={[styles.notesCard, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.notesText, { color: colors.text }]}>{report.notes}</Text>
               </View>
             </View>
           )}
@@ -423,31 +427,31 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
           {/* Supervisor Approval */}
           {report.supervisorApproval && (
             <View style={styles.approvalSection}>
-              <Text style={styles.sectionTitle}>Aprobación Supervisora</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Aprobación Supervisora</Text>
               <View style={[
                 styles.approvalCard,
-                { backgroundColor: report.supervisorApproval.approved ? '#F0FDF4' : '#FEF2F2' }
+                { backgroundColor: colors.card, borderColor: colors.border }
               ]}>
                 <View style={styles.approvalHeader}>
                   <CheckCircle 
                     size={20} 
-                    color={report.supervisorApproval.approved ? '#16A34A' : '#EF4444'} 
+                    color={report.supervisorApproval.approved ? colors.success : colors.error} 
                   />
                   <Text style={[
                     styles.approvalStatus,
-                    { color: report.supervisorApproval.approved ? '#16A34A' : '#EF4444' }
+                    { color: report.supervisorApproval.approved ? colors.success : colors.error }
                   ]}>
                     {report.supervisorApproval.approved ? 'Aprobado' : 'Rechazado'}
                   </Text>
                 </View>
-                <Text style={styles.approvalBy}>
+                <Text style={[styles.approvalBy, { color: colors.textSecondary }]}>
                   Por: {report.supervisorApproval.approvedBy}
                 </Text>
-                <Text style={styles.approvalDate}>
+                <Text style={[styles.approvalDate, { color: colors.textSecondary }]}>
                   {formatDateTime(report.supervisorApproval.approvedAt)}
                 </Text>
                 {report.supervisorApproval.notes && (
-                  <Text style={styles.approvalNotes}>
+                  <Text style={[styles.approvalNotes, { color: colors.textSecondary }]}>
                     {report.supervisorApproval.notes}
                   </Text>
                 )}
@@ -457,33 +461,33 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
         </ScrollView>
 
         {/* Footer Actions */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           {report.status === 'pending' && (
             <TouchableOpacity 
-              style={styles.startButton} 
-              onPress={handleStartReport}
+              style={[styles.startButton, { backgroundColor: colors.accent }]} 
+              onPress={() => { void handleStartReport(); }}
               disabled={isUpdating}
             >
-              <Play size={20} color="#FFFFFF" />
-              <Text style={styles.startButtonText}>Iniciar Reporte</Text>
+              <Play size={20} color={"#FFFFFF"} />
+              <Text style={[styles.startButtonText, { color: '#FFFFFF' }]}>Iniciar Reporte</Text>
             </TouchableOpacity>
           )}
 
           {report.status === 'in_progress' && (
             <TouchableOpacity 
-              style={styles.completeButton} 
-              onPress={handleCompleteReport}
+              style={[styles.completeButton, { backgroundColor: colors.success }]} 
+              onPress={() => { void handleCompleteReport(); }}
               disabled={isUpdating}
             >
-              <CheckCircle size={20} color="#FFFFFF" />
-              <Text style={styles.completeButtonText}>Completar Reporte</Text>
+              <CheckCircle size={20} color={"#FFFFFF"} />
+              <Text style={[styles.completeButtonText, { color: '#FFFFFF' }]}>Completar Reporte</Text>
             </TouchableOpacity>
           )}
 
           {report.status === 'completed' && (
-            <View style={styles.completedIndicator}>
-              <CheckCircle size={24} color="#16A34A" />
-              <Text style={styles.completedText}>Reporte Completado</Text>
+            <View style={[styles.completedIndicator, { backgroundColor: colors.card, borderColor: colors.success }]}>
+              <CheckCircle size={24} color={colors.success} />
+              <Text style={[styles.completedText, { color: colors.success }]}>Reporte Completado</Text>
             </View>
           )}
         </View>

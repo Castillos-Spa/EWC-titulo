@@ -108,7 +108,7 @@ export default function FuelScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
-          <Fuel size={64} color="#DC2626" />
+          <Fuel size={64} color={colors.error} />
           <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={clearError}>
             <Text style={[styles.retryButtonText, { color: '#FFFFFF' }]}>Reintentar</Text>
@@ -124,12 +124,12 @@ export default function FuelScreen() {
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTitle}>
-            <Fuel size={28} color="#16A34A" />
+            <Fuel size={28} color={colors.success} />
             <Text style={[styles.title, { color: colors.text }]}>Combustible</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-              <RefreshCw size={24} color="#2563EB" />
+            <TouchableOpacity style={[styles.refreshButton, { backgroundColor: colors.card }]} onPress={() => handleRefresh()}>
+              <RefreshCw size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -137,25 +137,25 @@ export default function FuelScreen() {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity 
-            style={[styles.quickActionButton, styles.consumptionButton]}
+            style={[styles.quickActionButton, { backgroundColor: colors.card, borderWidth: 2, borderColor: colors.primary }]}
             onPress={() => handleCreateRecord('consumption')}
           >
-            <TrendingDown size={20} color="#2563EB" />
-            <Text style={styles.quickActionText}>Consumo</Text>
+            <TrendingDown size={20} color={colors.primary} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>Consumo</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.quickActionButton, styles.refuelButton]}
+            style={[styles.quickActionButton, { backgroundColor: colors.card, borderWidth: 2, borderColor: colors.success }]}
             onPress={() => handleCreateRecord('refuel')}
           >
-            <TrendingUp size={20} color="#16A34A" />
-            <Text style={styles.quickActionText}>Reabastecimiento</Text>
+            <TrendingUp size={20} color={colors.success} />
+            <Text style={[styles.quickActionText, { color: colors.text }]}>Reabastecimiento</Text>
           </TouchableOpacity>
         </View>
 
         {/* Period Selector */}
         <View style={styles.periodSelector}>
-          <Calendar size={20} color="#64748B" />
+          <Calendar size={20} color={colors.textSecondary} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.periodRow}>
               {[
@@ -168,13 +168,15 @@ export default function FuelScreen() {
                   key={period.value}
                   style={[
                     styles.periodButton,
-                    selectedPeriod === period.value && styles.periodButtonActive,
+                    { backgroundColor: colors.card },
+                    selectedPeriod === period.value && { backgroundColor: colors.primary },
                   ]}
                   onPress={() => setSelectedPeriod(period.value)}
                 >
                   <Text style={[
                     styles.periodButtonText,
-                    selectedPeriod === period.value && styles.periodButtonTextActive,
+                    { color: colors.textSecondary },
+                    selectedPeriod === period.value && { color: '#FFFFFF' },
                   ]}>
                     {period.label}
                   </Text>
@@ -185,24 +187,24 @@ export default function FuelScreen() {
         </View>
 
         {/* Stats */}
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { borderBottomColor: colors.border }]}>
           <View style={styles.stat}>
             <Text style={[styles.statValue, { color: colors.text }]}>{stats.total}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: '#2563EB' }]}>{stats.consumption}</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{stats.consumption}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Consumos</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: '#16A34A' }]}>{stats.refuels}</Text>
+            <Text style={[styles.statValue, { color: colors.success }]}>{stats.refuels}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Reabastecimientos</Text>
           </View>
         </View>
 
         {/* Filter */}
         <View style={styles.filterSection}>
-          <Filter size={20} color="#64748B" />
+          <Filter size={20} color={colors.textSecondary} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.filterRow}>
               {[
@@ -214,13 +216,15 @@ export default function FuelScreen() {
                   key={filter.value}
                   style={[
                     styles.filterButton,
-                    filterType === filter.value && styles.filterButtonActive,
+                    { backgroundColor: colors.card },
+                    filterType === filter.value && { backgroundColor: colors.success },
                   ]}
                   onPress={() => setFilterType(filter.value)}
                 >
                   <Text style={[
                     styles.filterButtonText,
-                    filterType === filter.value && styles.filterButtonTextActive,
+                    { color: colors.textSecondary },
+                    filterType === filter.value && { color: '#FFFFFF' },
                   ]}>
                     {filter.label}
                   </Text>
@@ -248,7 +252,7 @@ export default function FuelScreen() {
         {/* Records List */}
         {filteredRecords.length === 0 ? (
           <View style={styles.emptyState}>
-            <BarChart3 size={64} color="#9CA3AF" />
+            <BarChart3 size={64} color={colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
               {filterType === 'all' ? 'No hay registros' : 'No hay registros con este filtro'}
             </Text>

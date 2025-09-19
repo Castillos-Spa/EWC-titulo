@@ -12,6 +12,7 @@ import {
 import { X, Save, Plus, Minus } from 'lucide-react-native';
 import { useCleaningStore } from '../stores/cleaningStore';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 
 interface SupplyRequestModalProps {
   readonly visible: boolean;
@@ -30,6 +31,8 @@ interface RequestItem {
 export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps) {
   const { createSupplyRequest, isSubmitting } = useCleaningStore();
   const { user } = useAuthStore();
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   
   const [items, setItems] = useState<RequestItem[]>([
     { id: '1', name: '', quantity: 1, unit: 'unidades', category: 'cleaning' }
@@ -126,13 +129,13 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color="#64748B" />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Solicitar Insumos</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Solicitar Insumos</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -143,14 +146,14 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
         >
           {/* Urgency Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nivel de Urgencia</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Nivel de Urgencia</Text>
             <View style={styles.urgencyGrid}>
               {urgencyLevels.map((level) => (
                 <TouchableOpacity
                   key={level.value}
                   style={[
                     styles.urgencyButton,
-                    { borderColor: level.color },
+                    { borderColor: level.color, backgroundColor: colors.surface },
                     urgency === level.value && { backgroundColor: `${level.color}15` },
                   ]}
                   onPress={() => setUrgency(level.value as any)}
@@ -170,52 +173,54 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
           {/* Items List */}
           <View style={styles.section}>
             <View style={styles.itemsHeader}>
-              <Text style={styles.sectionTitle}>Insumos Solicitados</Text>
-              <TouchableOpacity style={styles.addItemButton} onPress={addItem}>
-                <Plus size={20} color="#16A34A" />
-                <Text style={styles.addItemText}>Agregar</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Insumos Solicitados</Text>
+              <TouchableOpacity style={[styles.addItemButton, { backgroundColor: colors.card, borderColor: colors.success }]} onPress={addItem}>
+                <Plus size={20} color={colors.success} />
+                <Text style={[styles.addItemText, { color: colors.success }]}>Agregar</Text>
               </TouchableOpacity>
             </View>
 
             {items.map((item, index) => (
-              <View key={item.id} style={styles.itemCard}>
+              <View key={item.id} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.itemHeader}>
-                  <Text style={styles.itemNumber}>#{index + 1}</Text>
+                  <Text style={[styles.itemNumber, { color: colors.primary }]}>#{index + 1}</Text>
                   {items.length > 1 && (
                     <TouchableOpacity
-                      style={styles.removeItemButton}
+                      style={[styles.removeItemButton, { backgroundColor: colors.card }]}
                       onPress={() => removeItem(item.id)}
                     >
-                      <Minus size={16} color="#EF4444" />
+                      <Minus size={16} color={colors.error} />
                     </TouchableOpacity>
                   )}
                 </View>
 
                 {/* Item Name */}
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                   value={item.name}
                   onChangeText={(value) => updateItem(item.id, 'name', value)}
                   placeholder="Nombre del insumo (ej: Detergente multiuso)"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={colors.textSecondary}
                 />
 
                 {/* Quantity and Unit */}
                 <View style={styles.quantityRow}>
                   <View style={styles.quantityInput}>
-                    <Text style={styles.inputLabel}>Cantidad</Text>
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>
+                      Cantidad
+                    </Text>
                     <TextInput
-                      style={styles.numberInput}
+                      style={[styles.numberInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                       value={item.quantity.toString()}
                       onChangeText={(value) => updateItem(item.id, 'quantity', parseInt(value) || 1)}
                       keyboardType="numeric"
                       placeholder="1"
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={colors.textSecondary}
                     />
                   </View>
                   
                   <View style={styles.unitInput}>
-                    <Text style={styles.inputLabel}>Unidad</Text>
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Unidad</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <View style={styles.unitSelector}>
                         {units.map((unit) => (
@@ -223,13 +228,15 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
                             key={unit}
                             style={[
                               styles.unitButton,
-                              item.unit === unit && styles.unitButtonSelected,
+                              { backgroundColor: colors.card },
+                              item.unit === unit && { backgroundColor: colors.primary },
                             ]}
                             onPress={() => updateItem(item.id, 'unit', unit)}
                           >
                             <Text style={[
                               styles.unitButtonText,
-                              item.unit === unit && styles.unitButtonTextSelected,
+                              { color: colors.textSecondary },
+                              item.unit === unit && { color: '#FFFFFF' },
                             ]}>
                               {unit}
                             </Text>
@@ -242,20 +249,22 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
 
                 {/* Category */}
                 <View style={styles.categorySection}>
-                  <Text style={styles.inputLabel}>Categoría</Text>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>Categoría</Text>
                   <View style={styles.categorySelector}>
                     {categories.map((category) => (
                       <TouchableOpacity
                         key={category.value}
                         style={[
                           styles.categoryButton,
-                          item.category === category.value && styles.categoryButtonSelected,
+                          { backgroundColor: colors.card },
+                          item.category === category.value && { backgroundColor: colors.success },
                         ]}
                         onPress={() => updateItem(item.id, 'category', category.value)}
                       >
                         <Text style={[
                           styles.categoryButtonText,
-                          item.category === category.value && styles.categoryButtonTextSelected,
+                          { color: colors.textSecondary },
+                          item.category === category.value && { color: '#FFFFFF' },
                         ]}>
                           {category.label}
                         </Text>
@@ -266,16 +275,16 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
 
                 {/* Estimated Price (Optional) */}
                 <View style={styles.priceSection}>
-                  <Text style={styles.inputLabel}>Precio Estimado (Opcional)</Text>
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>Precio Estimado (Opcional)</Text>
                   <View style={styles.priceInput}>
-                    <Text style={styles.currencySymbol}>$</Text>
+                    <Text style={[styles.currencySymbol, { color: colors.textSecondary }]}>$</Text>
                     <TextInput
-                      style={styles.priceInputField}
+                      style={[styles.priceInputField, { color: colors.text }]}
                       value={item.estimatedPrice?.toString() || ''}
                       onChangeText={(value) => updateItem(item.id, 'estimatedPrice', parseFloat(value) || undefined)}
                       keyboardType="numeric"
                       placeholder="0.00"
-                      placeholderTextColor="#94A3B8"
+                      placeholderTextColor={colors.textSecondary}
                     />
                   </View>
                 </View>
@@ -285,26 +294,26 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
 
           {/* Justification */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Justificación</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Justificación</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={justification}
               onChangeText={setJustification}
               placeholder="Explica por qué necesitas estos insumos..."
               multiline
               numberOfLines={4}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textSecondary}
               maxLength={500}
             />
-            <Text style={styles.charCount}>{justification.length}/500</Text>
+            <Text style={[styles.charCount, { color: colors.textSecondary }]}>{justification.length}/500</Text>
           </View>
 
           {/* Total Estimate */}
           {calculateTotal() > 0 && (
             <View style={styles.totalSection}>
-              <View style={styles.totalCard}>
-                <Text style={styles.totalLabel}>Costo Estimado Total</Text>
-                <Text style={styles.totalValue}>
+              <View style={[styles.totalCard, { backgroundColor: colors.card, borderColor: colors.success }]}>
+                <Text style={[styles.totalLabel, { color: colors.success }]}>Costo Estimado Total</Text>
+                <Text style={[styles.totalValue, { color: colors.success }]}>
                   ${calculateTotal().toFixed(2)}
                 </Text>
               </View>
@@ -313,17 +322,17 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
         </ScrollView>
 
         {/* Footer */}
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
+            style={[styles.submitButton, { backgroundColor: colors.success }, isSubmitting && styles.buttonDisabled]} 
             onPress={() => { void handleSubmit(); }}
             disabled={isSubmitting}
           >
             <Save size={20} color="#FFFFFF" />
-            <Text style={styles.submitButtonText}>
+            <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>
               {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
             </Text>
           </TouchableOpacity>

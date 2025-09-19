@@ -13,6 +13,7 @@ import { X, Save, Users, Clock, MapPin } from 'lucide-react-native';
 import { useCleaningStore } from '../stores/cleaningStore';
 import type { CleaningArea } from '../stores/cleaningStore';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 
 interface CreateCleaningReportModalProps {
   readonly visible: boolean;
@@ -24,6 +25,8 @@ type CrewMember = { id: string; name: string };
 export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningReportModalProps) {
   const { createCleaningReport, isSubmitting } = useCleaningStore();
   const { user } = useAuthStore();
+  const { getColors } = useThemeStore();
+  const colors = getColors();
   
   const [shift, setShift] = useState<'morning' | 'afternoon' | 'night'>('morning');
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([
@@ -135,34 +138,36 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color="#64748B" />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Crear Parte Diario</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Crear Parte Diario</Text>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Shift Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Turno de Trabajo</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Turno de Trabajo</Text>
             <View style={styles.shiftGrid}>
               {shifts.map((shiftOption) => (
                 <TouchableOpacity
                   key={shiftOption.value}
                   style={[
                     styles.shiftButton,
-                    shift === shiftOption.value && styles.shiftButtonSelected,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    shift === shiftOption.value && { borderColor: colors.accent, backgroundColor: colors.card },
                   ]}
                   onPress={() => setShift(shiftOption.value as any)}
                 >
-                  <Clock size={20} color={shift === shiftOption.value ? '#06B6D4' : '#64748B'} />
+                  <Clock size={20} color={shift === shiftOption.value ? colors.accent : colors.textSecondary} />
                   <Text style={[
                     styles.shiftLabel,
-                    shift === shiftOption.value && styles.shiftLabelSelected,
+                    { color: colors.textSecondary },
+                    shift === shiftOption.value && { color: colors.accent },
                   ]}>
                     {shiftOption.label}
                   </Text>
@@ -173,49 +178,51 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
 
           {/* Crew Members */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Equipo de Trabajo</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Equipo de Trabajo</Text>
             {crewMembers.map((member) => (
               <View key={member.id} style={styles.crewMemberRow}>
                 <TextInput
-                  style={styles.crewInput}
+                  style={[styles.crewInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                   value={member.name}
                   onChangeText={(value) => updateCrewMember(member.id, value)}
                   placeholder="Nombre del trabajador"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={colors.textSecondary}
                 />
                 {crewMembers.length > 1 && (
                   <TouchableOpacity
-                    style={styles.removeButton}
+                    style={[styles.removeButton, { backgroundColor: colors.card }]}
                     onPress={() => removeCrewMember(member.id)}
                   >
-                    <X size={20} color="#EF4444" />
+                    <X size={20} color={colors.error} />
                   </TouchableOpacity>
                 )}
               </View>
             ))}
-            <TouchableOpacity style={styles.addCrewButton} onPress={addCrewMember}>
-              <Users size={20} color="#06B6D4" />
-              <Text style={styles.addCrewText}>Agregar Trabajador</Text>
+            <TouchableOpacity style={[styles.addCrewButton, { backgroundColor: colors.surface, borderColor: colors.accent }]} onPress={addCrewMember}>
+              <Users size={20} color={colors.accent} />
+              <Text style={[styles.addCrewText, { color: colors.accent }]}>Agregar Trabajador</Text>
             </TouchableOpacity>
           </View>
 
           {/* Areas Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Áreas a Limpiar</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Áreas a Limpiar</Text>
             <View style={styles.areasGrid}>
               {availableAreas.map((area) => (
                 <TouchableOpacity
                   key={area.id}
                   style={[
                     styles.areaCard,
-                    selectedAreas.includes(area.id) && styles.areaCardSelected,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    selectedAreas.includes(area.id) && { borderColor: colors.accent, backgroundColor: colors.card },
                   ]}
                   onPress={() => toggleArea(area.id)}
                 >
-                  <MapPin size={20} color={selectedAreas.includes(area.id) ? '#06B6D4' : '#64748B'} />
+                  <MapPin size={20} color={selectedAreas.includes(area.id) ? colors.accent : colors.textSecondary} />
                   <Text style={[
                     styles.areaLabel,
-                    selectedAreas.includes(area.id) && styles.areaLabelSelected,
+                    { color: colors.textSecondary },
+                    selectedAreas.includes(area.id) && { color: colors.accent },
                   ]}>
                     {area.name}
                   </Text>
@@ -226,33 +233,33 @@ export function CreateCleaningReportModal({ visible, onClose }: CreateCleaningRe
 
           {/* Notes */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notas Adicionales</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Notas Adicionales</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Observaciones, comentarios especiales..."
               multiline
               numberOfLines={3}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.textSecondary}
               maxLength={300}
             />
-            <Text style={styles.charCount}>{notes.length}/300</Text>
+            <Text style={[styles.charCount, { color: colors.textSecondary }]}>{notes.length}/300</Text>
           </View>
         </ScrollView>
 
         {/* Footer */}
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
+        <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+          <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.card }]} onPress={onClose}>
+            <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.submitButton, isSubmitting && styles.buttonDisabled]} 
-            onPress={handleSubmit}
+            style={[styles.submitButton, { backgroundColor: colors.accent }, isSubmitting && styles.buttonDisabled]} 
+            onPress={() => { void handleSubmit(); }}
             disabled={isSubmitting}
           >
             <Save size={20} color="#FFFFFF" />
-            <Text style={styles.submitButtonText}>
+            <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>
               {isSubmitting ? 'Creando...' : 'Crear Parte'}
             </Text>
           </TouchableOpacity>
