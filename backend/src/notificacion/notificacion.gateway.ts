@@ -1,5 +1,6 @@
 // notificacion.gateway.ts
 import { WebSocketGateway, WebSocketServer, OnGatewayConnection } from '@nestjs/websockets';
+import { Inject, forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { NotificacionService } from './notificacion.service';
 
@@ -7,21 +8,35 @@ import { NotificacionService } from './notificacion.service';
 export class NotificacionGateway implements OnGatewayConnection {
   @WebSocketServer() server: Server;
 
-  constructor(private readonly notiService: NotificacionService) {}
+  constructor(
+    @Inject(forwardRef(() => NotificacionService))
+    private readonly notiService: NotificacionService,
+  ) {}
 
   async handleConnection(client: Socket) {
-    // ⚡ Se asume que el cliente manda su userId, role y area en query params
-    const userId = parseInt(client.handshake.query.userId as string);
-    const role = client.handshake.query.role as string;
-    const area = client.handshake.query.area as string;
+    try {
+      const userIdRaw = client.handshake.query.userId as string | undefined;
+      const roleRaw = client.handshake.query.role as string | undefined;
+      const areaRaw = client.handshake.query.area as string | undefined;
 
-    client.join(`user_${userId}`);
-    client.join(`role_${role}`);
-    client.join(`area_${area}`);
+      const userId = userIdRaw ? Number(userIdRaw) : undefined;
+      const role = roleRaw && roleRaw !== 'undefined' ? roleRaw : undefined;
+      const area = areaRaw && areaRaw !== 'undefined' ? areaRaw : undefined;
 
-    // Enviar notificaciones guardadas en BD (últimas 5)
-    const notifications = await this.notiService.getNotificationsForUser(userId, role, area);
-    client.emit('notifications:init', notifications);
+      if (Number.isFinite(userId)) client.join(`user_${userId}`);
+      if (role) client.join(`role_${role}`);
+      if (area) client.join(`area_${area}`);
+
+      if (userId || role || area) {
+        const notifications = await this.notiService.getNotificationsForUser(userId, role, area);
+        client.emit('notifications:init', notifications);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'unknown_error';
+      client.emit('notifications:error', { message });
+      client.emit('notifications:init', []);
+      return;
+    }
   }
 
   async sendNotification(notification: any) {

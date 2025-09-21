@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import { Role, Permission, User } from '@prisma/client';
+import { NotificacionService } from '@/notificacion/notificacion.service';
 
 // Mocks
 jest.mock('bcrypt');
@@ -59,6 +60,12 @@ describe('UsersService', () => {
               update: jest.fn(),
               delete: jest.fn(),
             },
+          },
+        },
+        {
+          provide: NotificacionService,
+          useValue: {
+            createNotification: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

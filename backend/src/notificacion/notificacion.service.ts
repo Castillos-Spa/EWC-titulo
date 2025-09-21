@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { NotificacionGateway } from './notificacion.gateway';
@@ -7,6 +7,7 @@ import { NotificacionGateway } from './notificacion.gateway';
 export class NotificacionService {
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => NotificacionGateway))
     private readonly gateway: NotificacionGateway,
   ) {}
 
@@ -26,17 +27,23 @@ export class NotificacionService {
     return notification;
   }
 
-  async getNotificationsForUser(userId: number, userRole: string, userArea: string) {
+  async getNotificationsForUser(userId?: number, userRole?: string, userArea?: string) {
+    const orFilters: any[] = [];
+    if (typeof userId === 'number' && Number.isFinite(userId)) {
+      orFilters.push({ userId });
+    }
+    if (userRole) {
+      const roleEnum = (Role as any)[userRole as keyof typeof Role] ?? userRole;
+      orFilters.push({ role: roleEnum });
+    }
+    if (userArea) {
+      orFilters.push({ area: userArea });
+    }
+
     return this.prisma.notification.findMany({
-      where: {
-        OR: [
-          { userId }, // notificaciones directas
-          { role: userRole as Role }, // notificaciones por rol
-          { area: userArea }, // notificaciones por área
-        ],
-      },
+      where: orFilters.length ? { OR: orFilters } : {},
       orderBy: { createdAt: 'desc' },
-      take: 5, // últimas 5
+      take: 10,
     });
   }
 

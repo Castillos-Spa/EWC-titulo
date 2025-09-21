@@ -15,6 +15,28 @@ interface HeaderProps {
   onProfileClick: () => void;
 }
 
+// Tipado de eventos de Socket.IO
+type NotificationWire = {
+  id?: number | string;
+  type?: string;
+  message?: string;
+  createdAt?: string | Date;
+};
+
+type MessageWire = {
+  id?: number | string;
+  content?: string;
+};
+
+interface ServerToClientEvents {
+  notification: (data: NotificationWire) => void;
+  message: (data: MessageWire) => void;
+  'notifications:init': (list: NotificationWire[]) => void;
+  'notifications:error': (e: { message: string }) => void;
+}
+
+type ClientToServerEvents = Record<string, never>;
+
 const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
   const { user, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -24,24 +46,45 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
 
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
 
   useEffect(() => {
-    const socket = io('http://localhost:3000', {
-      transports: ['websocket'],
-      query: { userId: user?.id },
+    if (!user?.id) return;
+    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io('http://localhost:3000', {
+      // permitir polling + upgrade a websocket
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      query: { userId: String(user.id), role: user.roles?.[0], area: user.area },
     });
 
     socketRef.current = socket;
 
+    socket.on('connect', () => {
+      console.log('WS conectado', socket.id);
+    });
+    socket.on('connect_error', (err) => {
+      console.warn('WS error de conexión', err.message);
+    });
+
     // Escuchar notificaciones
-    socket.on('notification', (data: any) => {
+    socket.on('notifications:init', (list) => {
+      const mapped: Notification[] = (list ?? []).map((n) => ({
+        id: String(n.id ?? Date.now()),
+        type: n.type ?? 'info',
+        message: n.message ?? '',
+        timestamp: n.createdAt ? new Date(n.createdAt).toLocaleTimeString() : new Date().toLocaleTimeString(),
+      }));
+      setNotifications(mapped);
+    });
+
+    socket.on('notification', (data) => {
       console.log('Notificación recibida:', data);
 
       const newNotif: Notification = {
         id: Date.now().toString(),
-        type: data.type || 'info',
-        message: data.message || 'Nueva notificación',
+        type: data?.type ?? 'info',
+        message: data?.message ?? 'Nueva notificación',
         timestamp: new Date().toLocaleTimeString(),
       };
 
@@ -49,15 +92,20 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
     });
 
     // Escuchar mensajes (chat)
-    socket.on('message', (data: any) => {
-      console.log('Mensaje recibido:', data);
+    socket.on('message', (data) => {
+      console.log('Mensaje recibido:', data?.content ?? data);
       setMessageCount((prev) => prev + 1);
     });
 
     return () => {
+      socket.off('notifications:init');
+      socket.off('notification');
+      socket.off('message');
+      socket.off('connect');
+      socket.off('connect_error');
       socket.disconnect();
     };
-  }, [user]);
+  }, [user?.id, user?.roles, user?.area]);
 
   // Cerrar menús al hacer click fuera
   useEffect(() => {
