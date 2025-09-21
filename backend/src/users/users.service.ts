@@ -4,7 +4,7 @@ import { User, Role, Permission } from '@prisma/client';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { NotificacionGateway } from '@/notificacion/notificacion.gateway';
+import { NotificacionService } from '@/notificacion/notificacion.service';
 
 const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   //TODO definir permisos para cada rol
@@ -17,7 +17,7 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationGateway: NotificacionGateway,
+    private readonly notificationService: NotificacionService,
   ) {}
 
   async findOne(username: string): Promise<User | null> {
@@ -123,12 +123,17 @@ export class UsersService {
     const { password: _, ...result } = newUser;
 
     // 🚨 Emitir notificación
-    this.notificationGateway.sendNotification({
+    await this.notificationService.createNotification({
+      title: 'Nuevo usuario creado',
+      message: `El usuario ${result.username} fue creado exitosamente`,
       type: 'user_created',
-      message: `El usuario ${result.username} fue creado`,
-      userId: result.id, // opcional: para notificación dirigida
-      timestamp: new Date(),
+      createdById: result.id, // el que ejecutó la acción
+      // puedes decidir aquí a quién va:
+      role: 'Admin', // todos los admins
+      // userId: result.id, // si quieres que solo lo vea el mismo user creado
+      // area: result.area, // si quieres que lo vean todos los del área
     });
+
     return { user: result, tempPassword };
   }
 
