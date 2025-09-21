@@ -4,6 +4,7 @@ import { User, Role, Permission } from '@prisma/client';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { NotificacionGateway } from '@/notificacion/notificacion.gateway';
 
 const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   //TODO definir permisos para cada rol
@@ -14,7 +15,10 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationGateway: NotificacionGateway,
+  ) {}
 
   async findOne(username: string): Promise<User | null> {
     return this.prisma.user.findFirst({
@@ -117,6 +121,14 @@ export class UsersService {
 
     // Excluir la password del resultado
     const { password: _, ...result } = newUser;
+
+    // 🚨 Emitir notificación
+    this.notificationGateway.sendNotification({
+      type: 'user_created',
+      message: `El usuario ${result.username} fue creado`,
+      userId: result.id, // opcional: para notificación dirigida
+      timestamp: new Date(),
+    });
     return { user: result, tempPassword };
   }
 
