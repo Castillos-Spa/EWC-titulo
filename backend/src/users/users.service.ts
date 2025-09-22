@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { User, Role, Permission } from '@prisma/client';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
@@ -31,8 +31,30 @@ export class UsersService {
       where: { email },
     });
   }
-  async deleteUser(id: number): Promise<{ success: boolean }> {
-    await this.prisma.user.delete({ where: { id } });
+  async deleteUser(id: number, requestingUserId: number): Promise<{ success: boolean }> {
+    // Un usuario no puede eliminarse a sí mismo.
+    if (id === requestingUserId) {
+      throw new ForbiddenException('No puedes eliminar tu propio usuario.');
+    }
+
+    // Para respetar la restricción de clave externa, necesitamos realizar estas
+    // operaciones dentro de una transacción. Esto asegura que si algún paso falla,
+    // toda la operación se revierta.
+    await this.prisma.$transaction(async prisma => {
+      // Primero, eliminamos las notificaciones donde el usuario es el creador.
+      // El error indica que la restricción es `Notification_createdById_fkey`.
+      await prisma.notification.deleteMany({
+        where: {
+          createdById: id,
+        },
+      });
+
+      // NOTA: Si hay otras tablas que referencian al usuario (ej. Tickets, OrdenTrabajo),
+      // también necesitarás manejarlas aquí antes de eliminar al usuario.
+
+      // Ahora podemos eliminar al usuario de forma segura.
+      await prisma.user.delete({ where: { id } });
+    });
     return { success: true };
   }
   async findById(id: number): Promise<User | null> {
@@ -111,10 +133,10 @@ export class UsersService {
       data: {
         username: registerDto.username,
         email: registerDto.email,
-        area: registerDto.area || 'default',
+        area: [registerDto.area], // Wrap the single area string in an array
         password: hashedPassword,
         mustChangePassword,
-        roles: rolesEnum.length > 0 ? rolesEnum : [Role.User],
+        roles: rolesEnum.length > 0 ? rolesEnum : [Role.Lector],
         permissions: permissionsEnum.length > 0 ? permissionsEnum : [Permission.VIEW_DASHBOARD],
       },
     });
@@ -151,7 +173,7 @@ export class UsersService {
         active: true,
         lastLogin: true,
         mustChangePassword: true,
-        refreshToken: true, // Añadir este campo para que coincida con el tipo de retorno
+        refreshToken: true,
       },
     });
     return users;

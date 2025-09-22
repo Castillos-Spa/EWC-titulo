@@ -62,7 +62,15 @@ export class UsersController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.usersService.deleteUser(Number(id));
+  async remove(@Request() req, @Param('id') id: string) {
+    const requestingUser = req.user;
+
+    // Solo un Admin puede eliminar usuarios.
+    if (!requestingUser.roles.includes(Role.Admin)) {
+      throw new ForbiddenException('No tienes permiso para eliminar usuarios.');
+    }
+
+    const idToDelete = Number(id);
+    return this.usersService.deleteUser(idToDelete, requestingUser.userId);
   }
 }

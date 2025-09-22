@@ -51,12 +51,17 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
           value={form.area ?? ''}
           onChange={handleChange}
           className="w-full px-3 py-2 border rounded-lg"
-        >
+        > 
           <option value="">Seleccionar área</option>
           <option value="Admin">Administración</option>
-          <option value="water_transport">Transporte Acuático</option>
-          <option value="general_services">Servicios Generales</option>
           <option value="IT">IT</option>
+          <option value="Transporte">Transportes</option>
+          <option value="Taller">Taller mecanico</option>
+          <option value="Obras">Obras civiles</option>
+          <option value="Aseo">Aseo</option>
+          <option value="RRHH">Recursos Humanos</option>
+          <option value="Finanza">Finanzas</option>
+          <option value="P_Riesgo">Prevencion de Riesgo</option>
         </select>
         <select
           name="roles"
@@ -66,12 +71,17 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
         >
           <option value="">Seleccionar rol</option>
           <option value="Admin">Administrador</option>
-          <option value="Transporte">Supervisor Transporte</option>
-          <option value="Driver">Conductor</option>
           <option value="Obras">Obras Civiles</option>
           <option value="Aseo">Personal Limpieza</option>
           <option value="IT">Personal IT</option>
-          <option value="user">Usuario</option>
+          <option value="Transporte">Supervisor Transporte</option>
+          <option value="Driver">Conductor</option>
+          <option value="Mecanico">Mecanico</option>
+          <option value="Lector">Lector</option>
+          <option value="RRHH">Recursos Humanos"</option>
+          <option value="Finanza">Finanzas</option>
+          <option value="P_Riesgo">Prevencion de Riesgo</option>
+
         </select>
         <div className="flex space-x-4">
           <label>

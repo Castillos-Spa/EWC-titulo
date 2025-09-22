@@ -131,11 +131,11 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
   }, []);
 
   const getTitle = (title: string) => {
-    const titleMap: { [key: string]: string } = {
+    const titleMap: { [key: string]: string } = { //TODO averiguar bien esto
       Dashboard: 'Panel Principal',
       'Trip Reports': 'Reportes de Viajes',
-      'Route Management': 'Gestión de Rutas',
-      'Fleet Registry': 'Registro de Flota',
+      'route-management': 'Gestión de Rutas',
+      'fleet-registry': 'Registro de Flota',
       'Maintenance Management': 'Gestión de Mantenimiento',
       'Cleaning Reports': 'Reportes de Limpieza',
       'Civil Works Reports': 'Reportes de Obras Civiles',

@@ -46,13 +46,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('refreshToken', refresh_token); // ¡Guardar el refresh token!
       // Obtener perfil desde backend
       const profile = await getProfile();
+       // Asegurarnos de que el área se incluya en los roles si existe
+    const roles = profile.roles ?? [];
+    if (profile.area && !roles.includes(profile.area)) {
+      roles.push(profile.area);
+    }
       // mapear/normalizar si es necesario (ejemplo mínimo)
       const mapped = {
         id: profile.id ?? profile.userId ?? profile.sub ?? 0,
         username: profile.username ?? profile.email?.split('@')[0] ?? '',
         email: profile.email,
         area: profile.area ?? undefined,
-        roles: profile.roles ?? [],
+        roles: roles ?? [],
         permissions: profile.permissions ?? [],
         active: profile.active ?? true, // <-- aquí
         name: profile.username ?? profile.email?.split('@')[0],

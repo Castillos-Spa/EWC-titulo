@@ -63,15 +63,20 @@ const UserManagement: React.FC = () => {
   };
 
   const getRoleColor = (role: string) => {
+    //TODO cambiar colores
     if (!role) return 'bg-gray-100 text-gray-800';
     switch (role) {
       case 'Admin': return 'bg-purple-100 text-purple-800';
+      case 'Obras': return 'bg-orange-100 text-orange-800';
+      case 'Aseo': return 'bg-teal-100 text-teal-800';
+      case 'IT': return 'bg-indigo-100 text-indigo-800';
       case 'Transporte': return 'bg-blue-100 text-blue-800';
       case 'Driver': return 'bg-green-100 text-green-800';
-      // case 'general_services': return 'bg-yellow-100 text-yellow-800';
-      case 'IT': return 'bg-indigo-100 text-indigo-800';
-      case 'Aseo': return 'bg-teal-100 text-teal-800';
-      case 'Obras': return 'bg-orange-100 text-orange-800';
+      case 'Mecanico': return 'bg-yellow-100 text-yellow-800';
+      case 'Lector': return 'bg-orange-100 text-orange-800';
+      case 'RRHH': return 'bg-orange-100 text-orange-800';
+      case 'Finanza': return 'bg-orange-100 text-orange-800';
+      case 'P_Riesgo': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -80,22 +85,31 @@ const UserManagement: React.FC = () => {
     if (!role) return 'Sin Rol';
     switch (role) {
       case 'Admin': return 'Administrador';
+      case 'Obras': return 'Obras Civiles';
+      case 'Aseo': return 'Personal Limpieza';
+      case 'IT': return 'Personal IT';
       case 'Transporte': return 'Supervisor Transporte';
       case 'Driver': return 'Conductor';
-      // case 'general_services': return 'Servicios Generales';
-      case 'IT': return 'Personal IT';
-      case 'Aseo': return 'Personal Limpieza';
-      case 'Obras': return 'Obras Civiles';
+      case 'Mecanico': return 'Mecanico';
+      case 'Lector': return 'Lector';
+      case 'RRHH': return 'Recursos Humanos';
+      case 'Finanza': return 'Finanzas';
+      case 'P_Riesgo': return 'Prevencion de Riesgo';
       default: return role.replace('_', ' ');
     }
   };
 
   const getAreaLabel = (area: string) => {
     switch (area) {
-      case 'water_transport': return 'Transporte Acuático';
-      case 'general_services': return 'Servicios Generales';
-      case 'IT': return 'IT';
       case 'Admin': return 'Administración';
+      case 'IT': return 'IT';
+      case 'Transporte': return 'Transportes';
+      case 'Taller': return 'Taller mecanico';
+      case 'Obras': return 'Obras civiles';
+      case 'Aseo': return 'Aseo';
+      case 'RRHH': return 'Recursos Humanos';
+      case 'Finanza': return 'Finanzas';
+      case 'P_Riesgo': return 'Prevencion de Riesgo';
       default: return area.replace('_', ' ');
     }
   };
@@ -208,15 +222,19 @@ const UserManagement: React.FC = () => {
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
+          > 
             <option value="all">Todos los Roles</option>
-            <option value="admin">Administrador</option>
-            <option value="transport_supervisor">Supervisor Transporte</option>
-            <option value="driver">Conductor</option>
-            <option value="general_services">Servicios Generales</option>
-            <option value="it_staff">Personal IT</option>
-            <option value="cleaning">Personal Limpieza</option>
-            <option value="civil_works">Obras Civiles</option>
+            <option value="Admin">Administrador</option>
+            <option value="Transporte">Supervisor Transporte</option>
+            <option value="Driver">Conductor</option>
+            <option value="IT">Personal IT</option>
+            <option value="Aseo">Personal Limpieza</option>
+            <option value="Obras">Obras Civiles</option>
+            <option value="Mecanico">Mecanico</option>
+            <option value="Lector">Lector</option>
+            <option value="RRHH">Recursos Humanos</option>
+            <option value="Finanza">Finanzas</option>
+            <option value="P_Riesgo">Prevencion de Riesgo</option>
           </select>
           <select
             value={filterStatus}

@@ -25,49 +25,53 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const [openArea, setOpenArea] = useState<string | null>(null);
   const { user, logout } = useAuth();
 
-  const hasRole = (role: string) => user?.roles?.some(r => r.toLowerCase() === role);
+  const hasRole = (role: string) => user?.roles?.some(r => r === role);
 
-  const groupedMenu = [
-  // TODO arreglar grupos de vistas por roles
-    {
-      area: 'Water Transport',
-      items: [
-        { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: hasRole('Admin') || hasRole('Transporte') || hasRole('Driver') },
-        { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: hasRole('admin') || hasRole('Transporte') },
-        { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: hasRole('Admin') || hasRole('Transporte') },
-        { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: hasRole('admin') || hasRole('Transporte') },
-      ],
-    },
-    {
-      area: 'General Services',
-      items: [
-        { id: 'cleaning-reports', label: 'Reportes de Limpieza', icon: HardHat, show: hasRole('admin') || hasRole('general_services') || hasRole('cleaning') },
-        { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: hasRole('admin') || hasRole('general_services') || hasRole('civil_works') },
-      ],
-    },
-    {
-      area: 'IT',
-      items: [
-        { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: hasRole('Admin') || hasRole('IT') || user?.area !== 'Admin' },
-      ],
-    },
-    {
-      area: 'Admin',
-      items: [
-        { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: hasRole('admin') },
-      ],
-    },
-  ];
+  // Catálogo global de vistas (ids en kebab-case igual que en App.tsx)
+  const viewsCatalog = {
+    dashboard: { id: 'dashboard', label: 'Dashboard', icon: Truck, show: () => true },
+    tickets: { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: () => true },
+    'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: () => hasRole('Admin') || hasRole('Transporte') || hasRole('Driver') },
+    'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: () => hasRole('Admin') || hasRole('Transporte') },
+    'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: () => hasRole('Admin') || hasRole('Transporte') },
+    maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasRole('Admin') || hasRole('Transporte') || hasRole('Mecanico') },
+    'cleaning-reports': { id: 'cleaning-reports', label: 'Reportes de Limpieza', icon: HardHat, show: () => hasRole('Admin') || hasRole('Aseo') },
+    'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasRole('Admin') ||  hasRole('Obras') },
+    'user-management': { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: () => hasRole('Admin') || hasRole('RRHH') },
+  };
+
+  // Configuración de áreas → qué vistas contiene cada área
+  const areasConfig: Record<string, (keyof typeof viewsCatalog)[]> = {
+    Admin: ['dashboard','trip-reports','route-management','fleet-registry','maintenance','cleaning-reports','civil-works','user-management','tickets'],
+    IT: ['dashboard','tickets'],
+    Transporte: ['dashboard','maintenance','fleet-registry','route-management','tickets'],
+    Driver: ['dashboard','trip-reports','tickets'],
+    Taller: ['dashboard','maintenance','tickets'],
+    Obras: ['dashboard','civil-works','tickets'],
+    Aseo: ['dashboard','cleaning-reports','tickets'],
+    Mecanico: ['dashboard','maintenance','tickets'],
+    RRHH: ['dashboard','user-management','tickets'],
+    Finanza: ['dashboard','tickets'],
+    P_Riesgo: ['dashboard','tickets'],
+  };
 
   const handleLogout = () => {
     logout();
   };
 
   const roleLabel = user?.roles?.[0]?.replace('_', ' ') ?? '';
-  const isAdmin = hasRole('admin');
+  const isAdmin = hasRole('Admin');
 
-  // Filtra el área del usuario (para no-admin)
-  const userAreaSection = groupedMenu.find(section => section.area.replace(' ', '_').toLowerCase() === user?.area?.replace(' ', '_').toLowerCase());
+ // Genera todas las secciones (para admin)
+  const groupedMenu = Object.entries(areasConfig).map(([area, viewKeys]) => ({
+    area,
+    items: viewKeys.map(key => viewsCatalog[key]),
+  }));
+
+  // Para usuario normal: obtenemos la **primera área que coincida** con groupedMenu
+  const userAreaSection = user?.roles
+    ? groupedMenu.find(section => user.roles.some(role => role === section.area))
+    : null;
 
   return (
     <div className={`bg-gray-900 text-white transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'} min-h-screen flex flex-col`}>
@@ -112,10 +116,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-auto">
         {isCollapsed ? (
-          // Sidebar colapsado: solo íconos de todos los ítems visibles (admin ve todos, otros solo su área)
+          // Sidebar colapsado: solo íconos
           isAdmin
             ? groupedMenu.flatMap(section =>
-                section.items.filter(item => item.show).map(item => {
+                section.items.filter(item => item.show()).map(item => {
                   const Icon = item.icon;
                   const isActive = currentPage === item.id;
                   return (
@@ -135,7 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
                 })
               )
             : userAreaSection &&
-              userAreaSection.items.filter(item => item.show).map(item => {
+              userAreaSection.items.filter(item => item.show()).map(item => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
                 return (
@@ -154,10 +158,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
                 );
               })
         ) : (
-          // Sidebar extendido: agrupado y con dropdowns para admin, área única para otros
+          // Sidebar extendido
           isAdmin
             ? groupedMenu.map(section => {
-                const visibleItems = section.items.filter(item => item.show);
+                const visibleItems = section.items.filter(item => item.show());
                 if (visibleItems.length === 0) return null;
                 const isOpen = openArea === section.area;
                 return (
@@ -195,7 +199,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
                 );
               })
             : userAreaSection &&
-              userAreaSection.items.filter(item => item.show).map(item => {
+              userAreaSection.items.filter(item => item.show()).map(item => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
                 return (
