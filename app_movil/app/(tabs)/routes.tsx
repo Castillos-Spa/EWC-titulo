@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { MapPin, Clock, Truck, Plus } from 'lucide-react-native';
 import { useRouteStore } from '../stores/routeStore';
@@ -16,11 +17,55 @@ import TripModal from '../components/TripModal';
 import { AccessGuard } from '../components/AccessGuard';
 import { useAuthz } from '@/hooks/useAuthz';
 
+type RouteLayout = {
+  isSmall: boolean;
+  isTablet: boolean;
+  horizontalPadding: number;
+  verticalPadHeader: number;
+  columns: number;
+  cardGap: number;
+  cardWidth: number;
+  titleFontSize: number;
+  subtitleFontSize: number;
+  statNumberFont: number;
+  statIconBox: number;
+  addBtnSize: number;
+};
+
+function computeRouteLayout(width: number): RouteLayout {
+  const isSmall = width < 400;
+  const isTablet = width >= 768;
+
+  let horizontalPadding = 20;
+  if (isSmall) horizontalPadding = 12; else if (isTablet) horizontalPadding = 24;
+
+  const verticalPadHeader = isSmall ? 12 : 16;
+
+  let columns = 3;
+  if (isTablet) columns = 4; else if (isSmall) columns = 2;
+
+  const cardGap = 12;
+  const totalGaps = (columns - 1) * cardGap;
+  const cardWidth = (width - horizontalPadding * 2 - totalGaps) / columns;
+
+  let titleFontSize = 24;
+  if (isSmall) titleFontSize = 20; else if (isTablet) titleFontSize = 26;
+
+  const subtitleFontSize = isSmall ? 12 : 14;
+  const statNumberFont = isSmall ? 18 : 20;
+  const statIconBox = isSmall ? 36 : 40;
+  const addBtnSize = isSmall ? 40 : 44;
+
+  return { isSmall, isTablet, horizontalPadding, verticalPadHeader, columns, cardGap, cardWidth, titleFontSize, subtitleFontSize, statNumberFont, statIconBox, addBtnSize };
+}
+
 export default function RoutesScreen() {
+  const { width } = useWindowDimensions();
   const { canRoutes } = useAuthz();
   const { routes, loadRoutes, selectedTrip, selectRoute } = useRouteStore();
   const { getColors } = useThemeStore();
   const colors = getColors();
+  const { isSmall, horizontalPadding, verticalPadHeader, cardGap, cardWidth, titleFontSize, subtitleFontSize, statNumberFont, statIconBox, addBtnSize } = useMemo(() => computeRouteLayout(width), [width]);
   
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState<any>(null);
@@ -57,9 +102,11 @@ export default function RoutesScreen() {
     }
   };
 
-  const activeRoutes = routes.filter(route => route.status === 'in_progress');
-  const completedRoutes = routes.filter(route => route.status === 'completed');
-  const pendingRoutes = routes.filter(route => route.status === 'planned');
+  const { activeRoutes, completedRoutes, pendingRoutes } = useMemo(() => ({
+    activeRoutes: routes.filter(route => route.status === 'in_progress'),
+    completedRoutes: routes.filter(route => route.status === 'completed'),
+    pendingRoutes: routes.filter(route => route.status === 'planned'),
+  }), [routes]);
 
   // Abrir TripModal automáticamente cuando se selecciona un trip desde el store
   useEffect(() => {
@@ -74,15 +121,33 @@ export default function RoutesScreen() {
     <AccessGuard allowed={canRoutes}>
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.border,
+            paddingHorizontal: horizontalPadding,
+            paddingVertical: verticalPadHeader,
+          },
+        ]}
+      >
         <View>
-          <Text style={[styles.title, { color: colors.text }]}>Rutas</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: titleFontSize }]}>Rutas</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: subtitleFontSize }]}>
             Gestión de rutas y viajes
           </Text>
         </View>
         <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: colors.primary }]}
+          style={[
+            styles.addButton,
+            {
+              backgroundColor: colors.primary,
+              width: addBtnSize,
+              height: addBtnSize,
+              borderRadius: addBtnSize / 2,
+            },
+          ]}
           onPress={handleStartTrip}
         >
           <Plus size={24} color="white" />
@@ -90,35 +155,35 @@ export default function RoutesScreen() {
       </View>
 
       {/* Stats */}
-      <View style={styles.statsContainer}>
-        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <View style={[styles.statIcon, { backgroundColor: `${colors.primary}20` }]}>
-            <Truck size={20} color={colors.primary} />
+      <View style={[styles.statsContainer, { paddingHorizontal: horizontalPadding, gap: cardGap, flexWrap: 'wrap' }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.surface, width: cardWidth }]}>
+          <View style={[styles.statIcon, { backgroundColor: `${colors.primary}20`, width: statIconBox, height: statIconBox, borderRadius: statIconBox / 2 }]}>
+            <Truck size={isSmall ? 18 : 20} color={colors.primary} />
           </View>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{activeRoutes.length}</Text>
+          <Text style={[styles.statNumber, { color: colors.text, fontSize: statNumberFont }]}>{activeRoutes.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Activas</Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <View style={[styles.statIcon, { backgroundColor: `${colors.success}20` }]}>
-            <MapPin size={20} color={colors.success} />
+        <View style={[styles.statCard, { backgroundColor: colors.surface, width: cardWidth }]}>
+          <View style={[styles.statIcon, { backgroundColor: `${colors.success}20`, width: statIconBox, height: statIconBox, borderRadius: statIconBox / 2 }]}>
+            <MapPin size={isSmall ? 18 : 20} color={colors.success} />
           </View>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{completedRoutes.length}</Text>
+          <Text style={[styles.statNumber, { color: colors.text, fontSize: statNumberFont }]}>{completedRoutes.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completadas</Text>
         </View>
 
-        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <View style={[styles.statIcon, { backgroundColor: `${colors.warning}20` }]}>
-            <Clock size={20} color={colors.warning} />
+        <View style={[styles.statCard, { backgroundColor: colors.surface, width: cardWidth }]}>
+          <View style={[styles.statIcon, { backgroundColor: `${colors.warning}20`, width: statIconBox, height: statIconBox, borderRadius: statIconBox / 2 }]}>
+            <Clock size={isSmall ? 18 : 20} color={colors.warning} />
           </View>
-          <Text style={[styles.statNumber, { color: colors.text }]}>{pendingRoutes.length}</Text>
+          <Text style={[styles.statNumber, { color: colors.text, fontSize: statNumberFont }]}>{pendingRoutes.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Pendientes</Text>
         </View>
       </View>
 
       {/* Routes List */}
       <ScrollView
-        style={styles.content}
+        style={[styles.content, { paddingHorizontal: horizontalPadding }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }

@@ -7,6 +7,9 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
+    // Campos requeridos por NotificationBehavior en SDKs recientes
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 

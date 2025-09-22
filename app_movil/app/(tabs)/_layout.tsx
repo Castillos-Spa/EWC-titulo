@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthz } from '@/hooks/useAuthz';
 import {
@@ -38,15 +38,23 @@ const settingsTabIcon = makeTabBarIcon(Settings, 'SettingsTabIcon');
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { getColors } = useThemeStore();
   const colors = getColors();
   const { canRoutes, canCleaning, canCivilWorks, canIT, canKanban, canFuel, canIncidents, canTickets } = useAuthz();
   
-  // Calculate tab bar height based on device and safe area
+  // Breakpoints básicos
+  const isSmall = width < 400;
+  const isTablet = width >= 768;
+
+  // Altura y labels según tamaño (sin ternarios anidados)
+  let baseHeight = 64;
+  if (isSmall) baseHeight = 56;
+  else if (isTablet) baseHeight = 72;
   const tabBarHeight = Platform.select({
-    ios: 80 + insets.bottom,
-    android: Math.max(80, 80 + insets.bottom),
-    default: 80,
+    ios: baseHeight + insets.bottom,
+    android: Math.max(baseHeight, baseHeight + insets.bottom),
+    default: baseHeight,
   });
 
   return (
@@ -57,106 +65,53 @@ export default function TabLayout() {
           backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          paddingBottom: Math.max(8, insets.bottom),
-          paddingTop: 8,
+          paddingBottom: Math.max(isSmall ? 4 : 8, insets.bottom),
+          paddingTop: isSmall ? 4 : 8,
           height: tabBarHeight,
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
         },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 4,
-          marginBottom: Platform.OS === 'android' ? 4 : 0,
-        },
+        tabBarShowLabel: !isSmall,
+        tabBarLabelStyle: !isSmall
+          ? {
+              fontSize: isTablet ? 12 : 11,
+              fontWeight: '600',
+              marginTop: 4,
+              marginBottom: Platform.OS === 'android' ? 4 : 0,
+            }
+          : undefined,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarItemStyle: {
-          paddingVertical: 6,
-          minHeight: 56,
+          paddingVertical: isSmall ? 2 : 6,
+          minHeight: isSmall ? 48 : 56,
         },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Inicio',
-          tabBarIcon: homeTabIcon,
-        }}
-      />
-      <Tabs.Screen
-        name="routes"
-        options={{
-          title: 'Rutas',
-          tabBarIcon: routeTabIcon,
-          href: canRoutes ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="cleaning"
-        options={{
-          title: 'Aseo',
-          tabBarIcon: cleaningTabIcon,
-          href: canCleaning ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="civil-works"
-        options={{
-          title: 'Obras',
-          tabBarIcon: hardHatTabIcon,
-          href: canCivilWorks ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="it-support"
-        options={{
-          title: 'TIC',
-          tabBarIcon: monitorTabIcon,
-          href: canIT ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="kanban"
-        options={{
-          title: 'Kanban',
-          tabBarIcon: kanbanTabIcon,
-          href: canKanban ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="fuel"
-        options={{
-          title: 'Combustible',
-          tabBarIcon: fuelTabIcon,
-          href: canFuel ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="incidents"
-        options={{
-          title: 'Incidentes',
-          tabBarIcon: alertTabIcon,
-          href: canIncidents ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="tickets"
-        options={{
-          title: 'Tickets',
-          tabBarIcon: ticketTabIcon,
-          href: canTickets ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Config',
-          tabBarIcon: settingsTabIcon,
-        }}
-      />
+      {[
+        { name: 'index', title: 'Inicio', icon: homeTabIcon, visible: true },
+        { name: 'routes', title: 'Rutas', icon: routeTabIcon, visible: canRoutes },
+        { name: 'cleaning', title: 'Aseo', icon: cleaningTabIcon, visible: canCleaning },
+        { name: 'civil-works', title: 'Obras', icon: hardHatTabIcon, visible: canCivilWorks },
+        { name: 'it-support', title: 'TIC', icon: monitorTabIcon, visible: canIT },
+        { name: 'kanban', title: 'Kanban', icon: kanbanTabIcon, visible: canKanban },
+        { name: 'fuel', title: 'Combustible', icon: fuelTabIcon, visible: canFuel },
+        { name: 'incidents', title: 'Incidentes', icon: alertTabIcon, visible: canIncidents },
+        { name: 'tickets', title: 'Tickets', icon: ticketTabIcon, visible: canTickets },
+        { name: 'settings', title: 'Config', icon: settingsTabIcon, visible: true },
+      ].map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name as any}
+          options={{
+            title: tab.title,
+            tabBarIcon: tab.icon as any,
+            href: tab.visible ? undefined : null,
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

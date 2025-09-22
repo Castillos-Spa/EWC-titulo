@@ -53,7 +53,7 @@ describe('RolesGuard', () => {
     // ISOLATED: Test independiente que no depende de otros
     it('debería retornar true cuando el usuario tiene al menos un rol requerido (ISOLATED)', () => {
       // Arrange
-      const requiredRoles = [Role.Admin, Role.User];
+  const requiredRoles = [Role.Admin, Role.Lector];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
       const user = { roles: [Role.Admin, Role.Driver] };
       const context = createExecutionContext(user);
@@ -158,7 +158,7 @@ describe('RolesGuard', () => {
       // Arrange
       const requiredRoles = [Role.Admin];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-      const user = { roles: [Role.User, Role.Admin, Role.Driver] };
+  const user = { roles: [Role.Lector, Role.Admin, Role.Driver] };
       const context = createExecutionContext(user);
 
       // Act
@@ -173,7 +173,7 @@ describe('RolesGuard', () => {
       // Arrange
       const requiredRoles = [Role.Admin, Role.Driver];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-      const user = { roles: [Role.User, Role.Driver] }; // Tiene Moderator
+  const user = { roles: [Role.Lector, Role.Driver] }; // Tiene Driver
       const context = createExecutionContext(user);
 
       // Act
@@ -187,7 +187,7 @@ describe('RolesGuard', () => {
       // Arrange
       const requiredRoles = [Role.Admin, Role.IT];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-      const user = { roles: [Role.User, Role.Driver] }; // No tiene Admin ni Moderator
+  const user = { roles: [Role.Lector, Role.Driver] }; // No tiene Admin ni IT
       const context = createExecutionContext(user);
 
       // Act
@@ -202,7 +202,7 @@ describe('RolesGuard', () => {
       // Arrange
       const requiredRoles = Array(1000).fill(Role.Admin);
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-      const user = { roles: [Role.User, Role.Admin] }; // Tiene Admin
+  const user = { roles: [Role.Lector, Role.Admin] }; // Tiene Admin
       const context = createExecutionContext(user);
 
       // Act
