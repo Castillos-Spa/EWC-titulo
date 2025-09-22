@@ -17,11 +17,33 @@ export class NotificacionService {
     createdById: number;
     userId?: number;
     area?: string;
-    role?: Role;
+    role?: any;
     type: string;
   }) {
+    const { title, message, createdById, userId, area, role, type } = data;
+    const roleEnum =
+      typeof role === 'string' && role in Role
+        ? (Role as any)[role as keyof typeof Role]
+        : (role as Role | undefined);
+
     const notification = await this.prisma.notification.create({
-      data: { ...data, read: false },
+      data: {
+        title,
+        message,
+        type,
+        createdById,
+        read: false,
+        // Prisma model fields
+        areas: area ? [area] : [],
+        roles: roleEnum ? [roleEnum] : [],
+        ...(userId
+          ? {
+              user: {
+                connect: { id: userId },
+              },
+            }
+          : {}),
+      },
     });
     await this.gateway.sendNotification(notification);
     return notification;

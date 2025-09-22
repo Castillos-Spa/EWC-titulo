@@ -17,12 +17,10 @@ import {
 interface SidebarProps {
   currentPage: string;
   onPageChange: (page: string) => void;
-  showProfile?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [openArea, setOpenArea] = useState<string | null>(null);
   const { user, logout } = useAuth();
 
   const hasRole = (role: string) => user?.roles?.some(r => r === role);
@@ -35,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: () => hasRole('Admin') || hasRole('Transporte') },
     'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: () => hasRole('Admin') || hasRole('Transporte') },
     maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasRole('Admin') || hasRole('Transporte') || hasRole('Mecanico') },
-    'cleaning-reports': { id: 'cleaning-reports', label: 'Reportes de Limpieza', icon: HardHat, show: () => hasRole('Admin') || hasRole('Aseo') },
+    'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: HardHat, show: () => hasRole('Admin') || hasRole('Aseo') },
     'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasRole('Admin') ||  hasRole('Obras') },
     'user-management': { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: () => hasRole('Admin') || hasRole('RRHH') },
   };
@@ -62,16 +60,72 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const roleLabel = user?.roles?.[0]?.replace('_', ' ') ?? '';
   const isAdmin = hasRole('Admin');
 
- // Genera todas las secciones (para admin)
+ // Catálogo de secciones por área (solo para saber qué vistas aplicar por área)
   const groupedMenu = Object.entries(areasConfig).map(([area, viewKeys]) => ({
     area,
     items: viewKeys.map(key => viewsCatalog[key]),
   }));
 
-  // Para usuario normal: obtenemos la **primera área que coincida** con groupedMenu
-  const userAreaSection = user?.roles
-    ? groupedMenu.find(section => user.roles.some(role => role === section.area))
-    : null;
+  // Para usuario no admin: obtener TODAS las áreas que coincidan con sus roles
+  const userAreaSections = user?.roles
+    ? groupedMenu.filter(section => user.roles.some(role => role === section.area))
+    : [];
+
+  const getUniqueById = <T extends { id: string }>(list: T[]) =>
+    Array.from(new Map(list.map(i => [i.id, i])).values());
+
+  // Ítems visibles (únicos) según rol/área
+  const adminVisibleUnique = getUniqueById(
+    groupedMenu.flatMap(section => section.items).filter(item => item.show())
+  );
+  const userVisibleUnique = getUniqueById(
+    userAreaSections.flatMap(s => s.items).filter(item => item.show())
+  );
+
+  const visibleItemsUnique = isAdmin ? adminVisibleUnique : userVisibleUnique;
+
+  let navContent: React.ReactNode = null;
+
+  if (isCollapsed) {
+    navContent = visibleItemsUnique.map(item => {
+      const Icon = item.icon;
+      const isActive = currentPage === item.id;
+      return (
+        <button
+          key={item.id}
+          onClick={() => onPageChange(item.id)}
+          className={`flex items-center justify-center w-full h-10 my-2 rounded-lg transition-colors ${
+            isActive
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+          }`}
+          title={item.label}
+        >
+          <Icon className="w-5 h-5" />
+        </button>
+      );
+    });
+  } else {
+    // Vista expandida: lista plana de items visibles (sin secciones)
+    navContent = visibleItemsUnique.map(item => {
+      const Icon = item.icon;
+      const isActive = currentPage === item.id;
+      return (
+        <button
+          key={item.id}
+          onClick={() => onPageChange(item.id)}
+          className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+            isActive
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+          }`}
+        >
+          <Icon className="flex-shrink-0 w-5 h-5" />
+          <span className="font-medium">{item.label}</span>
+        </button>
+      );
+    });
+  }
 
   return (
     <div className={`bg-gray-900 text-white transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'} min-h-screen flex flex-col`}>
@@ -114,111 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2 overflow-auto">
-        {isCollapsed ? (
-          // Sidebar colapsado: solo íconos
-          isAdmin
-            ? groupedMenu.flatMap(section =>
-                section.items.filter(item => item.show()).map(item => {
-                  const Icon = item.icon;
-                  const isActive = currentPage === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => onPageChange(item.id)}
-                      className={`flex items-center justify-center w-full h-10 my-2 rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-blue-600 text-white'
-                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                      }`}
-                      title={item.label}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </button>
-                  );
-                })
-              )
-            : userAreaSection &&
-              userAreaSection.items.filter(item => item.show()).map(item => {
-                const Icon = item.icon;
-                const isActive = currentPage === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onPageChange(item.id)}
-                    className={`flex items-center justify-center w-full h-10 my-2 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
-                    title={item.label}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </button>
-                );
-              })
-        ) : (
-          // Sidebar extendido
-          isAdmin
-            ? groupedMenu.map(section => {
-                const visibleItems = section.items.filter(item => item.show());
-                if (visibleItems.length === 0) return null;
-                const isOpen = openArea === section.area;
-                return (
-                  <div key={section.area}>
-                    <button
-                      className="flex items-center justify-between w-full px-3 py-2 font-semibold text-gray-300 rounded-lg hover:bg-gray-700 hover:text-white"
-                      onClick={() => setOpenArea(isOpen ? null : section.area)}
-                    >
-                      <span>{section.area}</span>
-                      {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                    {isOpen && (
-                      <div className="pl-4">
-                        {visibleItems.map(item => {
-                          const Icon = item.icon;
-                          const isActive = currentPage === item.id;
-                          return (
-                            <button
-                              key={item.id}
-                              onClick={() => onPageChange(item.id)}
-                              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                                isActive
-                                  ? 'bg-blue-600 text-white'
-                                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                              }`}
-                            >
-                              <Icon className="flex-shrink-0 w-5 h-5" />
-                              <span className="font-medium">{item.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            : userAreaSection &&
-              userAreaSection.items.filter(item => item.show()).map(item => {
-                const Icon = item.icon;
-                const isActive = currentPage === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onPageChange(item.id)}
-                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="flex-shrink-0 w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
-                );
-              })
-        )}
-      </nav>
+      <nav className="flex-1 p-4 space-y-2 overflow-auto">{navContent}</nav>
 
       {/* Logout */}
       <div className="py-4 bg-gray-900 border-t border-gray-700">

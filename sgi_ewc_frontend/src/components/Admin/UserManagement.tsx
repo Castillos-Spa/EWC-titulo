@@ -40,7 +40,7 @@ const UserManagement: React.FC = () => {
     getUsers().then(setUsers);
   }, []);
 
-  const handleCreate = async (data: Partial<User>) => {
+  const handleCreate = async (data: Partial<UserType>) => {
     const response = await createUser(data);
     if (response.user) setUsers([...users, response.user]);
     setShowForm(false);
@@ -63,7 +63,7 @@ const UserManagement: React.FC = () => {
   };
 
   const getRoleColor = (role: string) => {
-    //TODO cambiar colores
+    // Mapeo de colores por rol
     if (!role) return 'bg-gray-100 text-gray-800';
     switch (role) {
       case 'Admin': return 'bg-purple-100 text-purple-800';
@@ -99,8 +99,8 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const getAreaLabel = (area: string) => {
-    switch (area) {
+  const mapSingleArea = (a: string) => {
+    switch (a) {
       case 'Admin': return 'Administración';
       case 'IT': return 'IT';
       case 'Transporte': return 'Transportes';
@@ -110,8 +110,16 @@ const UserManagement: React.FC = () => {
       case 'RRHH': return 'Recursos Humanos';
       case 'Finanza': return 'Finanzas';
       case 'P_Riesgo': return 'Prevencion de Riesgo';
-      default: return area.replace('_', ' ');
+      default: return (a ?? '').toString().replace('_', ' ') || 'Sin Área';
     }
+  };
+
+  const getAreaLabel = (area: string | string[] | undefined) => {
+    if (Array.isArray(area)) {
+      return area.length ? area.map(mapSingleArea).join(', ') : 'Sin Área';
+    }
+    if (typeof area === 'string') return mapSingleArea(area);
+    return 'Sin Área';
   };
 
   // Corrección de filtros
@@ -310,7 +318,7 @@ const UserManagement: React.FC = () => {
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.roles[0])}`}>
                         {getRoleLabel(user.roles[0])}
                       </span>
-                      <div className="text-xs text-gray-500">{getAreaLabel(user.area)}</div>
+                      <div className="text-xs text-gray-500">{getAreaLabel((user as unknown as { area?: string | string[] }).area)}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

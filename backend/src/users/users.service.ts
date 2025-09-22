@@ -149,11 +149,11 @@ export class UsersService {
       title: 'Nuevo usuario creado',
       message: `El usuario ${result.username} fue creado exitosamente`,
       type: 'user_created',
-      createdById: result.id, // el que ejecutó la acción
-      // puedes decidir aquí a quién va:
-      role: 'Admin', // todos los admins
-      // userId: result.id, // si quieres que solo lo vea el mismo user creado
-      // area: result.area, // si quieres que lo vean todos los del área
+      createdById: result.id,
+      role: Role.Admin,
+      // Si quieres enviarla a un usuario específico o área, descomenta:
+      // userId: result.id,
+      // area: result.area?.[0],
     });
 
     return { user: result, tempPassword };
