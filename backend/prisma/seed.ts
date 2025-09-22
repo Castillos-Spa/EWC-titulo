@@ -13,7 +13,7 @@ async function main() {
     create: {
       username: 'john',
       email: 'john@example.com',
-      area: 'Administración',
+      area: ['Admin'],
       password: hashedPassword,
       roles: [Role.Admin],
       permissions: Object.values(Permission),

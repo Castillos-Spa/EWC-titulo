@@ -26,7 +26,7 @@ const AppContent: React.FC = () => {
     // Debug visual para ver el valor de user y mustChangePassword
     console.log('Auth user:', user);
     setShowChangePassword(!!user?.mustChangePassword);
-  }, [user?.mustChangePassword]);
+  }, [user]);
 
   // Escucha el evento de logout forzado desde el interceptor de la API
   useEffect(() => {
@@ -137,8 +137,7 @@ const AppContent: React.FC = () => {
       onPageChange={(page) => {
         setCurrentPage(page);
         setShowProfile(false);
-      }}
-      showProfile={showProfile} />
+      }} />
       <div className="flex flex-col flex-1 overflow-hidden">
         <Header title={getPageTitle(currentPage)} onProfileClick={handleProfileClick} />
         

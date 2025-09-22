@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import { Role, Permission, User } from '@prisma/client';
+import { NotificacionService } from '@/notificacion/notificacion.service';
 
 // Mocks
 jest.mock('bcrypt');
@@ -17,9 +18,9 @@ describe('UsersService', () => {
     id: 1,
     username: 'testuser',
     email: 'test@example.com',
-    area: 'Administración',
+    area: ['Administración'],
     password: 'hashedPassword',
-    roles: [Role.User],
+    roles: [Role.Lector],
     permissions: [Permission.VIEW_DASHBOARD],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -33,8 +34,8 @@ describe('UsersService', () => {
     id: 1,
     username: 'testuser',
     email: 'test@example.com',
-    area: 'Administración',
-    roles: [Role.User],
+    area: ['Administración'],
+    roles: [Role.Lector],
     permissions: [Permission.VIEW_DASHBOARD],
     createdAt: expect.any(Date),
     updatedAt: expect.any(Date),
@@ -59,6 +60,12 @@ describe('UsersService', () => {
               update: jest.fn(),
               delete: jest.fn(),
             },
+          },
+        },
+        {
+          provide: NotificacionService,
+          useValue: {
+            createNotification: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -158,10 +165,10 @@ describe('UsersService', () => {
         data: {
           username: 'testuser',
           email: 'test@example.com',
-          area: 'Administración',
+          area: ['Administración'],
           password: 'hashedPassword',
           mustChangePassword: false,
-          roles: [Role.User],
+          roles: [Role.Lector],
           permissions: [Permission.VIEW_DASHBOARD],
         },
       });
@@ -179,7 +186,7 @@ describe('UsersService', () => {
         id: 2,
         username: 'newuser',
         email: 'new@example.com',
-        area: 'IT',
+        area: ['IT'],
         mustChangePassword: true,
       };
 
@@ -196,10 +203,10 @@ describe('UsersService', () => {
         data: {
           username: 'newuser',
           email: 'new@example.com',
-          area: 'IT',
+          area: ['IT'],
           password: 'hashedTempPassword',
           mustChangePassword: true,
-          roles: [Role.User],
+          roles: [Role.Lector],
           permissions: [Permission.VIEW_DASHBOARD],
         },
       });
@@ -236,17 +243,17 @@ describe('UsersService', () => {
     it('debería actualizar los roles de un usuario', async () => {
       const updatedUser = {
         ...mockUser,
-        roles: [Role.Admin, Role.User],
+        roles: [Role.Admin, Role.Lector],
       };
 
       jest.spyOn(prismaService.user, 'update').mockResolvedValue(updatedUser);
 
-      const result = await usersService.updateUserRoles(1, [Role.Admin, Role.User]);
+  const result = await usersService.updateUserRoles(1, [Role.Admin, Role.Lector]);
 
       expect(result).toEqual(updatedUser);
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: { roles: [Role.Admin, Role.User] },
+        data: { roles: [Role.Admin, Role.Lector] },
       });
     });
   });
