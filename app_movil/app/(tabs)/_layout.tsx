@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import { useThemeStore } from '../stores/themeStore';
+import { useAuthz } from '@/hooks/useAuthz';
 import {
   Home,
   Route,
@@ -39,6 +40,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { getColors } = useThemeStore();
   const colors = getColors();
+  const { canRoutes, canCleaning, canCivilWorks, canIT, canKanban, canFuel, canIncidents, canTickets } = useAuthz();
   
   // Calculate tab bar height based on device and safe area
   const tabBarHeight = Platform.select({
@@ -89,6 +91,7 @@ export default function TabLayout() {
         options={{
           title: 'Rutas',
           tabBarIcon: routeTabIcon,
+          href: canRoutes ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -96,6 +99,7 @@ export default function TabLayout() {
         options={{
           title: 'Aseo',
           tabBarIcon: cleaningTabIcon,
+          href: canCleaning ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -103,6 +107,7 @@ export default function TabLayout() {
         options={{
           title: 'Obras',
           tabBarIcon: hardHatTabIcon,
+          href: canCivilWorks ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -110,6 +115,7 @@ export default function TabLayout() {
         options={{
           title: 'TIC',
           tabBarIcon: monitorTabIcon,
+          href: canIT ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -117,6 +123,7 @@ export default function TabLayout() {
         options={{
           title: 'Kanban',
           tabBarIcon: kanbanTabIcon,
+          href: canKanban ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -124,6 +131,7 @@ export default function TabLayout() {
         options={{
           title: 'Combustible',
           tabBarIcon: fuelTabIcon,
+          href: canFuel ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -131,6 +139,7 @@ export default function TabLayout() {
         options={{
           title: 'Incidentes',
           tabBarIcon: alertTabIcon,
+          href: canIncidents ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -138,6 +147,7 @@ export default function TabLayout() {
         options={{
           title: 'Tickets',
           tabBarIcon: ticketTabIcon,
+          href: canTickets ? undefined : null,
         }}
       />
       <Tabs.Screen

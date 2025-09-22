@@ -13,8 +13,11 @@ import { useTicketStore } from '../stores/ticketStore';
 import { useThemeStore } from '../stores/themeStore';
 import { TicketCard } from '../components/TicketCard';
 import { TicketDetailModal } from '../components/TicketDetailModal';
+import { AccessGuard } from '../components/AccessGuard';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export default function TicketsScreen() {
+  const { canTickets } = useAuthz();
   const insets = useSafeAreaInsets();
   const { getColors } = useThemeStore();
   const {
@@ -107,7 +110,8 @@ export default function TicketsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <AccessGuard allowed={canTickets}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
@@ -287,6 +291,7 @@ export default function TicketsScreen() {
         />
       )}
     </SafeAreaView>
+    </AccessGuard>
   );
 }
 

@@ -13,8 +13,11 @@ import { useThemeStore } from '../stores/themeStore';
 import { RouteCard } from '../components/RouteCard';
 import RouteDetailModal from '../components/RouteDetailModal';
 import TripModal from '../components/TripModal';
+import { AccessGuard } from '../components/AccessGuard';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export default function RoutesScreen() {
+  const { canRoutes } = useAuthz();
   const { routes, loadRoutes, selectedTrip, selectRoute } = useRouteStore();
   const { getColors } = useThemeStore();
   const colors = getColors();
@@ -68,6 +71,7 @@ export default function RoutesScreen() {
   }, [selectedTrip]);
 
   return (
+    <AccessGuard allowed={canRoutes}>
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -163,6 +167,7 @@ export default function RoutesScreen() {
         />
       )}
     </View>
+    </AccessGuard>
   );
 }
 

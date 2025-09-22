@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,11 @@ import { ITTicketCard } from '../components/ITTicketCard';
 import { ITTicketDetailModal } from '../components/ITTicketDetailModal';
 import { CreateITTicketModal } from '../components/CreateITTicketModal';
 import { ChatModal } from '../components/ChatModal';
+import { AccessGuard } from '../components/AccessGuard';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export default function ITSupportScreen() {
+  const { canIT } = useAuthz();
   const insets = useSafeAreaInsets();
   const { getColors } = useThemeStore();
   const {
@@ -84,7 +87,8 @@ export default function ITSupportScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <AccessGuard allowed={canIT}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
@@ -246,6 +250,7 @@ export default function ITSupportScreen() {
         channelId="it-support"
       />
     </SafeAreaView>
+    </AccessGuard>
   );
 }
 

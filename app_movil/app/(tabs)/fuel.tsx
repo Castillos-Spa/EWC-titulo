@@ -15,8 +15,11 @@ import { FuelCard } from '../components/FuelCard';
 import { CreateFuelRecordModal } from '../components/CreateFuelRecordModal';
 import { FuelDetailModal } from '../components/FuelDetailModal';
 import { FuelAnalytics } from '../components/FuelAnalytics';
+import { AccessGuard } from '../components/AccessGuard';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export default function FuelScreen() {
+  const { canFuel } = useAuthz();
   const insets = useSafeAreaInsets();
   const { getColors } = useThemeStore();
   const {
@@ -28,7 +31,6 @@ export default function FuelScreen() {
     setCurrentRecord,
     clearError,
   } = useFuelStore();
-
 
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -119,7 +121,8 @@ export default function FuelScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <AccessGuard allowed={canFuel}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
@@ -313,6 +316,7 @@ export default function FuelScreen() {
         />
       )}
     </SafeAreaView>
+    </AccessGuard>
   );
 }
 

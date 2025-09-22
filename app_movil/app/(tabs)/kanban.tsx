@@ -14,6 +14,7 @@ import { useThemeStore } from '../stores/themeStore';
 import { KanbanColumn } from '../components/KanbanColumn';
 import { TaskDetailModal } from '../components/TaskDetailModal';
 import { ChatModal } from '../components/ChatModal';
+ 
 
 export default function KanbanScreen() {
   const insets = useSafeAreaInsets();
@@ -84,7 +85,7 @@ export default function KanbanScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>

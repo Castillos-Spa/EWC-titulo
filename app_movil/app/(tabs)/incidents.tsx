@@ -14,6 +14,7 @@ import { useThemeStore } from '../stores/themeStore';
 import { IncidentCard } from '../components/IncidentCard';
 import { CreateIncidentModal } from '../components/CreateIncidentModal';
 import { IncidentDetailModal } from '../components/IncidentDetailModal';
+ 
 
 export default function IncidentsScreen() {
   const insets = useSafeAreaInsets();
@@ -84,7 +85,7 @@ export default function IncidentsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>

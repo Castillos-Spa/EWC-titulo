@@ -6,6 +6,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  roles: string[]; // Roles exactamente como en backend (Prisma Role enum)
   role: 'driver' | 'supervisor' | 'technician' | 'admin' | 'cleaning_crew' | 'civil_works' | 'it_support' | 'manager' | 'finance';
   areaIds: string[];
   department: 'transport' | 'cleaning' | 'civil_works' | 'it' | 'management' | 'finance';
@@ -82,6 +83,7 @@ class AuthServiceClass {
       id: String(payload?.userId ?? payload?.sub ?? '0'),
       name: payload?.username || payload?.email || 'Usuario',
       email: payload?.email || '',
+      roles,
       role,
       areaIds: payload?.area ? [String(payload.area)] : [],
       department,

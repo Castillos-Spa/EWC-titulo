@@ -164,7 +164,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await SafeStorage.setItem('accessToken', refreshed.accessToken);
         await SafeStorage.setItem('refreshToken', refreshed.refreshToken);
         await SafeStorage.setItem('expiresAt', refreshed.expiresAt);
-        set({ tokens: refreshed });
+        // Validar perfil con el nuevo token para sincronizar roles/permisos
+        const validated = await AuthService.validateToken(refreshed.accessToken);
+        if (validated) {
+          await SafeStorage.setItem('userData', JSON.stringify(validated));
+          set({ tokens: refreshed, user: validated });
+        } else {
+          set({ tokens: refreshed });
+        }
       }
     } catch (error) {
       console.error('Failed to load stored auth:', error);
@@ -181,8 +188,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await SafeStorage.setItem('accessToken', newTokens.accessToken);
       await SafeStorage.setItem('refreshToken', newTokens.refreshToken);
       await SafeStorage.setItem('expiresAt', newTokens.expiresAt);
-      
-      set({ tokens: newTokens });
+      // Sincronizar perfil (roles/permisos) con el nuevo token
+      const validated = await AuthService.validateToken(newTokens.accessToken);
+      if (validated) {
+        await SafeStorage.setItem('userData', JSON.stringify(validated));
+        set({ tokens: newTokens, user: validated });
+      } else {
+        set({ tokens: newTokens });
+      }
     } catch (error) {
       console.warn('Refresh auth failed, logging out:', error);
       await get().logout();

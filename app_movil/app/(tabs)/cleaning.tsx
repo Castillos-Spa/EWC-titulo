@@ -15,8 +15,11 @@ import { CleaningReportCard } from '../components/CleaningReportCard';
 import { CreateCleaningReportModal } from '../components/CreateCleaningReportModal';
 import { CleaningDetailModal } from '../components/CleaningDetailModal';
 import { SupplyRequestModal } from '../components/SupplyRequestModal';
+import { AccessGuard } from '../components/AccessGuard';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export default function CleaningScreen() {
+  const { canCleaning } = useAuthz();
   const insets = useSafeAreaInsets();
   const { getColors } = useThemeStore();
   const {
@@ -107,7 +110,8 @@ export default function CleaningScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <AccessGuard allowed={canCleaning}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
@@ -291,6 +295,7 @@ export default function CleaningScreen() {
         onClose={() => setShowSupplyModal(false)}
       />
     </SafeAreaView>
+    </AccessGuard>
   );
 }
 

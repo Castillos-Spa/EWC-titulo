@@ -14,8 +14,11 @@ import { useThemeStore } from '../stores/themeStore';
 import { WorkOrderCard } from '../components/WorkOrderCard';
 import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
 import { SafetyChecklistModal } from '../components/SafetyChecklistModal';
+import { AccessGuard } from '../components/AccessGuard';
+import { useAuthz } from '@/hooks/useAuthz';
 
 export default function CivilWorksScreen() {
+  const { canCivilWorks } = useAuthz();
   const insets = useSafeAreaInsets();
   const { getColors } = useThemeStore();
   const {
@@ -82,7 +85,8 @@ export default function CivilWorksScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <AccessGuard allowed={canCivilWorks}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
@@ -243,6 +247,7 @@ export default function CivilWorksScreen() {
         onClose={() => setShowSafetyModal(false)}
       />
     </SafeAreaView>
+    </AccessGuard>
   );
 }
 
