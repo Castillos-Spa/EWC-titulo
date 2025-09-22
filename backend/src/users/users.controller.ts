@@ -39,13 +39,14 @@ export class UsersController {
     const userId = Number(id);
     const requestingUser = req.user;
 
-    // Un usuario puede cambiar su propia contraseña, o un admin puede cambiar la de cualquiera.
-    if (requestingUser.userId !== userId && !requestingUser.roles.includes(Role.Admin)) {
-      throw new ForbiddenException('No tienes permiso para cambiar la contraseña de este usuario.');
-    }
-
     if (!userId || userId <= 0) {
       throw new ForbiddenException('ID de usuario inválido');
+    }
+
+    // Un usuario puede cambiar su propia contraseña, o un admin puede cambiar la de cualquiera.
+
+    if (requestingUser.userId !== userId && !requestingUser.roles.includes(Role.Admin)) {
+      throw new ForbiddenException('No tienes permiso para cambiar la contraseña de este usuario.');
     }
     return this.usersService.changePassword(userId, dto.currentPassword, dto.newPassword);
   }

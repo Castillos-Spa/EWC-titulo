@@ -47,6 +47,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Obtener perfil desde backend
       const profile = await getProfile();
 
+      // El backend puede devolver 'userId' (del token JWT) o 'id' (de la base de datos).
+      // Nos aseguramos de que al menos uno de los dos exista.
+      const userId = profile.id ?? profile.userId;
+      if (!userId) {
+        throw new Error('El perfil de usuario obtenido no es válido o no contiene un ID (id/userId).');
+      }
+
       // Normalizar áreas a arreglo de strings
       let areas: string[] = [];
       if (Array.isArray(profile.area)) {
@@ -62,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // mapear/normalizar si es necesario (ejemplo mínimo)
       const mapped = {
-  id: profile.id ?? 0,
+        id: userId,
         username: profile.username ?? profile.email?.split('@')[0] ?? '',
         email: profile.email,
         // Mantener `area` como string para compatibilidad (tomar primera si hay varias)
