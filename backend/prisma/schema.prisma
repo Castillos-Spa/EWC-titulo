@@ -8,21 +8,23 @@ datasource db {
 }
 
 model User {
-  id                 Int          @id @default(autoincrement())
-  username           String
-  email              String       @unique
-  area               String
-  password           String
-  roles              Role[]       @default([])
-  permissions        Permission[] @default([])
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  assignedTickets    Ticket[]     @relation("AssignedTickets")
-  createdTickets     Ticket[]     @relation("CreatedTickets")
-  active             Boolean      @default(true)
-  lastLogin          DateTime?
-  mustChangePassword Boolean      @default(false)
-  refreshToken       String?      @unique
+  id                   Int            @id @default(autoincrement())
+  username             String
+  email                String         @unique
+  area                 String[]
+  password             String
+  roles                Role[]         @default([])
+  permissions          Permission[]   @default([])
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  assignedTickets      Ticket[]       @relation("AssignedTickets")
+  createdTickets       Ticket[]       @relation("CreatedTickets")
+  active               Boolean        @default(true)
+  lastLogin            DateTime?
+  mustChangePassword   Boolean        @default(false)
+  refreshToken         String?        @unique
+  notifications        Notification[] // Campo para las notificaciones que recibe el usuario
+  createdNotifications Notification[] @relation("CreatedNotifications") // Campo para las notificaciones que crea el usuario
 }
 
 model Ticket {
@@ -123,16 +125,43 @@ enum VehiculoStatus {
   en_uso
 }
 
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  type      String // Ej: "info", "warning", "ticket"
+  createdAt DateTime @default(now())
+  read      Boolean  @default(false)
+
+  // Relación: puede ir a un usuario específico
+
+  user User[]
+
+  // O a un área completa
+  areas String[] @default([])
+
+  // O a un rol
+  roles Role[] @default([])
+
+  // Quién la creó
+  createdById Int
+  createdBy   User @relation("CreatedNotifications", fields: [createdById], references: [id])
+}
+
 /// Enum de roles
 enum Role {
   Admin
-  Transporte //Solo supervisora
-  Driver
-  Obras //Solo supervisora
-  Aseo //Solo supervisora
+  Obras
+  Aseo
   IT
-  User //TODO eliminarlo
-  //TODO crear mecanico
+  Transporte
+  Driver
+  Mecanico
+  Lector
+
+  RRHH
+  Finanza
+  P_Riesgo
 }
 
 /// Enum de permisos
@@ -161,5 +190,8 @@ enum Permission {
   //Aseo  
   VIEW_CLEANING_REPORTS
   MANAGE_CLEANING_REPORTS
-  //  TODO agregar permiso de CRUD management user
+
+  //Admin
+  VIEW_MANAGEMENT_USER
+  MANAGE_MANAGEMENT_USER
 }

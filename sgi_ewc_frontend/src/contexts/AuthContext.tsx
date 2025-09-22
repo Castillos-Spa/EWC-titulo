@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { login as apiLogin, getProfile, logoutUser } from '../utils/userApi';
 import { User } from '../types/User';
 
@@ -23,7 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token && userData && userData !== 'undefined') {
       try {
         setUser(JSON.parse(userData));
-      } catch (e) {
+      } catch {
         setUser(null);
         localStorage.removeItem('userData');
       }
@@ -33,7 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
       // El backend devuelve access_token y refresh_token
@@ -46,13 +46,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('refreshToken', refresh_token); // ¡Guardar el refresh token!
       // Obtener perfil desde backend
       const profile = await getProfile();
+
+      // El backend puede devolver 'userId' (del token JWT) o 'id' (de la base de datos).
+      // Nos aseguramos de que al menos uno de los dos exista.
+      const userId = profile.id ?? profile.userId;
+      if (!userId) {
+        throw new Error('El perfil de usuario obtenido no es válido o no contiene un ID (id/userId).');
+      }
+
+      // Normalizar áreas a arreglo de strings
+      let areas: string[] = [];
+      if (Array.isArray(profile.area)) {
+        areas = profile.area as unknown as string[];
+      } else if (profile.area) {
+        areas = [profile.area as unknown as string];
+      }
+
+      // Unificar roles + áreas en una sola lista de roles únicos
+      const normalizedRoles = Array.from(
+        new Set([...(profile.roles ?? []), ...areas])
+      );
+
       // mapear/normalizar si es necesario (ejemplo mínimo)
       const mapped = {
-        id: profile.id ?? profile.userId ?? profile.sub ?? 0,
+        id: userId,
         username: profile.username ?? profile.email?.split('@')[0] ?? '',
         email: profile.email,
-        area: profile.area ?? undefined,
-        roles: profile.roles ?? [],
+        // Mantener `area` como string para compatibilidad (tomar primera si hay varias)
+        area: areas[0] ?? undefined,
+        roles: normalizedRoles,
         permissions: profile.permissions ?? [],
         active: profile.active ?? true, // <-- aquí
         name: profile.username ?? profile.email?.split('@')[0],
@@ -67,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       return false;
     }
-  };
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -85,10 +107,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const contextValue = useMemo(
+    () => ({ user, login, logout, isLoading }),
+    [user, login, logout, isLoading]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 

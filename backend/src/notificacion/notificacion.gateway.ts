@@ -1,73 +1,53 @@
-import { WebSocketGateway, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer } from '@nestjs/websockets';
+// notificacion.gateway.ts
+import { WebSocketGateway, WebSocketServer, OnGatewayConnection } from '@nestjs/websockets';
+import { Inject, forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { NotificacionService } from './notificacion.service';
-import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
 
-@WebSocketGateway({
-  cors: {
-    origin: '*', // Asegúrate que este sea el puerto de tu frontend
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
-})
-export class NotificacionGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer()
-  server: Server;
-
-  // Mapea el ID del socket a la ID del usuario para saber quién es quién.
-  private connectedUsers: Map<string, string> = new Map(); // Map<socketId, userId>
+@WebSocketGateway({ cors: true })
+export class NotificacionGateway implements OnGatewayConnection {
+  @WebSocketServer() server: Server;
 
   constructor(
-    private readonly notificacionService: NotificacionService,
-    private readonly jwtService: JwtService,
-    private readonly usersService: UsersService,
+    @Inject(forwardRef(() => NotificacionService))
+    private readonly notiService: NotificacionService,
   ) {}
 
-  async handleConnection(client: Socket, ...args: any[]) {
-    // El frontend debe proveer el token en la propiedad `auth` de la conexión.
-    const token = client.handshake.auth.token;
-    if (!token) {
-      console.log(`Cliente ${client.id} conectado sin token. Desconectando.`);
-      return client.disconnect();
-    }
-
+  async handleConnection(client: Socket) {
     try {
-      const payload = this.jwtService.verify(token);
-      const userId = payload.sub.toString(); // 'sub' es el ID de usuario en el token
-      const user = await this.usersService.findById(parseInt(userId, 10));
+      const userIdRaw = client.handshake.query.userId as string | undefined;
+      const roleRaw = client.handshake.query.role as string | undefined;
+      const areaRaw = client.handshake.query.area as string | undefined;
 
-      if (!user || !user.active) {
-        throw new Error('Usuario no válido o inactivo');
+      const userId = userIdRaw ? Number(userIdRaw) : undefined;
+      const role = roleRaw && roleRaw !== 'undefined' ? roleRaw : undefined;
+      const area = areaRaw && areaRaw !== 'undefined' ? areaRaw : undefined;
+
+      if (Number.isFinite(userId)) client.join(`user_${userId}`);
+      if (role) client.join(`role_${role}`);
+      if (area) client.join(`area_${area}`);
+
+      if (userId || role || area) {
+        const notifications = await this.notiService.getNotificationsForUser(userId, role, area);
+        client.emit('notifications:init', notifications);
       }
-
-      this.connectedUsers.set(client.id, userId);
-      console.log(`Cliente conectado y autenticado: ${client.id}, Usuario ID: ${userId}`);
-      this.server.emit('user-online', { userId });
-    } catch (error) {
-      console.log(`Token inválido para cliente ${client.id}. Desconectando.`, error.message);
-      client.disconnect();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'unknown_error';
+      client.emit('notifications:error', { message });
+      client.emit('notifications:init', []);
+      return;
     }
   }
 
-  handleDisconnect(client: Socket) {
-    const userId = this.connectedUsers.get(client.id);
-    if (userId) {
-      this.connectedUsers.delete(client.id);
-      console.log(`Cliente desconectado: ${client.id}, Usuario ID: ${userId}`);
-      // Notifica a todos los usuarios que este usuario se desconectó.
-      this.server.emit('user-offline', { userId });
-    } else {
-      console.log(`Cliente desconectado: ${client.id}`);
+  async sendNotification(notification: any) {
+    if (notification.userId) {
+      this.server.to(`user_${notification.userId}`).emit('notification', notification);
     }
-  }
-
-  /**
-   * Envía una notificación a todos los clientes conectados.
-   * Puede ser llamado desde otros servicios (ej. para notificar una nueva tarea).
-   */
-  sendGlobalNotification(type: string, payload: any) {
-    this.server.emit('notification', { type, payload });
-    console.log(`Enviando notificación global: ${type}`, payload);
+    if (notification.role) {
+      this.server.to(`role_${notification.role}`).emit('notification', notification);
+    }
+    if (notification.area) {
+      this.server.to(`area_${notification.area}`).emit('notification', notification);
+    }
   }
 }
