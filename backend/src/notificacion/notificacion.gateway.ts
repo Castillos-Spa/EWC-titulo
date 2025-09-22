@@ -40,14 +40,29 @@ export class NotificacionGateway implements OnGatewayConnection {
   }
 
   async sendNotification(notification: any) {
-    if (notification.userId) {
-      this.server.to(`user_${notification.userId}`).emit('notification', notification);
+    const payload = {
+      id: notification.id,
+      type: notification.type,
+      message: notification.message,
+      createdAt: notification.createdAt,
+    };
+
+    if (Array.isArray(notification.user) && notification.user.length) {
+      notification.user.forEach((u: { id: number }) => {
+        this.server.to(`user_${u.id}`).emit('notification', payload);
+      });
     }
-    if (notification.role) {
-      this.server.to(`role_${notification.role}`).emit('notification', notification);
+
+    if (Array.isArray(notification.roles) && notification.roles.length) {
+      notification.roles.forEach((role: string) => {
+        this.server.to(`role_${role}`).emit('notification', payload);
+      });
     }
-    if (notification.area) {
-      this.server.to(`area_${notification.area}`).emit('notification', notification);
+
+    if (Array.isArray(notification.areas) && notification.areas.length) {
+      notification.areas.forEach((area: string) => {
+        this.server.to(`area_${area}`).emit('notification', payload);
+      });
     }
   }
 }
