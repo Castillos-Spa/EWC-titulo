@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,25 @@ import { router } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Monitor, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Building2 } from 'lucide-react-native';
+import { useNotificationsStore } from '../stores/notificationsStore';
+import { NotificationsDrawer } from '../components/NotificationsDrawer';
 
 export default function HomeScreen() {
   const { user, logout } = useAuthStore();
   const { getColors } = useThemeStore();
   const insets = useSafeAreaInsets();
+  const { items: notifications } = useNotificationsStore();
 
   const colors = getColors();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    // Conectar WS al montar o cuando cambia el usuario
+    useNotificationsStore.getState().connect();
+    return () => {
+      useNotificationsStore.getState().disconnect();
+    };
+  }, [user?.id]);
 
   const handleLogout = async () => {
     await logout();
@@ -336,31 +348,46 @@ export default function HomeScreen() {
 
       {/* Notificaciones recientes */}
       <View style={styles.notificationsSection}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Notificaciones Recientes</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Notificaciones Recientes</Text>
+          <TouchableOpacity onPress={() => setDrawerOpen(true)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background }}>
+            <Text style={{ color: colors.textSecondary }}>Ver todas</Text>
+          </TouchableOpacity>
+        </View>
         <View style={[styles.notificationsList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.notificationItem}>
-            <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Bell size={16} color="#2563EB" />
+          {notifications.length === 0 ? (
+            <View style={[styles.notificationItem, { borderBottomWidth: 0 }]}>
+              <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
+                <Bell size={16} color={colors.textSecondary} />
+              </View>
+              <View style={styles.notificationContent}>
+                <Text style={[styles.notificationText, { color: colors.textSecondary }]}>Sin notificaciones recientes</Text>
+              </View>
             </View>
-            <View style={styles.notificationContent}>
-              <Text style={[styles.notificationTitle, { color: colors.text }]}>Nueva asignación</Text>
-              <Text style={[styles.notificationText, { color: colors.textSecondary }]}>Se te asignó un nuevo ticket</Text>
-              <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>Hace 15 min</Text>
-            </View>
-          </View>
-          
-          <View style={styles.notificationItem}>
-            <View style={[styles.notificationIcon, { backgroundColor: colors.success + '15' }]}>
-              <CheckCircle size={16} color="#16A34A" />
-            </View>
-            <View style={styles.notificationContent}>
-              <Text style={[styles.notificationTitle, { color: colors.text }]}>Solicitud aprobada</Text>
-              <Text style={[styles.notificationText, { color: colors.textSecondary }]}>Tu solicitud de insumos fue aprobada</Text>
-              <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>Hace 1 hora</Text>
-            </View>
-          </View>
+          ) : (
+            notifications.slice(0, 5).map((n) => (
+              <View key={n.id} style={styles.notificationItem}>
+                <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Bell size={16} color={colors.primary} />
+                </View>
+                <View style={styles.notificationContent}>
+                  <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
+                    {n.type || 'Notificación'}
+                  </Text>
+                  <Text style={[styles.notificationText, { color: colors.textSecondary }]} numberOfLines={2}>
+                    {n.message}
+                  </Text>
+                  <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
+                    {new Date(n.timestamp).toLocaleTimeString()}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
         </View>
       </View>
+
+  <NotificationsDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </ScrollView>
   );
 }
