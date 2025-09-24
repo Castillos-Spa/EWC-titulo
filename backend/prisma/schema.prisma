@@ -11,7 +11,7 @@ model User {
   id                   Int            @id @default(autoincrement())
   username             String
   email                String         @unique
-  area                 String[]
+  area                 String[]       @default([])
   password             String
   roles                Role[]         @default([])
   permissions          Permission[]   @default([])
@@ -28,18 +28,22 @@ model User {
 }
 
 model Ticket {
-  id           Int            @id @default(autoincrement())
-  title        String
-  description  String?
-  status       TicketStatus   @default(Pendiente)
-  priority     TicketPriority @default(Media)
-  category     String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  createdById  Int
-  assignedToId Int?
-  assignedTo   User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
-  createdBy    User           @relation("CreatedTickets", fields: [createdById], references: [id])
+  id            Int            @id @default(autoincrement())
+  title         String
+  description   String?
+  status        TicketStatus   @default(Pendiente)
+  priority      TicketPriority @default(Media)
+  category      TicketCategory
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  createdById   Int
+  assignedToId  Int?
+  assignedTo    User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdBy     User           @relation("CreatedTickets", fields: [createdById], references: [id])
+  recipientArea String[]       @default([])
+  recipientRole Role[]
+  tags          String[]       @default([])
+  attachments   Documento[]
 }
 
 model Vehiculo {
@@ -62,6 +66,8 @@ model Documento {
   url         String // URL o path del archivo subido (ej: S3, local storage)
   fechaSubida DateTime @default(now())
   descripcion String?
+  ticketId    Int?
+  ticket      Ticket?  @relation(fields: [ticketId], references: [id])
 }
 
 model OrdenTrabajo {
@@ -162,6 +168,13 @@ enum Role {
   RRHH
   Finanza
   P_Riesgo
+}
+
+enum TicketCategory {
+  Soporte_IT
+  Solicitud_Suministro
+  Mantenimiento
+  Reporte_Incidente
 }
 
 /// Enum de permisos

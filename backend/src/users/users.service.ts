@@ -133,7 +133,7 @@ export class UsersService {
       data: {
         username: registerDto.username,
         email: registerDto.email,
-        area: [registerDto.area], // Wrap the single area string in an array
+        area: Array.isArray(registerDto.area) ? registerDto.area : [registerDto.area],
         password: hashedPassword,
         mustChangePassword,
         roles: rolesEnum.length > 0 ? rolesEnum : [Role.Lector],
@@ -150,7 +150,7 @@ export class UsersService {
       message: `El usuario ${result.username} fue creado exitosamente`,
       type: 'user_created',
       createdById: result.id,
-      role: Role.Admin,
+      //role: Role.Admin,
       // Si quieres enviarla a un usuario específico o área, descomenta:
       // userId: result.id,
       // area: result.area?.[0],

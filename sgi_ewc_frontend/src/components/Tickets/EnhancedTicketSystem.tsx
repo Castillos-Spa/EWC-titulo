@@ -1,109 +1,19 @@
-import React, { useState } from 'react';
-import { Plus, Search, MessageSquare, Paperclip, Calendar, User, AlertCircle, CheckCircle, Clock, Send, Eye, UserPlus, Tag, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip, Tag } from 'lucide-react';
+import { getTickets, createTicket, updateTicket, CreateTicketPayload } from '../../utils/ticketApi';
+import { Ticket, TicketStatus, TicketPriority } from '../../types/Ticket';
 
-interface Comment {
-  id: string;
-  author: string;
-  content: string;
-  timestamp: string;
-  isInternal: boolean;
-}
+// 1. Importa tu hook de autenticación desde su ubicación correcta
+import { useAuth } from '../../contexts/AuthContext';
+// Esto debería venir idealmente de una carpeta de tipos compartida
+const TICKET_CATEGORIES = ['Soporte IT', 'Solicitud de suministro', 'Mantenimiento', 'Reportes incidentes'];
+const RECIPIENT_AREAS = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', 'P_Riesgo'];
 
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  category: 'it_support' | 'supply_request' | 'maintenance' | 'incident';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'resolved' | 'closed';
-  createdBy: string;
-  assignedTo?: string;
-  createdAt: string;
-  updatedAt: string;
-  comments: Comment[];
-  attachments: string[];
-  tags: string[];
-  rating?: number;
-  estimatedHours?: number;
-  actualHours?: number;
-}
 
 const EnhancedTicketSystem: React.FC = () => {
-  const [tickets, setTickets] = useState<Ticket[]>([
-    {
-      id: 'TK-001',
-      title: 'Problemas de conectividad de red en almacén',
-      description: 'No se puede conectar a la red de la empresa desde las terminales del almacén',
-      category: 'it_support',
-      priority: 'high',
-      status: 'in_progress',
-      createdBy: 'John Driver',
-      assignedTo: 'IT Support',
-      createdAt: '2025-01-27T09:00:00Z',
-      updatedAt: '2025-01-27T10:30:00Z',
-      comments: [
-        {
-          id: '1',
-          author: 'IT Support',
-          content: 'Hemos identificado el problema. Parece ser un issue con el switch principal. Trabajando en la solución.',
-          timestamp: '2025-01-27T10:30:00Z',
-          isInternal: false
-        },
-        {
-          id: '2',
-          author: 'John Driver',
-          content: 'Gracias por la actualización. ¿Cuánto tiempo estimado para la resolución?',
-          timestamp: '2025-01-27T11:00:00Z',
-          isInternal: false
-        }
-      ],
-      attachments: ['network_diagram.pdf'],
-      tags: ['red', 'almacén', 'urgente'],
-      estimatedHours: 4,
-      actualHours: 2.5
-    },
-    {
-      id: 'TK-002',
-      title: 'Solicitud de suministros de limpieza',
-      description: 'Necesitamos más suministros de limpieza industrial para las operaciones diarias',
-      category: 'supply_request',
-      priority: 'medium',
-      status: 'pending',
-      createdBy: 'Maria Cleaning',
-      createdAt: '2025-01-27T08:15:00Z',
-      updatedAt: '2025-01-27T08:15:00Z',
-      comments: [],
-      attachments: [],
-      tags: ['limpieza', 'suministros'],
-      estimatedHours: 1
-    },
-    {
-      id: 'TK-003',
-      title: 'Mantenimiento sistema de frenos TK-001',
-      description: 'Mantenimiento programado para reemplazo del sistema de frenos',
-      category: 'maintenance',
-      priority: 'urgent',
-      status: 'resolved',
-      createdBy: 'Transport Supervisor',
-      assignedTo: 'Maintenance Team',
-      createdAt: '2025-01-26T14:00:00Z',
-      updatedAt: '2025-01-27T11:00:00Z',
-      comments: [
-        {
-          id: '3',
-          author: 'Maintenance Team',
-          content: 'Mantenimiento completado exitosamente. Sistema de frenos reemplazado completamente.',
-          timestamp: '2025-01-27T11:00:00Z',
-          isInternal: false
-        }
-      ],
-      attachments: ['maintenance_report.pdf', 'before_after_photos.zip'],
-      tags: ['mantenimiento', 'frenos', 'TK-001'],
-      rating: 5,
-      estimatedHours: 6,
-      actualHours: 5.5
-    },
-  ]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -111,125 +21,168 @@ const EnhancedTicketSystem: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [newComment, setNewComment] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [newTicketForm, setNewTicketForm] = useState({
+    title: '',
+    description: '',
+    category: TICKET_CATEGORIES[0],
+    priority: TicketPriority.Media,
+    recipientArea: [], // Ahora es un array
+    tags: '',
+    // attachments: null, // Para futura implementación de archivos
+  });
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const data = await getTickets();
+      setTickets(data);
+      setError(null);
+    } catch (err) {
+      setError('Error al cargar los tickets. Por favor, inténtelo de nuevo más tarde.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'it_support': return 'bg-blue-100 text-blue-800';
-      case 'supply_request': return 'bg-green-100 text-green-800';
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800';
-      case 'incident': return 'bg-red-100 text-red-800';
+      case 'IT': return 'bg-blue-100 text-blue-800';
+      case 'Transporte': return 'bg-yellow-100 text-yellow-800';
+      case 'Obras': case 'Aseo': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
+      case TicketPriority.Urgente: return 'bg-red-500';
+      case TicketPriority.Alta: return 'bg-orange-500';
+      case TicketPriority.Media: return 'bg-yellow-500';
+      case TicketPriority.Baja: return 'bg-green-500';
       default: return 'bg-gray-500';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="w-4 h-4" />;
-      case 'in_progress': return <AlertCircle className="w-4 h-4" />;
-      case 'resolved': return <CheckCircle className="w-4 h-4" />;
-      case 'closed': return <CheckCircle className="w-4 h-4" />;
+      case TicketStatus.Pendiente: return <Clock className="w-4 h-4" />;
+      case TicketStatus.EnProgreso: return <AlertCircle className="w-4 h-4" />;
+      case TicketStatus.Resuelto: return <CheckCircle className="w-4 h-4" />;
+      case TicketStatus.Cerrado: return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-gray-100 text-gray-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'resolved': return 'bg-green-100 text-green-800';
-      case 'closed': return 'bg-gray-100 text-gray-600';
+      case TicketStatus.Pendiente: return 'bg-gray-100 text-gray-800';
+      case TicketStatus.EnProgreso: return 'bg-blue-100 text-blue-800';
+      case TicketStatus.Resuelto: return 'bg-green-100 text-green-800';
+      case TicketStatus.Cerrado: return 'bg-gray-100 text-gray-600';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getCategoryLabel = (category: string) => {
-    switch (category) {
-      case 'it_support': return 'Soporte IT';
-      case 'supply_request': return 'Solicitud Suministros';
-      case 'maintenance': return 'Mantenimiento';
-      case 'incident': return 'Incidente';
-      default: return category;
-    }
+    return category.replace('_', ' ');
   };
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'Urgente';
-      case 'high': return 'Alta';
-      case 'medium': return 'Media';
-      case 'low': return 'Baja';
+      case TicketPriority.Urgente: return 'Urgente';
+      case TicketPriority.Alta: return 'Alta';
+      case TicketPriority.Media: return 'Media';
+      case TicketPriority.Baja: return 'Baja';
       default: return priority;
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'pending': return 'Pendiente';
-      case 'in_progress': return 'En Progreso';
-      case 'resolved': return 'Resuelto';
-      case 'closed': return 'Cerrado';
+      case TicketStatus.Pendiente: return 'Pendiente';
+      case TicketStatus.EnProgreso: return 'En Progreso';
+      case TicketStatus.Resuelto: return 'Resuelto';
+      case TicketStatus.Cerrado: return 'Cerrado';
       default: return status;
     }
   };
 
+  // --- IMPLEMENTACIÓN DINÁMICA ---
+  // 2. Obtenemos el usuario del contexto de autenticación
+  const { user } = useAuth(); // Esto obtiene el usuario que ha iniciado sesión
+  const currentUserAreas = user?.area || []; // ej: ['IT', 'Finanzas']
+  const currentUserRoles = user?.roles || []; // ej: ['Admin', 'User']
+
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.id.toLowerCase().includes(searchTerm.toLowerCase());
+                         (ticket.description && ticket.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         String(ticket.id).includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || ticket.status === selectedStatus;
     const matchesCategory = selectedCategory === 'all' || ticket.category === selectedCategory;
     const matchesPriority = selectedPriority === 'all' || ticket.priority === selectedPriority;
-    
-    return matchesSearch && matchesStatus && matchesCategory && matchesPriority;
+
+    // 1. Determinar si el usuario es administrador.
+    const isAdmin = currentUserRoles.includes('Admin') || currentUserAreas.includes('Admin');
+
+    // 2. Lógica de relevancia del ticket (mucho más robusta).
+    const isRelevantArea = isAdmin || // Si es Admin, siempre es relevante.
+                           currentUserAreas.some(userArea => ticket.createdBy?.area?.includes(userArea)) || // El ticket fue creado por una de mis áreas.
+                           currentUserAreas.some(userArea => Array.isArray(ticket.recipientArea) && ticket.recipientArea.includes(userArea)); // El ticket está destinado a una de mis áreas.
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesPriority && isRelevantArea;
   });
 
-  const handleStatusChange = (ticketId: string, newStatus: string) => {
-    setTickets(tickets.map(ticket => 
-      ticket.id === ticketId 
-        ? { ...ticket, status: newStatus as Ticket["status"], updatedAt: new Date().toISOString() }
-        : ticket
-    ));
+  const handleStatusChange = async (ticketId: number, newStatus: TicketStatus) => {
+    try {
+      const updated = await updateTicket(ticketId, { status: newStatus });
+      setTickets(tickets.map(t => (t.id === ticketId ? { ...t, ...updated } : t)));
+      if (selectedTicket && selectedTicket.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, ...updated });
+ }
+    } catch (error) {
+      console.error("Error al actualizar el estado del ticket:", error);
+      // TODO: Mostrar un error al usuario
+    }
   };
 
-  // const handleAssignTicket = (ticketId: string, assignee: string) => {
-  //   setTickets(tickets.map(ticket => 
-  //     ticket.id === ticketId 
-  //       ? { ...ticket, assignedTo: assignee, updatedAt: new Date().toISOString() }
-  //       : ticket
-  //   ));
-  // };
-
-  const handleAddComment = (ticketId: string) => {
-    if (!newComment.trim()) return;
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTicketForm.title || !newTicketForm.category) {
+      alert('El título y la categoría son obligatorios.');
+      return;
+    }
     
-    const comment: Comment = {
-      id: Date.now().toString(),
-      author: 'Current User',
-      content: newComment,
-      timestamp: new Date().toISOString(),
-      isInternal: false
-    };
-
-    setTickets(tickets.map(ticket => 
-      ticket.id === ticketId 
-        ? { ...ticket, comments: [...ticket.comments, comment], updatedAt: new Date().toISOString() }
-        : ticket
-    ));
-    
-    setNewComment('');
+    try {
+      const payload: CreateTicketPayload = {
+        title: newTicketForm.title,
+        description: newTicketForm.description,
+        category: newTicketForm.category,
+        priority: newTicketForm.priority,
+        recipientArea: newTicketForm.recipientArea, // Esto ya es un array
+        tags: newTicketForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+      };
+      await createTicket(payload);
+      setShowForm(false);
+      setNewTicketForm({
+        title: '',
+        description: '',
+        category: TICKET_CATEGORIES[0],
+        priority: TicketPriority.Media,
+        recipientArea: [],
+        tags: '',
+      });
+      fetchTickets(); // Refetch tickets to show the new one
+    } catch (error) {
+      console.error("Error al crear el ticket:", error);
+      alert('No se pudo crear el ticket.');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -242,7 +195,7 @@ const EnhancedTicketSystem: React.FC = () => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
+    const diffDays = Math.floor(diffHours / 24); // NOSONAR
     
     if (diffDays > 0) {
       return `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
@@ -254,23 +207,29 @@ const EnhancedTicketSystem: React.FC = () => {
   };
 
   // Kanban columns
-  const columns = [
-    { id: 'pending', title: 'Pendientes', tickets: filteredTickets.filter(t => t.status === 'pending') },
-    { id: 'in_progress', title: 'En Progreso', tickets: filteredTickets.filter(t => t.status === 'in_progress') },
-    { id: 'resolved', title: 'Resueltos', tickets: filteredTickets.filter(t => t.status === 'resolved') },
-    { id: 'closed', title: 'Cerrados', tickets: filteredTickets.filter(t => t.status === 'closed') },
-  ];
+  const columns = Object.values(TicketStatus).map(status => ({
+    id: status,
+    title: getStatusLabel(status),
+    tickets: filteredTickets.filter(t => t.status === status),
+  }));
 
+  if (loading) {
+    return <div>Cargando tickets...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Sistema de Tickets</h2>
           <p className="text-gray-600">Gestiona solicitudes de soporte y seguimiento de tareas</p>
         </div>
         <div className="flex items-center space-x-3">
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex p-1 bg-gray-100 rounded-lg">
             <button
               onClick={() => setViewMode('kanban')}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
@@ -290,7 +249,7 @@ const EnhancedTicketSystem: React.FC = () => {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
             <span>Nuevo Ticket</span>
@@ -299,44 +258,44 @@ const EnhancedTicketSystem: React.FC = () => {
       </div>
 
       {/* Enhanced Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Tickets</p>
-              <p className="text-2xl font-bold text-gray-900">{tickets.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{filteredTickets.length}</p>
             </div>
             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Pendientes</p>
-              <p className="text-2xl font-bold text-gray-600">{tickets.filter(t => t.status === 'pending').length}</p>
+              <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.Pendiente)}</p>
+              <p className="text-2xl font-bold text-gray-600">{tickets.filter(t => t.status === TicketStatus.Pendiente).length}</p>
             </div>
             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">En Progreso</p>
-              <p className="text-2xl font-bold text-blue-600">{tickets.filter(t => t.status === 'in_progress').length}</p>
+              <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.EnProgreso)}</p>
+              <p className="text-2xl font-bold text-blue-600">{tickets.filter(t => t.status === TicketStatus.EnProgreso).length}</p>
             </div>
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Resueltos</p>
-              <p className="text-2xl font-bold text-green-600">{tickets.filter(t => t.status === 'resolved').length}</p>
+              <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.Resuelto)}</p>
+              <p className="text-2xl font-bold text-green-600">{tickets.filter(t => t.status === TicketStatus.Resuelto).length}</p>
             </div>
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Tiempo Promedio</p>
@@ -348,16 +307,16 @@ const EnhancedTicketSystem: React.FC = () => {
       </div>
 
       {/* Enhanced Filters */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
             <input
               type="text"
               placeholder="Buscar tickets por título, descripción o ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <select
@@ -366,10 +325,9 @@ const EnhancedTicketSystem: React.FC = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Todos los Estados</option>
-            <option value="pending">Pendientes</option>
-            <option value="in_progress">En Progreso</option>
-            <option value="resolved">Resueltos</option>
-            <option value="closed">Cerrados</option>
+            {Object.values(TicketStatus).map(status => (
+              <option key={status} value={status}>{getStatusLabel(status)}</option>
+            ))}
           </select>
           <select
             value={selectedCategory}
@@ -377,10 +335,9 @@ const EnhancedTicketSystem: React.FC = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Todas las Categorías</option>
-            <option value="it_support">Soporte IT</option>
-            <option value="supply_request">Solicitud Suministros</option>
-            <option value="maintenance">Mantenimiento</option>
-            <option value="incident">Incidente</option>
+            {TICKET_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{getCategoryLabel(cat)}</option>
+            ))}
           </select>
           <select
             value={selectedPriority}
@@ -388,10 +345,9 @@ const EnhancedTicketSystem: React.FC = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Todas las Prioridades</option>
-            <option value="urgent">Urgente</option>
-            <option value="high">Alta</option>
-            <option value="medium">Media</option>
-            <option value="low">Baja</option>
+            {Object.values(TicketPriority).map(prio => (
+              <option key={prio} value={prio}>{getPriorityLabel(prio)}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -400,10 +356,10 @@ const EnhancedTicketSystem: React.FC = () => {
       {viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[600px]">
           {columns.map((column) => (
-            <div key={column.id} className="bg-gray-50 rounded-lg p-4">
+            <div key={column.id} className="p-4 rounded-lg bg-gray-50">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900">{column.title}</h3>
-                <span className="bg-gray-200 text-gray-700 text-sm px-2 py-1 rounded-full">
+                <span className="px-2 py-1 text-sm text-gray-700 bg-gray-200 rounded-full">
                   {column.tickets.length}
                 </span>
               </div>
@@ -412,7 +368,7 @@ const EnhancedTicketSystem: React.FC = () => {
                 {column.tickets.map((ticket) => (
                   <div 
                     key={ticket.id} 
-                    className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                    className="p-4 transition-shadow bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:shadow-md"
                     onClick={() => setSelectedTicket(ticket)}
                   >
                     <div className="flex items-start justify-between mb-3">
@@ -425,48 +381,37 @@ const EnhancedTicketSystem: React.FC = () => {
                       </span>
                     </div>
                     
-                    <h4 className="font-medium text-gray-900 mb-2 line-clamp-2">
+                    <h4 className="mb-2 font-medium text-gray-900 line-clamp-2">
                       {ticket.title}
                     </h4>
                     
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                    <p className="mb-3 text-sm text-gray-600 line-clamp-2">
                       {ticket.description}
                     </p>
 
                     {/* Tags */}
-                    {ticket.tags.length > 0 && (
+                    {ticket.tags && ticket.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-3">
-                        {ticket.tags.slice(0, 2).map((tag, index) => (
-                          <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                        {ticket.tags.slice(0, 3).map((tag, index) => (
+                          <span key={index} className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded">
                             {tag}
                           </span>
                         ))}
-                        {ticket.tags.length > 2 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                            +{ticket.tags.length - 2}
-                          </span>
-                        )}
                       </div>
                     )}
-                    
+
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center space-x-1">
-                          <User className="w-3 h-3" />
-                          <span>{ticket.createdBy}</span>
+ <User className="w-3 h-3" />
+ <span>{ticket.createdBy?.username || 'N/A'}</span>
                         </div>
-                        {ticket.comments.length > 0 && (
+                        {/* {ticket.attachments.length > 0 && (
                           <div className="flex items-center space-x-1">
-                            <MessageSquare className="w-3 h-3" />
-                            <span>{ticket.comments.length}</span>
-                          </div>
-                        )}
-                        {ticket.attachments.length > 0 && (
-                          <div className="flex items-center space-x-1">
-                            <Paperclip className="w-3 h-3" />
+ <Paperclip className="w-3 h-3" />
                             <span>{ticket.attachments.length}</span>
                           </div>
-                        )}
+                        )} */}
                       </div>
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-3 h-3" />
@@ -475,27 +420,12 @@ const EnhancedTicketSystem: React.FC = () => {
                     </div>
                     
                     {ticket.assignedTo && (
-                      <div className="mt-2 pt-2 border-t border-gray-100">
-                        <div className="flex items-center space-x-2 text-xs text-gray-600">
-                          <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-medium">{ticket.assignedTo.charAt(0)}</span>
+                      <div className="pt-2 mt-2 border-t border-gray-100">
+ <div className="flex items-center space-x-2 text-xs text-gray-600">
+                          <div className="flex items-center justify-center w-5 h-5 bg-blue-100 rounded-full">
+                            <span className="font-medium text-blue-600">{ticket.assignedTo.username.charAt(0)}</span>
                           </div>
-                          <span>Asignado a {ticket.assignedTo}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Progress indicator for estimated vs actual hours */}
-                    {ticket.estimatedHours && (
-                      <div className="mt-2 pt-2 border-t border-gray-100">
-                        <div className="flex items-center justify-between text-xs text-gray-600">
-                          <span>Tiempo: {ticket.actualHours || 0}h / {ticket.estimatedHours}h</span>
-                          <div className="w-16 bg-gray-200 rounded-full h-1">
-                            <div
-                              className="bg-blue-600 h-1 rounded-full" 
-                              style={{ width: `${Math.min(((ticket.actualHours || 0) / ticket.estimatedHours) * 100, 100)}%` }}
-                            ></div>
-                          </div>
+                          <span>Asignado a {ticket.assignedTo.username}</span>
                         </div>
                       </div>
                     )}
@@ -503,8 +433,8 @@ const EnhancedTicketSystem: React.FC = () => {
                 ))}
                 
                 {column.tickets.length === 0 && (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <div className="py-8 text-center">
+                    <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 bg-gray-200 rounded-full">
                       {getStatusIcon(column.id)}
                     </div>
                     <p className="text-sm text-gray-600">Sin tickets</p>
@@ -516,30 +446,30 @@ const EnhancedTicketSystem: React.FC = () => {
         </div>
       ) : (
         /* List View */
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Ticket
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Categoría
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Prioridad
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Asignado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
                     Actualizado
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-right text-gray-500 uppercase">
                     Acciones
                   </th>
                 </tr>
@@ -552,7 +482,7 @@ const EnhancedTicketSystem: React.FC = () => {
                         <div className={`w-3 h-3 rounded-full mr-3 ${getPriorityColor(ticket.priority)}`}></div>
                         <div>
                           <div className="text-sm font-medium text-gray-900">{ticket.id}</div>
-                          <div className="text-sm text-gray-600 max-w-xs truncate">{ticket.title}</div>
+                          <div className="max-w-xs text-sm text-gray-600 truncate">{ticket.title}</div>
                         </div>
                       </div>
                     </td>
@@ -570,16 +500,16 @@ const EnhancedTicketSystem: React.FC = () => {
                         <span className="ml-1">{getStatusLabel(ticket.status)}</span>
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {ticket.assignedTo || 'Sin asignar'}
+                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
+                      {ticket.assignedTo?.username || 'Sin asignar'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
                       {getTimeSince(ticket.updatedAt)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
                       <button 
                         onClick={() => setSelectedTicket(ticket)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        className="mr-3 text-blue-600 hover:text-blue-900"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
@@ -594,13 +524,13 @@ const EnhancedTicketSystem: React.FC = () => {
 
       {/* Ticket Detail Modal */}
       {selectedTicket && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900">{selectedTicket.id}</h3>
-                  <p className="text-gray-600 mt-1">{selectedTicket.title}</p>
+                  <p className="mt-1 text-gray-600">{selectedTicket.title}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(selectedTicket.category)}`}>
@@ -615,21 +545,21 @@ const EnhancedTicketSystem: React.FC = () => {
             
             <div className="p-6 space-y-6">
               {/* Ticket Info */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Prioridad</label>
-                  <div className="flex items-center space-x-2 mt-1">
+                  <label htmlFor="ticket-priority" className="block text-sm font-medium text-gray-700">Prioridad</label>
+                  <div className="flex items-center mt-1 space-x-2">
                     <div className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTicket.priority)}`}></div>
-                    <span className="text-sm">{getPriorityLabel(selectedTicket.priority)}</span>
+                    <span id="ticket-priority" className="text-sm">{getPriorityLabel(selectedTicket.priority)}</span>
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Creado por</label>
-                  <p className="mt-1 text-sm">{selectedTicket.createdBy}</p>
+ <p className="mt-1 text-sm">{selectedTicket.createdBy?.username || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Asignado a</label>
-                  <p className="mt-1 text-sm">{selectedTicket.assignedTo || 'Sin asignar'}</p>
+                  <p className="mt-1 text-sm">{selectedTicket.assignedTo?.username || 'Sin asignar'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Creado</label>
@@ -637,97 +567,28 @@ const EnhancedTicketSystem: React.FC = () => {
                 </div>
               </div>
 
-              {/* Time tracking */}
-              {selectedTicket.estimatedHours && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Seguimiento de Tiempo</label>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">
-                        {selectedTicket.actualHours || 0}h / {selectedTicket.estimatedHours}h
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {Math.round(((selectedTicket.actualHours || 0) / selectedTicket.estimatedHours) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${Math.min(((selectedTicket.actualHours || 0) / selectedTicket.estimatedHours) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tags */}
-              {selectedTicket.tags.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Etiquetas</label>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedTicket.tags.map((tag, index) => (
-                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full flex items-center space-x-1">
-                        <Tag className="w-3 h-3" />
-                        <span>{tag}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
-                <p className="text-gray-600 bg-gray-50 p-4 rounded-lg">{selectedTicket.description}</p>
+                <label htmlFor="ticket-description" className="block mb-2 text-sm font-medium text-gray-700">Descripción</label>
+                <p id="ticket-description" className="p-4 text-gray-600 rounded-lg bg-gray-50">{selectedTicket.description}</p>
               </div>
 
-              {/* Attachments */}
-              {selectedTicket.attachments.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Adjuntos</label>
-                  <div className="space-y-2">
-                    {selectedTicket.attachments.map((attachment, index) => (
-                      <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                        <Paperclip className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-700">{attachment}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Rating */}
-              {selectedTicket.rating && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Calificación</label>
-                  <div className="flex items-center space-x-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star 
-                        key={star} 
-                        className={`w-5 h-5 ${star <= selectedTicket.rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                      />
-                    ))}
-                    <span className="ml-2 text-sm text-gray-600">({selectedTicket.rating}/5)</span>
-                  </div>
-                </div>
-              )}
-
+              {/* Status and Assign Actions */}
               {/* Actions */}
               <div className="flex flex-wrap gap-3">
                 <select
                   value={selectedTicket.status}
-                  onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value)}
+                  onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value as TicketStatus)}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="pending">Pendiente</option>
-                  <option value="in_progress">En Progreso</option>
-                  <option value="resolved">Resuelto</option>
-                  <option value="closed">Cerrado</option>
+                  {Object.values(TicketStatus).map(status => (
+                    <option key={status} value={status}>{getStatusLabel(status)}</option>
+                  ))}
                 </select>
                 
                 <button
                   onClick={() => setShowAssignModal(true)}
-                  className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-2"
+                  className="flex items-center px-4 py-2 space-x-2 text-blue-700 transition-colors bg-blue-100 rounded-lg hover:bg-blue-200"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Asignar</span>
@@ -736,61 +597,15 @@ const EnhancedTicketSystem: React.FC = () => {
 
               {/* Comments */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-4">Comentarios ({selectedTicket.comments.length})</label>
-                
-                {/* Comment List */}
-                <div className="space-y-4 mb-4 max-h-60 overflow-y-auto">
-                  {selectedTicket.comments.map((comment) => (
-                    <div key={comment.id} className="flex space-x-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-blue-600">{comment.author.charAt(0)}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900">{comment.author}</span>
-                          <span className="text-xs text-gray-500">{getTimeSince(comment.timestamp)}</span>
-                          {comment.isInternal && (
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">Interno</span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{comment.content}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Comment */}
-                <div className="flex space-x-3">
-                  <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-medium text-gray-600">U</span>
-                  </div>
-                  <div className="flex-1">
-                    <textarea
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Agregar un comentario..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <div className="flex justify-end mt-2">
-                      <button
-                        onClick={() => handleAddComment(selectedTicket.id)}
-                        disabled={!newComment.trim()}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                      >
-                        <Send className="w-4 h-4" />
-                        <span>Enviar</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <label htmlFor="ticket-comments" className="block mb-4 text-sm font-medium text-gray-700">Comentarios</label>
+                <p className="text-sm text-gray-500">La funcionalidad de comentarios se implementará próximamente.</p>
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end">
+            <div className="flex justify-end p-6 border-t border-gray-200">
               <button
                 onClick={() => setSelectedTicket(null)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200"
               >
                 Cerrar
               </button>
@@ -801,94 +616,119 @@ const EnhancedTicketSystem: React.FC = () => {
 
       {/* New Ticket Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">Crear Nuevo Ticket</h3>
-              <p className="text-gray-600 mt-1">Envía una nueva solicitud de soporte o ticket</p>
+              <p className="mt-1 text-gray-600">Envía una nueva solicitud de soporte o ticket</p>
             </div>
             
-            <form className="p-6 space-y-4">
+            <form className="p-6 space-y-4" onSubmit={handleCreateTicket}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Título</label>
+                <label htmlFor="new-ticket-title" className="block mb-2 text-sm font-medium text-gray-700">Título</label>
                 <input
                   type="text"
                   placeholder="Descripción breve del problema o solicitud"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={newTicketForm.title}
+                  onChange={(e) => setNewTicketForm({ ...newTicketForm, title: e.target.value })}
+                  required
+                  id="new-ticket-title"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <label htmlFor="new-ticket-category" className="block mb-2 text-sm font-medium text-gray-700">Categoría</label>
+                  <select id="new-ticket-category"
+ className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={newTicketForm.category}
+                    onChange={(e) => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
+                    required
+                  >
                     <option value="">Seleccionar categoría</option>
-                    <option value="it_support">Soporte IT</option>
-                    <option value="supply_request">Solicitud Suministros</option>
-                    <option value="maintenance">Mantenimiento</option>
-                    <option value="incident">Reporte de Incidente</option>
+                    {TICKET_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{getCategoryLabel(cat)}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="low">Baja</option>
-                    <option value="medium">Media</option>
-                    <option value="high">Alta</option>
-                    <option value="urgent">Urgente</option>
+                  <label htmlFor="new-ticket-priority" className="block mb-2 text-sm font-medium text-gray-700">Prioridad</label>
+                  <select id="new-ticket-priority"
+ className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={newTicketForm.priority}
+                    onChange={(e) => setNewTicketForm({ ...newTicketForm, priority: e.target.value as TicketPriority })}
+                  >
+                    {Object.values(TicketPriority).map(prio => (
+                      <option key={prio} value={prio}>{getPriorityLabel(prio)}</option>
+                    ))}
                   </select>
                 </div>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tiempo Estimado (horas)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  placeholder="2.5"
+                <label htmlFor="new-ticket-recipient" className="block mb-2 text-sm font-medium text-gray-700">Área Destino</label>
+                <select id="new-ticket-recipient"
+                  multiple
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                  value={newTicketForm.recipientArea}
+                  onChange={(e) => setNewTicketForm({ 
+                    ...newTicketForm, 
+                    recipientArea: Array.from(e.target.selectedOptions, option => option.value) 
+                  })}
+                  required
+                >
+                  {RECIPIENT_AREAS.map(area => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Etiquetas</label>
-                <input
-                  type="text"
-                  placeholder="red, almacén, urgente (separadas por comas)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                <label htmlFor="new-ticket-description" className="block mb-2 text-sm font-medium text-gray-700">Descripción</label>
                 <textarea
                   rows={4}
                   placeholder="Proporciona información detallada sobre el problema o solicitud..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={newTicketForm.description}
+                  onChange={(e) => setNewTicketForm({ ...newTicketForm, description: e.target.value })}
+                  id="new-ticket-description"
                 ></textarea>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Adjuntos</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                  <Paperclip className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Arrastra archivos aquí o haz clic para subir</p>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, PDF hasta 10MB</p>
+                <label htmlFor="new-ticket-tags" className="block mb-2 text-sm font-medium text-gray-700">Etiquetas</label>
+                <input
+                  id="new-ticket-tags"
+                  type="text"
+                  placeholder="ej: urgente, red, almacen (separadas por comas)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={newTicketForm.tags}
+                  onChange={(e) => setNewTicketForm({ ...newTicketForm, tags: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">Archivos Adjuntos</label>
+                <div className="p-6 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400">
+                  <Paperclip className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <p className="text-sm text-gray-600">Arrastra archivos o haz clic para subir</p>
+                  <p className="mt-1 text-xs text-gray-500">PNG, JPG, PDF hasta 10MB</p>
                   <input type="file" multiple className="hidden" />
+                  <p className="mt-2 text-xs text-yellow-600">(Funcionalidad en desarrollo)</p>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end pt-4 space-x-3">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
                 >
                   Crear Ticket
                 </button>
@@ -900,15 +740,15 @@ const EnhancedTicketSystem: React.FC = () => {
 
       {/* Assign Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="w-full max-w-md bg-white rounded-xl">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Asignar Ticket</h3>
             </div>
             
             <div className="p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Asignar a:</label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <label htmlFor="assign-user" className="block mb-2 text-sm font-medium text-gray-700">Asignar a:</label>
+ <select id="assign-user" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Seleccionar usuario</option>
                 <option value="IT Support">IT Support</option>
                 <option value="Maintenance Team">Equipo de Mantenimiento</option>
@@ -917,10 +757,10 @@ const EnhancedTicketSystem: React.FC = () => {
               </select>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+            <div className="flex justify-end p-6 space-x-3 border-t border-gray-200">
               <button
                 onClick={() => setShowAssignModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancelar
               </button>
@@ -929,7 +769,7 @@ const EnhancedTicketSystem: React.FC = () => {
                   // Handle assignment logic here
                   setShowAssignModal(false);
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
               >
                 Asignar
               </button>

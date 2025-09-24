@@ -8,6 +8,7 @@ import {
   Delete,
   ParseIntPipe,
   UseGuards,
+  Req,
   NotFoundException,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
@@ -19,15 +20,16 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('tickets')
-/// Nueva seguridad global para el controlador de tickets
-/// Cualquier petición a tickets ahora requiere un token de autenticación válido.
 @UseGuards(JwtAuthGuard)
 export class TicketController {
   constructor(private readonly ticketsService: TicketService) {}
 
   @Post()
-  create(@Body() createTicketDto: CreateTicketDto) {
-    return this.ticketsService.create(createTicketDto);
+  @Roles(Role.Admin, Role.IT, Role.Transporte, Role.Obras, Role.Aseo)
+  @UseGuards(RolesGuard)
+  create(@Body() createTicketDto: CreateTicketDto, @Req() req) {
+    const createdById = req.user.userId;
+    return this.ticketsService.create(createTicketDto, createdById);
   }
 
   @Get()
@@ -37,30 +39,25 @@ export class TicketController {
 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
-    //  ParseIntPipe: Valida que el 'id' sea un número y lo convierte automáticamente.
-    /// Mejora de validación y manejo de errores
     const ticket = await this.ticketsService.findOne(id);
     if (!ticket) {
-      throw new NotFoundException(`Ticket con ID #${id} no encontrado`); //  NotFoundException: Devuelve un error 404  si el ticket no existe.
+      throw new NotFoundException(`Ticket con ID #${id} no encontrado`);
     }
     return ticket;
   }
 
   @Patch(':id')
-  /// Solo los roles especificados podrán ejecutar esta acción.
   @Roles(Role.Admin, Role.IT, Role.Transporte)
   @UseGuards(RolesGuard)
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateTicketDto: UpdateTicketDto) {
-    return this.ticketsService.update(id, updateTicketDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateTicketDto: UpdateTicketDto, @Req() req) {
+    const updatedById = req.user.id;
+    return this.ticketsService.update(id, updateTicketDto, updatedById);
   }
 
   @Delete(':id')
-  /// Solo los Administradores pueden borrar tickets.
   @Roles(Role.Admin)
   @UseGuards(RolesGuard)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.ticketsService.remove(id);
   }
 }
-
-
