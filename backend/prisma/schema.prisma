@@ -28,22 +28,24 @@ model User {
 }
 
 model Ticket {
-  id            Int            @id @default(autoincrement())
-  title         String
-  description   String?
-  status        TicketStatus   @default(Pendiente)
-  priority      TicketPriority @default(Media)
-  category      TicketCategory
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  createdById   Int
-  assignedToId  Int?
-  assignedTo    User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
-  createdBy     User           @relation("CreatedTickets", fields: [createdById], references: [id])
-  recipientArea String[]       @default([])
-  recipientRole Role[]
-  tags          String[]       @default([])
-  attachments   Documento[]
+  id                         Int            @id @default(autoincrement())
+  title                      String
+  description                String?
+  status                     TicketStatus   @default(Pendiente)
+  priority                   TicketPriority @default(Media)
+  category                   TicketCategory
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  createdById                Int
+  assignedToId               Int?
+  assignedTo                 User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdBy                  User           @relation("CreatedTickets", fields: [createdById], references: [id])
+  recipientArea              String[]       @default([])
+  recipientRole              Role[]
+  assignedUserConfirmation   Boolean?       @default(false)
+  requestingUserConfirmation Boolean?       @default(false)
+  tags                       String[]       @default([])
+  attachments                Documento[]
 }
 
 model Vehiculo {

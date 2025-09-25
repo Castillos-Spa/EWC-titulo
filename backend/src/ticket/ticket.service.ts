@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Role, Ticket, TicketCategory } from '@prisma/client';
+import { Role, Ticket, TicketCategory, TicketStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificacionService } from '../notificacion/notificacion.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -102,17 +102,43 @@ export class TicketService {
     }
 
     // Desestructuramos 'status' junto con las otras propiedades
-    const { recipientArea, assignedToId, category, status, ...restOfUpdateDto } = updateTicketDto;
+    const {
+      recipientArea,
+      assignedToId,
+      category,
+      status,
+      assignedUserConfirmation,
+      requestingUserConfirmation,
+      ...restOfUpdateDto
+    } = updateTicketDto;
 
     const dataToUpdate: any = {
       ...restOfUpdateDto,
     };
 
     if (assignedToId !== undefined) dataToUpdate.assignedToId = assignedToId;
-    if (status) dataToUpdate.status = status;
 
     if (category) {
       dataToUpdate.category = category.replace(/ /g, '_') as TicketCategory;
+    }
+
+    // Lógica de confirmación y cambio de estado automático
+    if (assignedUserConfirmation === true) {
+      dataToUpdate.assignedUserConfirmation = true;
+      dataToUpdate.status = TicketStatus.Resuelto; // 1er check -> Resuelto
+    } else if (assignedUserConfirmation === false) {
+      // Si se desmarca la primera confirmación, se reabre y se resetea la segunda.
+      dataToUpdate.assignedUserConfirmation = false;
+      dataToUpdate.requestingUserConfirmation = false;
+      dataToUpdate.status = TicketStatus.EnProgreso;
+    } else if (requestingUserConfirmation === true) {
+      if (ticketBeforeUpdate.assignedUserConfirmation) {
+        dataToUpdate.requestingUserConfirmation = true;
+        dataToUpdate.status = TicketStatus.Cerrado; // 2do check -> Cerrado
+      }
+    } else if (status) {
+      // Solo permite cambiar el estado manualmente si no hay una lógica de confirmación activa
+      dataToUpdate.status = status;
     }
 
     const updatedTicket = await this.prisma.ticket.update({

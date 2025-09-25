@@ -223,6 +223,26 @@ const EnhancedTicketSystem: React.FC = () => {
     }
   };
 
+  const handleConfirmationChange = async (type: 'assigned' | 'requesting', isChecked: boolean) => {
+    if (!selectedTicket) return;
+
+    const payload: Partial<Ticket> = {};
+    if (type === 'assigned') {
+      payload.assignedUserConfirmation = isChecked;
+    } else if (type === 'requesting') {
+      payload.requestingUserConfirmation = isChecked;
+    }
+
+    try {
+      const updated = await updateTicket(selectedTicket.id, payload);
+      setTickets(tickets.map(t => (t.id === updated.id ? updated : t)));
+      setSelectedTicket(updated);
+    } catch (error) {
+      console.error('Error al actualizar la confirmación:', error);
+      alert('No se pudo actualizar la confirmación.');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -638,6 +658,41 @@ const EnhancedTicketSystem: React.FC = () => {
                   <span>Asignar</span>
                 </button>
               </div>
+
+              {/* Confirmation Workflow */}
+              {selectedTicket.assignedToId && (
+                <div className="p-4 border-t border-b border-gray-200 bg-gray-50">
+                  <h4 className="mb-4 text-sm font-semibold text-gray-800">Flujo de Confirmación</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <input
+                        id="assigned-confirm"
+                        type="checkbox"
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                        checked={selectedTicket.assignedUserConfirmation || false}
+                        disabled={user?.id !== selectedTicket.assignedToId}
+                        onChange={(e) => handleConfirmationChange('assigned', e.target.checked)}
+                      />
+                      <label htmlFor="assigned-confirm" className="ml-3 text-sm text-gray-700">
+                        Confirmación de resolución por parte del asignado ({selectedTicket.assignedTo?.username})
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        id="requester-confirm"
+                        type="checkbox"
+                        className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50"
+                        checked={selectedTicket.requestingUserConfirmation || false}
+                        disabled={!selectedTicket.assignedUserConfirmation || user?.id !== selectedTicket.createdById}
+                        onChange={(e) => handleConfirmationChange('requesting', e.target.checked)}
+                      />
+                      <label htmlFor="requester-confirm" className="ml-3 text-sm text-gray-700">
+                        Confirmación de conformidad por parte del solicitante ({selectedTicket.createdBy?.username})
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Comments */}
               <div>
