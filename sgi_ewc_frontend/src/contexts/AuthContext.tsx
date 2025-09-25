@@ -17,21 +17,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const loadUserFromToken = useCallback(async () => {
     const token = localStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData');
-    if (token && userData && userData !== 'undefined') {
+    if (token) {
       try {
-        setUser(JSON.parse(userData));
-      } catch {
-        setUser(null);
-        localStorage.removeItem('userData');
+        const profile = await getProfile();
+        // Reutilizamos la misma lógica de normalización que en el login
+        const normalizedUser = normalizeProfile(profile);
+        setUser(normalizedUser);
+      } catch (error) {
+        console.error("Fallo al verificar el token, cerrando sesión local.", error);
+        await logout(); // Limpia todo si el token no es válido
       }
     } else {
       setUser(null);
     }
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    loadUserFromToken();
+  }, [loadUserFromToken]);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
@@ -46,40 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('refreshToken', refresh_token); // ¡Guardar el refresh token!
       // Obtener perfil desde backend
       const profile = await getProfile();
-
-      // El backend puede devolver 'userId' (del token JWT) o 'id' (de la base de datos).
-      // Nos aseguramos de que al menos uno de los dos exista.
-      const userId = profile.id ?? profile.userId;
-      if (!userId) {
-        throw new Error('El perfil de usuario obtenido no es válido o no contiene un ID (id/userId).');
-      }
-
-      // Normalizar áreas a arreglo de strings
-      let areas: string[] = [];
-      if (Array.isArray(profile.area)) {
-        areas = profile.area as unknown as string[];
-      } else if (profile.area) {
-        areas = [profile.area as unknown as string];
-      }
-
-      // Unificar roles + áreas en una sola lista de roles únicos
-      const normalizedRoles = Array.from(
-        new Set([...(profile.roles ?? []), ...areas])
-      );
-
-      // mapear/normalizar si es necesario (ejemplo mínimo)
-      const mapped = {
-        id: userId,
-        username: profile.username ?? profile.email?.split('@')[0] ?? '',
-        email: profile.email,
-        // Mantener `area` como string para compatibilidad (tomar primera si hay varias)
-        area: areas[0] ?? undefined,
-        roles: normalizedRoles,
-        permissions: profile.permissions ?? [],
-        active: profile.active ?? true, // <-- aquí
-        name: profile.username ?? profile.email?.split('@')[0],
-        mustChangePassword: profile.mustChangePassword ?? false,
-      } as User;
+      const mapped = normalizeProfile(profile);
       localStorage.setItem('userData', JSON.stringify(mapped));
       setUser(mapped);
       setIsLoading(false);
@@ -116,6 +89,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
+
+/**
+ * Normaliza el perfil de usuario recibido del backend a la estructura `User` del frontend.
+ */
+function normalizeProfile(profile: any): User {
+  // El backend puede devolver 'userId' (del token JWT) o 'id' (de la base de datos).
+  const userId = profile.id ?? profile.userId;
+  if (!userId) {
+    throw new Error('El perfil de usuario obtenido no es válido o no contiene un ID (id/userId).');
+  }
+
+  // Normalizar áreas a arreglo de strings
+  let areas: string[] = [];
+  if (Array.isArray(profile.area)) {
+    areas = profile.area as string[];
+  } else if (profile.area) {
+    areas = [profile.area as string];
+  }
+
+  // Unificar roles + áreas en una sola lista de roles únicos
+  const normalizedRoles = Array.from(new Set([...(profile.roles ?? []), ...areas]));
+
+  return {
+    id: userId,
+    username: profile.username ?? profile.email?.split('@')[0] ?? '',
+    email: profile.email,
+    area: areas, // <-- Mantenemos el array de áreas
+    roles: normalizedRoles,
+    permissions: profile.permissions ?? [],
+    active: profile.active ?? true,
+    mustChangePassword: profile.mustChangePassword ?? false,
+  } as User;
+}
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {

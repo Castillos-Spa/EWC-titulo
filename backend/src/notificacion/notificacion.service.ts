@@ -21,20 +21,19 @@ export class NotificacionService {
     type: string;
   }) {
     const { title, message, createdById, userId, area, role, type } = data;
-    const roleEnum =
-      typeof role === 'string' && role in Role
-        ? (Role as any)[role as keyof typeof Role]
-        : (role as Role | undefined);
+    const roleEnum = typeof role === 'string' && role in Role ? (Role as any)[role as keyof typeof Role] : role;
 
     const created = await this.prisma.notification.create({
       data: {
         title,
         message,
         type,
-        createdById,
+        createdBy: {
+          connect: { id: createdById },
+        },
         read: false,
-        areas: area ? [area] : [],
-        roles: roleEnum ? [roleEnum] : [],
+        areas: area ? (Array.isArray(area) ? area : [area]) : [],
+        roles: roleEnum ? (Array.isArray(roleEnum) ? roleEnum : [roleEnum]) : [],
         ...(userId
           ? {
               user: {
