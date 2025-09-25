@@ -11,6 +11,9 @@ CREATE TYPE "public"."VehiculoStatus" AS ENUM ('disponible', 'en_mantenimiento',
 CREATE TYPE "public"."Role" AS ENUM ('Admin', 'Obras', 'Aseo', 'IT', 'Transporte', 'Driver', 'Mecanico', 'Lector', 'RRHH', 'Finanza', 'P_Riesgo');
 
 -- CreateEnum
+CREATE TYPE "public"."TicketCategory" AS ENUM ('Soporte_IT', 'Solicitud_Suministro', 'Mantenimiento', 'Reporte_Incidente');
+
+-- CreateEnum
 CREATE TYPE "public"."Permission" AS ENUM ('VIEW_DASHBOARD', 'VIEW_TICKETS', 'MANAGE_TICKETS', 'MANAGE_ROUTES', 'MANAGE_FLEET', 'VIEW_TRIP_REPORTS', 'MANAGE_TRIP_REPORTS', 'VIEW_ROUTES', 'VIEW_FLEET', 'VIEW_MAINTENANCE', 'MANAGE_MAINTENANCE', 'VIEW_CIVIL_WORKS', 'MANAGE_CIVIL_WORKS', 'VIEW_CLEANING_REPORTS', 'MANAGE_CLEANING_REPORTS', 'VIEW_MANAGEMENT_USER', 'MANAGE_MANAGEMENT_USER');
 
 -- CreateTable
@@ -18,7 +21,7 @@ CREATE TABLE "public"."User" (
     "id" SERIAL NOT NULL,
     "username" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "area" TEXT[],
+    "area" TEXT,
     "password" TEXT NOT NULL,
     "roles" "public"."Role"[] DEFAULT ARRAY[]::"public"."Role"[],
     "permissions" "public"."Permission"[] DEFAULT ARRAY[]::"public"."Permission"[],
@@ -39,11 +42,14 @@ CREATE TABLE "public"."Ticket" (
     "description" TEXT,
     "status" "public"."TicketStatus" NOT NULL DEFAULT 'Pendiente',
     "priority" "public"."TicketPriority" NOT NULL DEFAULT 'Media',
-    "category" TEXT NOT NULL,
+    "category" "public"."TicketCategory" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "createdById" INTEGER NOT NULL,
     "assignedToId" INTEGER,
+    "recipientArea" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "recipientRole" "public"."Role"[],
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
 
     CONSTRAINT "Ticket_pkey" PRIMARY KEY ("id")
 );
@@ -69,6 +75,7 @@ CREATE TABLE "public"."Documento" (
     "url" TEXT NOT NULL,
     "fechaSubida" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "descripcion" TEXT,
+    "ticketId" INTEGER,
 
     CONSTRAINT "Documento_pkey" PRIMARY KEY ("id")
 );
@@ -160,6 +167,9 @@ ALTER TABLE "public"."Ticket" ADD CONSTRAINT "Ticket_createdById_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "public"."Documento" ADD CONSTRAINT "Documento_vehiculoId_fkey" FOREIGN KEY ("vehiculoId") REFERENCES "public"."Vehiculo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Documento" ADD CONSTRAINT "Documento_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "public"."Ticket"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."OrdenTrabajo" ADD CONSTRAINT "OrdenTrabajo_vehiculoId_fkey" FOREIGN KEY ("vehiculoId") REFERENCES "public"."Vehiculo"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

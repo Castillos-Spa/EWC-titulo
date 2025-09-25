@@ -21,21 +21,19 @@ export class NotificacionService {
     type: string;
   }) {
     const { title, message, createdById, userId, area, role, type } = data;
-    const roleEnum =
-      typeof role === 'string' && role in Role
-        ? (Role as any)[role as keyof typeof Role]
-        : (role as Role | undefined);
+    const roleEnum = typeof role === 'string' && role in Role ? (Role as any)[role as keyof typeof Role] : role;
 
-    const notification = await this.prisma.notification.create({
+    const created = await this.prisma.notification.create({
       data: {
         title,
         message,
         type,
-        createdById,
+        createdBy: {
+          connect: { id: createdById },
+        },
         read: false,
-        // Prisma model fields
-        areas: area ? [area] : [],
-        roles: roleEnum ? [roleEnum] : [],
+        areas: area ? (Array.isArray(area) ? area : [area]) : [],
+        roles: roleEnum ? (Array.isArray(roleEnum) ? roleEnum : [roleEnum]) : [],
         ...(userId
           ? {
               user: {
@@ -45,6 +43,13 @@ export class NotificacionService {
           : {}),
       },
     });
+
+    // Recargar con relación de usuarios para emitir a sus salas
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: created.id },
+      include: { user: { select: { id: true } } },
+    });
+
     await this.gateway.sendNotification(notification);
     return notification;
   }
@@ -52,14 +57,14 @@ export class NotificacionService {
   async getNotificationsForUser(userId?: number, userRole?: string, userArea?: string) {
     const orFilters: any[] = [];
     if (typeof userId === 'number' && Number.isFinite(userId)) {
-      orFilters.push({ userId });
+      orFilters.push({ user: { some: { id: userId } } });
     }
     if (userRole) {
       const roleEnum = (Role as any)[userRole as keyof typeof Role] ?? userRole;
-      orFilters.push({ role: roleEnum });
+      orFilters.push({ roles: { has: roleEnum } });
     }
     if (userArea) {
-      orFilters.push({ area: userArea });
+      orFilters.push({ areas: { has: userArea } });
     }
 
     return this.prisma.notification.findMany({
