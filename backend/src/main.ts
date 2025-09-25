@@ -8,25 +8,31 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
-      transform: true, // 👈 esto es clave
+      transform: true,
     }),
   );
 
+  const allowedOrigins = [
+    // La URL de Vercel viene de la variable de entorno
+    process.env.CORS_ORIGIN,
+    'http://localhost', // Para desarrollo local
+    'http://127.0.0.1',
+    // Puedes agregar otras URLs de desarrollo si las necesitas
+  ];
+
   app.enableCors({
     origin: (origin, callback) => {
-      // Permitir peticiones sin origen (ej. curl, Postman) y el SSR interno
-      if (!origin) return callback(null, true);
-
-      // Aceptar localhost/127.0.0.1 en cualquier puerto (vite puede moverse 5173->5174, etc.)
-      const localhost = /^https?:\/\/localhost(?::\d+)?$/;
-      const loopback = /^https?:\/\/127\.0\.0\.1(?::\d+)?$/;
-
-      // Aceptar IPs de red local comunes: 192.168.x.x, 10.x.x.x, 172.16-31.x.x
-      const lan = /^https?:\/\/(192\.168|10\.|172\.(1[6-9]|2\d|3[0-1]))\.[0-9.]+(?::\d+)?$/;
-
-      if (localhost.test(origin) || loopback.test(origin) || lan.test(origin)) {
+      // Si el origen de la petición está en la lista, permitirla
+      if (!origin || allowedOrigins.some(allowedOrigin => origin.startsWith(allowedOrigin))) {
         return callback(null, true);
       }
+
+      // También mantener la lógica de IPs locales si la necesitas
+      const lan = /^https?:\/\/(192\.168|10\.|172\.(1[6-9]|2\d|3[0-1]))\.[0-9.]+(?::\d+)?$/;
+      if (lan.test(origin)) {
+        return callback(null, true);
+      }
+
       return callback(new Error('Not allowed by CORS'));
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
@@ -37,4 +43,3 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
-//Bacze12/EWC-titulo
