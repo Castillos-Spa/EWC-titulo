@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip, Tag } from 'lucide-react';
 import { getTickets, createTicket, updateTicket, CreateTicketPayload } from '../../utils/ticketApi';
 import { Ticket, TicketStatus, TicketPriority } from '../../types/Ticket';
+import { getUsers, User as AppUser } from '../../utils/userApi';
 
 // 1. Importa tu hook de autenticación desde su ubicación correcta
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,6 +13,7 @@ const RECIPIENT_AREAS = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza',
 
 const EnhancedTicketSystem: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +24,7 @@ const EnhancedTicketSystem: React.FC = () => {
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assigneeId, setAssigneeId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [newTicketForm, setNewTicketForm] = useState({
     title: '',
@@ -47,8 +50,19 @@ const EnhancedTicketSystem: React.FC = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const usersData = await getUsers();
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Error al cargar los usuarios:', err);
+      // Opcional: mostrar un error al usuario
+    }
+  };
+
   useEffect(() => {
     fetchTickets();
+    fetchUsers();
   }, []);
 
   const getCategoryColor = (category: string) => {
@@ -185,6 +199,30 @@ const EnhancedTicketSystem: React.FC = () => {
     }
   };
 
+  const handleAssignTicket = async () => {
+    if (!selectedTicket || !assigneeId) {
+      alert('Por favor, selecciona un usuario para asignar el ticket.');
+      return;
+    }
+
+    try {
+      const payload = {
+        assignedToId: parseInt(assigneeId, 10),
+        status: TicketStatus.EnProgreso, // Cambia automáticamente el estado
+      };
+      const updated = await updateTicket(selectedTicket.id, payload);
+
+      // Actualizar estado local
+      setTickets(tickets.map(t => (t.id === updated.id ? updated : t)));
+      setSelectedTicket(updated);
+      setShowAssignModal(false);
+      setAssigneeId('');
+    } catch (error) {
+      console.error("Error al asignar el ticket:", error);
+      alert('No se pudo asignar el ticket.');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -212,6 +250,12 @@ const EnhancedTicketSystem: React.FC = () => {
     title: getStatusLabel(status),
     tickets: filteredTickets.filter(t => t.status === status),
   }));
+
+  // Usuarios filtrados para el modal de asignación
+  const assignableUsers = users.filter(user =>
+    selectedTicket?.recipientArea.some(area => user.area.includes(area))
+  );
+
 
   if (loading) {
     return <div>Cargando tickets...</div>;
@@ -747,30 +791,31 @@ const EnhancedTicketSystem: React.FC = () => {
             </div>
             
             <div className="p-6">
-              <label htmlFor="assign-user" className="block mb-2 text-sm font-medium text-gray-700">Asignar a:</label>
- <select id="assign-user" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                <option value="">Seleccionar usuario</option>
-                <option value="IT Support">IT Support</option>
-                <option value="Maintenance Team">Equipo de Mantenimiento</option>
-                <option value="Admin">Administrador</option>
-                <option value="Transport Supervisor">Supervisor de Transporte</option>
+              <label htmlFor="assign-user" className="block mb-2 text-sm font-medium text-gray-700">
+                Asignar a (Área: {selectedTicket?.recipientArea.join(', ') || 'N/A'}):
+              </label>
+              <select 
+                id="assign-user" 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+              >
+                <option value="">Seleccionar usuario...</option>
+                {assignableUsers.length > 0 ? (
+                  assignableUsers.map(user => (
+                    <option key={user.id} value={user.id}>{user.username}</option>
+                  ))
+                ) : (
+                  <option disabled>No hay usuarios en el área de destino</option>
+                )}
               </select>
             </div>
 
             <div className="flex justify-end p-6 space-x-3 border-t border-gray-200">
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
+              <button onClick={() => setShowAssignModal(false)} className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50">
                 Cancelar
               </button>
-              <button
-                onClick={() => {
-                  // Handle assignment logic here
-                  setShowAssignModal(false);
-                }}
-                className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
-              >
+              <button onClick={handleAssignTicket} className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700">
                 Asignar
               </button>
             </div>

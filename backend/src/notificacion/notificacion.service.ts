@@ -28,7 +28,9 @@ export class NotificacionService {
         title,
         message,
         type,
-        createdById,
+        createdBy: {
+          connect: { id: createdById },
+        },
         read: false,
         areas: area ? (Array.isArray(area) ? area : [area]) : [],
         roles: roleEnum ? (Array.isArray(roleEnum) ? roleEnum : [roleEnum]) : [],

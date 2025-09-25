@@ -34,12 +34,12 @@ export class TicketService {
       select: { area: true },
     });
 
-    const creatorAreas = (creator?.area || []).map(a => a as Role);
+    const creatorAreas = (creator?.area || []) as Role[];
     const recipientAreasArray = Array.isArray(recipientArea) ? recipientArea : recipientArea ? [recipientArea] : [];
     const targetRoles = recipientAreasArray.map(a => a as Role); // Las áreas de destino son un array
 
     // Usamos un Set para evitar duplicados si el creador pertenece al área de destino.
-    const rolesToNotify = new Set<Role>([...creatorAreas, ...targetRoles].filter(Boolean));
+    const rolesToNotify = new Set<Role>([...creatorAreas, ...targetRoles].filter(r => Object.values(Role).includes(r)));
 
     if (rolesToNotify.size > 0) {
       await this.notificationService.createNotification({
@@ -47,7 +47,7 @@ export class TicketService {
         message: `Se ha creado un nuevo ticket: "${ticket.title}" para el área de ${recipientAreasArray.join(', ')}.`,
         type: 'ticket_created',
         createdById: createdById,
-        role: Array.from(rolesToNotify).filter(r => Object.values(Role).includes(r)),
+        role: Array.from(rolesToNotify),
       });
     }
 
@@ -101,11 +101,15 @@ export class TicketService {
       throw new NotFoundException(`Ticket con ID #${id} no encontrado`);
     }
 
-    const { recipientArea, assignedToId, category, ...restOfUpdateDto } = updateTicketDto;
+    // Desestructuramos 'status' junto con las otras propiedades
+    const { recipientArea, assignedToId, category, status, ...restOfUpdateDto } = updateTicketDto;
 
     const dataToUpdate: any = {
       ...restOfUpdateDto,
     };
+
+    if (assignedToId !== undefined) dataToUpdate.assignedToId = assignedToId;
+    if (status) dataToUpdate.status = status;
 
     if (category) {
       dataToUpdate.category = category.replace(/ /g, '_') as TicketCategory;
@@ -116,7 +120,7 @@ export class TicketService {
       data: dataToUpdate,
     });
 
-    // Notificación por cambio de asignación.
+    // Notificación por cambio de asignación
     if (updateTicketDto.assignedToId && updateTicketDto.assignedToId !== ticketBeforeUpdate.assignedToId) {
       await this.notificationService.createNotification({
         title: 'Ticket Asignado',
@@ -127,7 +131,19 @@ export class TicketService {
       });
     }
 
-    return updatedTicket;
+    // Volver a buscar el ticket actualizado con todas las relaciones para devolverlo al frontend
+    return this.prisma.ticket.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: { id: true, username: true, email: true, area: true },
+        },
+        assignedTo: {
+          select: { id: true, username: true, email: true },
+        },
+        // Si tienes más relaciones que mostrar en el frontend, inclúyelas aquí
+      },
+    });
   }
 
   async remove(id: number) {

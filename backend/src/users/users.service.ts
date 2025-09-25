@@ -97,6 +97,11 @@ export class UsersService {
         .map(p => (typeof p === 'string' ? Permission[p as keyof typeof Permission] : p))
         .filter(Boolean);
     }
+    // Asegurarse de que el área sea siempre un array
+    if (data.area && !Array.isArray(data.area)) {
+      updateData.area = [data.area];
+    }
+
     return this.prisma.user.update({
       where: { id },
       data: updateData,
