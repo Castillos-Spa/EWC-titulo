@@ -50,7 +50,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
 
   useEffect(() => {
     if (!user?.id) return;
-    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io('http://localhost:3000', {
+    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(import.meta.env.VITE_API_URL, {
       // permitir polling + upgrade a websocket
       reconnection: true,
       reconnectionAttempts: 5,
