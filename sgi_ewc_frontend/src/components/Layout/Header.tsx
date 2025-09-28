@@ -87,7 +87,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       console.log('Notificación recibida:', data);
 
       const newNotif: Notification = {
-        id: Date.now().toString(),
+        id: String(data?.id ?? Date.now()),
         type: data?.type ?? 'info',
         message: data?.message ?? 'Nueva notificación',
         timestamp: new Date().toLocaleTimeString(),

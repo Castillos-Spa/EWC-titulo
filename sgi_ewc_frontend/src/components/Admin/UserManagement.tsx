@@ -1,31 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, User, Mail, Shield, Edit, Trash2, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Plus, Search, User, Mail, Shield, Edit, Trash2, CheckCircle, XCircle, Eye, Copy, Check } from 'lucide-react';
 import { getUsers, createUser, updateUser, deleteUser, getTempPassword } from '../../utils/userApi';
 import { User as UserType, Role } from '../../types/User';
 import UserForm from './UserForm';
 
-const TempPasswordModal: React.FC<{ password: string; onClose: () => void }> = ({ password, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-    <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="mb-4 text-xl font-bold">Contraseña temporal generada</h2>
-      <div className="flex items-center mb-4 font-mono text-lg text-blue-700 break-all select-all">
-        {password}
-        <button
-          className="px-2 py-1 ml-2 text-xs bg-gray-200 rounded hover:bg-gray-300"
-          onClick={() => {
-            navigator.clipboard.writeText(password);
-          }}
-        >
-          Copiar
-        </button>
-      </div>
-      <p className="mb-4 text-gray-600">Entrega esta contraseña al usuario para su primer acceso. Se le pedirá cambiarla al iniciar sesión.</p>
-      <div className="flex justify-end">
-        <button onClick={onClose} className="px-4 py-2 text-white bg-blue-600 rounded-lg">Cerrar</button>
+const TempPasswordModal: React.FC<{ password: string; onClose: () => void }> = ({ password, onClose }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(password);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
+        <h2 className="mb-4 text-xl font-bold">Contraseña temporal generada</h2>
+        <div className="flex items-center p-3 mb-4 font-mono text-lg text-blue-700 border border-blue-200 rounded-md bg-blue-50">
+          <span className="flex-grow break-all">{password}</span>
+          <button
+            className={`p-2 ml-4 rounded-md transition-colors ${copied ? 'bg-green-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+            onClick={handleCopy}
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+        <p className="mb-4 text-gray-600">Entrega esta contraseña al usuario para su primer acceso. Se le pedirá cambiarla al iniciar sesión.</p>
+        <div className="flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-white bg-blue-600 rounded-lg">Cerrar</button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserType[]>([]);
@@ -346,6 +354,38 @@ const UserManagement: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 rounded-b-lg sm:px-6">
+          <div className="flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Mostrando <span className="font-medium">{indexOfFirstUser + 1}</span> a <span className="font-medium">{Math.min(indexOfLastUser, filteredUsers.length)}</span> de{' '}
+                <span className="font-medium">{filteredUsers.length}</span> resultados
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <button
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  className="relative inline-flex items-center px-4 py-2 -ml-px text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Siguiente
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredUsers.length === 0 && (
         <div className="py-12 text-center">
