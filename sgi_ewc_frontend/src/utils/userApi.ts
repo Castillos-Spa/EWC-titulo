@@ -6,7 +6,7 @@ import { User } from "../types/User";
 export async function login(
   email: string,
   password: string
-): Promise<{ access_token: string; refresh_token: string }> {
+): Promise<{ access_token: string; refresh_token: string; user: User }> {
   return apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),

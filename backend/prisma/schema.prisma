@@ -8,23 +8,37 @@ datasource db {
 }
 
 model User {
-  id                   Int            @id @default(autoincrement())
+  id                   Int                  @id @default(autoincrement())
   username             String
-  email                String         @unique
-  area                 String[]       @default([])
+  email                String               @unique
   password             String
-  roles                Role[]         @default([])
-  permissions          Permission[]   @default([])
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  assignedTickets      Ticket[]       @relation("AssignedTickets")
-  createdTickets       Ticket[]       @relation("CreatedTickets")
-  active               Boolean        @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  assignedTickets      Ticket[]             @relation("AssignedTickets")
+  createdTickets       Ticket[]             @relation("CreatedTickets")
+  active               Boolean              @default(true)
   lastLogin            DateTime?
-  mustChangePassword   Boolean        @default(false)
-  refreshToken         String?        @unique
-  notifications        Notification[] // Campo para las notificaciones que recibe el usuario
-  createdNotifications Notification[] @relation("CreatedNotifications") // Campo para las notificaciones que crea el usuario
+  mustChangePassword   Boolean              @default(false)
+  refreshToken         String?              @unique
+  notifications        Notification[]
+  createdNotifications Notification[]       @relation("CreatedNotifications")
+  roleAssignments      UserRoleAssignment[]
+}
+
+model UserRoleAssignment {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area        String // 'IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', 'P_Riesgo'
+  role        Role // Roles jerárquicos
+  specialty   Specialty? // Solo para especialistas
+  permissions Permission[] @default([])
+  isActive    Boolean      @default(true)
+  assignedAt  DateTime     @default(now())
+
+  @@unique([userId, area, role]) // Un usuario no puede tener el mismo rol dos veces en la misma área
+  @@index([userId])
+  @@index([area, role])
 }
 
 model Ticket {
@@ -112,6 +126,115 @@ model Repuesto {
   createdAt         DateTime         @default(now())
 }
 
+model Notification {
+  id          Int      @id @default(autoincrement())
+  title       String
+  message     String
+  type        String // Ej: "info", "warning", "ticket"
+  createdAt   DateTime @default(now())
+  read        Boolean  @default(false)
+  user        User[]
+  areas       String[] @default([])
+  roles       Role[]   @default([])
+  createdById Int
+  createdBy   User     @relation("CreatedNotifications", fields: [createdById], references: [id])
+}
+
+//=================================================================>ENUMS<==================================================================
+
+/// Enum de roles
+enum Role {
+  Admin
+  Jefe
+  Supervisor
+  Especialista
+  Trabajador
+  Lector
+}
+
+/// Enum de especialidades
+enum Specialty {
+  // Transporte
+  DRIVER
+  MECHANIC
+  // IT
+  IT_SUPPORT
+  NETWORK_ADMIN
+  DEVELOPER
+
+  // Obras
+  CIVIL_ENGINEER
+  PROJECT_MANAGER
+  ARCHITECT
+
+  // Aseo
+  CLEANING_COORDINATOR
+  SANITATION_SPECIALIST
+
+  // RRHH
+  HR_SPECIALIST
+  RECRUITER
+
+  // Finanzas
+  ACCOUNTANT
+  FINANCIAL_ANALYST
+  AUDITOR
+
+  // P_Riesgo
+  SAFETY_INSPECTOR
+  RISK_ANALYST
+}
+
+/// Enum de permisos
+enum Permission {
+  // Permisos generales - ALL users y IT
+  VIEW_DASHBOARD
+  VIEW_TICKETS
+  MANAGE_TICKETS
+
+  // Transporte - Supervisor
+  MANAGE_ROUTES
+  MANAGE_FLEET
+
+  // Transporte - Supervisor y Driver
+  VIEW_TRIP_REPORTS
+  MANAGE_TRIP_REPORTS // Driver crea solamente reportes
+  VIEW_ROUTES
+
+  // Transporte - Supervisor y Mecánico
+  VIEW_FLEET
+  VIEW_MAINTENANCE
+  MANAGE_MAINTENANCE
+
+  // Obras
+  VIEW_CIVIL_WORKS
+  MANAGE_CIVIL_WORKS
+
+  // Aseo
+  VIEW_CLEANING_REPORTS
+  MANAGE_CLEANING_REPORTS
+
+  // Admin
+  VIEW_MANAGEMENT_USER
+  MANAGE_MANAGEMENT_USER
+
+  // RRHH
+  VIEW_EMPLOYEES
+  MANAGE_EMPLOYEES
+  VIEW_PAYROLL
+  MANAGE_PAYROLL
+
+  // Finanzas
+  VIEW_FINANCIAL_REPORTS
+  MANAGE_BUDGETS
+  APPROVE_EXPENSES
+
+  // P_Riesgo
+  VIEW_RISK_ASSESSMENTS
+  MANAGE_RISK_ASSESSMENTS
+  CREATE_SAFETY_PROTOCOLS
+}
+
 enum TicketStatus {
   Pendiente
   EnProgreso
@@ -133,80 +256,9 @@ enum VehiculoStatus {
   en_uso
 }
 
-model Notification {
-  id        Int      @id @default(autoincrement())
-  title     String
-  message   String
-  type      String // Ej: "info", "warning", "ticket"
-  createdAt DateTime @default(now())
-  read      Boolean  @default(false)
-
-  // Relación: puede ir a un usuario específico
-
-  user User[]
-
-  // O a un área completa
-  areas String[] @default([])
-
-  // O a un rol
-  roles Role[] @default([])
-
-  // Quién la creó
-  createdById Int
-  createdBy   User @relation("CreatedNotifications", fields: [createdById], references: [id])
-}
-
-/// Enum de roles
-enum Role {
-  Admin
-  Obras
-  Aseo
-  IT
-  Transporte
-  Driver
-  Mecanico
-  Lector
-
-  RRHH
-  Finanza
-  P_Riesgo
-}
-
 enum TicketCategory {
   Soporte_IT
   Solicitud_Suministro
   Mantenimiento
   Reporte_Incidente
-}
-
-/// Enum de permisos
-enum Permission {
-  //ALL users y IT
-  VIEW_DASHBOARD
-  VIEW_TICKETS
-  MANAGE_TICKETS
-
-  //Sup Transporte 
-  MANAGE_ROUTES
-  MANAGE_FLEET
-  //Sup Transporte y  Driver 
-  VIEW_TRIP_REPORTS
-  MANAGE_TRIP_REPORTS //Driver crea solamente reportes
-  VIEW_ROUTES
-  //Sup transporte y mecanico
-  VIEW_FLEET
-  VIEW_MAINTENANCE
-  MANAGE_MAINTENANCE
-
-  //Obras 
-  VIEW_CIVIL_WORKS
-  MANAGE_CIVIL_WORKS
-
-  //Aseo  
-  VIEW_CLEANING_REPORTS
-  MANAGE_CLEANING_REPORTS
-
-  //Admin
-  VIEW_MANAGEMENT_USER
-  MANAGE_MANAGEMENT_USER
 }

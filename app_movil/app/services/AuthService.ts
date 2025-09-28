@@ -7,9 +7,24 @@ export interface User {
   name: string;
   email: string;
   roles: string[]; // Roles exactamente como en backend (Prisma Role enum)
-  role: 'driver' | 'supervisor' | 'technician' | 'admin' | 'cleaning_crew' | 'civil_works' | 'it_support' | 'manager' | 'finance';
+  role:
+    | 'driver'
+    | 'supervisor'
+    | 'technician'
+    | 'admin'
+    | 'cleaning_crew'
+    | 'civil_works'
+    | 'it_support'
+    | 'manager'
+    | 'finance';
   areaIds: string[];
-  department: 'transport' | 'cleaning' | 'civil_works' | 'it' | 'management' | 'finance';
+  department:
+    | 'transport'
+    | 'cleaning'
+    | 'civil_works'
+    | 'it'
+    | 'management'
+    | 'finance';
   vehicleIds?: string[];
   permissions: string[];
   avatar?: string;
@@ -32,10 +47,14 @@ class AuthServiceClass {
   private getBaseUrl(): string {
     const envUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL;
     const extra: any = Constants?.expoConfig?.extra;
-    const extraUrl: string | undefined = typeof extra?.apiUrl === 'string' ? extra.apiUrl : undefined;
+    const extraUrl: string | undefined =
+      typeof extra?.apiUrl === 'string' ? extra.apiUrl : undefined;
     if (envUrl && envUrl.length > 0) return envUrl;
     if (extraUrl && extraUrl.length > 0) return extraUrl;
-    const local = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+    const local =
+      Platform.OS === 'android'
+        ? 'http://10.0.2.2:3000'
+        : 'http://localhost:3000';
     return local;
   }
 
@@ -87,17 +106,24 @@ class AuthServiceClass {
       role,
       areaIds: payload?.area ? [String(payload.area)] : [],
       department,
-      permissions: Array.isArray(payload?.permissions) ? payload.permissions.map((p: string) => String(p)) : [],
+      permissions: Array.isArray(payload?.permissions)
+        ? payload.permissions.map((p: string) => String(p))
+        : [],
       employeeId: 'N/A',
     };
   }
 
-  async login(credentials: LoginCredentials): Promise<{ user: User; tokens: AuthTokens }> {
+  async login(
+    credentials: LoginCredentials
+  ): Promise<{ user: User; tokens: AuthTokens }> {
     const baseUrl = this.getBaseUrl();
     const res = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
     });
 
     if (!res.ok) {
@@ -106,7 +132,9 @@ class AuthServiceClass {
         const data = await res.json();
         message = data?.message || message;
       } catch {}
-      throw new Error(typeof message === 'string' ? message : 'Email o contraseña incorrectos');
+      throw new Error(
+        typeof message === 'string' ? message : 'Email o contraseña incorrectos'
+      );
     }
 
     const tokensRaw = await res.json();
@@ -183,7 +211,11 @@ class AuthServiceClass {
     }
   }
 
-  async changePassword(userId: string | number, currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(
+    userId: string | number,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
     const accessToken = await SafeStorage.getItem('accessToken');
     if (!accessToken) throw new Error('No autenticado');
     const baseUrl = this.getBaseUrl();
@@ -215,7 +247,12 @@ class AuthServiceClass {
   // ...eliminados helpers del JWT simulado
 
   // Método para mock de UI en LoginScreen (dejar vacío si no hay lista)
-  getTestUsers(): { email: string; password: string; role: string; name: string }[] {
+  getTestUsers(): {
+    email: string;
+    password: string;
+    role: string;
+    name: string;
+  }[] {
     return [];
   }
 }

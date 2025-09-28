@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, User, Mail, Shield, Edit, Trash2, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { getUsers, createUser, updateUser, deleteUser, getTempPassword } from '../../utils/userApi';
-import { User as UserType } from '../../types/User';
+import { User as UserType, Role } from '../../types/User';
 import UserForm from './UserForm';
 
 const TempPasswordModal: React.FC<{ password: string; onClose: () => void }> = ({ password, onClose }) => (
@@ -35,6 +35,8 @@ const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   useEffect(() => {
     getUsers().then(setUsers);
@@ -62,41 +64,24 @@ const UserManagement: React.FC = () => {
     setUsers(users.filter(u => u.id !== id));
   };
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role?: Role) => {
     // Mapeo de colores por rol
     if (!role) return 'bg-gray-100 text-gray-800';
     switch (role) {
-      case 'Admin': return 'bg-purple-100 text-purple-800';
-      case 'Obras': return 'bg-orange-100 text-orange-800';
-      case 'Aseo': return 'bg-teal-100 text-teal-800';
-      case 'IT': return 'bg-indigo-100 text-indigo-800';
-      case 'Transporte': return 'bg-blue-100 text-blue-800';
-      case 'Driver': return 'bg-green-100 text-green-800';
-      case 'Mecanico': return 'bg-yellow-100 text-yellow-800';
-      case 'Lector': return 'bg-orange-100 text-orange-800';
-      case 'RRHH': return 'bg-orange-100 text-orange-800';
-      case 'Finanza': return 'bg-orange-100 text-orange-800';
-      case 'P_Riesgo': return 'bg-orange-100 text-orange-800';
+      case 'Admin': return 'bg-red-100 text-red-800';
+      case 'Jefe': return 'bg-purple-100 text-purple-800';
+      case 'Supervisor': return 'bg-blue-100 text-blue-800';
+      case 'Especialista': return 'bg-green-100 text-green-800';
+      case 'Trabajador': return 'bg-yellow-100 text-yellow-800';
+      case 'Lector': return 'bg-gray-200 text-gray-600';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getRoleLabel = (role: string) => {
+  const getRoleLabel = (role?: Role) => {
     if (!role) return 'Sin Rol';
-    switch (role) {
-      case 'Admin': return 'Administrador';
-      case 'Obras': return 'Obras Civiles';
-      case 'Aseo': return 'Personal Limpieza';
-      case 'IT': return 'Personal IT';
-      case 'Transporte': return 'Supervisor Transporte';
-      case 'Driver': return 'Conductor';
-      case 'Mecanico': return 'Mecanico';
-      case 'Lector': return 'Lector';
-      case 'RRHH': return 'Recursos Humanos';
-      case 'Finanza': return 'Finanzas';
-      case 'P_Riesgo': return 'Prevencion de Riesgo';
-      default: return role.replace('_', ' ');
-    }
+    // Simplemente devuelve el rol, ya que los nombres son claros.
+    return role;
   };
 
   const mapSingleArea = (a: string) => {
@@ -104,34 +89,34 @@ const UserManagement: React.FC = () => {
       case 'Admin': return 'Administración';
       case 'IT': return 'IT';
       case 'Transporte': return 'Transportes';
-      case 'Taller': return 'Taller mecanico';
+      case 'Taller': return 'Taller Mecánico';
       case 'Obras': return 'Obras civiles';
       case 'Aseo': return 'Aseo';
       case 'RRHH': return 'Recursos Humanos';
       case 'Finanza': return 'Finanzas';
-      case 'P_Riesgo': return 'Prevencion de Riesgo';
+      case 'P_Riesgo': return 'Prevención de Riesgos';
       default: return (a ?? '').toString().replace('_', ' ') || 'Sin Área';
     }
-  };
-
-  const getAreaLabel = (area: string | string[] | undefined) => {
-    if (Array.isArray(area)) {
-      return area.length ? area.map(mapSingleArea).join(', ') : 'Sin Área';
-    }
-    if (typeof area === 'string') return mapSingleArea(area);
-    return 'Sin Área';
   };
 
   // Corrección de filtros
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'all' || user.roles.includes(filterRole);
+    const matchesRole = filterRole === 'all' || user.roles.includes(filterRole as Role);
     const matchesStatus = filterStatus === 'all' ||
       (filterStatus === 'active' && user.active) ||
       (filterStatus === 'inactive' && !user.active);
     return matchesSearch && matchesRole && matchesStatus;
   });
+
+  // Lógica de paginación
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
@@ -232,17 +217,12 @@ const UserManagement: React.FC = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           > 
             <option value="all">Todos los Roles</option>
-            <option value="Admin">Administrador</option>
-            <option value="Transporte">Supervisor Transporte</option>
-            <option value="Driver">Conductor</option>
-            <option value="IT">Personal IT</option>
-            <option value="Aseo">Personal Limpieza</option>
-            <option value="Obras">Obras Civiles</option>
-            <option value="Mecanico">Mecanico</option>
+            <option value="Admin">Admin</option>
+            <option value="Jefe">Jefe</option>
+            <option value="Supervisor">Supervisor</option>
+            <option value="Especialista">Especialista</option>
+            <option value="Trabajador">Trabajador</option>
             <option value="Lector">Lector</option>
-            <option value="RRHH">Recursos Humanos</option>
-            <option value="Finanza">Finanzas</option>
-            <option value="P_Riesgo">Prevencion de Riesgo</option>
           </select>
           <select
             value={filterStatus}
@@ -283,7 +263,7 @@ const UserManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
+              {currentUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -314,11 +294,13 @@ const UserManagement: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-1">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.roles[0])}`}>
-                        {getRoleLabel(user.roles[0])}
-                      </span>
-                      <div className="text-xs text-gray-500">{getAreaLabel((user as unknown as { area?: string | string[] }).area)}</div>
+                    <div className="flex flex-wrap gap-1">
+                      {user.roleAssignments?.filter(ra => ra.isActive).map((assignment) => (
+                        <span key={`${user.id}-${assignment.area}-${assignment.role}`} className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${getRoleColor(assignment.role)}`}>
+                          {getRoleLabel(assignment.role)}
+                          <span className="ml-1 font-normal text-gray-600">@ {mapSingleArea(assignment.area)}</span>
+                        </span>
+                      ))}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

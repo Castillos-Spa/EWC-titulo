@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { User } from '../../types/User';
+import React, { useState, useEffect } from 'react';
+import { User, RoleAssignment, Role } from '../../types/User';
+import { Plus, Trash2 } from 'lucide-react';
 
 interface UserFormProps {
   initialData?: Partial<User>;
@@ -7,11 +8,38 @@ interface UserFormProps {
   onCancel: () => void;
 }
 
+// Opciones para los dropdowns, directamente desde los tipos para consistencia
+const roleOptions: Role[] = ["Admin", "Jefe", "Supervisor", "Especialista", "Trabajador", "Lector"];
+const areaOptions = ["Admin", "IT", "Transporte", "Taller", "Obras", "Aseo", "RRHH", "Finanza", "P_Riesgo"];
+
 const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCancel }) => {
-  const [form, setForm] = useState<Partial<User>>(initialData);
+  const [form, setForm] = useState<Partial<User>>({ active: true, ...initialData });
+
+  useEffect(() => {
+    // Si no hay asignaciones iniciales, agregar una vacía para empezar
+    if (!form.roleAssignments || form.roleAssignments.length === 0) {
+      setForm(f => ({ ...f, roleAssignments: [{ area: '', role: '' as Role }] }));
+    }
+  }, [form.roleAssignments]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleAssignmentChange = (index: number, field: keyof RoleAssignment, value: string) => {
+    const updatedAssignments = [...(form.roleAssignments || [])];
+    updatedAssignments[index] = { ...updatedAssignments[index], [field]: value };
+    setForm({ ...form, roleAssignments: updatedAssignments });
+  };
+
+  const addAssignment = () => {
+    setForm({ ...form, roleAssignments: [...(form.roleAssignments || []), { area: '', role: '' as Role }] });
+  };
+
+  const removeAssignment = (index: number) => {
+    const updatedAssignments = [...(form.roleAssignments || [])];
+    updatedAssignments.splice(index, 1);
+    setForm({ ...form, roleAssignments: updatedAssignments });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -21,20 +49,19 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
     const data = {
       ...form,
       // El backend espera el valor del 'area' (ej: 'admin'), no la etiqueta.
-      active: form.active === true ,
-      roles: Array.isArray(form.roles) ? form.roles.filter(r => r) : [form.roles ?? ''],
+      active: form.active === true,
     };
     onSubmit(data);
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200">
-          <h3 className="text-xl font-semibold text-gray-900">Agregar Nuevo Usuario</h3>
+          <h3 className="text-xl font-semibold text-gray-900">{initialData.id ? 'Editar' : 'Agregar'} Usuario</h3>
         </div>
         <form className="p-6 space-y-4" onSubmit={handleSubmit}>
-        <label htmlFor="user-username" className="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
+        <label htmlFor="user-username" className="block mb-2 text-sm font-medium text-gray-700">Nombre Completo</label>
         <input
           id="user-username"
           name="username"
@@ -44,7 +71,7 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
           placeholder="Wilson Castillo"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
-        <label htmlFor="user-email" className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
+        <label htmlFor="user-email" className="block mb-2 text-sm font-medium text-gray-700">Correo Electrónico</label>
         <input
           id="user-email"
           name="email"
@@ -54,49 +81,52 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
           placeholder="ejemplo@correo.com"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
-        <label htmlFor="user-area" className="block text-sm font-medium text-gray-700 mb-2">Área</label>
-        <select
-          id="user-area"
-          name="area"
-          value={form.area ?? ''}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        > 
-          <option value="">Seleccionar área</option>
-          <option value="Admin">Administración</option>
-          <option value="IT">IT</option>
-          <option value="Transporte">Transportes</option>
-          <option value="Taller">Taller mecanico</option>
-          <option value="Obras">Obras civiles</option>
-          <option value="Aseo">Aseo</option>
-          <option value="RRHH">Recursos Humanos</option>
-          <option value="Finanza">Finanzas</option>
-          <option value="P_Riesgo">Prevencion de Riesgo</option>
-        </select>
-        <label htmlFor="user-role" className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-        <select
-          id="user-role"
-          name="roles"
-          value={form.roles?.[0] ?? ''}
-          onChange={e => setForm({ ...form, roles: [e.target.value] })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Seleccionar rol</option>
-          <option value="Admin">Administrador</option>
-          <option value="Obras">Obras Civiles</option>
-          <option value="Aseo">Personal Limpieza</option>
-          <option value="IT">Personal IT</option>
-          <option value="Transporte">Supervisor Transporte</option>
-          <option value="Driver">Conductor</option>
-          <option value="Mecanico">Mecanico</option>
-          <option value="Lector">Lector</option>
-          <option value="RRHH">Recursos Humanos</option>
-          <option value="Finanza">Finanzas</option>
-          <option value="P_Riesgo">Prevencion de Riesgo</option>
+        
+        {/* Asignaciones de Rol y Área */}
+        <fieldset className="p-4 border border-gray-200 rounded-lg">
+          <legend className="px-2 text-sm font-medium text-gray-700">Asignaciones de Rol</legend>
+          <div className="space-y-3">
+            {(form.roleAssignments || []).map((assignment, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <select
+                  value={assignment.area}
+                  onChange={(e) => handleAssignmentChange(index, 'area', e.target.value)}
+                  className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Seleccionar Área</option>
+                  {areaOptions.map(area => <option key={area} value={area}>{area}</option>)}
+                </select>
+                <select
+                  value={assignment.role}
+                  onChange={(e) => handleAssignmentChange(index, 'role', e.target.value)}
+                  className="flex-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Seleccionar Rol</option>
+                  {roleOptions.map(role => <option key={role} value={role}>{role}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeAssignment(index)}
+                  className="p-2 text-red-500 rounded-md hover:bg-red-100"
+                  title="Eliminar asignación"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addAssignment}
+              className="flex items-center justify-center w-full gap-2 px-4 py-2 text-sm text-blue-600 border-2 border-gray-300 border-dashed rounded-lg hover:bg-blue-50"
+            >
+              <Plus className="w-4 h-4" />
+              Agregar Asignación
+            </button>
+          </div>
+        </fieldset>
 
-        </select>
         <fieldset className="space-y-2">
-          <legend className="block text-sm font-medium text-gray-700 mb-2">Estado</legend>
+          <legend className="block mb-2 text-sm font-medium text-gray-700">Estado</legend>
           <div className="flex space-x-4">
             <label htmlFor="user-active-true">
               <input
@@ -120,9 +150,9 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
             </label>
           </div>
         </fieldset>
-        <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-900 mb-2">Permisos del Rol:</h4>
-                <div className="text-sm text-blue-800 space-y-1">
+        <div className="p-4 rounded-lg bg-blue-50">
+                <h4 className="mb-2 text-sm font-medium text-blue-900">Permisos del Rol:</h4>
+                <div className="space-y-1 text-sm text-blue-800">
                   <p>• Acceso a módulos del área asignada</p>
                   <p>• Crear y gestionar tickets</p>
                   <p>• Ver reportes y análisis</p>

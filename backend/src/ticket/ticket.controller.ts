@@ -25,7 +25,7 @@ export class TicketController {
   constructor(private readonly ticketsService: TicketService) {}
 
   @Post()
-  @Roles(Role.Admin, Role.IT, Role.Transporte, Role.Obras, Role.Aseo)
+  @Roles(Role.Admin, Role.Jefe, Role.Supervisor, Role.Especialista, Role.Trabajador)
   @UseGuards(RolesGuard)
   create(@Body() createTicketDto: CreateTicketDto, @Req() req) {
     const createdById = req.user.userId;
@@ -47,7 +47,7 @@ export class TicketController {
   }
 
   @Patch(':id')
-  @Roles(Role.Admin, Role.IT, Role.Transporte)
+  @Roles(Role.Admin, Role.Jefe, Role.Supervisor, Role.Especialista)
   @UseGuards(RolesGuard)
   update(@Param('id', ParseIntPipe) id: number, @Body() updateTicketDto: UpdateTicketDto, @Req() req) {
     const updatedById = req.user.id;

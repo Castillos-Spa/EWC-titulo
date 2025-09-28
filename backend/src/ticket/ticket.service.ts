@@ -31,23 +31,22 @@ export class TicketService {
     // Notificación al área de destino y al área del creador.
     const creator = await this.prisma.user.findUnique({
       where: { id: createdById },
-      select: { area: true },
+      include: { roleAssignments: { where: { isActive: true } } },
     });
 
-    const creatorAreas = (creator?.area || []) as Role[];
+    const creatorAreas = creator?.roleAssignments.map(ra => ra.area) || [];
     const recipientAreasArray = Array.isArray(recipientArea) ? recipientArea : recipientArea ? [recipientArea] : [];
-    const targetRoles = recipientAreasArray.map(a => a as Role); // Las áreas de destino son un array
 
     // Usamos un Set para evitar duplicados si el creador pertenece al área de destino.
-    const rolesToNotify = new Set<Role>([...creatorAreas, ...targetRoles].filter(r => Object.values(Role).includes(r)));
+    const areasToNotify = new Set<string>([...creatorAreas, ...recipientAreasArray]);
 
-    if (rolesToNotify.size > 0) {
+    if (areasToNotify.size > 0) {
       await this.notificationService.createNotification({
         title: 'Nuevo Ticket Creado',
         message: `Se ha creado un nuevo ticket: "${ticket.title}" para el área de ${recipientAreasArray.join(', ')}.`,
         type: 'ticket_created',
         createdById: createdById,
-        role: Array.from(rolesToNotify),
+        role: Array.from(areasToNotify), // Usamos 'role' para que coincida con el DTO de notificación
       });
     }
 
@@ -69,7 +68,7 @@ export class TicketService {
     return this.prisma.ticket.findMany({
       include: {
         createdBy: {
-          select: { id: true, username: true, email: true, area: true },
+          select: { id: true, username: true, email: true },
         },
         assignedTo: {
           select: { id: true, username: true, email: true },
@@ -162,7 +161,7 @@ export class TicketService {
       where: { id },
       include: {
         createdBy: {
-          select: { id: true, username: true, email: true, area: true },
+          select: { id: true, username: true, email: true },
         },
         assignedTo: {
           select: { id: true, username: true, email: true },
