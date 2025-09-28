@@ -2,12 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Search, MessageSquare, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
+import { markNotificationAsRead } from '../../utils/notificationApi';
 
 interface Notification {
   id: string;
   type: string;
   message: string;
   timestamp: string;
+  read: boolean;
 }
 
 interface HeaderProps {
@@ -20,6 +22,7 @@ type NotificationWire = {
   id?: number | string;
   type?: string;
   message?: string;
+  read?: boolean;
   createdAt?: string | Date;
 };
 
@@ -42,6 +45,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const unreadCount = notifications.filter(n => !n.read).length;
   const [messageCount, setMessageCount] = useState(0);
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -55,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      query: { userId: String(user.id), role: user.roles?.[0], area: user.area },
+      query: { userId: String(user.id), role: user.roles?.[0], area: user.areas?.[0] },
     });
 
     socketRef.current = socket;
@@ -74,6 +78,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
         type: n.type ?? 'info',
         message: n.message ?? '',
         timestamp: n.createdAt ? new Date(n.createdAt).toLocaleTimeString() : new Date().toLocaleTimeString(),
+        read: n.read ?? false,
       }));
       setNotifications(mapped);
     });
@@ -82,10 +87,11 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       console.log('Notificación recibida:', data);
 
       const newNotif: Notification = {
-        id: Date.now().toString(),
+        id: String(data?.id ?? Date.now()),
         type: data?.type ?? 'info',
         message: data?.message ?? 'Nueva notificación',
         timestamp: new Date().toLocaleTimeString(),
+        read: false,
       };
 
       setNotifications((prev) => [newNotif, ...prev]);
@@ -105,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       socket.off('connect_error');
       socket.disconnect();
     };
-  }, [user?.id, user?.roles, user?.area]);
+  }, [user?.id, user?.roles, user?.areas]);
 
   // Cerrar menús al hacer click fuera
   useEffect(() => {
@@ -145,6 +151,21 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
     return titleMap[title] || title;
   };
 
+  const handleNotificationClick = async (notification: Notification) => {
+    if (notification.read) {
+      // Opcional: si ya está leída, podrías navegar a la página relacionada
+      // con la notificación, si aplica.
+      return;
+    }
+
+    try {
+      await markNotificationAsRead(notification.id);
+      setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read: true } : n));
+    } catch (error) {
+      console.error("Error al marcar la notificación como leída", error);
+    }
+  };
+
   return (
     <header className="px-6 py-4 bg-white border-b border-gray-200">
       <div className="flex items-center justify-between">
@@ -171,9 +192,9 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
               className="relative p-2 text-gray-600 transition-colors rounded-lg hover:text-gray-900 hover:bg-gray-100"
             >
               <Bell className="w-5 h-5" />
-              {notifications.length > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute flex items-center justify-center w-4 h-4 text-xs text-white bg-red-500 rounded-full -top-1 -right-1">
-                  {notifications.length}
+                  {unreadCount}
                 </span>
               )}
             </button>
@@ -190,8 +211,9 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
                 ) : (
                   notifications.map((notif) => (
                     <div
-                      key={notif.id}
-                      className="px-4 py-3 border-b cursor-pointer hover:bg-gray-50 last:border-b-0"
+                      key={notif.id} // Usar un ID único y estable
+                      onClick={() => handleNotificationClick(notif)}
+                      className={`px-4 py-3 border-b cursor-pointer hover:bg-gray-50 last:border-b-0 ${notif.read ? 'opacity-60' : ''}`}
                     >
                       <p className="text-sm text-gray-800">{notif.message}</p>
                       <span className="text-xs text-gray-500">
@@ -225,7 +247,13 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                <p className="text-xs text-gray-500">{user?.roles?.[0] || 'Usuario'}</p>
+                <p className="text-xs text-gray-500 truncate" title={user?.roles.join(', ')}>
+                  {user?.isAdmin 
+                    ? 'Administrador' 
+                    : user?.roles && user.roles.length > 0 
+                      ? user.roles.join(', ') 
+                      : 'Usuario'}
+                </p>
               </div>
               <ChevronDown className="w-4 h-4 text-gray-600" />
             </button>
@@ -235,7 +263,13 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
               <div className="absolute right-0 z-50 w-56 py-2 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
                 <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                  <p className="text-xs text-gray-500">{user?.roles?.[0] || 'Usuario'}</p>
+                <p className="text-xs text-gray-500 truncate" title={user?.roles.join(', ')}>
+                  {user?.isAdmin 
+                    ? 'Administrador' 
+                    : user?.roles && user.roles.length > 0 
+                      ? user.roles.join(', ') 
+                      : 'Usuario'}
+                </p>
                 </div>
 
                 <button

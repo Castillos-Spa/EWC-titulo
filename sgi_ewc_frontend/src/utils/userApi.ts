@@ -1,12 +1,12 @@
 import apiFetch from "./api";
-import { User } from "../types/User";
+import { User } from "../types/User"; // Asegúrate de que User se exporte desde types/User.ts
 
 // --- Auth ---
 
 export async function login(
   email: string,
   password: string
-): Promise<{ access_token: string; refresh_token: string }> {
+): Promise<{ access_token: string; refresh_token: string; user: User }> {
   return apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -72,3 +72,5 @@ export async function updateUser(
 export async function deleteUser(id: number): Promise<void> {
   return apiFetch(`/users/${id}`, { method: "DELETE" });
 }
+
+export type { User };

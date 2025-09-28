@@ -23,66 +23,29 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, logout } = useAuth();
 
-  const hasRole = (role: string) => user?.roles?.some(r => r === role);
+  const hasAreaAccess = (area: string) => user?.isAdmin || user?.areas?.includes(area);
 
   // Catálogo global de vistas (ids en kebab-case igual que en App.tsx)
   const viewsCatalog = {
     dashboard: { id: 'dashboard', label: 'Dashboard', icon: Truck, show: () => true },
     tickets: { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: () => true },
-    'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: () => hasRole('Admin') || hasRole('Transporte') || hasRole('Driver') },
-    'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: () => hasRole('Admin') || hasRole('Transporte') },
-    'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: () => hasRole('Admin') || hasRole('Transporte') },
-    maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasRole('Admin') || hasRole('Transporte') || hasRole('Mecanico') },
-    'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: HardHat, show: () => hasRole('Admin') || hasRole('Aseo') },
-    'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasRole('Admin') ||  hasRole('Obras') },
-    'user-management': { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: () => hasRole('Admin') || hasRole('RRHH') },
-  };
-
-  // Configuración de áreas → qué vistas contiene cada área
-  const areasConfig: Record<string, (keyof typeof viewsCatalog)[]> = {
-    Admin: ['dashboard','trip-reports','route-management','fleet-registry','maintenance','cleaning-reports','civil-works','user-management','tickets'],
-    IT: ['dashboard','tickets'],
-    Transporte: ['dashboard','maintenance','fleet-registry','route-management','tickets'],
-    Driver: ['dashboard','trip-reports','tickets'],
-    Taller: ['dashboard','maintenance','tickets'],
-    Obras: ['dashboard','civil-works','tickets'],
-    Aseo: ['dashboard','cleaning-reports','tickets'],
-    Mecanico: ['dashboard','maintenance','tickets'],
-    RRHH: ['dashboard','user-management','tickets'],
-    Finanza: ['dashboard','tickets'],
-    P_Riesgo: ['dashboard','tickets'],
+    'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: () => hasAreaAccess('Transporte') },
+    'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: () => hasAreaAccess('Transporte') },
+    'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: () => hasAreaAccess('Transporte') },
+    maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasAreaAccess('Taller') },
+    'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: HardHat, show: () => hasAreaAccess('Aseo') },
+    'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasAreaAccess('Obras') },
+    'user-management': { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: () => hasAreaAccess('Admin') || hasAreaAccess('RRHH') },
   };
 
   const handleLogout = () => {
     logout();
   };
 
-  const roleLabel = user?.roles?.[0]?.replace('_', ' ') ?? '';
-  const isAdmin = hasRole('Admin');
+  const roleLabel = user?.roles?.includes('Admin') ? 'Admin' : user?.roles?.[0] ?? 'Usuario';
 
- // Catálogo de secciones por área (solo para saber qué vistas aplicar por área)
-  const groupedMenu = Object.entries(areasConfig).map(([area, viewKeys]) => ({
-    area,
-    items: viewKeys.map(key => viewsCatalog[key]),
-  }));
-
-  // Para usuario no admin: obtener TODAS las áreas que coincidan con sus roles
-  const userAreaSections = user?.roles
-    ? groupedMenu.filter(section => user.roles.some(role => role === section.area))
-    : [];
-
-  const getUniqueById = <T extends { id: string }>(list: T[]) =>
-    Array.from(new Map(list.map(i => [i.id, i])).values());
-
-  // Ítems visibles (únicos) según rol/área
-  const adminVisibleUnique = getUniqueById(
-    groupedMenu.flatMap(section => section.items).filter(item => item.show())
-  );
-  const userVisibleUnique = getUniqueById(
-    userAreaSections.flatMap(s => s.items).filter(item => item.show())
-  );
-
-  const visibleItemsUnique = isAdmin ? adminVisibleUnique : userVisibleUnique;
+  // Lógica simplificada: iterar sobre todas las vistas posibles y usar su propia condición `show()` para decidir si se renderiza.
+  const visibleItemsUnique = Object.values(viewsCatalog).filter(item => item.show());
 
   let navContent: React.ReactNode = null;
 

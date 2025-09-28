@@ -1,4 +1,13 @@
 -- CreateEnum
+CREATE TYPE "public"."Role" AS ENUM ('Admin', 'Jefe', 'Supervisor', 'Especialista', 'Trabajador', 'Lector');
+
+-- CreateEnum
+CREATE TYPE "public"."Specialty" AS ENUM ('DRIVER', 'MECHANIC', 'IT_SUPPORT', 'NETWORK_ADMIN', 'DEVELOPER', 'CIVIL_ENGINEER', 'PROJECT_MANAGER', 'ARCHITECT', 'CLEANING_COORDINATOR', 'SANITATION_SPECIALIST', 'HR_SPECIALIST', 'RECRUITER', 'ACCOUNTANT', 'FINANCIAL_ANALYST', 'AUDITOR', 'SAFETY_INSPECTOR', 'RISK_ANALYST');
+
+-- CreateEnum
+CREATE TYPE "public"."Permission" AS ENUM ('VIEW_DASHBOARD', 'VIEW_TICKETS', 'MANAGE_TICKETS', 'MANAGE_ROUTES', 'MANAGE_FLEET', 'VIEW_TRIP_REPORTS', 'MANAGE_TRIP_REPORTS', 'VIEW_ROUTES', 'VIEW_FLEET', 'VIEW_MAINTENANCE', 'MANAGE_MAINTENANCE', 'VIEW_CIVIL_WORKS', 'MANAGE_CIVIL_WORKS', 'VIEW_CLEANING_REPORTS', 'MANAGE_CLEANING_REPORTS', 'VIEW_MANAGEMENT_USER', 'MANAGE_MANAGEMENT_USER', 'VIEW_EMPLOYEES', 'MANAGE_EMPLOYEES', 'VIEW_PAYROLL', 'MANAGE_PAYROLL', 'VIEW_FINANCIAL_REPORTS', 'MANAGE_BUDGETS', 'APPROVE_EXPENSES', 'VIEW_RISK_ASSESSMENTS', 'MANAGE_RISK_ASSESSMENTS', 'CREATE_SAFETY_PROTOCOLS');
+
+-- CreateEnum
 CREATE TYPE "public"."TicketStatus" AS ENUM ('Pendiente', 'EnProgreso', 'Resuelto', 'Cerrado');
 
 -- CreateEnum
@@ -8,23 +17,14 @@ CREATE TYPE "public"."TicketPriority" AS ENUM ('Baja', 'Media', 'Alta', 'Urgente
 CREATE TYPE "public"."VehiculoStatus" AS ENUM ('disponible', 'en_mantenimiento', 'inactivo', 'en_uso');
 
 -- CreateEnum
-CREATE TYPE "public"."Role" AS ENUM ('Admin', 'Obras', 'Aseo', 'IT', 'Transporte', 'Driver', 'Mecanico', 'Lector', 'RRHH', 'Finanza', 'P_Riesgo');
-
--- CreateEnum
 CREATE TYPE "public"."TicketCategory" AS ENUM ('Soporte_IT', 'Solicitud_Suministro', 'Mantenimiento', 'Reporte_Incidente');
-
--- CreateEnum
-CREATE TYPE "public"."Permission" AS ENUM ('VIEW_DASHBOARD', 'VIEW_TICKETS', 'MANAGE_TICKETS', 'MANAGE_ROUTES', 'MANAGE_FLEET', 'VIEW_TRIP_REPORTS', 'MANAGE_TRIP_REPORTS', 'VIEW_ROUTES', 'VIEW_FLEET', 'VIEW_MAINTENANCE', 'MANAGE_MAINTENANCE', 'VIEW_CIVIL_WORKS', 'MANAGE_CIVIL_WORKS', 'VIEW_CLEANING_REPORTS', 'MANAGE_CLEANING_REPORTS', 'VIEW_MANAGEMENT_USER', 'MANAGE_MANAGEMENT_USER');
 
 -- CreateTable
 CREATE TABLE "public"."User" (
     "id" SERIAL NOT NULL,
     "username" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "area" TEXT,
     "password" TEXT NOT NULL,
-    "roles" "public"."Role"[] DEFAULT ARRAY[]::"public"."Role"[],
-    "permissions" "public"."Permission"[] DEFAULT ARRAY[]::"public"."Permission"[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT true,
@@ -33,6 +33,20 @@ CREATE TABLE "public"."User" (
     "refreshToken" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."UserRoleAssignment" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "area" TEXT NOT NULL,
+    "role" "public"."Role" NOT NULL,
+    "specialty" "public"."Specialty",
+    "permissions" "public"."Permission"[] DEFAULT ARRAY[]::"public"."Permission"[],
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserRoleAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -49,6 +63,8 @@ CREATE TABLE "public"."Ticket" (
     "assignedToId" INTEGER,
     "recipientArea" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "recipientRole" "public"."Role"[],
+    "assignedUserConfirmation" BOOLEAN DEFAULT false,
+    "requestingUserConfirmation" BOOLEAN DEFAULT false,
     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
 
     CONSTRAINT "Ticket_pkey" PRIMARY KEY ("id")
@@ -157,7 +173,19 @@ CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
 CREATE UNIQUE INDEX "User_refreshToken_key" ON "public"."User"("refreshToken");
 
 -- CreateIndex
+CREATE INDEX "UserRoleAssignment_userId_idx" ON "public"."UserRoleAssignment"("userId");
+
+-- CreateIndex
+CREATE INDEX "UserRoleAssignment_area_role_idx" ON "public"."UserRoleAssignment"("area", "role");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserRoleAssignment_userId_area_role_key" ON "public"."UserRoleAssignment"("userId", "area", "role");
+
+-- CreateIndex
 CREATE INDEX "_NotificationToUser_B_index" ON "public"."_NotificationToUser"("B");
+
+-- AddForeignKey
+ALTER TABLE "public"."UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Ticket" ADD CONSTRAINT "Ticket_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

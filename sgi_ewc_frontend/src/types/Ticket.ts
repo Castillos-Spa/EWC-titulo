@@ -1,3 +1,5 @@
+import { Role } from "./User";
+
 export enum TicketStatus {
   Pendiente = "Pendiente",
   EnProgreso = "EnProgreso",
@@ -28,4 +30,9 @@ export interface Ticket {
   updatedAt: string;
   createdBy: UserInfo;
   assignedTo?: UserInfo | null;
+  recipientArea: string[];
+  recipientRole: Role[];
+  assignedUserConfirmation: boolean | null;
+  requestingUserConfirmation: boolean | null;
+  tags: string[];
 }

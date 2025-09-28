@@ -22,9 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       try {
         const profile = await getProfile();
-        // Reutilizamos la misma lógica de normalización que en el login
-        const normalizedUser = normalizeProfile(profile);
-        setUser(normalizedUser);
+        setUser(profile); // El perfil ya viene con la estructura correcta
       } catch (error) {
         console.error("Fallo al verificar el token, cerrando sesión local.", error);
         await logout(); // Limpia todo si el token no es válido
@@ -43,18 +41,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       // El backend devuelve access_token y refresh_token
-      const { access_token, refresh_token } = await apiLogin(email, password);
-      if (!access_token || !refresh_token) {
+      const { access_token, refresh_token, user: loggedInUser } = await apiLogin(email, password);
+      if (!access_token || !refresh_token || !loggedInUser) {
         throw new Error('No se recibieron los tokens necesarios');
       }
 
       localStorage.setItem('authToken', access_token);
       localStorage.setItem('refreshToken', refresh_token); // ¡Guardar el refresh token!
-      // Obtener perfil desde backend
-      const profile = await getProfile();
-      const mapped = normalizeProfile(profile);
-      localStorage.setItem('userData', JSON.stringify(mapped));
-      setUser(mapped);
+      localStorage.setItem('userData', JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
       setIsLoading(false);
       return true;
     } catch (err) {
@@ -89,39 +84,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
-
-/**
- * Normaliza el perfil de usuario recibido del backend a la estructura `User` del frontend.
- */
-function normalizeProfile(profile: any): User {
-  // El backend puede devolver 'userId' (del token JWT) o 'id' (de la base de datos).
-  const userId = profile.id ?? profile.userId;
-  if (!userId) {
-    throw new Error('El perfil de usuario obtenido no es válido o no contiene un ID (id/userId).');
-  }
-
-  // Normalizar áreas a arreglo de strings
-  let areas: string[] = [];
-  if (Array.isArray(profile.area)) {
-    areas = profile.area as string[];
-  } else if (profile.area) {
-    areas = [profile.area as string];
-  }
-
-  // Unificar roles + áreas en una sola lista de roles únicos
-  const normalizedRoles = Array.from(new Set([...(profile.roles ?? []), ...areas]));
-
-  return {
-    id: userId,
-    username: profile.username ?? profile.email?.split('@')[0] ?? '',
-    email: profile.email,
-    area: areas, // <-- Mantenemos el array de áreas
-    roles: normalizedRoles,
-    permissions: profile.permissions ?? [],
-    active: profile.active ?? true,
-    mustChangePassword: profile.mustChangePassword ?? false,
-  } as User;
-}
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {

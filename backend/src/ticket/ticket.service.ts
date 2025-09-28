@@ -13,7 +13,7 @@ export class TicketService {
   ) {}
 
   async create(createTicketDto: CreateTicketDto, createdById: number): Promise<Ticket> {
-    const { recipientArea, tags, category, ...restOfDto } = createTicketDto;
+    const { recipientArea, recipientRole, tags, category, ...restOfDto } = createTicketDto;
 
     // Convertir la categoría de string a enum
     const categoryEnum = category.replace(/ /g, '_') as TicketCategory;
@@ -22,32 +22,44 @@ export class TicketService {
       data: {
         ...restOfDto,
         category: categoryEnum,
-        recipientArea: Array.isArray(recipientArea) ? recipientArea : recipientArea ? [recipientArea] : [],
+        recipientArea: (() => {
+          // Ensure recipientArea is always an array
+          if (Array.isArray(recipientArea)) {
+            return recipientArea;
+          }
+          return recipientArea ? [recipientArea] : [];
+        })(),
         tags: tags ?? [],
         createdById,
+        recipientRole: recipientRole ?? [], // Initialize recipientRole as an empty array if not provided
       },
     });
 
     // Notificación al área de destino y al área del creador.
     const creator = await this.prisma.user.findUnique({
       where: { id: createdById },
-      select: { area: true },
+      include: { roleAssignments: { where: { isActive: true } } },
     });
 
-    const creatorAreas = (creator?.area || []) as Role[];
-    const recipientAreasArray = Array.isArray(recipientArea) ? recipientArea : recipientArea ? [recipientArea] : [];
-    const targetRoles = recipientAreasArray.map(a => a as Role); // Las áreas de destino son un array
+    const creatorAreas = creator?.roleAssignments.map(ra => ra.area) || [];
+    const recipientAreasArray = (() => {
+      if (Array.isArray(recipientArea)) {
+        return recipientArea;
+      }
+      return recipientArea ? [recipientArea] : [];
+    })();
 
     // Usamos un Set para evitar duplicados si el creador pertenece al área de destino.
-    const rolesToNotify = new Set<Role>([...creatorAreas, ...targetRoles].filter(r => Object.values(Role).includes(r)));
+    const areasToNotify = new Set<string>([...creatorAreas, ...recipientAreasArray]);
 
-    if (rolesToNotify.size > 0) {
+    if (areasToNotify.size > 0) {
       await this.notificationService.createNotification({
         title: 'Nuevo Ticket Creado',
         message: `Se ha creado un nuevo ticket: "${ticket.title}" para el área de ${recipientAreasArray.join(', ')}.`,
         type: 'ticket_created',
         createdById: createdById,
-        role: Array.from(rolesToNotify),
+        areas: Array.from(areasToNotify), // Notify by areas
+        roles: recipientRole ?? [], // Also notify by recipient roles if specified
       });
     }
 
@@ -69,7 +81,7 @@ export class TicketService {
     return this.prisma.ticket.findMany({
       include: {
         createdBy: {
-          select: { id: true, username: true, email: true, area: true },
+          select: { id: true, username: true, email: true },
         },
         assignedTo: {
           select: { id: true, username: true, email: true },
@@ -162,7 +174,7 @@ export class TicketService {
       where: { id },
       include: {
         createdBy: {
-          select: { id: true, username: true, email: true, area: true },
+          select: { id: true, username: true, email: true },
         },
         assignedTo: {
           select: { id: true, username: true, email: true },
