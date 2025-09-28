@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip, Tag } from 'lucide-react';
+import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip } from 'lucide-react';
 import { getTickets, createTicket, updateTicket, CreateTicketPayload } from '../../utils/ticketApi';
-import { Ticket, TicketStatus, TicketPriority } from '../../types/Ticket';
-import { getUsers, User as AppUser } from '../../utils/userApi';
+import { getUsers } from '../../utils/userApi'; // Assuming getUsers is in userApi
+import { Ticket, TicketStatus, TicketPriority } from '../../types/Ticket'; // NOSONAR
+import { User as AppUser } from '../../types/User';
 
 // 1. Importa tu hook de autenticación desde su ubicación correcta
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,7 +24,7 @@ const EnhancedTicketSystem: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false); // NOSONAR
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [newTicketForm, setNewTicketForm] = useState({
@@ -31,7 +32,7 @@ const EnhancedTicketSystem: React.FC = () => {
     description: '',
     category: TICKET_CATEGORIES[0],
     priority: TicketPriority.Media,
-    recipientArea: [], // Ahora es un array
+    recipientArea: [] as string[], // Ahora es un array
     tags: '',
     // attachments: null, // Para futura implementación de archivos
   });
@@ -131,38 +132,35 @@ const EnhancedTicketSystem: React.FC = () => {
   // --- IMPLEMENTACIÓN DINÁMICA ---
   // 2. Obtenemos el usuario del contexto de autenticación
   const { user } = useAuth(); // Esto obtiene el usuario que ha iniciado sesión
-  const currentUserAreas = user?.area || []; // ej: ['IT', 'Finanzas']
-  const currentUserRoles = user?.roles || []; // ej: ['Admin', 'User']
 
-  const filteredTickets = tickets.filter(ticket => {
+  const filteredTickets = tickets.filter((ticket: Ticket) => {
     const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (ticket.description && ticket.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          String(ticket.id).includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || ticket.status === selectedStatus;
     const matchesCategory = selectedCategory === 'all' || ticket.category === selectedCategory;
     const matchesPriority = selectedPriority === 'all' || ticket.priority === selectedPriority;
+  
+    if (!user) return false; // Si no hay usuario, no mostrar tickets
 
-    // 1. Determinar si el usuario es administrador.
-    const isAdmin = currentUserRoles.includes('Admin') || currentUserAreas.includes('Admin');
+    // Lógica de relevancia: el usuario ve el ticket si es admin, si pertenece a una de las áreas de destino,
+    // o si tiene uno de los roles de destino.
+    const isRelevant = user.isAdmin ||
+      (ticket.recipientArea ?? []).some((area: string) => user.areas.includes(area)) ||
+      ticket.recipientRole?.some((role: string) => user.roles.includes(role as any));
 
-    // 2. Lógica de relevancia del ticket (mucho más robusta).
-    const isRelevantArea = isAdmin || // Si es Admin, siempre es relevante.
-                           currentUserAreas.some(userArea => ticket.createdBy?.area?.includes(userArea)) || // El ticket fue creado por una de mis áreas.
-                           currentUserAreas.some(userArea => Array.isArray(ticket.recipientArea) && ticket.recipientArea.includes(userArea)); // El ticket está destinado a una de mis áreas.
-
-    return matchesSearch && matchesStatus && matchesCategory && matchesPriority && isRelevantArea;
+    return matchesSearch && matchesStatus && matchesCategory && matchesPriority && isRelevant;
   });
 
   const handleStatusChange = async (ticketId: number, newStatus: TicketStatus) => {
     try {
       const updated = await updateTicket(ticketId, { status: newStatus });
-      setTickets(tickets.map(t => (t.id === ticketId ? { ...t, ...updated } : t)));
+      setTickets(tickets.map((t: Ticket) => (t.id === ticketId ? { ...t, ...updated } : t)));
       if (selectedTicket && selectedTicket.id === ticketId) {
         setSelectedTicket({ ...selectedTicket, ...updated });
  }
     } catch (error) {
       console.error("Error al actualizar el estado del ticket:", error);
-      // TODO: Mostrar un error al usuario
     }
   };
 
@@ -179,8 +177,8 @@ const EnhancedTicketSystem: React.FC = () => {
         description: newTicketForm.description,
         category: newTicketForm.category,
         priority: newTicketForm.priority,
-        recipientArea: newTicketForm.recipientArea, // Esto ya es un array
-        tags: newTicketForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+        recipientArea: newTicketForm.recipientArea.join(','),
+        tags: newTicketForm.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag),
       };
       await createTicket(payload);
       setShowForm(false);
@@ -213,7 +211,7 @@ const EnhancedTicketSystem: React.FC = () => {
       const updated = await updateTicket(selectedTicket.id, payload);
 
       // Actualizar estado local
-      setTickets(tickets.map(t => (t.id === updated.id ? updated : t)));
+      setTickets(tickets.map((t: Ticket) => (t.id === updated.id ? updated : t)));
       setSelectedTicket(updated);
       setShowAssignModal(false);
       setAssigneeId('');
@@ -235,7 +233,7 @@ const EnhancedTicketSystem: React.FC = () => {
 
     try {
       const updated = await updateTicket(selectedTicket.id, payload);
-      setTickets(tickets.map(t => (t.id === updated.id ? updated : t)));
+      setTickets(tickets.map((t: Ticket) => (t.id === updated.id ? updated : t)));
       setSelectedTicket(updated);
     } catch (error) {
       console.error('Error al actualizar la confirmación:', error);
@@ -268,12 +266,14 @@ const EnhancedTicketSystem: React.FC = () => {
   const columns = Object.values(TicketStatus).map(status => ({
     id: status,
     title: getStatusLabel(status),
-    tickets: filteredTickets.filter(t => t.status === status),
+    tickets: filteredTickets.filter((t: Ticket) => t.status === status),
   }));
 
   // Usuarios filtrados para el modal de asignación
-  const assignableUsers = users.filter(user =>
-    selectedTicket?.recipientArea.some(area => user.area.includes(area))
+  const assignableUsers = users.filter((user: AppUser) =>
+    (selectedTicket?.recipientArea ?? []).some((ticketArea: string) =>
+      (user.roleAssignments ?? []).some(assignment => assignment.area === ticketArea && assignment.isActive) // Assuming roleAssignments has { area: string, isActive: boolean }
+    )
   );
 
 
@@ -336,7 +336,7 @@ const EnhancedTicketSystem: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.Pendiente)}</p>
-              <p className="text-2xl font-bold text-gray-600">{tickets.filter(t => t.status === TicketStatus.Pendiente).length}</p>
+              <p className="text-2xl font-bold text-gray-600">{tickets.filter((t: Ticket) => t.status === TicketStatus.Pendiente).length}</p>
             </div>
             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
           </div>
@@ -345,7 +345,7 @@ const EnhancedTicketSystem: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.EnProgreso)}</p>
-              <p className="text-2xl font-bold text-blue-600">{tickets.filter(t => t.status === TicketStatus.EnProgreso).length}</p>
+              <p className="text-2xl font-bold text-blue-600">{tickets.filter((t: Ticket) => t.status === TicketStatus.EnProgreso).length}</p>
             </div>
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           </div>
@@ -354,7 +354,7 @@ const EnhancedTicketSystem: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.Resuelto)}</p>
-              <p className="text-2xl font-bold text-green-600">{tickets.filter(t => t.status === TicketStatus.Resuelto).length}</p>
+              <p className="text-2xl font-bold text-green-600">{tickets.filter((t: Ticket) => t.status === TicketStatus.Resuelto).length}</p>
             </div>
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           </div>
@@ -379,23 +379,23 @@ const EnhancedTicketSystem: React.FC = () => {
               type="text"
               placeholder="Buscar tickets por título, descripción o ID..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <select
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedStatus(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Todos los Estados</option>
             {Object.values(TicketStatus).map(status => (
-              <option key={status} value={status}>{getStatusLabel(status)}</option>
+              <option key={status} value={status}>{getStatusLabel(status as TicketStatus)}</option>
             ))}
           </select>
           <select
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCategory(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Todas las Categorías</option>
@@ -405,7 +405,7 @@ const EnhancedTicketSystem: React.FC = () => {
           </select>
           <select
             value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedPriority(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Todas las Prioridades</option>
@@ -429,11 +429,12 @@ const EnhancedTicketSystem: React.FC = () => {
               </div>
               
               <div className="space-y-3">
-                {column.tickets.map((ticket) => (
-                  <div 
+                {column.tickets.map((ticket: Ticket) => (
+                  <button
                     key={ticket.id} 
                     className="p-4 transition-shadow bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:shadow-md"
                     onClick={() => setSelectedTicket(ticket)}
+                    type="button"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-2">
@@ -455,9 +456,9 @@ const EnhancedTicketSystem: React.FC = () => {
 
                     {/* Tags */}
                     {ticket.tags && ticket.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {ticket.tags.slice(0, 3).map((tag, index) => (
-                          <span key={index} className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded">
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {ticket.tags.slice(0, 3).map((tag: string) => (
+                          <span key={`${ticket.id}-${tag}`} className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded">
                             {tag}
                           </span>
                         ))}
@@ -467,15 +468,9 @@ const EnhancedTicketSystem: React.FC = () => {
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center space-x-1">
- <User className="w-3 h-3" />
- <span>{ticket.createdBy?.username || 'N/A'}</span>
+                          <User className="w-3 h-3" />
+                          <span>{ticket.createdBy?.username || 'N/A'}</span>
                         </div>
-                        {/* {ticket.attachments.length > 0 && (
-                          <div className="flex items-center space-x-1">
- <Paperclip className="w-3 h-3" />
-                            <span>{ticket.attachments.length}</span>
-                          </div>
-                        )} */}
                       </div>
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-3 h-3" />
@@ -485,7 +480,7 @@ const EnhancedTicketSystem: React.FC = () => {
                     
                     {ticket.assignedTo && (
                       <div className="pt-2 mt-2 border-t border-gray-100">
- <div className="flex items-center space-x-2 text-xs text-gray-600">
+                        <div className="flex items-center space-x-2 text-xs text-gray-600">
                           <div className="flex items-center justify-center w-5 h-5 bg-blue-100 rounded-full">
                             <span className="font-medium text-blue-600">{ticket.assignedTo.username.charAt(0)}</span>
                           </div>
@@ -493,13 +488,13 @@ const EnhancedTicketSystem: React.FC = () => {
                         </div>
                       </div>
                     )}
-                  </div>
+                  </button>
                 ))}
                 
                 {column.tickets.length === 0 && (
                   <div className="py-8 text-center">
                     <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 bg-gray-200 rounded-full">
-                      {getStatusIcon(column.id)}
+                      {getStatusIcon(column.id as TicketStatus)}
                     </div>
                     <p className="text-sm text-gray-600">Sin tickets</p>
                   </div>
@@ -539,7 +534,7 @@ const EnhancedTicketSystem: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTickets.map((ticket) => (
+                {filteredTickets.map((ticket: Ticket) => (
                   <tr key={ticket.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -611,22 +606,22 @@ const EnhancedTicketSystem: React.FC = () => {
               {/* Ticket Info */}
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div>
-                  <label htmlFor="ticket-priority" className="block text-sm font-medium text-gray-700">Prioridad</label>
+                  <p className="block text-sm font-medium text-gray-700">Prioridad</p>
                   <div className="flex items-center mt-1 space-x-2">
                     <div className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTicket.priority)}`}></div>
                     <span id="ticket-priority" className="text-sm">{getPriorityLabel(selectedTicket.priority)}</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Creado por</label>
+                  <p className="block text-sm font-medium text-gray-700">Creado por</p>
  <p className="mt-1 text-sm">{selectedTicket.createdBy?.username || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Asignado a</label>
+                  <p className="block text-sm font-medium text-gray-700">Asignado a</p>
                   <p className="mt-1 text-sm">{selectedTicket.assignedTo?.username || 'Sin asignar'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Creado</label>
+                  <p className="block text-sm font-medium text-gray-700">Creado</p>
                   <p className="mt-1 text-sm">{formatDate(selectedTicket.createdAt)}</p>
                 </div>
               </div>
@@ -642,7 +637,7 @@ const EnhancedTicketSystem: React.FC = () => {
               <div className="flex flex-wrap gap-3">
                 <select
                   value={selectedTicket.status}
-                  onChange={(e) => handleStatusChange(selectedTicket.id, e.target.value as TicketStatus)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleStatusChange(selectedTicket.id, e.target.value as TicketStatus)}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   {Object.values(TicketStatus).map(status => (
@@ -660,7 +655,7 @@ const EnhancedTicketSystem: React.FC = () => {
               </div>
 
               {/* Confirmation Workflow */}
-              {selectedTicket.assignedToId && (
+              {selectedTicket.assignedTo && (
                 <div className="p-4 border-t border-b border-gray-200 bg-gray-50">
                   <h4 className="mb-4 text-sm font-semibold text-gray-800">Flujo de Confirmación</h4>
                   <div className="space-y-3">
@@ -669,8 +664,8 @@ const EnhancedTicketSystem: React.FC = () => {
                         id="assigned-confirm"
                         type="checkbox"
                         className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
-                        checked={selectedTicket.assignedUserConfirmation || false}
-                        disabled={user?.id !== selectedTicket.assignedToId}
+                        checked={!!selectedTicket.assignedUserConfirmation}
+                        disabled={user?.id !== selectedTicket.assignedTo?.id}
                         onChange={(e) => handleConfirmationChange('assigned', e.target.checked)}
                       />
                       <label htmlFor="assigned-confirm" className="ml-3 text-sm text-gray-700">
@@ -682,8 +677,8 @@ const EnhancedTicketSystem: React.FC = () => {
                         id="requester-confirm"
                         type="checkbox"
                         className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50"
-                        checked={selectedTicket.requestingUserConfirmation || false}
-                        disabled={!selectedTicket.assignedUserConfirmation || user?.id !== selectedTicket.createdById}
+                        checked={!!selectedTicket.requestingUserConfirmation}
+                        disabled={!selectedTicket.assignedUserConfirmation || user?.id !== selectedTicket.createdBy?.id}
                         onChange={(e) => handleConfirmationChange('requesting', e.target.checked)}
                       />
                       <label htmlFor="requester-confirm" className="ml-3 text-sm text-gray-700">
@@ -696,7 +691,7 @@ const EnhancedTicketSystem: React.FC = () => {
 
               {/* Comments */}
               <div>
-                <label htmlFor="ticket-comments" className="block mb-4 text-sm font-medium text-gray-700">Comentarios</label>
+                <p className="block mb-4 text-sm font-medium text-gray-700">Comentarios</p>
                 <p className="text-sm text-gray-500">La funcionalidad de comentarios se implementará próximamente.</p>
               </div>
             </div>
@@ -730,7 +725,7 @@ const EnhancedTicketSystem: React.FC = () => {
                   placeholder="Descripción breve del problema o solicitud"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={newTicketForm.title}
-                  onChange={(e) => setNewTicketForm({ ...newTicketForm, title: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTicketForm({ ...newTicketForm, title: e.target.value })}
                   required
                   id="new-ticket-title"
                 />
@@ -742,7 +737,7 @@ const EnhancedTicketSystem: React.FC = () => {
                   <select id="new-ticket-category"
  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={newTicketForm.category}
-                    onChange={(e) => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
                     required
                   >
                     <option value="">Seleccionar categoría</option>
@@ -756,7 +751,7 @@ const EnhancedTicketSystem: React.FC = () => {
                   <select id="new-ticket-priority"
  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={newTicketForm.priority}
-                    onChange={(e) => setNewTicketForm({ ...newTicketForm, priority: e.target.value as TicketPriority })}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ ...newTicketForm, priority: e.target.value as TicketPriority })}
                   >
                     {Object.values(TicketPriority).map(prio => (
                       <option key={prio} value={prio}>{getPriorityLabel(prio)}</option>
@@ -770,9 +765,9 @@ const EnhancedTicketSystem: React.FC = () => {
                   multiple
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={newTicketForm.recipientArea}
-                  onChange={(e) => setNewTicketForm({ 
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ 
                     ...newTicketForm, 
-                    recipientArea: Array.from(e.target.selectedOptions, option => option.value) 
+                    recipientArea: Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value) 
                   })}
                   required
                 >
@@ -789,7 +784,7 @@ const EnhancedTicketSystem: React.FC = () => {
                   placeholder="Proporciona información detallada sobre el problema o solicitud..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={newTicketForm.description}
-                  onChange={(e) => setNewTicketForm({ ...newTicketForm, description: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewTicketForm({ ...newTicketForm, description: e.target.value })}
                   id="new-ticket-description"
                 ></textarea>
               </div>
@@ -802,12 +797,12 @@ const EnhancedTicketSystem: React.FC = () => {
                   placeholder="ej: urgente, red, almacen (separadas por comas)"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={newTicketForm.tags}
-                  onChange={(e) => setNewTicketForm({ ...newTicketForm, tags: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTicketForm({ ...newTicketForm, tags: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="block mb-2 text-sm font-medium text-gray-700">Archivos Adjuntos</label>
+                <p className="block mb-2 text-sm font-medium text-gray-700">Archivos Adjuntos</p>
                 <div className="p-6 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400">
                   <Paperclip className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                   <p className="text-sm text-gray-600">Arrastra archivos o haz clic para subir</p>
@@ -853,7 +848,7 @@ const EnhancedTicketSystem: React.FC = () => {
                 id="assign-user" 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAssigneeId(e.target.value)}
               >
                 <option value="">Seleccionar usuario...</option>
                 {assignableUsers.length > 0 ? (

@@ -50,7 +50,7 @@ export class TicketController {
   @Roles(Role.Admin, Role.Jefe, Role.Supervisor, Role.Especialista)
   @UseGuards(RolesGuard)
   update(@Param('id', ParseIntPipe) id: number, @Body() updateTicketDto: UpdateTicketDto, @Req() req) {
-    const updatedById = req.user.id;
+    const updatedById = req.user.userId;
     return this.ticketsService.update(id, updateTicketDto, updatedById);
   }
 

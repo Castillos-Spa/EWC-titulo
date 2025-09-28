@@ -101,7 +101,7 @@ export class UsersService {
     await this.notificationService.createNotification({
       title: 'Nuevo Usuario Creado',
       message,
-      role: ['Admin'], // 🎯 Usamos 'role' para que coincida con el DTO de notificación
+      roles: ['Admin'], // 🎯 Usamos 'role' para que coincida con el DTO de notificación
       type: 'user_created',
       createdById: result.id, // El ID del usuario que se acaba de crear
     });

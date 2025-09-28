@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, Notification as PrismaNotification } from '@prisma/client';
 import { NotificacionGateway } from './notificacion.gateway';
 
 @Injectable()
@@ -16,12 +16,11 @@ export class NotificacionService {
     message: string;
     createdById: number;
     userId?: number;
-    area?: string;
-    role?: any;
+    areas?: string[];
+    roles?: Role[]; // Changed to Role[]
     type: string;
   }) {
-    const { title, message, createdById, userId, area, role, type } = data;
-    const roleEnum = typeof role === 'string' && role in Role ? (Role as any)[role as keyof typeof Role] : role;
+    const { title, message, createdById, userId, areas, roles, type } = data; // roles is now Role[]
 
     const created = await this.prisma.notification.create({
       data: {
@@ -32,8 +31,8 @@ export class NotificacionService {
           connect: { id: createdById },
         },
         read: false,
-        areas: area ? (Array.isArray(area) ? area : [area]) : [],
-        roles: roleEnum ? (Array.isArray(roleEnum) ? roleEnum : [roleEnum]) : [],
+        areas: areas ?? [], // Use directly, default to empty array
+        roles: roles ?? [], // Use directly, default to empty array
         ...(userId
           ? {
               user: {
@@ -46,18 +45,22 @@ export class NotificacionService {
 
     // Recargar con relación de usuarios para emitir a sus salas
     const notification = await this.prisma.notification.findUnique({
+      // Use PrismaNotification type
       where: { id: created.id },
       include: { user: { select: { id: true } } },
     });
 
-    await this.gateway.sendNotification(notification);
+    if (notification) {
+      // Check if notification exists before sending
+      await this.gateway.sendNotification(notification);
+    }
     return notification;
   }
 
   async getNotificationsForUser(userId?: number, userRole?: string, userArea?: string) {
     const orFilters: any[] = [];
     if (typeof userId === 'number' && Number.isFinite(userId)) {
-      orFilters.push({ user: { some: { id: userId } } });
+      orFilters.push({ user: { some: { id: userId } } }); // This connects to the User model
     }
     if (userRole) {
       const roleEnum = (Role as any)[userRole as keyof typeof Role] ?? userRole;

@@ -13,7 +13,7 @@ export class TicketService {
   ) {}
 
   async create(createTicketDto: CreateTicketDto, createdById: number): Promise<Ticket> {
-    const { recipientArea, tags, category, ...restOfDto } = createTicketDto;
+    const { recipientArea, recipientRole, tags, category, ...restOfDto } = createTicketDto;
 
     // Convertir la categoría de string a enum
     const categoryEnum = category.replace(/ /g, '_') as TicketCategory;
@@ -22,9 +22,16 @@ export class TicketService {
       data: {
         ...restOfDto,
         category: categoryEnum,
-        recipientArea: Array.isArray(recipientArea) ? recipientArea : recipientArea ? [recipientArea] : [],
+        recipientArea: (() => {
+          // Ensure recipientArea is always an array
+          if (Array.isArray(recipientArea)) {
+            return recipientArea;
+          }
+          return recipientArea ? [recipientArea] : [];
+        })(),
         tags: tags ?? [],
         createdById,
+        recipientRole: recipientRole ?? [], // Initialize recipientRole as an empty array if not provided
       },
     });
 
@@ -35,7 +42,12 @@ export class TicketService {
     });
 
     const creatorAreas = creator?.roleAssignments.map(ra => ra.area) || [];
-    const recipientAreasArray = Array.isArray(recipientArea) ? recipientArea : recipientArea ? [recipientArea] : [];
+    const recipientAreasArray = (() => {
+      if (Array.isArray(recipientArea)) {
+        return recipientArea;
+      }
+      return recipientArea ? [recipientArea] : [];
+    })();
 
     // Usamos un Set para evitar duplicados si el creador pertenece al área de destino.
     const areasToNotify = new Set<string>([...creatorAreas, ...recipientAreasArray]);
@@ -46,7 +58,8 @@ export class TicketService {
         message: `Se ha creado un nuevo ticket: "${ticket.title}" para el área de ${recipientAreasArray.join(', ')}.`,
         type: 'ticket_created',
         createdById: createdById,
-        role: Array.from(areasToNotify), // Usamos 'role' para que coincida con el DTO de notificación
+        areas: Array.from(areasToNotify), // Notify by areas
+        roles: recipientRole ?? [], // Also notify by recipient roles if specified
       });
     }
 

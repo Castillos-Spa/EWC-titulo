@@ -1,5 +1,5 @@
 import apiFetch from "./api";
-import { User } from "../types/User";
+import { User } from "../types/User"; // Asegúrate de que User se exporte desde types/User.ts
 
 // --- Auth ---
 
@@ -72,3 +72,5 @@ export async function updateUser(
 export async function deleteUser(id: number): Promise<void> {
   return apiFetch(`/users/${id}`, { method: "DELETE" });
 }
+
+export type { User };
