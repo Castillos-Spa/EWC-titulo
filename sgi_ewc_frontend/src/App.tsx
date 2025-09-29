@@ -8,10 +8,13 @@ import DashboardHome from './components/Dashboard/DashboardHome';
 import TripReports from './components/WaterTransport/TripReports';
 import FleetRegistry from './components/WaterTransport/FleetRegistry';
 import MaintenanceManagement from './components/WaterTransport/MaintenanceManagement';
+import FuelByFleet from './components/WaterTransport/FuelByFleet';
+import RouteManagement from './components/WaterTransport/RouteManagement';
 import EnhancedTicketSystem from './components/Tickets/EnhancedTicketSystem';
 import CleaningReports from './components/GeneralServices/CleaningReports';
 import CivilWorks from './components/GeneralServices/CivilWorks';
 import Incidents from './components/GeneralServices/Incidents';
+import NotificationsCenter from './components/Notifications/NotificationsCenter';
 import UserManagement from './components/Admin/UserManagement';
 import UserProfile from './components/Profile/UserProfile';
 import ChangePasswordModal from './components/ChangePasswordModal';
@@ -67,12 +70,14 @@ const AppContent: React.FC = () => {
     switch (page) {
       case 'dashboard': return 'Dashboard';
       case 'trip-reports': return 'Trip Reports';
-      case 'route-management': return 'Route Management';
+      case 'route-management': return 'Gestión de Rutas';
       case 'fleet-registry': return 'Fleet Registry';
+      case 'fuel-by-fleet': return 'Consumo de Combustible';
       case 'maintenance': return 'Maintenance Management';
       case 'cleaning-reports': return 'Cleaning Reports';
       case 'civil-works': return 'Civil Works Reports';
       case 'incidents': return 'Incidentes';
+  case 'notifications': return 'Notificaciones';
       case 'tickets': return 'Ticket System';
       case 'user-management': return 'User Management';
       case 'profile': return 'Mi Perfil';
@@ -102,6 +107,8 @@ const AppContent: React.FC = () => {
         return <TripReports />;
       case 'fleet-registry':
         return <FleetRegistry />;
+      case 'fuel-by-fleet':
+        return <FuelByFleet />;
       case 'maintenance':
         return <MaintenanceManagement />;
       case 'cleaning-reports':
@@ -112,24 +119,12 @@ const AppContent: React.FC = () => {
         return <Incidents />;
       case 'tickets':
         return <EnhancedTicketSystem />;
+      case 'notifications':
+        return <NotificationsCenter />;
       case 'user-management':
         return <UserManagement />;
       case 'route-management':
-        return (
-          <div className="space-y-6">
-            <div className="p-8 text-center bg-white border border-gray-200 rounded-lg shadow-sm">
-              <h2 className="mb-4 text-2xl font-bold text-gray-900">Route Management</h2>
-              <p className="mb-4 text-gray-600">
-                This module would contain route assignment, driver notifications, and GPS tracking features.
-              </p>
-              <div className="p-4 rounded-lg bg-blue-50">
-                <p className="text-sm text-blue-800">
-                  Feature coming soon: Real-time route optimization, driver assignments, and automated notifications.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
+        return <RouteManagement />;
       default:
         return <DashboardHome />;
     }

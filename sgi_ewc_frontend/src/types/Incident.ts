@@ -11,6 +11,7 @@ export type IncidentStatus = 'reported' | 'acknowledged' | 'in_progress' | 'reso
 
 export interface Incident {
   id: string;
+  area: string; // Área responsable/relacionada (Transporte, Taller, Aseo, IT, etc.)
   type: IncidentType;
   severity: IncidentSeverity;
   title: string;

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Search, Filter, MapPin, Truck, Calendar, User } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, Filter, MapPin, Truck, Calendar, User, PlayCircle, CheckCircle2, Clock, Droplets } from 'lucide-react';
 
 interface Trip {
   id: string;
@@ -46,7 +46,6 @@ const TripReports: React.FC = () => {
     },
   ]);
 
-  const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const getStatusColor = (status: string) => {
@@ -73,21 +72,75 @@ const TripReports: React.FC = () => {
     trip.vehicle.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const stats = useMemo(() => {
+    const total = filteredTrips.length;
+    const completed = filteredTrips.filter(t => t.status === 'completed').length;
+    const inProgress = filteredTrips.filter(t => t.status === 'in_progress').length;
+    const pending = filteredTrips.filter(t => t.status === 'pending').length;
+    const totalVolume = filteredTrips.reduce((sum, t) => sum + (t.volumeTransported || 0), 0);
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, inProgress, pending, totalVolume, completionRate };
+  }, [filteredTrips]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Reportes de Viajes</h2>
-          <p className="text-gray-600">Gestiona viajes y entregas de transporte de agua</p>
+          <p className="text-gray-600">Seguimiento de la ejecución y progreso en tiempo real</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nuevo Reporte de Viaje</span>
-        </button>
+        {/* La creación de rutas/reportes se gestiona en Gestión de Rutas */}
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total de Viajes</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</p>
+            </div>
+            <Truck className="w-8 h-8 text-blue-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">En Progreso</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.inProgress.toLocaleString()}</p>
+            </div>
+            <PlayCircle className="w-8 h-8 text-blue-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Completados</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.completed.toLocaleString()}</p>
+            </div>
+            <CheckCircle2 className="w-8 h-8 text-green-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Pendientes</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pending.toLocaleString()}</p>
+            </div>
+            <Clock className="w-8 h-8 text-amber-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Volumen Total</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalVolume.toLocaleString()} L</p>
+              <p className="mt-1 text-xs text-gray-500">Tasa fin.: {stats.completionRate}%</p>
+            </div>
+            <Droplets className="w-8 h-8 text-cyan-600" />
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -167,9 +220,6 @@ const TripReports: React.FC = () => {
                 <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                   Ver Detalles
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Editar
-                </button>
               </div>
             </div>
           </div>
@@ -180,96 +230,10 @@ const TripReports: React.FC = () => {
         <div className="text-center py-12">
           <Truck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron viajes</h3>
-          <p className="text-gray-600">Intenta ajustar tu búsqueda o crear un nuevo reporte de viaje.</p>
+          <p className="text-gray-600">Intenta ajustar tu búsqueda. La creación de rutas se realiza en Gestión de Rutas.</p>
         </div>
       )}
-
-      {/* New Trip Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">Nuevo Reporte de Viaje</h3>
-              <p className="text-gray-600 mt-1">Crear un nuevo reporte de viaje de transporte de agua</p>
-            </div>
-            
-            <form className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                  <input
-                    type="date"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehículo</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option>Seleccionar vehículo</option>
-                    <option>TK-001</option>
-                    <option>TK-002</option>
-                    <option>TK-003</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Ruta</label>
-                <input
-                  type="text"
-                  placeholder="Origen → Destino"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Conductor</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option>Seleccionar conductor</option>
-                    <option>John Driver</option>
-                    <option>Maria Santos</option>
-                    <option>Carlos Rodriguez</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Volumen (Litros)</label>
-                  <input
-                    type="number"
-                    placeholder="15000"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
-                <textarea
-                  rows={3}
-                  placeholder="Cualquier observación o incidente durante el viaje..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                ></textarea>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Crear Reporte de Viaje
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modal de creación eliminado: la planificación/creación se realiza en Gestión de Rutas */}
     </div>
   );
 };

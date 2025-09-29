@@ -33,6 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: () => hasAreaAccess('Transporte') },
     'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: () => hasAreaAccess('Transporte') },
     'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: () => hasAreaAccess('Transporte') },
+    'fuel-by-fleet': { id: 'fuel-by-fleet', label: 'Combustible por Flota', icon: Zap, show: () => hasAreaAccess('Transporte') },
+    'notifications': { id: 'notifications', label: 'Notificaciones', icon: AlertCircle, show: () => true },
     maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasAreaAccess('Taller') },
     'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: HardHat, show: () => hasAreaAccess('Aseo') },
     'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasAreaAccess('Obras') },

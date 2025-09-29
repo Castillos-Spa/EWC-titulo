@@ -66,7 +66,7 @@ function statusColor(status: IncidentStatus) {
   }
 }
 
-function StatusIcon({ status, className }: { status: IncidentStatus; className?: string }) {
+function StatusIcon({ status, className }: Readonly<{ status: IncidentStatus; className?: string }>) {
   switch (status) {
     case 'resolved':
       return <CheckCircle className={className} />;
@@ -104,6 +104,9 @@ const IncidentCard: React.FC<{ incident: Incident; onClick: () => void }> = ({ i
             </span>
             <span className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold ${status.bg} ${status.text}`}>
               <StatusIcon status={incident.status} className="w-4 h-4" /> {STATUS_LABELS[incident.status]}
+            </span>
+            <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+              {incident.area}
             </span>
           </div>
 
@@ -173,6 +176,10 @@ const DetailModal: React.FC<{ incident: Incident | null; onClose: () => void }> 
               <div className="flex items-center gap-2 text-gray-600"><Clock className="w-4 h-4" /> Fecha y hora</div>
               <div className="mt-1 font-semibold">{formatDateTime(incident.reportedAt)}</div>
             </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-gray-600"><AlertCircle className="w-4 h-4" /> Área</div>
+              <div className="mt-1 font-semibold">{incident.area}</div>
+            </div>
           </div>
 
           <div>
@@ -225,8 +232,9 @@ const DetailModal: React.FC<{ incident: Incident | null; onClose: () => void }> 
 const CreateIncidentModal: React.FC<{
   open: boolean;
   onClose: () => void;
-  onCreate: (data: Pick<Incident, 'type' | 'severity' | 'title' | 'description' | 'location'>) => void;
+  onCreate: (data: Pick<Incident, 'area' | 'type' | 'severity' | 'title' | 'description' | 'location'>) => void;
 }> = ({ open, onClose, onCreate }) => {
+  const { user } = useAuth();
   const [type, setType] = useState<IncidentType>('other');
   const [severity, setSeverity] = useState<IncidentSeverity>('medium');
   const [title, setTitle] = useState('');
@@ -234,6 +242,8 @@ const CreateIncidentModal: React.FC<{
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState<number | ''>('');
   const [longitude, setLongitude] = useState<number | ''>('');
+  const userAreas = user?.areas && user.areas.length > 0 ? user.areas : ['Transporte','Taller','Aseo','IT','Obras'];
+  const [area, setArea] = useState<string>(userAreas[0]);
 
   if (!open) return null;
 
@@ -246,6 +256,7 @@ const CreateIncidentModal: React.FC<{
       return;
     }
     onCreate({
+      area,
       type,
       severity,
       title,
@@ -261,6 +272,7 @@ const CreateIncidentModal: React.FC<{
     setAddress('');
     setLatitude('');
     setLongitude('');
+    setArea(userAreas[0]);
   };
 
   return (
@@ -272,6 +284,14 @@ const CreateIncidentModal: React.FC<{
           <button onClick={onClose} className="px-2 py-1 text-gray-500 hover:text-gray-700">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label htmlFor="incident-area" className="block text-sm font-medium text-gray-700 mb-1">Área</label>
+            <select id="incident-area" value={area} onChange={(e) => setArea(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+              {userAreas.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="incident-type" className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
@@ -331,6 +351,7 @@ const Incidents: React.FC = () => {
   const [incidents, setIncidents] = useState<Incident[]>(() => [
     {
       id: 'incident-001',
+      area: 'Transporte',
       type: 'vehicle_breakdown',
       severity: 'high',
       title: 'Avería en Sistema de Frenos',
@@ -345,6 +366,7 @@ const Incidents: React.FC = () => {
     },
     {
       id: 'incident-002',
+      area: 'Taller',
       type: 'traffic_delay',
       severity: 'medium',
       title: 'Retraso por Tráfico Intenso',
@@ -362,8 +384,15 @@ const Incidents: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | IncidentStatus>('all');
   const [severityFilter, setSeverityFilter] = useState<'all' | IncidentSeverity>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | IncidentType>('all');
+  const [areaFilter, setAreaFilter] = useState<string>('all');
   const [detail, setDetail] = useState<Incident | null>(null);
   const [openCreate, setOpenCreate] = useState(false);
+
+  const userAreas = useMemo(() => {
+    const fromUser = user?.areas ?? [];
+    const fromData = incidents.map(i => i.area);
+    return Array.from(new Set([...fromUser, ...fromData]));
+  }, [user?.areas, incidents]);
 
   const filtered = useMemo(() => {
     return incidents.filter((i) => {
@@ -372,9 +401,10 @@ const Incidents: React.FC = () => {
       const matchesStatus = statusFilter === 'all' || i.status === statusFilter;
       const matchesSeverity = severityFilter === 'all' || i.severity === severityFilter;
       const matchesType = typeFilter === 'all' || i.type === typeFilter;
-      return matchesS && matchesStatus && matchesSeverity && matchesType;
+      const matchesArea = areaFilter === 'all' || i.area === areaFilter;
+      return matchesS && matchesStatus && matchesSeverity && matchesType && matchesArea;
     });
-  }, [incidents, search, statusFilter, severityFilter, typeFilter]);
+  }, [incidents, search, statusFilter, severityFilter, typeFilter, areaFilter]);
 
   const stats = useMemo(() => ({
     total: incidents.length,
@@ -383,7 +413,7 @@ const Incidents: React.FC = () => {
     photos: incidents.reduce((a, i) => a + (i.photos?.length || 0), 0),
   }), [incidents]);
 
-  const handleCreate = (data: Pick<Incident, 'type' | 'severity' | 'title' | 'description' | 'location'>) => {
+  const handleCreate = (data: Pick<Incident, 'area' | 'type' | 'severity' | 'title' | 'description' | 'location'>) => {
     const newIncident: Incident = {
       id: `incident-${Date.now()}`,
       ...data,
@@ -451,11 +481,22 @@ const Incidents: React.FC = () => {
       </div>
 
       {/* Filtros y búsqueda */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="relative lg:col-span-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por título, descripción o ubicación..." className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
         </div>
+        <select
+          value={areaFilter}
+          onChange={(e) => setAreaFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          aria-label="Filtrar por área"
+        >
+          <option value="all">Todas las áreas</option>
+          {userAreas.map(a => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as 'all' | IncidentStatus)}
