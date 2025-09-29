@@ -11,6 +11,7 @@ import MaintenanceManagement from './components/WaterTransport/MaintenanceManage
 import EnhancedTicketSystem from './components/Tickets/EnhancedTicketSystem';
 import CleaningReports from './components/GeneralServices/CleaningReports';
 import CivilWorks from './components/GeneralServices/CivilWorks';
+import Incidents from './components/GeneralServices/Incidents';
 import UserManagement from './components/Admin/UserManagement';
 import UserProfile from './components/Profile/UserProfile';
 import ChangePasswordModal from './components/ChangePasswordModal';
@@ -71,6 +72,7 @@ const AppContent: React.FC = () => {
       case 'maintenance': return 'Maintenance Management';
       case 'cleaning-reports': return 'Cleaning Reports';
       case 'civil-works': return 'Civil Works Reports';
+      case 'incidents': return 'Incidentes';
       case 'tickets': return 'Ticket System';
       case 'user-management': return 'User Management';
       case 'profile': return 'Mi Perfil';
@@ -106,6 +108,8 @@ const AppContent: React.FC = () => {
         return <CleaningReports />;
       case 'civil-works':
         return <CivilWorks />;
+      case 'incidents':
+        return <Incidents />;
       case 'tickets':
         return <EnhancedTicketSystem />;
       case 'user-management':

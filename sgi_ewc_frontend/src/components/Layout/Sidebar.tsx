@@ -11,7 +11,8 @@ import {
   LogOut,
   Ticket,
   HardHat,
-  Zap
+  Zap,
+  AlertCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,6 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasAreaAccess('Taller') },
     'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: HardHat, show: () => hasAreaAccess('Aseo') },
     'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasAreaAccess('Obras') },
+    incidents: { id: 'incidents', label: 'Incidentes', icon: AlertCircle, show: () => true },
     'user-management': { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: () => hasAreaAccess('Admin') || hasAreaAccess('RRHH') },
   };
 

@@ -49,17 +49,72 @@ class AuthServiceClass {
     const extra: any = Constants?.expoConfig?.extra;
     const extraUrl: string | undefined =
       typeof extra?.apiUrl === 'string' ? extra.apiUrl : undefined;
-    if (envUrl && envUrl.length > 0) return envUrl;
-    if (extraUrl && extraUrl.length > 0) return extraUrl;
+    // Prefer env var, luego extra.apiUrl
+    let url = envUrl && envUrl.length > 0 ? envUrl : extraUrl;
+    // En Android emulador, localhost/127.0.0.1 deben apuntar a 10.0.2.2
+    if (url && Platform.OS === 'android') {
+      try {
+        const u = new URL(url);
+        if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
+          u.hostname = '10.0.2.2';
+          url = u.toString();
+        }
+      } catch {
+        // Si no es una URL válida, usar reemplazo básico
+        url = url
+          .replace('://localhost', '://10.0.2.2')
+          .replace('://127.0.0.1', '://10.0.2.2');
+      }
+    }
+    if (url && url.length > 0) {
+      // Eliminar barra final para evitar //auth/login
+      url = url.replace(/\/+$/, '');
+      return url;
+    }
     const local =
       Platform.OS === 'android'
         ? 'http://10.0.2.2:3000'
         : 'http://localhost:3000';
-    return local;
+    return local.replace(/\/+$/, '');
   }
 
-  private toExpiresAt(minutes = 5): string {
-    // Backend emite access token con 5 min por defecto
+  // Helpers para normalizar campos desde el payload del backend
+  private getAreasFromPayload(payload: any): string[] {
+    if (Array.isArray(payload?.areas)) {
+      return payload.areas.map((a: string) => String(a));
+    }
+    if (payload?.area) return [String(payload.area)];
+    return [];
+  }
+
+  private getSpecialtiesFromRolesByArea(payload: any): string[] {
+    const rolesByArea = payload?.rolesByArea && typeof payload.rolesByArea === 'object' ? payload.rolesByArea : {};
+    return Object.values(rolesByArea)
+      .map((v: any) => v?.specialty)
+      .filter(Boolean)
+      .map((s: any) => String(s));
+  }
+
+  private derivePrimaryRole(roles: string[], areas: string[], specialties: string[]): User['role'] {
+    if (roles.includes('Admin')) return 'admin';
+    if (specialties.includes('DRIVER')) return 'driver';
+    if (areas.includes('IT')) return 'it_support';
+    if (areas.includes('Aseo')) return 'cleaning_crew';
+    if (areas.includes('Obras')) return 'civil_works';
+    if (roles.includes('Supervisor')) return 'supervisor';
+    return 'technician';
+  }
+
+  private deriveDepartment(role: User['role']): User['department'] {
+    if (role === 'admin') return 'management';
+    if (role === 'it_support') return 'it';
+    if (role === 'cleaning_crew') return 'cleaning';
+    if (role === 'civil_works') return 'civil_works';
+    return 'transport';
+  }
+
+  private toExpiresAt(minutes = 15): string {
+    // Backend emite access token con 15 min por defecto (ver JwtModule signOptions)
     const ms = minutes * 60 * 1000;
     // Resta unos segundos para evitar borde de expiración
     return new Date(Date.now() + ms - 15_000).toISOString();
@@ -67,48 +122,25 @@ class AuthServiceClass {
 
   private mapBackendUserToAppUser(payload: any): User {
     const roles: string[] = Array.isArray(payload?.roles) ? payload.roles : [];
-    const firstRole = roles[0] || 'User';
-    let role: User['role'];
-    switch (firstRole) {
-      case 'Admin':
-        role = 'admin';
-        break;
-      case 'IT':
-        role = 'it_support';
-        break;
-      case 'Driver':
-        role = 'driver';
-        break;
-      case 'Transporte':
-        role = 'supervisor';
-        break;
-      case 'Obras':
-        role = 'civil_works';
-        break;
-      case 'Aseo':
-        role = 'cleaning_crew';
-        break;
-      default:
-        role = 'technician';
-    }
+    const areas: string[] = this.getAreasFromPayload(payload);
+    const specialties: string[] = this.getSpecialtiesFromRolesByArea(payload);
+    const role: User['role'] = this.derivePrimaryRole(roles, areas, specialties);
+    const department: User['department'] = this.deriveDepartment(role);
 
-    let department: User['department'] = 'transport';
-    if (role === 'admin') department = 'management';
-    else if (role === 'it_support') department = 'it';
-    else if (role === 'cleaning_crew') department = 'cleaning';
-    else if (role === 'civil_works') department = 'civil_works';
+    const id = String(payload?.userId ?? payload?.sub ?? payload?.id ?? '0');
+    const permissions: string[] = Array.isArray(payload?.permissions)
+      ? payload.permissions.map((p: string) => String(p))
+      : [];
 
     return {
-      id: String(payload?.userId ?? payload?.sub ?? '0'),
+      id,
       name: payload?.username || payload?.email || 'Usuario',
       email: payload?.email || '',
       roles,
       role,
-      areaIds: payload?.area ? [String(payload.area)] : [],
+      areaIds: areas,
       department,
-      permissions: Array.isArray(payload?.permissions)
-        ? payload.permissions.map((p: string) => String(p))
-        : [],
+      permissions,
       employeeId: 'N/A',
     };
   }
@@ -137,27 +169,31 @@ class AuthServiceClass {
       );
     }
 
-    const tokensRaw = await res.json();
-    const accessToken: string = tokensRaw.access_token;
-    const refreshToken: string = tokensRaw.refresh_token;
+    const data = await res.json();
+    const accessToken: string | undefined = data?.access_token;
+    const refreshToken: string | undefined = data?.refresh_token;
     if (!accessToken || !refreshToken) {
       throw new Error('Respuesta de login inválida');
     }
 
-    // Obtener perfil
-    const profileRes = await fetch(`${baseUrl}/auth/profile`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!profileRes.ok) {
-      throw new Error('No se pudo obtener el perfil');
+    // Preferir el usuario retornado por el backend en /auth/login, si viene completo.
+    // Si faltan permisos (backend no los incluye en userDetails), consultamos /auth/profile.
+    let rawUser: any = data?.user;
+    if (!rawUser || !Array.isArray(rawUser?.permissions)) {
+      const profileRes = await fetch(`${baseUrl}/auth/profile`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!profileRes.ok) {
+        throw new Error('No se pudo obtener el perfil');
+      }
+      rawUser = await profileRes.json();
     }
-    const payload = await profileRes.json();
-    const user = this.mapBackendUserToAppUser(payload);
+    const user = this.mapBackendUserToAppUser(rawUser);
 
     const tokens: AuthTokens = {
       accessToken,
       refreshToken,
-      expiresAt: this.toExpiresAt(5),
+  expiresAt: this.toExpiresAt(15),
     };
 
     return { user, tokens };
@@ -179,7 +215,7 @@ class AuthServiceClass {
     return {
       accessToken: newAccess,
       refreshToken, // el backend no entrega uno nuevo
-      expiresAt: this.toExpiresAt(5),
+      expiresAt: this.toExpiresAt(15),
     };
   }
 
