@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { useTicketStore } from './ticketStore';
+import type { Ticket } from './ticketStore';
 
 export interface KanbanTask {
   id: string;
@@ -94,120 +96,23 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   loadUserTasks: async (userId: string, filters?: { type?: string; status?: string }) => {
     set({ isLoading: true, error: null });
     try {
-      // Mock data for user tasks - this would come from API based on user role and assignments
-      const mockTasks: KanbanTask[] = [
-        {
-          id: 'task-001',
-          title: 'Ruta Matutina - Zona Norte',
-          description: 'Completar entregas en zona norte, 3 paradas programadas',
-          type: 'route',
-          priority: 'high',
-          status: 'in_progress',
-          assignedTo: userId,
-          assignedBy: 'Supervisor García',
-          dueDate: new Date().toISOString(),
-          estimatedHours: 4,
-          tags: ['transporte', 'zona-norte'],
-          relatedEntityId: 'route-001',
-          relatedEntityType: 'route',
-          progress: 33,
-          attachments: [],
-          comments: [],
-          createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date().toISOString(),
-          syncStatus: 'synced',
-        },
-        {
-          id: 'task-002',
-          title: 'Limpieza Oficinas Administrativas',
-          description: 'Limpieza completa de oficinas del segundo piso',
-          type: 'cleaning',
-          priority: 'medium',
-          status: 'pending',
-          assignedTo: userId,
-          assignedBy: 'Supervisor Limpieza',
-          dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          estimatedHours: 2,
-          tags: ['aseo', 'oficinas'],
-          relatedEntityId: 'cleaning-001',
-          relatedEntityType: 'cleaning_report',
-          progress: 0,
-          attachments: [],
-          comments: [],
-          createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          syncStatus: 'pending',
-        },
-        {
-          id: 'task-003',
-          title: 'Reparación Acera Principal',
-          description: 'Reparar grietas en acera del edificio administrativo',
-          type: 'civil_work',
-          priority: 'high',
-          status: 'pending',
-          assignedTo: userId,
-          assignedBy: 'Supervisor Obras',
-          dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          estimatedHours: 8,
-          tags: ['obras', 'reparación'],
-          relatedEntityId: 'work-001',
-          relatedEntityType: 'work_order',
-          progress: 0,
-          attachments: [],
-          comments: [],
-          approvals: [
-            {
-              id: 'approval-001',
-              taskId: 'task-003',
-              approverId: 'user-004',
-              approverName: 'Ana Martínez',
-              status: 'pending',
-              level: 1,
-            },
-          ],
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          syncStatus: 'pending',
-        },
-        {
-          id: 'task-004',
-          title: 'Configurar Nueva Impresora',
-          description: 'Instalar y configurar impresora HP en oficina de ventas',
-          type: 'it_ticket',
-          priority: 'medium',
-          status: 'completed',
-          assignedTo: userId,
-          assignedBy: 'Andrea González',
-          dueDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          estimatedHours: 1,
-          actualHours: 0.75,
-          tags: ['hardware', 'instalación'],
-          relatedEntityId: 'it-ticket-003',
-          relatedEntityType: 'it_ticket',
-          progress: 100,
-          attachments: [],
-          comments: [
-            {
-              id: 'comment-003',
-              taskId: 'task-004',
-              authorId: userId,
-              authorName: 'Usuario Actual',
-              content: 'Impresora instalada y funcionando correctamente. Usuarios capacitados.',
-              attachments: [],
-              createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-            },
-          ],
-          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          syncStatus: 'synced',
-        },
-      ];
+      // Asegura que los tickets estén cargados desde backend
+      const ticketState = useTicketStore.getState();
+      if (!ticketState.tickets || ticketState.tickets.length === 0) {
+        await ticketState.loadTickets();
+      }
 
-      // Filter by user role and permissions
-      const userTasks = mockTasks.filter(task => task.assignedTo === userId);
+      let tasks = mapTicketsToTasks(ticketState.tickets);
 
-      set({ tasks: userTasks, isLoading: false });
+      // Filtros opcionales
+      if (filters?.type && filters.type !== 'all') {
+        tasks = tasks.filter(t => t.type === filters.type);
+      }
+      if (filters?.status && filters.status !== 'all') {
+        tasks = tasks.filter(t => t.status === filters.status);
+      }
+
+      set({ tasks, isLoading: false });
     } catch (error) {
       console.error('Error al cargar tareas:', error);
       set({ error: 'Error al cargar tareas', isLoading: false });
@@ -216,24 +121,22 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
   updateTaskStatus: async (taskId: string, status: KanbanTask['status']) => {
     try {
-      const updateData: any = {
-        status,
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'pending' as const,
-      };
-
-      if (status === 'completed') {
-        updateData.completedAt = new Date().toISOString();
-        updateData.progress = 100;
-      } else if (status === 'in_progress') {
-        updateData.progress = Math.max(1, updateData.progress || 0);
+      // Delegar cambios al backend vía ticketStore
+      const ticketState = useTicketStore.getState();
+      if (status === 'in_progress') {
+        await ticketState.startTicket(taskId);
+      } else if (status === 'completed') {
+        await ticketState.completeTicket(taskId, {});
+      } else if (status === 'cancelled') {
+        await ticketState.updateTicketStatus(taskId, 'cancelled');
+      } else {
+        // pending
+        await ticketState.updateTicketStatus(taskId, 'assigned');
       }
 
-      set(state => ({
-        tasks: state.tasks.map(task =>
-          task.id === taskId ? { ...task, ...updateData } : task
-        ),
-      }));
+      // Refrescar tareas mapeadas desde tickets
+      const tasks = mapTicketsToTasks(ticketState.tickets);
+      set({ tasks });
     } catch (error) {
       console.error('Error al actualizar estado de tarea:', error);
       set({ error: 'Error al actualizar estado de tarea' });
@@ -364,3 +267,73 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     set({ error: null });
   },
 }));
+
+// --- Helpers de mapeo desde tickets a tareas Kanban ---
+function mapTicketTypeToTaskType(ticketType: Ticket['type']): KanbanTask['type'] {
+  switch (ticketType) {
+    case 'maintenance':
+      return 'maintenance';
+    case 'inspection':
+      return 'inspection';
+    case 'delivery':
+    case 'pickup':
+      return 'route';
+    case 'repair':
+      return 'maintenance';
+    default:
+      return 'it_ticket';
+  }
+}
+
+function mapTicketStatusToTaskStatus(status: Ticket['status']): KanbanTask['status'] {
+  switch (status) {
+    case 'in_progress':
+      return 'in_progress';
+    case 'completed':
+      return 'completed';
+    case 'cancelled':
+      return 'cancelled';
+    default:
+      return 'pending';
+  }
+}
+
+function computeProgressFromTicket(t: Ticket): number {
+  if (t.status === 'completed') return 100;
+  if (t.actualDuration && t.estimatedDuration > 0) {
+    return Math.max(1, Math.min(99, Math.round((t.actualDuration / t.estimatedDuration) * 100)));
+  }
+  return t.status === 'in_progress' ? 50 : 0;
+}
+
+function mapTicketToTask(t: Ticket): KanbanTask {
+  const dueDateIso = t.scheduledDate ? new Date(t.scheduledDate).toISOString() : undefined;
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    type: mapTicketTypeToTaskType(t.type),
+    priority: t.priority,
+    status: mapTicketStatusToTaskStatus(t.status),
+    assignedTo: t.assignedTo || '',
+    assignedBy: t.assignedBy || '',
+    dueDate: dueDateIso,
+    estimatedHours: t.estimatedDuration ? Math.round(t.estimatedDuration / 60) : undefined,
+    actualHours: t.actualDuration ? Math.round(t.actualDuration / 60) : undefined,
+    tags: [],
+    relatedEntityId: t.id,
+    relatedEntityType: 'it_ticket',
+    progress: computeProgressFromTicket(t),
+    attachments: t.photos || [],
+    comments: [],
+    approvals: undefined,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+    completedAt: t.endTime,
+    syncStatus: 'synced',
+  };
+}
+
+function mapTicketsToTasks(tickets: Ticket[]): KanbanTask[] {
+  return tickets.map(mapTicketToTask);
+}

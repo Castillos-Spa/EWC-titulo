@@ -1,16 +1,17 @@
 import { create } from 'zustand';
 import { DatabaseService } from '../services/DatabaseService';
+import { TicketApi, BackendTicket, BackendTicketPriority, BackendTicketStatus } from '../services/TicketApi';
 
 export interface Ticket {
-  id: string;
-  ticketNumber: string;
+  id: string; // keep as string for mobile UI; backend id is number
+  ticketNumber?: string; // optional, backend doesn't provide this
   title: string;
   description: string;
   type: 'maintenance' | 'delivery' | 'pickup' | 'inspection' | 'repair' | 'other';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'assigned' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
-  assignedTo: string;
-  assignedBy: string;
+  assignedTo?: string;
+  assignedBy?: string;
   clientName?: string;
   location: {
     latitude: number;
@@ -127,109 +128,11 @@ export const useTicketStore = create<TicketState>((set, get) => ({
   loadTickets: async (status?: string, dateRange?: { start: string; end: string }) => {
     set({ isLoading: true, error: null });
     try {
-      // Simulate API call - in real app this would fetch from server
-      const mockTickets: Ticket[] = [
-        {
-          id: 'ticket-001',
-          ticketNumber: 'TK-2025-001',
-          title: 'Mantenimiento Preventivo Vehículo ABC-123',
-          description: 'Revisión completa del sistema de frenos y cambio de aceite',
-          type: 'maintenance',
-          priority: 'high',
-          status: 'assigned',
-          assignedTo: 'Juan Pérez',
-          assignedBy: 'Supervisor García',
-          location: {
-            latitude: -34.6037,
-            longitude: -58.3816,
-            address: 'Taller Central, Av. Corrientes 1234, Buenos Aires',
-          },
-          estimatedDuration: 120,
-          scheduledDate: new Date().toISOString().split('T')[0],
-          photos: [],
-          materials: [
-            { id: 'mat-001', name: 'Aceite Motor 15W-40', quantity: 6, unit: 'litros' },
-            { id: 'mat-002', name: 'Filtro de Aceite', quantity: 1, unit: 'unidad' },
-            { id: 'mat-003', name: 'Pastillas de Freno', quantity: 4, unit: 'unidades' },
-          ],
-          checklist: [
-            { id: 'check-001', description: 'Revisar nivel de aceite', completed: false, photoRequired: true },
-            { id: 'check-002', description: 'Inspeccionar pastillas de freno', completed: false, photoRequired: true },
-            { id: 'check-003', description: 'Verificar presión de neumáticos', completed: false, photoRequired: false },
-            { id: 'check-004', description: 'Probar sistema de luces', completed: false, photoRequired: false },
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          syncStatus: 'synced',
-        },
-        {
-          id: 'ticket-002',
-          ticketNumber: 'TK-2025-002',
-          title: 'Entrega de Equipos - Constructora XYZ',
-          description: 'Entrega de herramientas y materiales de construcción',
-          type: 'delivery',
-          priority: 'medium',
-          status: 'in_progress',
-          assignedTo: 'Juan Pérez',
-          assignedBy: 'Supervisor García',
-          clientName: 'Constructora XYZ',
-          location: {
-            latitude: -34.6118,
-            longitude: -58.3960,
-            address: 'Obra en construcción, Av. 9 de Julio 567, Buenos Aires',
-          },
-          estimatedDuration: 60,
-          scheduledDate: new Date().toISOString().split('T')[0],
-          startTime: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // Started 30 min ago
-          photos: [],
-          materials: [
-            { id: 'mat-004', name: 'Taladros', quantity: 3, unit: 'unidades', used: 3 },
-            { id: 'mat-005', name: 'Cables eléctricos', quantity: 50, unit: 'metros', used: 45 },
-          ],
-          checklist: [
-            { id: 'check-005', description: 'Verificar estado de herramientas', completed: true, photoRequired: true },
-            { id: 'check-006', description: 'Confirmar entrega con cliente', completed: false, photoRequired: false },
-          ],
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date().toISOString(),
-          syncStatus: 'pending',
-        },
-        {
-          id: 'ticket-003',
-          ticketNumber: 'TK-2025-003',
-          title: 'Inspección de Seguridad - Almacén Norte',
-          description: 'Inspección rutinaria de protocolos de seguridad y equipos',
-          type: 'inspection',
-          priority: 'low',
-          status: 'completed',
-          assignedTo: 'Juan Pérez',
-          assignedBy: 'Supervisor García',
-          location: {
-            latitude: -34.5875,
-            longitude: -58.3974,
-            address: 'Almacén Norte, Zona Industrial, Buenos Aires',
-          },
-          estimatedDuration: 90,
-          actualDuration: 85,
-          scheduledDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          startTime: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
-          endTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          photos: [],
-          completionNotes: 'Inspección completada sin observaciones. Todos los protocolos en orden.',
-          checklist: [
-            { id: 'check-007', description: 'Verificar extintores', completed: true, photoRequired: true },
-            { id: 'check-008', description: 'Revisar salidas de emergencia', completed: true, photoRequired: true },
-            { id: 'check-009', description: 'Inspeccionar equipos de protección', completed: true, photoRequired: false },
-          ],
-          createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          syncStatus: 'synced',
-        },
-      ];
-
-      // Save to local database
-      await DatabaseService.saveTickets(mockTickets);
-      set({ tickets: mockTickets, isLoading: false });
+      const backendTickets: BackendTicket[] = await TicketApi.getTickets();
+      const mapped: Ticket[] = backendTickets.map(mapFromBackend);
+      // Opcional: guardar localmente
+      await DatabaseService.saveTickets(mapped);
+      set({ tickets: mapped, isLoading: false });
     } catch (error) {
       console.error('Error al cargar tickets:', error);
       set({ error: 'Error al cargar tickets', isLoading: false });
@@ -239,20 +142,25 @@ export const useTicketStore = create<TicketState>((set, get) => ({
   createTicket: async (ticketData) => {
     set({ isSubmitting: true, error: null });
     try {
-      const newTicket: Ticket = {
-        ...ticketData,
-        id: `ticket-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'pending',
+      // Mapear prioridad a backend
+      const priorityMap: Record<Ticket['priority'], BackendTicketPriority> = {
+        low: 'Baja',
+        medium: 'Media',
+        high: 'Alta',
+        urgent: 'Urgente',
       };
-
-      await DatabaseService.saveTicket(newTicket);
-      
-      set(state => ({
-        tickets: [newTicket, ...state.tickets],
-        isSubmitting: false,
-      }));
+      const payload = {
+        title: ticketData.title,
+        description: ticketData.description,
+        category: ticketData.type ?? 'other',
+        priority: priorityMap[ticketData.priority] ?? 'Media',
+        recipientArea: 'IT',
+        tags: [],
+      };
+      const created = await TicketApi.createTicket(payload);
+      const mapped = mapFromBackend(created);
+      await DatabaseService.saveTicket(mapped);
+      set(state => ({ tickets: [mapped, ...state.tickets], isSubmitting: false }));
     } catch (error) {
       console.error('Error al crear ticket:', error);
       set({ error: 'Error al crear ticket', isSubmitting: false });
@@ -261,19 +169,17 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
   updateTicketStatus: async (ticketId: string, status: Ticket['status']) => {
     try {
-      const updatedTicket = { 
-        status, 
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'pending' as const 
-      };
-      
-      await DatabaseService.updateTicket(ticketId, updatedTicket);
-      
-      set(state => ({
-        tickets: state.tickets.map(ticket =>
-          ticket.id === ticketId ? { ...ticket, ...updatedTicket } : ticket
-        ),
-      }));
+      // Mapear estado a backend y enviar
+      const backendStatus = mapStatusToBackend(status);
+      const numericId = parseInt(ticketId.replace(/\D/g, ''), 10) || Number(ticketId);
+      const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: backendStatus });
+      const mapped = mapFromBackend(updatedFromBackend);
+      await DatabaseService.updateTicket(ticketId, {
+        status: mapped.status,
+        updatedAt: mapped.updatedAt,
+        syncStatus: 'synced',
+      });
+      set(state => ({ tickets: state.tickets.map(t => (t.id === ticketId ? { ...t, status: mapped.status, updatedAt: mapped.updatedAt, syncStatus: 'synced' } : t)) }));
     } catch (error) {
       console.error('Error al actualizar ticket:', error);
       set({ error: 'Error al actualizar ticket' });
@@ -282,20 +188,17 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
   startTicket: async (ticketId: string) => {
     try {
-      const updatedTicket = {
-        status: 'in_progress' as const,
-        startTime: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'pending' as const,
-      };
-
-      await DatabaseService.updateTicket(ticketId, updatedTicket);
-      
-      set(state => ({
-        tickets: state.tickets.map(ticket =>
-          ticket.id === ticketId ? { ...ticket, ...updatedTicket } : ticket
-        ),
-      }));
+      const numericId = parseInt(ticketId.replace(/\D/g, ''), 10) || Number(ticketId);
+      const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: 'EnProgreso' });
+      const mapped = mapFromBackend(updatedFromBackend);
+      const startTime = new Date().toISOString();
+      await DatabaseService.updateTicket(ticketId, {
+        status: mapped.status,
+        startTime,
+        updatedAt: mapped.updatedAt,
+        syncStatus: 'synced',
+      });
+      set(state => ({ tickets: state.tickets.map(t => (t.id === ticketId ? { ...t, status: mapped.status, startTime, updatedAt: mapped.updatedAt, syncStatus: 'synced' } : t)) }));
     } catch (error) {
       console.error('Error al iniciar ticket:', error);
       set({ error: 'Error al iniciar ticket' });
@@ -307,26 +210,25 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       const ticket = get().tickets.find(t => t.id === ticketId);
       if (!ticket) return;
 
-      const actualDuration = ticket.startTime 
+      const actualDuration = ticket.startTime
         ? Math.round((Date.now() - new Date(ticket.startTime).getTime()) / (1000 * 60))
         : undefined;
 
-      const updatedTicket = {
-        status: 'completed' as const,
-        endTime: new Date().toISOString(),
+      const numericId = parseInt(ticketId.replace(/\D/g, ''), 10) || Number(ticketId);
+      const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: 'Resuelto' });
+      const mapped = mapFromBackend(updatedFromBackend);
+      const endTime = new Date().toISOString();
+      await DatabaseService.updateTicket(ticketId, {
+        status: mapped.status,
+        endTime,
         actualDuration,
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'pending' as const,
-        ...completionData,
-      };
-
-      await DatabaseService.updateTicket(ticketId, updatedTicket);
-      
-      set(state => ({
-        tickets: state.tickets.map(ticket =>
-          ticket.id === ticketId ? { ...ticket, ...updatedTicket } : ticket
-        ),
-        currentTicket: null,
+        completionNotes: completionData.completionNotes,
+        updatedAt: mapped.updatedAt,
+        syncStatus: 'synced',
+      });
+      set(state => ({ 
+        tickets: state.tickets.map(t => (t.id === ticketId ? { ...t, status: mapped.status, endTime, actualDuration, completionNotes: completionData.completionNotes, updatedAt: mapped.updatedAt, syncStatus: 'synced' } : t)), 
+        currentTicket: null 
       }));
     } catch (error) {
       console.error('Error al completar ticket:', error);
@@ -404,3 +306,65 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     set({ error: null });
   },
 }));
+
+// Helpers de mapeo
+function mapPriorityFromBackend(p: BackendTicketPriority): Ticket['priority'] {
+  const map: Record<BackendTicketPriority, Ticket['priority']> = {
+    Baja: 'low',
+    Media: 'medium',
+    Alta: 'high',
+    Urgente: 'urgent',
+  };
+  return map[p] ?? 'medium';
+}
+
+function mapStatusFromBackend(s: BackendTicketStatus): Ticket['status'] {
+  const map: Record<BackendTicketStatus, Ticket['status']> = {
+    Pendiente: 'assigned',
+    EnProgreso: 'in_progress',
+    Resuelto: 'completed',
+    Cerrado: 'completed',
+  };
+  return map[s] ?? 'assigned';
+}
+
+function mapStatusToBackend(s: Ticket['status']): BackendTicketStatus {
+  const map: Record<Ticket['status'], BackendTicketStatus> = {
+    assigned: 'Pendiente',
+    in_progress: 'EnProgreso',
+    on_hold: 'Pendiente',
+    completed: 'Resuelto',
+    cancelled: 'Cerrado',
+  };
+  return map[s] ?? 'Pendiente';
+}
+
+function inferTypeFromCategory(category?: string): Ticket['type'] {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('mantenimiento')) return 'maintenance';
+  if (cat.includes('inspeccion') || cat.includes('inspección')) return 'inspection';
+  if (cat.includes('entrega')) return 'delivery';
+  if (cat.includes('repar')) return 'repair';
+  return 'other';
+}
+
+function mapFromBackend(bt: BackendTicket): Ticket {
+  return {
+    id: String(bt.id),
+    ticketNumber: `TK-${bt.id}`,
+    title: bt.title,
+    description: bt.description ?? '',
+    type: inferTypeFromCategory(bt.category),
+    priority: mapPriorityFromBackend(bt.priority),
+    status: mapStatusFromBackend(bt.status),
+    assignedTo: bt.assignedTo?.username ?? '',
+    assignedBy: bt.createdBy?.username ?? '',
+    location: { latitude: 0, longitude: 0 },
+    estimatedDuration: 60,
+    scheduledDate: new Date(bt.createdAt).toISOString().split('T')[0],
+    photos: [],
+    createdAt: bt.createdAt,
+    updatedAt: bt.updatedAt,
+    syncStatus: 'synced',
+  };
+}

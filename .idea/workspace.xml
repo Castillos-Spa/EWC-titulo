@@ -6,14 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/_layout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/it-support.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/kanban.tsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/tickets.tsx" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/app/services/NotificationApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/NotificationApi.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/SocketService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/SocketService.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/notificationsStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/notificationsStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/kanbanStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/kanbanStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/ticketStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/ticketStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

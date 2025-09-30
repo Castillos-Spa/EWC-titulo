@@ -10,15 +10,11 @@ class NotificationApiClass {
     try {
       const url = new URL(base);
       if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-        // En Android emulador, mapear a 10.0.2.2
-        // Nota: esto también funciona en iOS simulador (localhost) pero no es necesario cambiar.
-        // Solo lo hacemos si es Android para evitar warnings innecesarios.
-        // No tenemos acceso directo a Platform aquí sin importarlo; lo evitamos y transformamos siempre.
         url.hostname = '10.0.2.2';
-        base = url.toString();
       }
+      base = url.origin; // normaliza para evitar //
     } catch {
-      // base no era una URL válida; la dejamos tal cual
+      base = base.replace(/\/+$/, '');
     }
     return base;
   }
