@@ -95,7 +95,8 @@ export default function TabLayout() {
   { name: 'cleaning', title: 'Aseo', icon: cleaningTabIcon, visible: canCleaning },
   { name: 'civil-works', title: 'Obras', icon: hardHatTabIcon, visible: canCivilWorks },
   { name: 'work', title: 'Trabajo', icon: workTabIcon, visible: canTickets || canKanban },
-        { name: 'fuel', title: 'Combustible', icon: fuelTabIcon, visible: canFuel },
+  { name: 'fuel', title: 'Combustible', icon: fuelTabIcon, visible: canFuel },
+  { name: 'fleet', title: 'Flota', icon: fuelTabIcon, visible: canFuel },
         { name: 'incidents', title: 'Incidentes', icon: alertTabIcon, visible: canIncidents },
         
   { name: 'notifications', title: 'Notificaciones', icon: bellTabIcon, visible: canNotifications },

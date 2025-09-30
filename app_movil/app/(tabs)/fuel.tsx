@@ -16,12 +16,16 @@ import { CreateFuelRecordModal } from '../components/CreateFuelRecordModal';
 import { FuelDetailModal } from '../components/FuelDetailModal';
 import { FuelAnalytics } from '../components/FuelAnalytics';
 import { AccessGuard } from '../components/AccessGuard';
+import { useFleetStore } from '../stores/fleetStore';
+import { useRouter } from 'expo-router';
 import { useAuthz } from '@/hooks/useAuthz';
 
 export default function FuelScreen() {
   const { canFuel } = useAuthz();
   const insets = useSafeAreaInsets();
   const { getColors } = useThemeStore();
+  const { currentVehicle } = useFleetStore();
+  const router = useRouter();
   const {
     records,
     analytics,
@@ -39,15 +43,11 @@ export default function FuelScreen() {
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('week');
 
-  // Mock vehicle data - in real app this would come from user/route context
-  const currentVehicle = {
-    id: 'truck-001',
-    plate: 'ABC-123',
-  };
-
   useEffect(() => {
-    loadFuelRecords(currentVehicle.id, getDateRange(selectedPeriod));
-  }, [selectedPeriod, currentVehicle.id, loadFuelRecords]);
+    if (currentVehicle?.id) {
+      loadFuelRecords(String(currentVehicle.id), getDateRange(selectedPeriod));
+    }
+  }, [selectedPeriod, currentVehicle?.id, loadFuelRecords]);
 
   const getDateRange = (period: string) => {
     const now = new Date();
@@ -75,7 +75,9 @@ export default function FuelScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadFuelRecords(currentVehicle.id, getDateRange(selectedPeriod));
+    if (currentVehicle?.id) {
+      await loadFuelRecords(String(currentVehicle.id), getDateRange(selectedPeriod));
+    }
     setRefreshing(false);
   };
 
@@ -128,7 +130,7 @@ export default function FuelScreen() {
         <View style={styles.headerTop}>
           <View style={styles.headerTitle}>
             <Fuel size={28} color={colors.success} />
-            <Text style={[styles.title, { color: colors.text }]}>Combustible</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Combustible{currentVehicle ? ` • ${currentVehicle.patente}` : ''}</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity style={[styles.refreshButton, { backgroundColor: colors.card }]} onPress={() => handleRefresh()}>
@@ -249,11 +251,22 @@ export default function FuelScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
+        {!currentVehicle && (
+          <View style={styles.emptyState}>
+            <BarChart3 size={64} color={colors.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Selecciona un vehículo</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Ve a la pestaña Flota y elige un vehículo para ver o registrar combustible.</Text>
+            <TouchableOpacity style={[styles.emptyButton, { backgroundColor: colors.primary }]} onPress={() => router.push('/fleet')}>
+              <Text style={[styles.emptyButtonText, { color: '#FFFFFF' }]}>Ir a Flota</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Analytics */}
-        <FuelAnalytics analytics={analytics} />
+        {currentVehicle && <FuelAnalytics analytics={analytics} />}
 
         {/* Records List */}
-        {filteredRecords.length === 0 ? (
+        {currentVehicle && (filteredRecords.length === 0 ? (
           <View style={styles.emptyState}>
             <BarChart3 size={64} color={colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
@@ -292,7 +305,7 @@ export default function FuelScreen() {
               onPress={() => handleRecordPress(record)}
             />
           ))
-        )}
+        ))}
       </ScrollView>
 
       {/* Create Record Modal */}
@@ -300,8 +313,8 @@ export default function FuelScreen() {
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         initialType={createModalType}
-        vehicleId={currentVehicle.id}
-        vehiclePlate={currentVehicle.plate}
+        vehicleId={currentVehicle ? String(currentVehicle.id) : ''}
+        vehiclePlate={currentVehicle?.patente ?? ''}
       />
 
       {/* Record Detail Modal */}
