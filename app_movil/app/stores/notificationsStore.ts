@@ -42,6 +42,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
       socket.on('connect', () => set({ connected: true, error: null }));
       socket.on('connect_error', (err: any) => set({ error: err?.message ?? 'Error de conexión' }));
+      socket.on('disconnect', () => set({ connected: false }));
 
       socket.on('notifications:init', (list) => {
         const mapped = (list ?? []).map(mapWireToApp);

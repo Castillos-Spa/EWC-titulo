@@ -6,7 +6,21 @@ class NotificationApiClass {
     const envUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL;
     const extra: any = Constants?.expoConfig?.extra;
     const extraUrl: string | undefined = typeof extra?.apiUrl === 'string' ? extra.apiUrl : undefined;
-    return envUrl || extraUrl || 'http://localhost:3000';
+    let base = envUrl || extraUrl || 'http://localhost:3000';
+    try {
+      const url = new URL(base);
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        // En Android emulador, mapear a 10.0.2.2
+        // Nota: esto también funciona en iOS simulador (localhost) pero no es necesario cambiar.
+        // Solo lo hacemos si es Android para evitar warnings innecesarios.
+        // No tenemos acceso directo a Platform aquí sin importarlo; lo evitamos y transformamos siempre.
+        url.hostname = '10.0.2.2';
+        base = url.toString();
+      }
+    } catch {
+      // base no era una URL válida; la dejamos tal cual
+    }
+    return base;
   }
 
   async markAsRead(id: number | string): Promise<void> {
@@ -22,6 +36,28 @@ class NotificationApiClass {
     });
     if (!res.ok) {
       let msg = 'No se pudo marcar como leído';
+      try {
+        const data = await res.json();
+        msg = data?.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+  }
+
+  async create(payload: { message: string; type: string; target: 'global' | 'areas'; areas?: string[] }): Promise<void> {
+    const token = await SafeStorage.getItem('accessToken');
+    if (!token) throw new Error('No autenticado');
+    const base = this.getBaseUrl();
+    const res = await fetch(`${base}/notifications`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let msg = 'No se pudo crear la notificación';
       try {
         const data = await res.json();
         msg = data?.message || msg;

@@ -8,11 +8,10 @@ import {
   Route,
   TriangleAlert as AlertTriangle,
   Fuel,
-  Ticket,
+  Briefcase,
   Sparkles as Cleaning,
   HardHat,
-  Monitor,
-  Kanban,
+  Bell,
   Settings,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -29,19 +28,19 @@ const homeTabIcon = makeTabBarIcon(Home, 'HomeTabIcon');
 const routeTabIcon = makeTabBarIcon(Route, 'RouteTabIcon');
 const cleaningTabIcon = makeTabBarIcon(Cleaning, 'CleaningTabIcon');
 const hardHatTabIcon = makeTabBarIcon(HardHat, 'HardHatTabIcon');
-const monitorTabIcon = makeTabBarIcon(Monitor, 'MonitorTabIcon');
-const kanbanTabIcon = makeTabBarIcon(Kanban, 'KanbanTabIcon');
+const workTabIcon = makeTabBarIcon(Briefcase, 'WorkTabIcon');
 const fuelTabIcon = makeTabBarIcon(Fuel, 'FuelTabIcon');
 const alertTabIcon = makeTabBarIcon(AlertTriangle, 'AlertTabIcon');
-const ticketTabIcon = makeTabBarIcon(Ticket, 'TicketTabIcon');
 const settingsTabIcon = makeTabBarIcon(Settings, 'SettingsTabIcon');
+const bellTabIcon = makeTabBarIcon(Bell, 'BellTabIcon');
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { getColors } = useThemeStore();
   const colors = getColors();
-  const { canRoutes, canCleaning, canCivilWorks, canIT, canKanban, canFuel, canIncidents, canTickets } = useAuthz();
+  const { canRoutes, canCleaning, canCivilWorks, canKanban, canFuel, canIncidents, canTickets } = useAuthz();
+  const canNotifications = true; // Asumimos visible para todos; ajustar si hay control de permisos
   
   // Breakpoints básicos
   const isSmall = width < 400;
@@ -92,14 +91,14 @@ export default function TabLayout() {
     >
       {[
         { name: 'index', title: 'Inicio', icon: homeTabIcon, visible: true },
-        { name: 'routes', title: 'Rutas', icon: routeTabIcon, visible: canRoutes },
-        { name: 'cleaning', title: 'Aseo', icon: cleaningTabIcon, visible: canCleaning },
-        { name: 'civil-works', title: 'Obras', icon: hardHatTabIcon, visible: canCivilWorks },
-        { name: 'it-support', title: 'TIC', icon: monitorTabIcon, visible: canIT },
-        { name: 'kanban', title: 'Kanban', icon: kanbanTabIcon, visible: canKanban },
+  { name: 'routes', title: 'Rutas', icon: routeTabIcon, visible: canRoutes },
+  { name: 'cleaning', title: 'Aseo', icon: cleaningTabIcon, visible: canCleaning },
+  { name: 'civil-works', title: 'Obras', icon: hardHatTabIcon, visible: canCivilWorks },
+  { name: 'work', title: 'Trabajo', icon: workTabIcon, visible: canTickets || canKanban },
         { name: 'fuel', title: 'Combustible', icon: fuelTabIcon, visible: canFuel },
         { name: 'incidents', title: 'Incidentes', icon: alertTabIcon, visible: canIncidents },
-        { name: 'tickets', title: 'Tickets', icon: ticketTabIcon, visible: canTickets },
+        
+  { name: 'notifications', title: 'Notificaciones', icon: bellTabIcon, visible: canNotifications },
         { name: 'settings', title: 'Config', icon: settingsTabIcon, visible: true },
       ].map((tab) => (
         <Tabs.Screen

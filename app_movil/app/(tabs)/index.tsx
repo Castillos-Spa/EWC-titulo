@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
-import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Monitor, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Building2 } from 'lucide-react-native';
+import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Building2 } from 'lucide-react-native';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { NotificationsDrawer } from '../components/NotificationsDrawer';
 
@@ -44,12 +44,12 @@ export default function HomeScreen() {
   const getQuickActionsForRole = () => {
     const baseActions = [
       {
-        title: 'Kanban Personal',
-        subtitle: 'Ver mis tareas',
+        title: 'Trabajo',
+        subtitle: 'Lista / Kanban',
         icon: Kanban,
         color: '#7C3AED',
         bgColor: '#F3E8FF',
-        onPress: () => navigateToTab('kanban'),
+        onPress: () => navigateToTab('work'),
         roles: ['all'],
       },
       {
@@ -106,16 +106,7 @@ export default function HomeScreen() {
         roles: ['civil_works'],
       },
       
-      // TIC
-      {
-        title: 'Tickets TIC',
-        subtitle: 'Gestionar soporte',
-        icon: Monitor,
-        color: '#8B5CF6',
-        bgColor: '#F5F3FF',
-        onPress: () => navigateToTab('it-support'),
-        roles: ['it_support'],
-      },
+      // TIC eliminado
       
       // Supervisores y Gerencia
       {
@@ -124,7 +115,7 @@ export default function HomeScreen() {
         icon: Ticket,
         color: '#7C3AED',
         bgColor: '#F3E8FF',
-        onPress: () => navigateToTab('tickets'),
+        onPress: () => navigateToTab('work'),
         roles: ['supervisor', 'admin', 'manager', 'technician'],
       },
     ];
@@ -301,7 +292,7 @@ export default function HomeScreen() {
             <>
               <View style={styles.summaryRow}>
                 <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <Monitor size={16} color="#8B5CF6" />
+                  <Kanban size={16} color="#8B5CF6" />
                 </View>
                 <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Tickets Asignados</Text>
                 <Text style={[styles.summaryValue, { color: colors.text }]}>12</Text>

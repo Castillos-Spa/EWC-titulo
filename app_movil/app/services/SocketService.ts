@@ -26,14 +26,38 @@ class SocketServiceClass {
     const envUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL;
     const extra: any = Constants?.expoConfig?.extra;
     const extraUrl: string | undefined = typeof extra?.apiUrl === 'string' ? extra.apiUrl : undefined;
-    if (envUrl && envUrl.length > 0) return envUrl;
-    if (extraUrl && extraUrl.length > 0) return extraUrl;
-    const local = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
-    return local;
+    let base = '';
+    if (envUrl && envUrl.length > 0) {
+      base = envUrl;
+    } else if (extraUrl && extraUrl.length > 0) {
+      base = extraUrl;
+    }
+
+    // Fallback por plataforma en entorno local
+    if (!base) {
+      base = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+    }
+
+    // En Android, si apuntamos a localhost/127.0.0.1, redirigir a 10.0.2.2 (emulador)
+    if (Platform.OS === 'android' && base) {
+      try {
+        const url = new URL(base);
+        if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+          url.hostname = '10.0.2.2';
+          base = url.toString();
+        }
+      } catch {
+        // Si no es una URL válida, no transformamos
+      }
+    }
+
+    return base;
   }
 
   connect(user?: { id?: string | number; roles?: string[]; areaIds?: string[] }): Socket<ServerToClientEvents, ClientToServerEvents> {
-    if (this.socket?.connected) return this.socket as Socket<ServerToClientEvents, ClientToServerEvents>;
+    if (this.socket?.connected) {
+      return this.socket;
+    }
     const baseUrl = this.getBaseUrl();
 
     const query: Record<string, string> = {};
@@ -41,7 +65,7 @@ class SocketServiceClass {
     if (user?.roles?.length) query.role = String(user.roles[0]);
     if (user?.areaIds?.length) query.area = String(user.areaIds[0]);
 
-    const socket = io(baseUrl, {
+    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(baseUrl, {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -49,8 +73,8 @@ class SocketServiceClass {
       query,
     });
 
-    this.socket = socket as any;
-    return this.socket as Socket<ServerToClientEvents, ClientToServerEvents>;
+    this.socket = socket;
+    return socket;
   }
 
   getSocket() {
