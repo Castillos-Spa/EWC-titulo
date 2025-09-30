@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Truck, RefreshCw, Plus, Wrench, CheckCircle2, Activity, AlertTriangle } from 'lucide-react-native';
+import { Truck, RefreshCw, Plus, AlertTriangle } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 import { useFleetStore } from '../stores/fleetStore';
 import { FleetVehicleCard } from '../components/FleetVehicleCard';
@@ -83,17 +83,14 @@ export default function FleetScreen() {
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
             </View>
             <View style={styles.stat}>
-              <CheckCircle2 size={16} color={colors.success} />
               <Text style={[styles.statValueSm, { color: colors.text }]}>{disponibles}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Disponibles</Text>
             </View>
             <View style={styles.stat}>
-              <Activity size={16} color={colors.primary} />
               <Text style={[styles.statValueSm, { color: colors.text }]}>{enUso}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>En uso</Text>
             </View>
             <View style={styles.stat}>
-              <Wrench size={16} color={colors.warning} />
               <Text style={[styles.statValueSm, { color: colors.text }]}>{enMantenimiento}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Mantención</Text>
             </View>

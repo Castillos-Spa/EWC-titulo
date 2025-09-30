@@ -6,13 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/work.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/work.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/CreateNotificationModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/CreateNotificationModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/CreateVehicleModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/CreateVehicleModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/FleetVehicleCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/FleetVehicleCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/VehicleDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/VehicleDetailModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/VehiculoApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/VehiculoApi.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/fleetStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/fleetStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/_layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/hooks/useAuthz.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/hooks/useAuthz.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

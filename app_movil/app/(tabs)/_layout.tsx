@@ -15,6 +15,7 @@ import {
   Settings,
   type LucideIcon,
 } from 'lucide-react-native';
+import { Wrench } from 'lucide-react-native';
 
 const makeTabBarIcon = (Icon: LucideIcon, name: string) => {
   const TabIcon = ({ size, color }: { size: number; color: string }) => (
@@ -39,7 +40,7 @@ export default function TabLayout() {
   const { width } = useWindowDimensions();
   const { getColors } = useThemeStore();
   const colors = getColors();
-  const { canRoutes, canCleaning, canCivilWorks, canKanban, canFuel, canIncidents, canTickets } = useAuthz();
+  const { canRoutes, canCleaning, canCivilWorks, canKanban, canFuel, canIncidents, canTickets, canMaintenance } = useAuthz();
   const canNotifications = true; // Asumimos visible para todos; ajustar si hay control de permisos
   
   // Breakpoints básicos
@@ -96,6 +97,7 @@ export default function TabLayout() {
   { name: 'civil-works', title: 'Obras', icon: hardHatTabIcon, visible: canCivilWorks },
   { name: 'work', title: 'Trabajo', icon: workTabIcon, visible: canTickets || canKanban },
   { name: 'fuel', title: 'Combustible', icon: fuelTabIcon, visible: canFuel },
+  { name: 'maintenance', title: 'Mantención', icon: makeTabBarIcon(Wrench, 'MaintenanceTabIcon'), visible: canMaintenance },
   { name: 'fleet', title: 'Flota', icon: fuelTabIcon, visible: canFuel },
         { name: 'incidents', title: 'Incidentes', icon: alertTabIcon, visible: canIncidents },
         

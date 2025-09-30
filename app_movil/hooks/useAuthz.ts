@@ -18,6 +18,7 @@ export function useAuthz() {
   const canIT = hasAnyRole('Admin') || hasArea('IT') || hasPerm('VIEW_TICKETS') || hasPerm('MANAGE_TICKETS');
   const canKanban = true; // Visible para todos
   const canFuel = hasAnyRole('Admin', 'Transporte', 'Driver') || hasPerm('VIEW_FLEET') || hasPerm('MANAGE_FLEET');
+  const canMaintenance = hasAnyRole('Admin', 'Transporte') || hasPerm('VIEW_MAINTENANCE') || hasPerm('MANAGE_MAINTENANCE');
   const canIncidents = true; // Visible para todos
   const canTickets = hasAnyRole('Admin', 'IT') || hasPerm('VIEW_TICKETS') || hasPerm('MANAGE_TICKETS');
 
@@ -37,5 +38,6 @@ export function useAuthz() {
     canFuel,
     canIncidents,
     canTickets,
+    canMaintenance,
   };
 }
