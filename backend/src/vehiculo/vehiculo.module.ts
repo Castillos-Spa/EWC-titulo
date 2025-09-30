@@ -7,5 +7,6 @@ import { PrismaModule } from 'prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [VehiculoController],
   providers: [VehiculoService],
+  exports: [VehiculoService],
 })
 export class VehiculoModule {}

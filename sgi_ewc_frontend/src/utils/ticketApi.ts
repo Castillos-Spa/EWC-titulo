@@ -6,7 +6,7 @@ export type CreateTicketPayload = {
   description?: string;
   category: string;
   priority?: TicketPriority;
-  recipientArea: string;
+  recipientArea?: string[];
   tags?: string[];
 };
 
@@ -36,3 +36,13 @@ export async function updateTicket(
     body: JSON.stringify(data),
   });
 }
+export const approveTicketStep = async (
+  ticketId: number,
+  approvalId: number,
+  payload: { approved: boolean; comments?: string }
+) => {
+  return apiFetch(`/tickets/${ticketId}/approvals/${approvalId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+};
