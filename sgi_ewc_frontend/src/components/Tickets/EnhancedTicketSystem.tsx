@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip } from 'lucide-react';
-import { getTickets, createTicket, updateTicket, CreateTicketPayload } from '../../utils/ticketApi';
+import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip, ThumbsUp, ThumbsDown, Send } from 'lucide-react'; // NOSONAR
+import { getTickets, createTicket, updateTicket, CreateTicketPayload, approveTicketStep } from '../../utils/ticketApi'; // NOSONAR
 import { getUsers } from '../../utils/userApi'; // Assuming getUsers is in userApi
 import { Ticket, TicketStatus, TicketPriority } from '../../types/Ticket'; // NOSONAR
 import { User as AppUser } from '../../types/User';
@@ -8,7 +8,7 @@ import { User as AppUser } from '../../types/User';
 // 1. Importa tu hook de autenticación desde su ubicación correcta
 import { useAuth } from '../../contexts/AuthContext';
 // Esto debería venir idealmente de una carpeta de tipos compartida
-const TICKET_CATEGORIES = ['Soporte IT', 'Solicitud de suministro', 'Mantenimiento', 'Reportes incidentes'];
+const TICKET_CATEGORIES = ['Soporte IT', 'Solicitud Suministro', 'Mantenimiento', 'Reporte Incidente'];
 const RECIPIENT_AREAS = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', 'P_Riesgo'];
 
 
@@ -26,6 +26,7 @@ const EnhancedTicketSystem: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false); // NOSONAR
   const [assigneeId, setAssigneeId] = useState<string>('');
+  const [approvalComment, setApprovalComment] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [newTicketForm, setNewTicketForm] = useState({
     title: '',
@@ -143,11 +144,23 @@ const EnhancedTicketSystem: React.FC = () => {
   
     if (!user) return false; // Si no hay usuario, no mostrar tickets
 
-    // Lógica de relevancia: el usuario ve el ticket si es admin, si pertenece a una de las áreas de destino,
-    // o si tiene uno de los roles de destino.
-    const isRelevant = user.isAdmin ||
-      (ticket.recipientArea ?? []).some((area: string) => user.areas.includes(area)) ||
-      ticket.recipientRole?.some((role: string) => user.roles.includes(role as any));
+    // Lógica de Relevancia Mejorada
+    const isCreator = ticket.createdBy?.id === user.id;
+    const isAssigned = ticket.assignedTo?.id === user.id;
+    const isRecipient = (ticket.recipientArea ?? []).some((area: string) => user.areas.includes(area));
+
+    // El usuario es un aprobador pendiente en el flujo del ticket
+    const isPendingApprover = (ticket.approvals ?? []).some(approval =>
+      approval.status === 'Pendiente' &&
+      user.roles.includes(approval.approverRole) &&
+      user.areas.includes(approval.approverArea)
+    );
+
+    // Un supervisor o jefe puede ver todos los tickets creados por usuarios de su misma área.
+    const canSupervise = (user.roles.includes('Supervisor') || user.roles.includes('Jefe')) &&
+      (ticket.createdBy?.roleAssignments ?? []).some(assignment => user.areas.includes(assignment.area));
+
+    const isRelevant = user.isAdmin || isCreator || isAssigned || isRecipient || isPendingApprover || canSupervise;
 
     return matchesSearch && matchesStatus && matchesCategory && matchesPriority && isRelevant;
   });
@@ -172,15 +185,21 @@ const EnhancedTicketSystem: React.FC = () => {
     }
     
     try {
-      const payload: CreateTicketPayload = {
+      const payload: CreateTicketPayload = { // NOSONAR
         title: newTicketForm.title,
         description: newTicketForm.description,
         category: newTicketForm.category,
         priority: newTicketForm.priority,
-        recipientArea: newTicketForm.recipientArea.join(','),
         tags: newTicketForm.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag),
       };
-      await createTicket(payload);
+
+      // Solo incluir recipientArea si la categoría no es "Solicitud Suministro"
+      if (newTicketForm.category !== 'Solicitud Suministro') {
+        payload.recipientArea = newTicketForm.recipientArea;
+      }
+
+      await createTicket(payload); // NOSONAR
+
       setShowForm(false);
       setNewTicketForm({
         title: '',
@@ -220,6 +239,28 @@ const EnhancedTicketSystem: React.FC = () => {
       alert('No se pudo asignar el ticket.');
     }
   };
+
+  const handleApprovalAction = async (approvalId: number, approved: boolean) => {
+    if (!selectedTicket) return;
+
+    try {
+      const updatedTicket = await approveTicketStep(selectedTicket.id, approvalId, {
+        approved,
+        comments: approvalComment,
+      });
+      
+      // Actualizar el estado local
+      setTickets(tickets.map((t: Ticket) => (t.id === updatedTicket.id ? updatedTicket : t)));
+      setSelectedTicket(updatedTicket);
+      setApprovalComment(''); // Limpiar comentario
+
+    } catch (error) {
+      console.error('Error al procesar la aprobación:', error);
+      // Idealmente, mostrar un toast o alerta más amigable
+      alert(`Error: ${error instanceof Error ? error.message : 'No se pudo procesar la acción.'}`);
+    }
+  };
+
 
   const handleConfirmationChange = async (type: 'assigned' | 'requesting', isChecked: boolean) => {
     if (!selectedTicket) return;
@@ -689,6 +730,55 @@ const EnhancedTicketSystem: React.FC = () => {
                 </div>
               )}
 
+              {/* NUEVO: Flujo de Aprobación para Solicitudes de Suministro */}
+              {selectedTicket.category === 'Solicitud_Suministro' && selectedTicket.approvals && selectedTicket.approvals.length > 0 && (
+                <div className="p-4 border-t border-b border-gray-200 bg-gray-50">
+                  <h4 className="mb-4 text-sm font-semibold text-gray-800">Flujo de Aprobación de Suministro</h4>
+                  <div className="space-y-4">
+                    {selectedTicket.approvals.map((approval, index) => {
+                      const canApprove = user?.roles.includes(approval.approverRole) && user?.areas.includes(approval.approverArea);
+                      const isPending = approval.status === 'Pendiente';
+                      // Un usuario puede aprobar si es su turno (o un paso anterior fue aprobado) y tiene el rol/área correctos.
+                      const isMyTurn = isPending && (index === 0 || selectedTicket.approvals[index - 1].status === 'Aprobado');
+
+                      return (
+                        <div key={approval.id} className="p-3 bg-white border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              {approval.status === 'Aprobado' && <CheckCircle className="w-5 h-5 mr-2 text-green-500" />}
+                              {approval.status === 'Rechazado' && <ThumbsDown className="w-5 h-5 mr-2 text-red-500" />}
+                              {approval.status === 'Pendiente' && <Clock className="w-5 h-5 mr-2 text-yellow-500" />}
+                              <p className="text-sm font-medium">
+                                Paso {approval.step}: {approval.approverRole} de {approval.approverArea}
+                              </p>
+                            </div>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              approval.status === 'Aprobado' ? 'bg-green-100 text-green-800' :
+                              approval.status === 'Rechazado' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {approval.status}
+                            </span>
+                          </div>
+                          {approval.approvedBy && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              Por: {approval.approvedBy.username} el {formatDate(approval.approvedAt!)}
+                            </p>
+                          )}
+                          {canApprove && isMyTurn && (
+                            <div className="flex items-center mt-3 space-x-2">
+                              <input type="text" placeholder="Comentario (opcional)..." value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)} className="flex-grow px-2 py-1 text-sm border rounded"/>
+                              <button onClick={() => handleApprovalAction(approval.id, true)} className="p-2 text-white bg-green-500 rounded-full hover:bg-green-600"><ThumbsUp className="w-4 h-4" /></button>
+                              <button onClick={() => handleApprovalAction(approval.id, false)} className="p-2 text-white bg-red-500 rounded-full hover:bg-red-600"><ThumbsDown className="w-4 h-4" /></button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+
               {/* Comments */}
               <div>
                 <p className="block mb-4 text-sm font-medium text-gray-700">Comentarios</p>
@@ -740,7 +830,7 @@ const EnhancedTicketSystem: React.FC = () => {
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
                     required
                   >
-                    <option value="">Seleccionar categoría</option>
+                    <option value="" disabled>Seleccionar categoría</option>
                     {TICKET_CATEGORIES.map(cat => (
                       <option key={cat} value={cat}>{getCategoryLabel(cat)}</option>
                     ))}
@@ -759,23 +849,26 @@ const EnhancedTicketSystem: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <div>
-                <label htmlFor="new-ticket-recipient" className="block mb-2 text-sm font-medium text-gray-700">Área Destino</label>
-                <select id="new-ticket-recipient"
-                  multiple
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={newTicketForm.recipientArea}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ 
-                    ...newTicketForm, 
-                    recipientArea: Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value) 
-                  })}
-                  required
-                >
-                  {RECIPIENT_AREAS.map(area => (
-                    <option key={area} value={area}>{area}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Ocultar Área Destino si la categoría es Solicitud de Suministro */}
+              {newTicketForm.category !== 'Solicitud Suministro' && (
+                <div>
+                  <label htmlFor="new-ticket-recipient" className="block mb-2 text-sm font-medium text-gray-700">Área Destino</label>
+                  <select id="new-ticket-recipient"
+                    multiple
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={newTicketForm.recipientArea}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ 
+                      ...newTicketForm, 
+                      recipientArea: Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value) 
+                    })}
+                    required
+                  >
+                    {RECIPIENT_AREAS.map(area => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="new-ticket-description" className="block mb-2 text-sm font-medium text-gray-700">Descripción</label>

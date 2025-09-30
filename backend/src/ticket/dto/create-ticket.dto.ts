@@ -13,10 +13,10 @@ export class CreateTicketDto {
   category: string;
   @IsOptional()
   assignedToId?: number;
-  @IsNotEmpty()
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  recipientArea: string[];
+  recipientArea?: string[];
   // 🎯 NUEVO: Añadir recipientRole
   @IsOptional()
   @IsArray()

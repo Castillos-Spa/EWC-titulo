@@ -1,12 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { OrdenTrabajoService } from '../orden-trabajo/orden-trabajo.service';
 import { CreateOrdenTrabajoTallerDto } from './dto/create-taller.dto';
+import { VehiculoService } from '../vehiculo/vehiculo.service';
+import { CreateVehiculoDto } from '../vehiculo/dto/create-vehiculo.dto';
+import { UpdateVehiculoDto } from '../vehiculo/dto/update-vehiculo.dto';
+import { RepuestoService } from '../repuesto/repuesto.service';
 import type { IQaService } from './interfaces/qa.interface';
 
 @Injectable()
 export class TallerService {
   constructor(
     private readonly ordenTrabajoService: OrdenTrabajoService,
+    // Inyectamos los servicios de los módulos importados
+    private readonly vehiculoService: VehiculoService,
+    private readonly repuestoService: RepuestoService,
     @Inject('IQaService') private readonly qaService: IQaService,
   ) {}
 
@@ -32,5 +39,32 @@ export class TallerService {
       checklist: checklist,
       resultado: resultado,
     });
+  }
+
+  // Crear un vehículo desde el taller
+  async crearVehiculo(createVehiculoDto: CreateVehiculoDto) {
+    console.log('Orquestando la creación de un vehículo desde TallerService');
+    return this.vehiculoService.createVehiculos(createVehiculoDto);
+  }
+
+  // Actualizar un vehículo desde el taller
+  async updateVehiculo(id: number, updateVehiculoDto: UpdateVehiculoDto) {
+    console.log(`Orquestando la actualización del vehículo ${id} desde TallerService`);
+    return this.vehiculoService.updateVehiculo(id, updateVehiculoDto);
+  }
+
+  // Obtener un vehículo por ID desde el taller
+  async findOneVehiculo(patente: string) {
+    return this.vehiculoService.findOneVehiculos(patente);
+  }
+
+  // --- Ejemplo de Orquestación ---
+
+  // Este método usa VehiculoService para obtener los vehículos.
+  // El controlador de Taller puede exponer esto en un endpoint si es necesario.
+  async obtenerVehiculosDisponibles() {
+    // Aquí puedes añadir lógica extra, como filtrar por estado, etc.
+    console.log('Orquestando la obtención de vehículos desde TallerService');
+    return this.vehiculoService.findAllVehiculos();
   }
 }
