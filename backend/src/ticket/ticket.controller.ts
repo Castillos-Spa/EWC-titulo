@@ -18,6 +18,7 @@ import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ApproveStepDto } from './dto/approve-step.dto';
 
 @Controller('tickets')
 @UseGuards(JwtAuthGuard)
@@ -59,5 +60,17 @@ export class TicketController {
   @UseGuards(RolesGuard)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.ticketsService.remove(id);
+  }
+
+  @Patch(':id/approvals/:approvalId')
+  @UseGuards(JwtAuthGuard)
+  approveStep(
+    @Param('id', ParseIntPipe) ticketId: number,
+    @Param('approvalId', ParseIntPipe) approvalId: number,
+    @Body() approveStepDto: ApproveStepDto,
+    @Req() req,
+  ) {
+    const userId = req.user.userId;
+    return this.ticketsService.approveStep(ticketId, approvalId, userId, approveStepDto);
   }
 }

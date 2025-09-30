@@ -23,6 +23,7 @@ model User {
   notifications        Notification[]
   createdNotifications Notification[]       @relation("CreatedNotifications")
   roleAssignments      UserRoleAssignment[]
+  TicketApproval       TicketApproval[]
 }
 
 model UserRoleAssignment {
@@ -42,24 +43,25 @@ model UserRoleAssignment {
 }
 
 model Ticket {
-  id                         Int            @id @default(autoincrement())
+  id                         Int              @id @default(autoincrement())
   title                      String
   description                String?
-  status                     TicketStatus   @default(Pendiente)
-  priority                   TicketPriority @default(Media)
+  status                     TicketStatus     @default(Pendiente)
+  priority                   TicketPriority   @default(Media)
   category                   TicketCategory
-  createdAt                  DateTime       @default(now())
-  updatedAt                  DateTime       @updatedAt
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
   createdById                Int
   assignedToId               Int?
-  assignedTo                 User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
-  createdBy                  User           @relation("CreatedTickets", fields: [createdById], references: [id])
-  recipientArea              String[]       @default([])
+  assignedTo                 User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdBy                  User             @relation("CreatedTickets", fields: [createdById], references: [id])
+  recipientArea              String[]         @default([])
   recipientRole              Role[]
-  assignedUserConfirmation   Boolean?       @default(false)
-  requestingUserConfirmation Boolean?       @default(false)
-  tags                       String[]       @default([])
+  assignedUserConfirmation   Boolean?         @default(false)
+  requestingUserConfirmation Boolean?         @default(false)
+  tags                       String[]         @default([])
   attachments                Documento[]
+  approvals                  TicketApproval[]
 }
 
 model Vehiculo {
@@ -140,6 +142,24 @@ model Notification {
   createdBy   User     @relation("CreatedNotifications", fields: [createdById], references: [id])
 }
 
+model TicketApproval {
+  id           Int            @id @default(autoincrement())
+  ticketId     Int
+  ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  step         Int // Orden en la cadena de aprobación (1, 2, 3...)
+  status       ApprovalStatus @default(Pendiente)
+  approverRole Role
+  approverArea String
+  approvedById Int?
+  approvedBy   User?          @relation(fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  comments     String?
+
+  @@unique([ticketId, step])
+  @@index([ticketId])
+  @@index([approverArea, approverRole])
+}
+
 //=================================================================>ENUMS<==================================================================
 
 /// Enum de roles
@@ -157,32 +177,6 @@ enum Specialty {
   // Transporte
   DRIVER
   MECHANIC
-  // IT
-  IT_SUPPORT
-  NETWORK_ADMIN
-  DEVELOPER
-
-  // Obras
-  CIVIL_ENGINEER
-  PROJECT_MANAGER
-  ARCHITECT
-
-  // Aseo
-  CLEANING_COORDINATOR
-  SANITATION_SPECIALIST
-
-  // RRHH
-  HR_SPECIALIST
-  RECRUITER
-
-  // Finanzas
-  ACCOUNTANT
-  FINANCIAL_ANALYST
-  AUDITOR
-
-  // P_Riesgo
-  SAFETY_INSPECTOR
-  RISK_ANALYST
 }
 
 /// Enum de permisos
@@ -261,4 +255,10 @@ enum TicketCategory {
   Solicitud_Suministro
   Mantenimiento
   Reporte_Incidente
+}
+
+enum ApprovalStatus {
+  Pendiente
+  Aprobado
+  Rechazado
 }
