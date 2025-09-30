@@ -7,5 +7,6 @@ import { PrismaModule } from 'prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [RepuestoController],
   providers: [RepuestoService],
+  exports: [RepuestoService],
 })
 export class RepuestoModule {}

@@ -65,15 +65,20 @@ model Ticket {
 }
 
 model Vehiculo {
-  id         Int            @id @default(autoincrement())
-  patente    String
-  capacidad  Float
-  odometro   Int
-  estado     VehiculoStatus @default(disponible)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  documentos Documento[] // Relación con la tabla Documento
-  ordenes    OrdenTrabajo[]
+  id                  Int            @id @default(autoincrement())
+  patente             String         @unique
+  marca               String         @default("")
+  modelo              String         @default("")
+  capacidad           Float
+  odometro            Int
+  estado              VehiculoStatus @default(disponible)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  documentos          Documento[] // Relación con la tabla Documento
+  ordenes             OrdenTrabajo[]
+  areaAsignada        String?
+  conductorId         Int?
+  lastMaintenanceDate DateTime?
 }
 
 model Documento {
