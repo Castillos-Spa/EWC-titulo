@@ -10,7 +10,7 @@ type Props = {
   onCreate: (payload: { message: string; type: string; target: 'global' | 'areas'; areas?: string[] }) => Promise<void>;
 };
 
-export function CreateNotificationModal({ visible, onClose, onCreate }: Props) {
+export function CreateNotificationModal({ visible, onClose, onCreate }: Readonly<Props>) {
   const { getColors } = useThemeStore();
   const colors = getColors();
   const { user } = useAuthStore();

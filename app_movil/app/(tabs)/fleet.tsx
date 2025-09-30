@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Truck, RefreshCw, Plus, Wrench, CheckCircle2 } from 'lucide-react-native';
+import { Truck, RefreshCw, Plus, Wrench, CheckCircle2, Activity, AlertTriangle } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 import { useFleetStore } from '../stores/fleetStore';
 import { FleetVehicleCard } from '../components/FleetVehicleCard';
@@ -25,6 +25,21 @@ export default function FleetScreen() {
     await loadVehicles();
     setRefreshing(false);
   };
+
+  // KPIs derivados
+  const disponibles = vehicles.filter(v => v.estado === 'disponible').length;
+  const enMantenimiento = vehicles.filter(v => v.estado === 'en_mantenimiento').length;
+  const enUso = vehicles.filter(v => v.estado === 'en_uso').length;
+  // Asunción: mantenimiento cada 180 días desde la última fecha registrada
+  const MAINTENANCE_INTERVAL_DAYS = 180;
+  const now = Date.now();
+  const msInDay = 1000 * 60 * 60 * 24;
+  const mantenimientoVencido = vehicles.filter(v => {
+    if (!v.lastMaintenanceDate) return false;
+    const last = new Date(v.lastMaintenanceDate).getTime();
+    const days = Math.floor((now - last) / msInDay);
+    return days >= MAINTENANCE_INTERVAL_DAYS;
+  }).length;
 
   if (error) {
     return (
@@ -63,11 +78,35 @@ export default function FleetScreen() {
 
           {/* Stats */}
           <View style={[styles.statsRow, { borderBottomColor: colors.border }]}>
-            <View style={styles.stat}><Text style={[styles.statValue, { color: colors.text }]}>{vehicles.length}</Text><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Vehículos</Text></View>
-            <View style={styles.stat}><Wrench size={16} color={colors.warning} /><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Mantenimiento</Text></View>
-            <View style={styles.stat}><CheckCircle2 size={16} color={colors.success} /><Text style={[styles.statLabel, { color: colors.textSecondary }]}>Disponibles</Text></View>
+            <View style={styles.stat}>
+              <Text style={[styles.statValue, { color: colors.text }]}>{vehicles.length}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
+            </View>
+            <View style={styles.stat}>
+              <CheckCircle2 size={16} color={colors.success} />
+              <Text style={[styles.statValueSm, { color: colors.text }]}>{disponibles}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Disponibles</Text>
+            </View>
+            <View style={styles.stat}>
+              <Activity size={16} color={colors.primary} />
+              <Text style={[styles.statValueSm, { color: colors.text }]}>{enUso}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>En uso</Text>
+            </View>
+            <View style={styles.stat}>
+              <Wrench size={16} color={colors.warning} />
+              <Text style={[styles.statValueSm, { color: colors.text }]}>{enMantenimiento}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Mantención</Text>
+            </View>
           </View>
         </View>
+
+        {/* Warning: mantenimiento vencido */}
+        {mantenimientoVencido > 0 && (
+          <View style={[styles.warningBar, { backgroundColor: `${colors.error}15`, borderColor: colors.error }]}> 
+            <AlertTriangle size={16} color={colors.error} />
+            <Text style={[styles.warningText, { color: colors.error }]}>Mantenimiento vencido: {mantenimientoVencido}</Text>
+          </View>
+        )}
 
         {/* List */}
         <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} />}> 
@@ -110,10 +149,13 @@ const styles = StyleSheet.create({
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
   addButtonText: { color: '#FFFFFF', fontWeight: '700' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1 },
-  stat: { alignItems: 'center', gap: 4, flex: 1 },
+  stat: { alignItems: 'center', gap: 2, flex: 1 },
   statValue: { fontSize: 18, fontWeight: '700' },
+  statValueSm: { fontSize: 16, fontWeight: '700' },
   statLabel: { fontSize: 12, fontWeight: '600' },
   content: { flex: 1, padding: 20 },
+  warningBar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 20, marginTop: 10, padding: 10, borderRadius: 8, borderWidth: 1 },
+  warningText: { fontSize: 12, fontWeight: '700' },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 8 },
   emptyTitle: { fontSize: 18, fontWeight: '700' },
   emptySubtitle: { fontSize: 13 },

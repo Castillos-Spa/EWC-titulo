@@ -12,6 +12,12 @@ export interface VehiculoDto {
   estado: VehiculoEstado;
   createdAt: string;
   updatedAt: string;
+  // Campos extendidos para alineación con frontend Taller
+  marca?: string;
+  modelo?: string;
+  areaAsignada?: string | null;
+  conductorId?: number | null;
+  lastMaintenanceDate?: string | null;
 }
 
 export interface CreateVehiculoPayload {
@@ -19,6 +25,12 @@ export interface CreateVehiculoPayload {
   capacidad: number;
   odometro: number;
   estado: VehiculoEstado;
+  // Campos adicionales (opcionales en móvil, requeridos por DTO del backend)
+  marca?: string;
+  modelo?: string;
+  areaAsignada?: string;
+  conductorId?: number;
+  lastMaintenanceDate?: string; // ISO string
 }
 
 export interface RegistrarDocumentoPayload {
@@ -83,15 +95,18 @@ class VehiculoApiClass {
   }
 
   async getVehiculos(): Promise<VehiculoDto[]> {
-    return this.request<VehiculoDto[]>(`/vehiculo`, { method: 'GET' });
+    // Alinear con endpoints expuestos por TallerController
+    return this.request<VehiculoDto[]>(`/taller/vehiculos`, { method: 'GET' });
   }
 
   async createVehiculo(payload: CreateVehiculoPayload): Promise<VehiculoDto> {
-    return this.request<VehiculoDto>(`/vehiculo`, { method: 'POST', body: JSON.stringify(payload) });
+    // Crear vehículo desde el módulo de taller
+    return this.request<VehiculoDto>(`/taller/vehiculos`, { method: 'POST', body: JSON.stringify(payload) });
   }
 
   async updateVehiculo(id: number, patch: Partial<CreateVehiculoPayload>): Promise<VehiculoDto> {
-    return this.request<VehiculoDto>(`/vehiculo/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+    // Actualizar vehículo desde el módulo de taller
+    return this.request<VehiculoDto>(`/taller/vehiculos/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
   }
 
   async deleteVehiculo(id: number): Promise<void> {

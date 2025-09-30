@@ -5,19 +5,39 @@ import { useThemeStore } from '../stores/themeStore';
 import { useFleetStore } from '../stores/fleetStore';
 import type { VehiculoDto } from '../services/VehiculoApi';
 
-export function VehicleDetailModal({ vehicle, visible, onClose }: { vehicle: VehiculoDto | null; visible: boolean; onClose: () => void }) {
+export function VehicleDetailModal({ vehicle, visible, onClose }: Readonly<{ vehicle: VehiculoDto | null; visible: boolean; onClose: () => void }>) {
   const { getColors } = useThemeStore();
   const colors = getColors();
   const { updateVehicle, deleteVehicle, uploadDocument, documentsByVehicle } = useFleetStore();
 
-  const [form, setForm] = useState({ patente: '', capacidad: '', odometro: '', estado: 'disponible' as VehiculoDto['estado'] });
+  const [form, setForm] = useState({
+    patente: '',
+    marca: '',
+    modelo: '',
+    capacidad: '',
+    odometro: '',
+    estado: 'disponible' as VehiculoDto['estado'],
+    areaAsignada: '',
+    conductorId: '',
+    lastMaintenanceDate: '',
+  });
   const [docTipo, setDocTipo] = useState('certificado');
   const [docUrl, setDocUrl] = useState('');
   const [docDesc, setDocDesc] = useState('');
 
   useEffect(() => {
     if (vehicle) {
-      setForm({ patente: vehicle.patente, capacidad: String(vehicle.capacidad), odometro: String(vehicle.odometro), estado: vehicle.estado });
+      setForm({
+        patente: vehicle.patente,
+        marca: vehicle.marca ?? '',
+        modelo: vehicle.modelo ?? '',
+        capacidad: String(vehicle.capacidad),
+        odometro: String(vehicle.odometro),
+        estado: vehicle.estado,
+        areaAsignada: vehicle.areaAsignada ?? '',
+        conductorId: vehicle.conductorId ? String(vehicle.conductorId) : '',
+        lastMaintenanceDate: vehicle.lastMaintenanceDate ? new Date(vehicle.lastMaintenanceDate).toISOString().slice(0, 10) : '',
+      });
     }
   }, [vehicle]);
 
@@ -25,7 +45,17 @@ export function VehicleDetailModal({ vehicle, visible, onClose }: { vehicle: Veh
 
   const handleSave = async () => {
     try {
-      await updateVehicle(vehicle.id, { patente: form.patente, capacidad: Number(form.capacidad), odometro: Number(form.odometro), estado: form.estado });
+      await updateVehicle(vehicle.id, {
+        patente: form.patente,
+        marca: form.marca,
+        modelo: form.modelo,
+        capacidad: Number(form.capacidad),
+        odometro: Number(form.odometro),
+        estado: form.estado,
+        areaAsignada: form.areaAsignada || undefined,
+        conductorId: form.conductorId ? Number(form.conductorId) : undefined,
+        lastMaintenanceDate: form.lastMaintenanceDate ? new Date(form.lastMaintenanceDate).toISOString() : undefined,
+      });
       Alert.alert('Guardado', 'Vehículo actualizado');
     } catch (e: any) {
       console.error('Update vehicle error', e);
@@ -36,8 +66,9 @@ export function VehicleDetailModal({ vehicle, visible, onClose }: { vehicle: Veh
   const handleDelete = async () => {
     Alert.alert('Eliminar', '¿Seguro que deseas eliminar este vehículo?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try { await deleteVehicle(vehicle.id); onClose(); } catch {}
+      { text: 'Eliminar', style: 'destructive', onPress: () => {
+        // Ejecutar la operación async sin devolver la promesa al manejador de onPress
+        (async () => { try { await deleteVehicle(vehicle.id); onClose(); } catch {} })();
       } },
     ]);
   };
@@ -69,6 +100,12 @@ export function VehicleDetailModal({ vehicle, visible, onClose }: { vehicle: Veh
           <Text style={[styles.label, { color: colors.textSecondary }]}>Patente</Text>
           <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={form.patente} onChangeText={(v) => setForm({ ...form, patente: v })} />
 
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Marca</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={form.marca} onChangeText={(v) => setForm({ ...form, marca: v })} />
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Modelo</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={form.modelo} onChangeText={(v) => setForm({ ...form, modelo: v })} />
+
           <Text style={[styles.label, { color: colors.textSecondary }]}>Capacidad (L)</Text>
           <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} keyboardType="numeric" value={form.capacidad} onChangeText={(v) => setForm({ ...form, capacidad: v })} />
 
@@ -83,6 +120,15 @@ export function VehicleDetailModal({ vehicle, visible, onClose }: { vehicle: Veh
               </TouchableOpacity>
             ))}
           </View>
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Área asignada</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={form.areaAsignada} onChangeText={(v) => setForm({ ...form, areaAsignada: v })} />
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Conductor (ID)</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} keyboardType="numeric" value={form.conductorId} onChangeText={(v) => setForm({ ...form, conductorId: v })} />
+
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Último mantenimiento (YYYY-MM-DD)</Text>
+          <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={form.lastMaintenanceDate} onChangeText={(v) => setForm({ ...form, lastMaintenanceDate: v })} />
 
           <View style={[styles.section, { borderTopColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}><Paperclip size={18} color={colors.text} /> Documentos</Text>

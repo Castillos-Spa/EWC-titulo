@@ -4,7 +4,7 @@ import { Truck, Gauge, ClipboardList, CheckCircle2 } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 import type { VehiculoDto } from '../services/VehiculoApi';
 
-export function FleetVehicleCard({ vehicle, onPress }: { vehicle: VehiculoDto; onPress: () => void }) {
+export function FleetVehicleCard({ vehicle, onPress }: Readonly<{ vehicle: VehiculoDto; onPress: () => void }>) {
   const { getColors } = useThemeStore();
   const colors = getColors();
 
@@ -26,7 +26,9 @@ export function FleetVehicleCard({ vehicle, onPress }: { vehicle: VehiculoDto; o
         </View>
         <View style={styles.titleWrap}>
           <Text style={[styles.title, { color: colors.text }]}>{vehicle.patente}</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Capacidad: {vehicle.capacidad} L</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            {(vehicle.marca ?? '').trim()} {(vehicle.modelo ?? '').trim()} · Capacidad: {vehicle.capacidad} L
+          </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: `${statusColor(vehicle.estado)}20` }]}>
           <Text style={[styles.statusText, { color: statusColor(vehicle.estado) }]}>{vehicle.estado.replace('_', ' ')}</Text>

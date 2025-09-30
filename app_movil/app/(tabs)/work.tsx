@@ -68,7 +68,7 @@ function ticketFilterStatusLabel(value: string) {
 }
 
 // Presentational subcomponents
-function ErrorView({ viewMode, message, onRetry, colors }: { viewMode: ViewMode; message: string; onRetry: () => void; colors: any }) {
+function ErrorView({ viewMode, message, onRetry, colors }: Readonly<{ viewMode: ViewMode; message: string; onRetry: () => void; colors: any }>) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.errorContainer}>
@@ -86,7 +86,7 @@ function ErrorView({ viewMode, message, onRetry, colors }: { viewMode: ViewMode;
   );
 }
 
-function ViewToggle({ mode, setMode }: { mode: ViewMode; setMode: (m: ViewMode) => void }) {
+function ViewToggle({ mode, setMode }: Readonly<{ mode: ViewMode; setMode: (m: ViewMode) => void }>) {
   return (
     <View style={styles.toggleRow}>
       <TouchableOpacity
@@ -111,7 +111,7 @@ function ViewToggle({ mode, setMode }: { mode: ViewMode; setMode: (m: ViewMode) 
   );
 }
 
-function PeriodSelector({ selected, onSelect }: { selected: string; onSelect: (v: string) => void }) {
+function PeriodSelector({ selected, onSelect }: Readonly<{ selected: string; onSelect: (v: string) => void }>) {
   return (
     <View style={styles.periodSelector}>
       <Calendar size={20} color="#64748B" />
@@ -139,7 +139,7 @@ function PeriodSelector({ selected, onSelect }: { selected: string; onSelect: (v
   );
 }
 
-function TicketStats({ stats, colors }: { stats: { total: number; assigned: number; inProgress: number; completed: number; onHold: number }; colors: any }) {
+function TicketStats({ stats, colors }: Readonly<{ stats: { total: number; assigned: number; inProgress: number; completed: number; onHold: number }; colors: any }>) {
   return (
     <View style={styles.statsRow}>
       <View style={styles.stat}>
@@ -162,7 +162,7 @@ function TicketStats({ stats, colors }: { stats: { total: number; assigned: numb
   );
 }
 
-function KanbanStats({ stats }: { stats: { total: number; pending: number; inProgress: number; completed: number } }) {
+function KanbanStats({ stats }: Readonly<{ stats: { total: number; pending: number; inProgress: number; completed: number } }>) {
   return (
     <View style={styles.statsRow}>
       <View style={styles.stat}>
@@ -185,7 +185,7 @@ function KanbanStats({ stats }: { stats: { total: number; pending: number; inPro
   );
 }
 
-function TicketFilters({ status, setStatus, priority, setPriority }: { status: string; setStatus: (v: string) => void; priority: string; setPriority: (v: string) => void }) {
+function TicketFilters({ status, setStatus, priority, setPriority }: Readonly<{ status: string; setStatus: (v: string) => void; priority: string; setPriority: (v: string) => void }>) {
   return (
     <View style={styles.filtersSection}>
       <View style={styles.filterGroup}>
@@ -242,7 +242,7 @@ function TicketFilters({ status, setStatus, priority, setPriority }: { status: s
   );
 }
 
-function KanbanFilterBar({ type, setType }: { type: string; setType: (v: string) => void }) {
+function KanbanFilterBar({ type, setType }: Readonly<{ type: string; setType: (v: string) => void }>) {
   return (
     <View style={styles.filterSection}>
       <Filter size={20} color="#64748B" />

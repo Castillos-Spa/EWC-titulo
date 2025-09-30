@@ -10,8 +10,8 @@ export interface FleetState {
   documentsByVehicle?: Record<number, { tipo: string; url: string; descripcion?: string; fechaSubida?: string }[]>;
 
   loadVehicles: () => Promise<void>;
-  createVehicle: (data: { patente: string; capacidad: number; odometro: number; estado?: VehiculoEstado }) => Promise<void>;
-  updateVehicle: (id: number, patch: Partial<{ patente: string; capacidad: number; odometro: number; estado: VehiculoEstado }>) => Promise<void>;
+  createVehicle: (data: { patente: string; capacidad: number; odometro: number; estado?: VehiculoEstado; marca?: string; modelo?: string; areaAsignada?: string; conductorId?: number; lastMaintenanceDate?: string }) => Promise<void>;
+  updateVehicle: (id: number, patch: Partial<{ patente: string; capacidad: number; odometro: number; estado: VehiculoEstado; marca?: string; modelo?: string; areaAsignada?: string; conductorId?: number; lastMaintenanceDate?: string }>) => Promise<void>;
   deleteVehicle: (id: number) => Promise<void>;
   uploadDocument: (id: number, data: { tipo: string; url: string; descripcion?: string }) => Promise<void>;
   setCurrentVehicle: (v: VehiculoDto | null) => void;
@@ -45,6 +45,12 @@ export const useFleetStore = create<FleetState>((set, get) => ({
         capacidad: data.capacidad,
         odometro: data.odometro,
         estado: data.estado ?? 'disponible',
+        // El backend espera marca/modelo (DTO); por defecto enviamos cadenas vacías si no vienen
+        marca: data.marca ?? '',
+        modelo: data.modelo ?? '',
+        areaAsignada: data.areaAsignada,
+        conductorId: data.conductorId,
+        lastMaintenanceDate: data.lastMaintenanceDate,
       });
       set(state => ({ vehicles: [created, ...state.vehicles], isSubmitting: false }));
     } catch (error) {
