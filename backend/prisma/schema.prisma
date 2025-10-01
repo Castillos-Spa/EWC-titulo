@@ -18,6 +18,7 @@ model User {
   createdTickets       Ticket[]             @relation("CreatedTickets")
   active               Boolean              @default(true)
   lastLogin            DateTime?
+  fuelLogs             FuelLog[]            @relation("FuelLogs")
   mustChangePassword   Boolean              @default(false)
   refreshToken         String?              @unique
   notifications        Notification[]
@@ -80,6 +81,7 @@ model Vehiculo {
   ordenes             OrdenTrabajo[]
   areaAsignada        String?
   conductorId         Int?
+  fuelLogs            FuelLog[]
   lastMaintenanceDate DateTime?
 }
 
@@ -173,6 +175,22 @@ model TicketApproval {
   @@unique([ticketId, step])
   @@index([ticketId])
   @@index([approverArea, approverRole])
+}
+
+model FuelLog {
+  id         Int      @id @default(autoincrement())
+  vehiculoId Int
+  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
+  date       DateTime
+  liters     Float
+  cost       Float?
+  odometer   Int
+  driverId   Int
+  driver     User     @relation("FuelLogs", fields: [driverId], references: [id])
+  invoiceUrl String?
+  createdAt  DateTime @default(now())
+
+  @@index([vehiculoId, date])
 }
 
 //=================================================================>ENUMS<==================================================================

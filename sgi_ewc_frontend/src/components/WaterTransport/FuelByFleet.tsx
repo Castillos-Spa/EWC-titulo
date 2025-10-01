@@ -1,9 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getFleetFuelSummary } from '../../utils/fuelApi';
-import type { FleetFuelSummary, VehicleFuelSummary } from '../../types/Fuel';
-import { Fuel as FuelIcon, Search, TrendingUp, TrendingDown, Gauge, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { getFleetFuelSummary, type VehicleWithFuelHistory } from '../../utils/fuelApi';
+import { Fuel as FuelIcon, Plus, Search, TrendingUp, Gauge, AlertTriangle, ChevronDown, ChevronRight, Route } from 'lucide-react';
+import FuelLogFormModal from './FuelLogFormModal';
 
+type FleetFuelSummary = {
+  fleetId: string;
+  fleetName: string;
+  manager: string | null;
+  totalConsumption: number;
+  totalRefueled: number;
+  averageConsumption: number;
+  efficiency: 'excellent' | 'good' | 'average' | 'poor';
+  vehicles: VehicleWithFuelHistory[];
+};
 const efficiencyColor = (eff: FleetFuelSummary['efficiency']) => {
   switch (eff) {
     case 'excellent': return 'text-green-700';
@@ -18,67 +28,110 @@ const efficiencyBadge = (eff: FleetFuelSummary['efficiency']) => `${efficiencyCo
 
 const FuelByFleet: React.FC = () => {
   const { user } = useAuth();
-  const [fleets, setFleets] = useState<FleetFuelSummary[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleWithFuelHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showFuelForm, setShowFuelForm] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getFleetFuelSummary(from, to); // La API ahora filtra por usuario
+      setVehicles(data);
+      setError(null);
+    } catch (e) {
+      console.error(e);
+      setError('No se pudo cargar el consumo de combustible.');
+    } finally {
+      setLoading(false);
+    }
+  }, [from, to]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-  // Futuro: pasar rango cuando la API lo soporte
-  const data = await getFleetFuelSummary();
-        // Filtrar por áreas/usuario si aplica (mock simple)
-        const filtered = user?.areas?.includes('Transporte') || user?.isAdmin ? data : data.slice(0, 1);
-        setFleets(filtered);
-        setError(null);
-      } catch (e) {
-        console.error(e);
-        setError('No se pudo cargar el consumo de combustible.');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from, to]);
+  }, [fetchData, user]); // El user es dependencia por si cambia el login
+
+  const handleSuccess = () => {
+    setShowFuelForm(false);
+    // En lugar de recargar la página, volvemos a buscar los datos.
+    fetchData();
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return fleets;
-    return fleets.filter(f => f.fleetName.toLowerCase().includes(q) || f.vehicles.some(v => v.vehiclePlate.toLowerCase().includes(q)));
-  }, [fleets, search]);
+    if (!q) return vehicles;
+    return vehicles.filter(v => v.patente.toLowerCase().includes(q) || v.marca.toLowerCase().includes(q) || v.modelo.toLowerCase().includes(q));
+  }, [vehicles, search]);
 
-  const totals = useMemo(() => {
-    return filtered.reduce((acc, f) => {
-      acc.totalConsumption += f.totalConsumption;
-      acc.totalRefueled += f.totalRefueled;
-      acc.vehicles += f.vehicles.length;
-      return acc;
-    }, { totalConsumption: 0, totalRefueled: 0, vehicles: 0 });
-  }, [filtered]);
+  const calculateEfficiency = (avgConsumption: number): FleetFuelSummary['efficiency'] => {
+    if (avgConsumption <= 0) return 'average';
+    if (avgConsumption < 20) return 'excellent';
+    if (avgConsumption < 30) return 'good';
+    if (avgConsumption < 40) return 'average';
+    return 'poor';
+  };
+
+  /**
+   * Calcula el consumo promedio de un vehículo (L/100km) basándose en su historial de cargas.
+   * Utiliza el método de "carga a carga": la distancia recorrida entre dos cargas se divide
+   * por los litros de la *primera* carga. Se promedian todos los segmentos válidos.
+   */
+ const calculateVehicleMetrics = (vehicle: VehicleWithFuelHistory): { consumption: number, totalDistance: number, totalLiters: number } => {
+    const fuelLogs = (vehicle.fuelLogs || []).slice().sort((a, b) => a.odometer - b.odometer);
+
+    if (fuelLogs.length < 2) {
+      return { consumption: 0, totalDistance: 0, totalLiters: 0 };
+    }
+
+    let totalDistance = 0;
+    let totalLiters = 0;
+
+    for (let i = 1; i < fuelLogs.length; i++) {
+      const prevLog = fuelLogs[i - 1];
+      const currentLog = fuelLogs[i];
+
+      const distance = currentLog.odometer - prevLog.odometer;
+      const liters = prevLog.liters;
+
+      if (distance > 0 && liters > 0) {
+        totalDistance += distance;
+        totalLiters += liters;
+      }
+    }
+
+    const consumption = totalDistance > 0 ? (totalLiters / totalDistance) * 100 : 0;
+    return { consumption, totalDistance, totalLiters };
+  };
 
   const extraKpis = useMemo(() => {
-    let vehicleCount = 0;
-    let sumAvgConsWeighted = 0;
+    const metrics = filtered.map(calculateVehicleMetrics);
+    const consumptions = metrics.map(m => m.consumption).filter(c => c > 0);
+
+    const avgConsumption = consumptions.reduce((sum, c) => sum + c, 0) / consumptions.length;
     let poorVehicles = 0;
-
-    filtered.forEach(f => {
-      const count = f.vehicles.length;
-      vehicleCount += count;
-      sumAvgConsWeighted += (f.averageConsumption || 0) * count;
-      f.vehicles.forEach(v => {
-        if (v.analytics.efficiency === 'poor') poorVehicles += 1;
-      });
+    consumptions.forEach(c => {
+      if (calculateEfficiency(c) === 'poor') poorVehicles++;
     });
-    const avgConsumption = vehicleCount > 0 ? sumAvgConsWeighted / vehicleCount : 0;
 
-    return { avgConsumption, poorVehicles };
+    const totalDistance = metrics.reduce((sum, m) => sum + m.totalDistance, 0);
+    const totalLiters = (filtered || []).flatMap(v => v.fuelLogs || []).reduce((sum, log) => sum + log.liters, 0);
+
+
+    return { avgConsumption: avgConsumption || 0, poorVehicles, totalDistance, totalLiters };
   }, [filtered]);
+
+  const canRegisterFuel = useMemo(() => {
+    if (!user) return false;
+    // Usamos las propiedades directas del usuario que vienen del hook de autenticación.
+    const isDriver = user.specialties?.includes('DRIVER');
+    const isTransportSupervisor = user.areas?.includes('Transporte') && user.roles?.includes('Supervisor');
+    return user.isAdmin || isDriver || isTransportSupervisor;
+  }, [user]);
+
 
   if (loading) {
     return (
@@ -91,48 +144,54 @@ const FuelByFleet: React.FC = () => {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+        <div className="p-4 text-red-700 border border-red-200 rounded-lg bg-red-50">
           {error}
         </div>
       )}
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Consumo de Combustible por Vehiculo</h2>
-          <p className="text-gray-600">Resumen de consumo y eficiencia, flotas vinculadas a tu usuario</p>
+          <h2 className="text-2xl font-bold text-gray-900">Consumo de Combustible por Vehículo</h2>
+          <p className="text-gray-600">Resumen de consumo y eficiencia de los vehículos a tu cargo.</p>
         </div>
+        {canRegisterFuel && (
+          <button onClick={() => setShowFuelForm(true)} className="inline-flex items-center gap-2 px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700">
+            <Plus className="w-4 h-4" />
+            <span>Registrar Carga</span>
+          </button>
+        )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Consumo Total</p>
-              <p className="text-2xl font-bold text-gray-900">{totals.totalConsumption.toFixed(1)} L</p>
+              <p className="text-sm text-gray-600">Distancia Recorrida</p>
+              <p className="text-2xl font-bold text-gray-900">{extraKpis.totalDistance.toLocaleString()} km</p>
             </div>
-            <TrendingDown className="w-8 h-8 text-blue-600" />
+            <Route className="w-8 h-8 text-blue-600" />
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Reabastecido</p>
-              <p className="text-2xl font-bold text-gray-900">{totals.totalRefueled.toFixed(1)} L</p>
+              <p className="text-sm text-gray-600">Total Cargado</p>
+              <p className="text-2xl font-bold text-gray-900">{extraKpis.totalLiters.toFixed(1)} L</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-600" />
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Vehículos</p>
-              <p className="text-2xl font-bold text-gray-900">{totals.vehicles}</p>
+              <p className="text-2xl font-bold text-gray-900">{filtered.length}</p>
             </div>
             <FuelIcon className="w-8 h-8 text-amber-600" />
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Consumo Promedio</p>
@@ -141,7 +200,7 @@ const FuelByFleet: React.FC = () => {
             <Gauge className="w-8 h-8 text-blue-600" />
           </div>
         </div>
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Eficiencia Pobre</p>
@@ -153,80 +212,79 @@ const FuelByFleet: React.FC = () => {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm lg:grid-cols-4">
         <div className="relative lg:col-span-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute w-4 h-4 text-gray-400 -translate-y-1/2 left-3 top-1/2" />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por flota o patente…"
-            className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por patente, marca o modelo..."
+            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             aria-label="Buscar"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="from" className="block text-sm text-gray-700 mb-1">Desde</label>
+            <label htmlFor="from" className="block mb-1 text-sm text-gray-700">Desde</label>
             <input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label htmlFor="to" className="block text-sm text-gray-700 mb-1">Hasta</label>
+            <label htmlFor="to" className="block mb-1 text-sm text-gray-700">Hasta</label>
             <input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
       </div>
 
-      {/* Flotas */}
+      {/* Vehículos */}
       <div className="grid gap-4">
-        {filtered.map((fleet) => {
-          const open = !!expanded[fleet.fleetId];
+        {filtered.map(vehicle => {
+          const open = !!expanded[vehicle.id];
+          const { consumption } = calculateVehicleMetrics(vehicle);
+          const efficiency = calculateEfficiency(consumption);
           return (
-            <div key={fleet.fleetId} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div key={vehicle.id} className="p-6 bg-white border border-gray-200 shadow-sm rounded-xl">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-start gap-3">
                   <button
                     className="p-2 rounded-md bg-gray-50 hover:bg-gray-100"
                     aria-label={open ? 'Contraer' : 'Expandir'}
-                    onClick={() => setExpanded(s => ({ ...s, [fleet.fleetId]: !open }))}
+                    onClick={() => setExpanded(s => ({ ...s, [vehicle.id]: !open }))}
                   >
                     {open ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                   </button>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">{fleet.fleetName}</h3>
-                    <p className="text-sm text-gray-600">Responsable: {fleet.manager || '—'}</p>
+                    <h3 className="text-lg font-bold text-gray-900">{vehicle.patente}</h3>
+                    <p className="text-sm text-gray-600">{vehicle.marca} {vehicle.modelo}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm text-gray-600">Consumo: <strong>{fleet.totalConsumption.toFixed(1)} L</strong></span>
-                  <span className="text-sm text-gray-600">Reabastecido: <strong>{fleet.totalRefueled.toFixed(1)} L</strong></span>
+                  <span className="text-sm text-gray-600">Total Cargado: <strong>{(vehicle.fuelLogs || []).reduce((s, l) => s + l.liters, 0).toFixed(1)} L</strong></span>
                   <span className="inline-flex items-center gap-2 text-sm font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
-                    <Gauge className="w-4 h-4" /> {fleet.averageConsumption.toFixed(1)} L/100km
+                    <Gauge className="w-4 h-4" /> {consumption > 0 ? consumption.toFixed(1) : '--'} L/100km
                   </span>
-                  <span className={efficiencyBadge(fleet.efficiency)}>{fleet.efficiency.toUpperCase()}</span>
+                  <span className={efficiencyBadge(efficiency)}>{efficiency.toUpperCase()}</span>
                 </div>
               </div>
 
               {open && (
-                <div className="mt-4 border-t border-gray-100 pt-4 grid gap-3">
-                  {fleet.vehicles.map((v: VehicleFuelSummary) => (
-                    <div key={v.vehicleId} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50 rounded-lg p-4">
+                <div className="grid gap-3 pt-4 mt-4 border-t border-gray-100">
+                  <h4 className="font-semibold">Historial de Cargas</h4>
+                  {(vehicle.fuelLogs || []).length > 0 ? (vehicle.fuelLogs || []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(log => (
+                    <div key={log.id} className="flex flex-col gap-3 p-4 rounded-lg md:flex-row md:items-center md:justify-between bg-gray-50">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center">
-                          <FuelIcon className="w-5 h-5 text-amber-600" />
-                        </div>
+                        <div className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg"><FuelIcon className="w-5 h-5 text-amber-600" /></div>
                         <div>
-                          <div className="font-semibold text-gray-900">{v.vehiclePlate}</div>
-                          <div className="text-sm text-gray-600">Consumo: {v.analytics.totalConsumption.toFixed(1)} L • Refuel: {v.analytics.totalRefueled.toFixed(1)} L</div>
+                          <div className="font-semibold text-gray-900">{new Date(log.date).toLocaleDateString()}</div>
+                          <div className="text-sm text-gray-600">Registrado por: {log.driver.username}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="inline-flex items-center gap-2 text-sm font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
-                          <Gauge className="w-4 h-4" /> {v.analytics.averageConsumption > 0 ? v.analytics.averageConsumption.toFixed(1) : '--'} L/100km
-                        </span>
-                        <span className={efficiencyBadge(v.analytics.efficiency)}>{v.analytics.efficiency.toUpperCase()}</span>
+                        <span className="text-sm">Odómetro: <strong>{log.odometer.toLocaleString()} km</strong></span>
+                        <span className="text-sm">Litros: <strong>{log.liters.toFixed(1)} L</strong></span>
+                        {log.cost && <span className="text-sm">Costo: <strong>${log.cost.toLocaleString()}</strong></span>}
                       </div>
                     </div>
-                  ))}
+                  )) : <p className="p-4 text-sm text-gray-500">No hay registros de combustible para este vehículo.</p>}
                 </div>
               )}
             </div>
@@ -235,12 +293,19 @@ const FuelByFleet: React.FC = () => {
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-12">
-          <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron flotas</h3>
-          <p className="text-gray-600">Ajusta los filtros o el rango de fechas.</p>
+        <div className="py-12 text-center">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <h3 className="mb-2 text-lg font-medium text-gray-900">No se encontraron vehículos</h3>
+          <p className="text-gray-600">No tienes vehículos asignados o no hay resultados para tu búsqueda.</p>
         </div>
       )}
+
+      <FuelLogFormModal
+        isOpen={showFuelForm}
+        onClose={() => setShowFuelForm(false)}
+        onSuccess={handleSuccess}
+        vehiclesForDriver={vehicles} // El modal decidirá si necesita buscar más vehículos
+      />
     </div>
   );
 };
