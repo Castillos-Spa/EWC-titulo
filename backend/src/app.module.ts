@@ -9,9 +9,18 @@ import { ConfigModule } from '@nestjs/config';
 import { TallerModule } from './taller/taller.module';
 import { TicketModule } from './ticket/ticket.module';
 import { NotificacionModule } from './notificacion/notificacion.module';
+import { FuelModule } from './fuel/fuel.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, UsersModule, TallerModule, TicketModule, NotificacionModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    AuthModule,
+    UsersModule,
+    TallerModule,
+    TicketModule,
+    NotificacionModule,
+    FuelModule,
+  ],
 
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
