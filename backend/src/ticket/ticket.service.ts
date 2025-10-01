@@ -84,7 +84,7 @@ export class TicketService {
             await this.notificationService.createNotification({
               title: 'Aprobación Requerida',
               message: `La nueva solicitud de suministro "${ticket.title}" requiere tu aprobación.`,
-              type: 'approval_required',
+              type: 'ticket',
               createdById: createdById,
               areas: [firstStep.approverArea],
               roles: [firstStep.approverRole],
@@ -106,7 +106,7 @@ export class TicketService {
       await this.notificationService.createNotification({
         title: 'Nuevo Ticket Creado',
         message: `Se ha creado un nuevo ticket: "${ticket.title}" para el área de ${recipientAreasArray.join(', ')}`,
-        type: 'ticket_created',
+        type: 'ticket',
         createdById: createdById,
         areas: Array.from(areasToNotify), // Notify by areas
         roles: recipientRole ?? [], // Also notify by recipient roles if specified
@@ -118,7 +118,7 @@ export class TicketService {
       await this.notificationService.createNotification({
         title: 'Ticket Asignado',
         message: `Se te ha asignado el ticket: "${ticket.title}".`,
-        type: 'ticket_assigned',
+        type: 'ticket',
         createdById: createdById,
         userId: createTicketDto.assignedToId,
       });
@@ -223,7 +223,7 @@ export class TicketService {
       if (status !== ticketBeforeUpdate.status) {
         await this.notificationService.createNotification({
           title: 'Estado de Ticket Actualizado',
-          message: `El estado del ticket #${id} "${ticketBeforeUpdate.title}" ha cambiado a ${status}.`,
+          message: `El estado del ticket "${ticketBeforeUpdate.title}" ha cambiado a ${status}.`,
           type: 'ticket_status_changed',
           createdById: updatedById,
           userId: ticketBeforeUpdate.createdById, // Notificar al creador
@@ -258,7 +258,7 @@ export class TicketService {
       await this.notificationService.createNotification({
         title: 'Ticket Asignado',
         message: `Se te ha asignado el ticket: "${updatedTicket.title}".`,
-        type: 'ticket_assigned',
+        type: 'ticket',
         createdById: updatedById,
         userId: updateTicketDto.assignedToId,
       });
@@ -346,7 +346,7 @@ export class TicketService {
         await this.notificationService.createNotification({
           title: 'Solicitud Rechazada',
           message: `Tu solicitud de suministro "${approvalStep.ticket.title}" ha sido rechazada.`,
-          type: 'ticket_rejected',
+          type: 'ticket',
           createdById: userId,
           userId: approvalStep.ticket.createdById,
         });
@@ -356,7 +356,7 @@ export class TicketService {
         await this.notificationService.createNotification({
           title: 'Solicitud Aprobada',
           message: `Tu solicitud de suministro "${approvalStep.ticket.title}" ha sido completamente aprobada.`,
-          type: 'ticket_approved',
+          type: 'ticket',
           createdById: userId,
           userId: approvalStep.ticket.createdById,
         });
@@ -366,7 +366,7 @@ export class TicketService {
         await this.notificationService.createNotification({
           title: 'Solicitud en Progreso',
           message: `Tu solicitud "${approvalStep.ticket.title}" ha pasado la primera aprobación y está en progreso.`,
-          type: 'ticket_in_progress',
+          type: 'ticket',
           createdById: userId,
           userId: approvalStep.ticket.createdById,
         });
@@ -377,7 +377,7 @@ export class TicketService {
           await this.notificationService.createNotification({
             title: 'Aprobación Requerida',
             message: `La solicitud "${approvalStep.ticket.title}" requiere tu aprobación.`,
-            type: 'approval_required',
+            type: 'ticket',
             createdById: userId,
             areas: [nextStep.approverArea],
             roles: [nextStep.approverRole],

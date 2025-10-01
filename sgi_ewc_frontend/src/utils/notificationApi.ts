@@ -1,86 +1,98 @@
-import type { AppNotification, NotificationTarget, NotificationPriority } from '../types/Notification';
+import type {
+  AppNotification,
+  CreateNotificationPayload,
+  UpdateNotificationPayload,
+} from "../types/Notification";
+import apiFetch from "./api";
 
-let notifications: AppNotification[] = [
-  {
-    id: 'n-1',
-    title: 'Mantención programada',
-    message: 'Habrá mantención del sistema el viernes a las 18:00.',
-    priority: 'normal',
-    target: { scope: 'global' },
-    createdBy: 'admin',
-    createdAt: new Date(Date.now() - 36e5).toISOString(),
-    status: 'sent',
-  },
-  {
-    id: 'n-2',
-    title: 'Recordatorio Taller',
-    message: 'Revisar stock de repuestos críticos hoy.',
-    priority: 'high',
-    target: { scope: 'areas', areas: ['Taller'] },
-    createdBy: 'taller-supervisor',
-    createdAt: new Date(Date.now() - 2 * 36e5).toISOString(),
-    status: 'sent',
-  },
-];
-
-export type CreateNotificationPayload = {
+// Este tipo representa la data cruda que viene del backend
+type RawNotification = {
+  id: number;
   title: string;
   message: string;
-  priority: NotificationPriority;
-  target: NotificationTarget;
+  priority: "low" | "normal" | "high";
+  createdAt: string;
   scheduledAt?: string;
-  createdBy: string;
+  pinned: boolean;
+  areas: string[];
+  roles: string[];
+  createdBy?: { username: string };
+  readBy: { userId: number; notificationId: number; read: boolean }[];
 };
 
-export async function listNotifications(): Promise<AppNotification[]> {
-  return Promise.resolve([...notifications].sort((a, b) => {
-    // Pinned first
-    const ap = a.pinned ? 1 : 0; const bp = b.pinned ? 1 : 0;
-    if (ap !== bp) return bp - ap;
-    // Then by updatedAt or createdAt desc
-    const ad = a.updatedAt ?? a.createdAt; const bd = b.updatedAt ?? b.createdAt;
-    return bd.localeCompare(ad);
-  }));
-}
+function toAppNotification(n: RawNotification): AppNotification {
+  let target: AppNotification["target"];
+  if (n.areas && n.areas.length > 0) {
+    target = { scope: "areas", areas: n.areas };
+  } else if (n.roles && n.roles.length > 0) {
+    target = { scope: "roles", roles: n.roles };
+  } else {
+    target = { scope: "global" };
+  }
 
-export async function createNotification(payload: CreateNotificationPayload): Promise<AppNotification> {
-  const n: AppNotification = {
-    id: `n-${Date.now()}`,
-    title: payload.title,
-    message: payload.message,
-    priority: payload.priority,
-    target: payload.target,
-    createdBy: payload.createdBy,
-    createdAt: new Date().toISOString(),
-    scheduledAt: payload.scheduledAt,
-    status: payload.scheduledAt ? 'scheduled' : 'sent',
+  return {
+    id: n.id.toString(),
+    title: n.title,
+    message: n.message,
+    priority: n.priority,
+    status:
+      n.scheduledAt && new Date(n.scheduledAt) > new Date()
+        ? "scheduled"
+        : "sent",
+    target,
+    createdBy: n.createdBy?.username || "Sistema",
+    createdAt: n.createdAt,
+    scheduledAt: n.scheduledAt,
+    pinned: n.pinned,
   };
-  notifications = [n, ...notifications];
-  return Promise.resolve(n);
 }
 
-export type UpdateNotificationPayload = Partial<Pick<AppNotification, 'title'|'message'|'priority'|'target'|'scheduledAt'|'status'|'pinned'>>;
+export async function listNotifications(): Promise<AppNotification[]> {
+  const notifications: RawNotification[] = await apiFetch("/notificacion");
+  return notifications.map(toAppNotification);
+}
 
-export async function updateNotification(id: string, patch: UpdateNotificationPayload): Promise<AppNotification | null> {
-  const idx = notifications.findIndex(n => n.id === id);
-  if (idx === -1) return Promise.resolve(null);
-  const updated: AppNotification = { ...notifications[idx], ...patch, updatedAt: new Date().toISOString() };
-  notifications[idx] = updated;
-  return Promise.resolve(updated);
+export async function createNotification(
+  payload: CreateNotificationPayload
+): Promise<AppNotification> {
+  const newNotification: RawNotification = await apiFetch("/notificacion", {
+    method: "POST",
+    body: JSON.stringify({
+      title: payload.title,
+      message: payload.message,
+      priority: payload.priority,
+      scheduledAt: payload.scheduledAt,
+      target: payload.target,
+    }),
+  });
+  return toAppNotification(newNotification);
+}
+
+export async function updateNotification(
+  id: string,
+  payload: UpdateNotificationPayload
+): Promise<AppNotification | null> {
+  const updated: RawNotification | null = await apiFetch(
+    `/notificacion/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
+  return updated ? toAppNotification(updated) : null;
 }
 
 export async function deleteNotification(id: string): Promise<void> {
-  notifications = notifications.filter(n => n.id !== id);
+  await apiFetch(`/notificacion/${id}`, { method: "DELETE" });
 }
-import apiFetch from "./api";
 
 /**
- * Marca una notificación como leída en el backend.
- * Asumimos que tienes un endpoint como: PATCH /notifications/:id/read
+ * Marca una notificación como leída para el usuario actual.
+ * @param id - El ID de la notificación a marcar como leída.
  */
 export async function markNotificationAsRead(
-  notificationId: string | number
-): Promise<void> {
-  // No esperamos una respuesta, pero la API debería devolver un 200 OK.
-  return apiFetch(`/notifications/${notificationId}/read`, { method: "PATCH" });
+  id: string
+): Promise<AppNotification | null> {
+  // El backend sabe qué usuario está haciendo la petición por el token JWT
+  return updateNotification(id, { read: true });
 }
