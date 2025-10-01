@@ -15,6 +15,7 @@ interface Notification {
 interface HeaderProps {
   title: string;
   onProfileClick: () => void;
+  onSettingsClick: () => void;
 }
 
 // Tipado de eventos de Socket.IO
@@ -40,7 +41,7 @@ interface ServerToClientEvents {
 
 type ClientToServerEvents = Record<string, never>;
 
-const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
+const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick }) => {
   const { user, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -54,11 +55,15 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
 
   useEffect(() => {
     if (!user?.id) return;
-    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(import.meta.env.VITE_API_URL, {
+    // Usa la misma URL base que las APIs: fallback a http://localhost:3000 si no hay VITE_API_URL
+    const wsBaseUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
+    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(wsBaseUrl, {
       // permitir polling + upgrade a websocket
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      transports: ['websocket', 'polling'],
+      path: '/socket.io',
       query: { userId: String(user.id) },
     });
 
@@ -68,7 +73,11 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       console.log('WS conectado', socket.id);
     });
     socket.on('connect_error', (err) => {
-      console.warn('WS error de conexión', err.message);
+      console.warn('WS error de conexión', err);
+    });
+
+    socket.on('notifications:error', (e) => {
+      console.warn('WS notifications:error', e?.message || e);
     });
 
     // Escuchar notificaciones
@@ -109,6 +118,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       socket.off('message');
       socket.off('connect');
       socket.off('connect_error');
+      socket.off('notifications:error');
       socket.disconnect();
     };
   }, [user?.id]);
@@ -137,7 +147,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
   }, []);
 
   const getTitle = (title: string) => {
-    const titleMap: { [key: string]: string } = { //TODO averiguar bien esto
+    const titleMap: { [key: string]: string } = {
       Dashboard: 'Panel Principal',
       'Trip Reports': 'Reportes de Viajes',
       'route-management': 'Gestión de Rutas',
@@ -210,16 +220,18 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
                   </p>
                 ) : (
                   notifications.map((notif) => (
-                    <div
-                      key={notif.id} // Usar un ID único y estable
+                    <button
+                      type="button"
+                      key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
-                      className={`px-4 py-3 border-b cursor-pointer hover:bg-gray-50 last:border-b-0 ${notif.read ? 'opacity-60' : ''}`}
+                      className={`block w-full text-left px-4 py-3 border-b hover:bg-gray-50 last:border-b-0 ${notif.read ? 'opacity-60' : ''}`}
+                      aria-pressed={notif.read}
                     >
                       <p className="text-sm text-gray-800">{notif.message}</p>
                       <span className="text-xs text-gray-500">
                         {notif.timestamp}
                       </span>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -247,13 +259,16 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                <p className="text-xs text-gray-500 truncate" title={user?.roles.join(', ')}>
-                  {user?.isAdmin 
-                    ? 'Administrador' 
-                    : user?.roles && user.roles.length > 0 
-                      ? user.roles.join(', ') 
-                      : 'Usuario'}
-                </p>
+                {(() => {
+                  let roleLabel = 'Usuario';
+                  if (user?.isAdmin) roleLabel = 'Administrador';
+                  else if (user?.roles && user.roles.length > 0) roleLabel = user.roles.join(', ');
+                  return (
+                    <p className="text-xs text-gray-500 truncate" title={user?.roles?.join(', ')}>
+                      {roleLabel}
+                    </p>
+                  );
+                })()}
               </div>
               <ChevronDown className="w-4 h-4 text-gray-600" />
             </button>
@@ -263,13 +278,16 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
               <div className="absolute right-0 z-50 w-56 py-2 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
                 <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                <p className="text-xs text-gray-500 truncate" title={user?.roles.join(', ')}>
-                  {user?.isAdmin 
-                    ? 'Administrador' 
-                    : user?.roles && user.roles.length > 0 
-                      ? user.roles.join(', ') 
-                      : 'Usuario'}
-                </p>
+                {(() => {
+                  let roleLabel = 'Usuario';
+                  if (user?.isAdmin) roleLabel = 'Administrador';
+                  else if (user?.roles && user.roles.length > 0) roleLabel = user.roles.join(', ');
+                  return (
+                    <p className="text-xs text-gray-500 truncate" title={user?.roles?.join(', ')}>
+                      {roleLabel}
+                    </p>
+                  );
+                })()}
                 </div>
 
                 <button
@@ -285,6 +303,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
                 <button
                   onClick={() => {
                     setShowProfileMenu(false);
+                    onSettingsClick();
                   }}
                   className="flex items-center w-full px-4 py-2 space-x-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-100"
                 >

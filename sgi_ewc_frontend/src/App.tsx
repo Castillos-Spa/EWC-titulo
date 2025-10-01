@@ -142,7 +142,14 @@ const AppContent: React.FC = () => {
         setShowProfile(false);
       }} />
       <div className="flex flex-col flex-1 overflow-hidden">
-        <Header title={getPageTitle(currentPage)} onProfileClick={handleProfileClick} />
+        <Header
+          title={getPageTitle(currentPage)}
+          onProfileClick={handleProfileClick}
+          onSettingsClick={() => {
+            setCurrentPage('settings');
+            setShowProfile(false);
+          }}
+        />
         
         <main className="flex-1 p-6 overflow-y-auto">
           {renderPage()}

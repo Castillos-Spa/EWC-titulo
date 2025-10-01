@@ -14,7 +14,7 @@ import {
   Info,
   ChevronRight,
   Lock,
-  LogOut
+  
 } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
@@ -214,16 +214,7 @@ const SettingsPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Logout */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setConfirmLogout(true)}
-          className="flex items-center px-4 py-2 space-x-2 font-semibold text-red-600 bg-white border-2 border-red-600 rounded-lg shadow hover:bg-red-50 dark:bg-gray-900 dark:border-red-700 dark:text-red-400"
-        >
-          <LogOut className="w-5 h-5" />
-          <span>Cerrar sesión</span>
-        </button>
-      </div>
+      {/* Nota: el cierre de sesión se realiza desde el menú del usuario en el Header para evitar duplicación */}
 
       {/* Modales */}
       {showChangePassword && (

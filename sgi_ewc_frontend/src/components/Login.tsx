@@ -82,18 +82,6 @@ const Login: React.FC = () => {
               {isLoading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
             </button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Cuentas de Demostración</h3>
-            <div className="space-y-2 text-xs text-gray-600">
-              <div>Administrador: admin@company.com</div>
-              <div>Supervisor Transporte: transport@company.com</div>
-              <div>Conductor: driver1@company.com</div>
-              <div>Servicios Generales: services@company.com</div>
-              <div>Soporte IT: it@company.com</div>
-              <div className="text-blue-600 font-medium">Contraseña: password123</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -40,7 +40,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasAreaAccess('Obras') },
     incidents: { id: 'incidents', label: 'Incidentes', icon: AlertCircle, show: () => true },
     'user-management': { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: () => hasAreaAccess('Admin') || hasAreaAccess('RRHH') },
-    settings: { id: 'settings', label: 'Configuración', icon: Settings, show: () => true },
+  // Configuración se accede desde el menú del usuario en el Header para no duplicar navegación
+  // settings: { id: 'settings', label: 'Configuración', icon: Settings, show: () => true },
   };
 
   const handleLogout = () => {
