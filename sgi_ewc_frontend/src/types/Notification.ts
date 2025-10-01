@@ -1,25 +1,37 @@
-export type NotificationPriority = 'low' | 'normal' | 'high';
+export type NotificationPriority = "low" | "normal" | "high";
 
 export type NotificationTarget =
-  | { scope: 'global' }
-  | { scope: 'areas'; areas: string[] };
+  | { scope: "global" }
+  | { scope: "areas"; areas: string[] }
+  | { scope: "roles"; roles: string[] };
 
-export interface AppNotification {
+export type AppNotification = {
   id: string;
   title: string;
   message: string;
   priority: NotificationPriority;
+  status: "sent" | "scheduled";
   target: NotificationTarget;
   createdBy: string;
-  createdAt: string; // ISO
-  scheduledAt?: string; // ISO
-  status: 'sent' | 'scheduled';
-  pinned?: boolean;
-  updatedAt?: string; // ISO
-}
+  createdAt: string;
+  scheduledAt?: string;
+  pinned: boolean;
+};
 
 export const PRIORITY_LABELS: Record<NotificationPriority, string> = {
-  low: 'Baja',
-  normal: 'Normal',
-  high: 'Alta',
+  high: "Alta",
+  normal: "Normal",
+  low: "Baja",
 };
+
+export type CreateNotificationPayload = {
+  title: string;
+  message: string;
+  priority: NotificationPriority;
+  target: NotificationTarget;
+  scheduledAt?: string;
+};
+
+export type UpdateNotificationPayload = Partial<
+  Omit<CreateNotificationPayload, "createdBy"> & { pinned: boolean }
+>;

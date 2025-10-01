@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Param, ParseIntPipe, Get, NotFoundException, Patch } from '@nestjs/common';
 import { TallerService } from './taller.service';
-import { CreateOrdenTrabajoTallerDto } from './dto/create-taller.dto';
+import { CreateOrdenTrabajoTallerDto } from '../orden-trabajo/dto/create-orden-trabajo.dto';
 import { CreateVehiculoDto } from '../vehiculo/dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from '../vehiculo/dto/update-vehiculo.dto';
 
@@ -11,6 +11,16 @@ export class TallerController {
   @Post('orden-trabajo')
   crearOrdenTrabajo(@Body() createOrdenTrabajoTallerDto: CreateOrdenTrabajoTallerDto) {
     return this.tallerService.crearOrdenTrabajo(createOrdenTrabajoTallerDto);
+  }
+
+  @Get('orden-trabajo')
+  findAllWorkOrders() {
+    return this.tallerService.findAllWorkOrders();
+  }
+
+  @Patch('orden-trabajo/:id/status')
+  updateWorkOrderStatus(@Param('id', ParseIntPipe) id: number, @Body('estado') estado: string) {
+    return this.tallerService.updateWorkOrderStatus(id, estado);
   }
 
   @Patch('orden-trabajo/:otId/cerrar') // Debería ser PATCH, pero sigo tu implementación actual

@@ -1,10 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { OrdenTrabajoService } from '../orden-trabajo/orden-trabajo.service';
-import { CreateOrdenTrabajoTallerDto } from './dto/create-taller.dto';
+import { CreateOrdenTrabajoTallerDto } from '../orden-trabajo/dto/create-orden-trabajo.dto';
 import { VehiculoService } from '../vehiculo/vehiculo.service';
 import { CreateVehiculoDto } from '../vehiculo/dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from '../vehiculo/dto/update-vehiculo.dto';
-import { RepuestoService } from '../repuesto/repuesto.service';
 import type { IQaService } from './interfaces/qa.interface';
 
 @Injectable()
@@ -13,12 +12,12 @@ export class TallerService {
     private readonly ordenTrabajoService: OrdenTrabajoService,
     // Inyectamos los servicios de los módulos importados
     private readonly vehiculoService: VehiculoService,
-    private readonly repuestoService: RepuestoService,
     @Inject('IQaService') private readonly qaService: IQaService,
   ) {}
 
   // Crear una orden de trabajo desde el taller
   async crearOrdenTrabajo(createOrdenTrabajoTallerDto: CreateOrdenTrabajoTallerDto) {
+    // El TallerService orquesta la llamada, delegando la creación al servicio especializado.
     return this.ordenTrabajoService.create(createOrdenTrabajoTallerDto);
   }
 
@@ -39,6 +38,16 @@ export class TallerService {
       checklist: checklist,
       resultado: resultado,
     });
+  }
+
+  // Obtener todas las órdenes de trabajo
+  async findAllWorkOrders() {
+    return this.ordenTrabajoService.findAll();
+  }
+
+  // Actualizar el estado de una orden de trabajo
+  async updateWorkOrderStatus(id: number, estado: string) {
+    return this.ordenTrabajoService.updateStatus(id, estado);
   }
 
   // Crear un vehículo desde el taller

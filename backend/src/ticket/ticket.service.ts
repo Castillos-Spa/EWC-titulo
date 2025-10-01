@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { Role, Ticket, TicketCategory, TicketStatus, Prisma, ApprovalStatus } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
+import { Role, Ticket, TicketCategory, TicketStatus, Prisma, ApprovalStatus, VehiculoStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { OrdenTrabajoService } from '../orden-trabajo/orden-trabajo.service';
 import { NotificacionService } from '../notificacion/notificacion.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ApproveStepDto } from './dto/approve-step.dto';
@@ -10,6 +18,9 @@ import { UpdateTicketDto } from './dto/update-ticket.dto';
 export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
+    // Inyectamos OrdenTrabajoService para poder actualizar las OTs
+    @Inject(forwardRef(() => OrdenTrabajoService))
+    private readonly ordenTrabajoService: OrdenTrabajoService,
     private readonly notificationService: NotificacionService,
   ) {}
 
@@ -73,7 +84,7 @@ export class TicketService {
             await this.notificationService.createNotification({
               title: 'Aprobación Requerida',
               message: `La nueva solicitud de suministro "${ticket.title}" requiere tu aprobación.`,
-              type: 'approval_required',
+              type: 'ticket',
               createdById: createdById,
               areas: [firstStep.approverArea],
               roles: [firstStep.approverRole],
@@ -95,7 +106,7 @@ export class TicketService {
       await this.notificationService.createNotification({
         title: 'Nuevo Ticket Creado',
         message: `Se ha creado un nuevo ticket: "${ticket.title}" para el área de ${recipientAreasArray.join(', ')}`,
-        type: 'ticket_created',
+        type: 'ticket',
         createdById: createdById,
         areas: Array.from(areasToNotify), // Notify by areas
         roles: recipientRole ?? [], // Also notify by recipient roles if specified
@@ -107,7 +118,7 @@ export class TicketService {
       await this.notificationService.createNotification({
         title: 'Ticket Asignado',
         message: `Se te ha asignado el ticket: "${ticket.title}".`,
-        type: 'ticket_assigned',
+        type: 'ticket',
         createdById: createdById,
         userId: createTicketDto.assignedToId,
       });
@@ -148,7 +159,7 @@ export class TicketService {
   async update(id: number, updateTicketDto: UpdateTicketDto, updatedById: number) {
     const ticketBeforeUpdate = await this.prisma.ticket.findUnique({
       where: { id },
-      include: { approvals: true },
+      include: { approvals: true, ordenTrabajo: true }, // Incluimos la OT para acceder a sus datos
     });
 
     if (!ticketBeforeUpdate) {
@@ -212,7 +223,7 @@ export class TicketService {
       if (status !== ticketBeforeUpdate.status) {
         await this.notificationService.createNotification({
           title: 'Estado de Ticket Actualizado',
-          message: `El estado del ticket #${id} "${ticketBeforeUpdate.title}" ha cambiado a ${status}.`,
+          message: `El estado del ticket "${ticketBeforeUpdate.title}" ha cambiado a ${status}.`,
           type: 'ticket_status_changed',
           createdById: updatedById,
           userId: ticketBeforeUpdate.createdById, // Notificar al creador
@@ -225,12 +236,29 @@ export class TicketService {
       data: dataToUpdate,
     });
 
+    // --- LÓGICA POST-ACTUALIZACIÓN ---
+    // Si el ticket de mantenimiento se cierra, actualizamos la OT y el vehículo.
+    if (
+      (updatedTicket.status === TicketStatus.Cerrado || updatedTicket.status === TicketStatus.Resuelto) &&
+      ticketBeforeUpdate.category === TicketCategory.Mantenimiento &&
+      ticketBeforeUpdate.ordenTrabajo // Verificamos que la OT exista
+    ) {
+      // Cambiamos el estado de la OT a 'completado'
+      await this.ordenTrabajoService.updateStatus(ticketBeforeUpdate.ordenTrabajo.id, 'completado');
+
+      // Cambiamos el estado del vehículo a 'disponible'
+      await this.prisma.vehiculo.update({
+        where: { id: ticketBeforeUpdate.ordenTrabajo.vehiculoId },
+        data: { estado: VehiculoStatus.disponible },
+      });
+    }
+
     // Notificación por cambio de asignación
     if (updateTicketDto.assignedToId && updateTicketDto.assignedToId !== ticketBeforeUpdate.assignedToId) {
       await this.notificationService.createNotification({
         title: 'Ticket Asignado',
         message: `Se te ha asignado el ticket: "${updatedTicket.title}".`,
-        type: 'ticket_assigned',
+        type: 'ticket',
         createdById: updatedById,
         userId: updateTicketDto.assignedToId,
       });
@@ -318,7 +346,7 @@ export class TicketService {
         await this.notificationService.createNotification({
           title: 'Solicitud Rechazada',
           message: `Tu solicitud de suministro "${approvalStep.ticket.title}" ha sido rechazada.`,
-          type: 'ticket_rejected',
+          type: 'ticket',
           createdById: userId,
           userId: approvalStep.ticket.createdById,
         });
@@ -328,7 +356,7 @@ export class TicketService {
         await this.notificationService.createNotification({
           title: 'Solicitud Aprobada',
           message: `Tu solicitud de suministro "${approvalStep.ticket.title}" ha sido completamente aprobada.`,
-          type: 'ticket_approved',
+          type: 'ticket',
           createdById: userId,
           userId: approvalStep.ticket.createdById,
         });
@@ -338,7 +366,7 @@ export class TicketService {
         await this.notificationService.createNotification({
           title: 'Solicitud en Progreso',
           message: `Tu solicitud "${approvalStep.ticket.title}" ha pasado la primera aprobación y está en progreso.`,
-          type: 'ticket_in_progress',
+          type: 'ticket',
           createdById: userId,
           userId: approvalStep.ticket.createdById,
         });
@@ -349,7 +377,7 @@ export class TicketService {
           await this.notificationService.createNotification({
             title: 'Aprobación Requerida',
             message: `La solicitud "${approvalStep.ticket.title}" requiere tu aprobación.`,
-            type: 'approval_required',
+            type: 'ticket',
             createdById: userId,
             areas: [nextStep.approverArea],
             roles: [nextStep.approverRole],

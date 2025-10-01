@@ -14,21 +14,25 @@ export class NotificacionGateway implements OnGatewayConnection {
   ) {}
 
   async handleConnection(client: Socket) {
+    console.log(`[Socket.io] Cliente conectado: ${client.id}`);
     try {
       const userIdRaw = client.handshake.query.userId as string | undefined;
-      const roleRaw = client.handshake.query.role as string | undefined;
-      const areaRaw = client.handshake.query.area as string | undefined;
-
       const userId = userIdRaw ? Number(userIdRaw) : undefined;
-      const role = roleRaw && roleRaw !== 'undefined' ? roleRaw : undefined;
-      const area = areaRaw && areaRaw !== 'undefined' ? areaRaw : undefined;
 
-      if (Number.isFinite(userId)) client.join(`user_${userId}`);
-      if (role) client.join(`role_${role}`);
-      if (area) client.join(`area_${area}`);
+      if (userId && Number.isFinite(userId) && userId > 0) {
+        client.join(`user_${userId}`);
 
-      if (userId || role || area) {
-        const notifications = await this.notiService.getNotificationsForUser(userId, role, area);
+        // Obtener roles y áreas del usuario desde el servicio para unirse a las salas correctas
+        const user = await this.notiService.getUserRolesAndAreas(userId);
+        if (user) {
+          user.roles.forEach(role => client.join(`role_${role}`));
+          user.areas.forEach(area => client.join(`area_${area}`));
+        }
+
+        // This check is now correctly placed.
+        // It was inside the `if (user)` block before, which was also fine,
+        // but this is slightly cleaner. The important part is that it's inside the userId check.
+        const notifications = await this.notiService.findAllForUser(userId);
         client.emit('notifications:init', notifications);
       }
     } catch (err) {
@@ -47,6 +51,11 @@ export class NotificacionGateway implements OnGatewayConnection {
       createdAt: notification.createdAt,
     };
 
+    const isTargeted =
+      (Array.isArray(notification.user) && notification.user.length > 0) ||
+      (Array.isArray(notification.roles) && notification.roles.length > 0) ||
+      (Array.isArray(notification.areas) && notification.areas.length > 0);
+
     if (Array.isArray(notification.user) && notification.user.length) {
       notification.user.forEach((u: { id: number }) => {
         this.server.to(`user_${u.id}`).emit('notification', payload);
@@ -63,6 +72,11 @@ export class NotificacionGateway implements OnGatewayConnection {
       notification.areas.forEach((area: string) => {
         this.server.to(`area_${area}`).emit('notification', payload);
       });
+    }
+
+    // Si no es para un usuario, rol o área específica, es global.
+    if (!isTargeted) {
+      this.server.emit('notification', payload); // Enviar a todos los clientes conectados.
     }
   }
 }

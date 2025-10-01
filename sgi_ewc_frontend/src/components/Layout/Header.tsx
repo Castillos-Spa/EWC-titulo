@@ -59,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      query: { userId: String(user.id), role: user.roles?.[0], area: user.areas?.[0] },
+      query: { userId: String(user.id) },
     });
 
     socketRef.current = socket;
@@ -111,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick }) => {
       socket.off('connect_error');
       socket.disconnect();
     };
-  }, [user?.id, user?.roles, user?.areas]);
+  }, [user?.id]);
 
   // Cerrar menús al hacer click fuera
   useEffect(() => {
