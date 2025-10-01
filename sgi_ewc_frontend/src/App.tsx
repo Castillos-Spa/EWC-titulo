@@ -17,6 +17,7 @@ import Incidents from './components/GeneralServices/Incidents';
 import NotificationsCenter from './components/Notifications/NotificationsCenter';
 import UserManagement from './components/Admin/UserManagement';
 import UserProfile from './components/Profile/UserProfile';
+import SettingsPage from './components/Profile/SettingsPage';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import { changePassword as apiChangePassword } from './utils/userApi';
 
@@ -80,7 +81,8 @@ const AppContent: React.FC = () => {
   case 'notifications': return 'Notificaciones';
       case 'tickets': return 'Ticket System';
       case 'user-management': return 'User Management';
-      case 'profile': return 'Mi Perfil';
+  case 'profile': return 'Mi Perfil';
+  case 'settings': return 'Configuración';
       default: return 'Dashboard';
     }
   };
@@ -125,6 +127,8 @@ const AppContent: React.FC = () => {
         return <UserManagement />;
       case 'route-management':
         return <RouteManagement />;
+      case 'settings':
+        return <SettingsPage />;
       default:
         return <DashboardHome />;
     }
