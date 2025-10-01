@@ -730,6 +730,29 @@ const EnhancedTicketSystem: React.FC = () => {
                 </div>
               )}
 
+              {/* Aprobación de Mantenimiento por Supervisor */}
+              {selectedTicket.category === 'Mantenimiento' &&
+                (selectedTicket.status === TicketStatus.Pendiente || selectedTicket.status === TicketStatus.EnProgreso) &&
+                user?.roles.includes('Supervisor') &&
+                user?.areas.includes('Transporte') &&
+              (
+                <div className="p-4 border-t border-b border-gray-200 bg-gray-50">
+                  <h4 className="mb-4 text-sm font-semibold text-gray-800">Acciones de Supervisor de Mantenimiento</h4>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => handleStatusChange(selectedTicket.id, TicketStatus.Resuelto)}
+                      className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-green-600 rounded-lg hover:bg-green-700"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Aprobar y Completar</span>
+                    </button>
+                    <p className="text-xs text-gray-500">
+                      Esto marcará la OT como completada y el vehículo como disponible.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* NUEVO: Flujo de Aprobación para Solicitudes de Suministro */}
               {selectedTicket.category === 'Solicitud_Suministro' && selectedTicket.approvals && selectedTicket.approvals.length > 0 && (
                 <div className="p-4 border-t border-b border-gray-200 bg-gray-50">

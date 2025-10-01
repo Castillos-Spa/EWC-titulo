@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { Role, Ticket, TicketCategory, TicketStatus, Prisma, ApprovalStatus } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
+import { Role, Ticket, TicketCategory, TicketStatus, Prisma, ApprovalStatus, VehiculoStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { OrdenTrabajoService } from '../orden-trabajo/orden-trabajo.service';
 import { NotificacionService } from '../notificacion/notificacion.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ApproveStepDto } from './dto/approve-step.dto';
@@ -10,6 +18,9 @@ import { UpdateTicketDto } from './dto/update-ticket.dto';
 export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
+    // Inyectamos OrdenTrabajoService para poder actualizar las OTs
+    @Inject(forwardRef(() => OrdenTrabajoService))
+    private readonly ordenTrabajoService: OrdenTrabajoService,
     private readonly notificationService: NotificacionService,
   ) {}
 
@@ -148,7 +159,7 @@ export class TicketService {
   async update(id: number, updateTicketDto: UpdateTicketDto, updatedById: number) {
     const ticketBeforeUpdate = await this.prisma.ticket.findUnique({
       where: { id },
-      include: { approvals: true },
+      include: { approvals: true, ordenTrabajo: true }, // Incluimos la OT para acceder a sus datos
     });
 
     if (!ticketBeforeUpdate) {
@@ -224,6 +235,23 @@ export class TicketService {
       where: { id },
       data: dataToUpdate,
     });
+
+    // --- LÓGICA POST-ACTUALIZACIÓN ---
+    // Si el ticket de mantenimiento se cierra, actualizamos la OT y el vehículo.
+    if (
+      (updatedTicket.status === TicketStatus.Cerrado || updatedTicket.status === TicketStatus.Resuelto) &&
+      ticketBeforeUpdate.category === TicketCategory.Mantenimiento &&
+      ticketBeforeUpdate.ordenTrabajo // Verificamos que la OT exista
+    ) {
+      // Cambiamos el estado de la OT a 'completado'
+      await this.ordenTrabajoService.updateStatus(ticketBeforeUpdate.ordenTrabajo.id, 'completado');
+
+      // Cambiamos el estado del vehículo a 'disponible'
+      await this.prisma.vehiculo.update({
+        where: { id: ticketBeforeUpdate.ordenTrabajo.vehiculoId },
+        data: { estado: VehiculoStatus.disponible },
+      });
+    }
 
     // Notificación por cambio de asignación
     if (updateTicketDto.assignedToId && updateTicketDto.assignedToId !== ticketBeforeUpdate.assignedToId) {

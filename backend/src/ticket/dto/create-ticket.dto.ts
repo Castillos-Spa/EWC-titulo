@@ -1,5 +1,5 @@
 import { TicketPriority, Role } from '@prisma/client';
-import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateTicketDto {
   @IsNotEmpty()
@@ -27,4 +27,8 @@ export class CreateTicketDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @IsOptional()
+  @IsInt()
+  ordenTrabajoId?: number;
 }

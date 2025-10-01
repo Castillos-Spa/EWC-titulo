@@ -6,10 +6,15 @@ import type { Vehiculo } from "./Vehiculo";
 export type OrdenTrabajo = {
   id: number;
   tipo: string;
-  estado: string; // Ej: "abierta", "cerrada"
+  estado: "abierta" | "en_progreso" | "pendiente_revision" | "completado";
   vehiculoId: number;
-  tareas: string[];
+  description?: string;
+  scheduledDate?: string; // ISO Date String
+  estimatedCost?: number;
+  observations?: string;
   responsableId: number | null;
+  repuestos: string[];
+  tareas: string[];
   createdAt: string; // Prisma DateTime se convierte en string (ISO 8601)
   updatedAt: string;
 

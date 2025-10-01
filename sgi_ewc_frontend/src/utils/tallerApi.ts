@@ -7,12 +7,15 @@ import apiFetch from "./api";
  * Debes ajustar los campos según la definición de `CreateOrdenTrabajoTallerDto` en tu backend.
  */
 export type CreateTallerWorkOrderPayload = {
-  // Ejemplo de campos, ajústalos a tu DTO real.
-  title: string;
+  vehiculoId: number;
+  tipo: "Preventivo" | "Correctivo" | "Emergencia";
   description: string;
-  vehicleId: string;
-  maintenanceType: "Preventivo" | "Correctivo";
-  // etc...
+  repuestos?: string[];
+  scheduledDate?: string; // Formato ISO 8601: "YYYY-MM-DDTHH:mm:ss.sssZ"
+  responsableId?: number;
+  estimatedCost?: number;
+  observations?: string;
+  nextServiceDate?: string;
 };
 
 /**
@@ -42,6 +45,14 @@ export async function createTallerWorkOrder(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+/**
+ * Obtiene todas las órdenes de trabajo del taller.
+ * Asume un endpoint GET /taller/orden-trabajo
+ */
+export async function getTallerWorkOrders(): Promise<OrdenTrabajo[]> {
+  return apiFetch("/taller/orden-trabajo");
 }
 
 /**
@@ -101,5 +112,19 @@ export async function updateVehiculoFromTaller(
   return apiFetch(`/taller/vehiculos/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Actualiza el estado de una orden de trabajo.
+ * Asume un endpoint PATCH /taller/orden-trabajo/:id/status
+ */
+export async function updateWorkOrderStatus(
+  id: number,
+  estado: string
+): Promise<OrdenTrabajo> {
+  return apiFetch(`/taller/orden-trabajo/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ estado }),
   });
 }

@@ -1,11 +1,38 @@
-import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 
-export class CreateOrdenTrabajoDto {
+export class CreateOrdenTrabajoTallerDto {
   @IsInt()
-  @IsNotEmpty()
   vehiculoId: number;
 
   @IsString()
-  @IsNotEmpty()
-  tipo: string;
+  @IsEnum(['Preventivo', 'Correctivo', 'Emergencia'])
+  tipo: 'Preventivo' | 'Correctivo' | 'Emergencia';
+
+  @IsString()
+  description: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  repuestos?: string[];
+
+  @IsOptional()
+  @IsDateString()
+  scheduledDate?: Date;
+
+  @IsOptional()
+  @IsInt()
+  responsableId?: number; // ID del mecánico
+
+  @IsOptional()
+  @IsNumber()
+  estimatedCost?: number;
+
+  @IsOptional()
+  @IsString()
+  observations?: string;
+
+  @IsOptional()
+  @IsDateString()
+  nextServiceDate?: Date;
 }
