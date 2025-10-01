@@ -25,6 +25,7 @@ model User {
   createdNotifications Notification[]       @relation("CreatedNotifications")
   roleAssignments      UserRoleAssignment[]
   TicketApproval       TicketApproval[]
+  UserNotification     UserNotification[]
 }
 
 model UserRoleAssignment {
@@ -146,17 +147,30 @@ model Repuesto {
 }
 
 model Notification {
-  id          Int      @id @default(autoincrement())
+  id          Int                @id @default(autoincrement())
   title       String
   message     String
-  type        String // Ej: "info", "warning", "ticket"
-  createdAt   DateTime @default(now())
-  read        Boolean  @default(false)
+  type        String // Ej: "info", "warning", "ticket", "custom"
+  priority    String             @default("normal") // low, normal, high
+  createdAt   DateTime           @default(now())
+  scheduledAt DateTime?
+  pinned      Boolean            @default(false)
   user        User[]
-  areas       String[] @default([])
-  roles       Role[]   @default([])
+  areas       String[]           @default([])
+  roles       Role[]             @default([])
   createdById Int
-  createdBy   User     @relation("CreatedNotifications", fields: [createdById], references: [id])
+  createdBy   User               @relation("CreatedNotifications", fields: [createdById], references: [id])
+  readBy      UserNotification[]
+}
+
+model UserNotification {
+  userId         Int
+  notificationId Int
+  read           Boolean      @default(false)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, notificationId])
 }
 
 model TicketApproval {
