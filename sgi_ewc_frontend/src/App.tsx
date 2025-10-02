@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Login from './components/Login';
@@ -26,12 +26,52 @@ const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const initializedRef = useRef(false);
+
+  // Gestión global de tema (light/dark/system)
+  useEffect(() => {
+    const mm: MediaQueryList | null = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    const applyTheme = () => {
+      const t = localStorage.getItem('theme');
+      const prefersDark = mm?.matches ?? false;
+      let dark = prefersDark;
+      if (t) {
+        if (t === 'system') {
+          dark = prefersDark;
+        } else if (t === 'dark') {
+          dark = true;
+        } else {
+          dark = false;
+        }
+      }
+      document.documentElement.classList.toggle('dark', dark);
+    };
+    applyTheme();
+    const handler = () => applyTheme();
+    mm?.addEventListener?.('change', handler);
+    return () => {
+      mm?.removeEventListener?.('change', handler);
+    };
+  }, []);
 
   useEffect(() => {
     // Debug visual para ver el valor de user y mustChangePassword
     console.log('Auth user:', user);
     setShowChangePassword(!!user?.mustChangePassword);
   }, [user]);
+
+  // Navegación disparada desde el buscador global
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ page: string }>;
+      const page = ce.detail?.page;
+      if (!page) return;
+      setCurrentPage(page);
+      setShowProfile(false);
+    };
+    window.addEventListener('set-page', handler as EventListener);
+    return () => window.removeEventListener('set-page', handler as EventListener);
+  }, []);
 
   // Escucha el evento de logout forzado desde el interceptor de la API
   useEffect(() => {
@@ -46,6 +86,39 @@ const AppContent: React.FC = () => {
       window.removeEventListener('force-logout', handleForceLogout);
     };
   }, [logout]);
+
+  // Inicializa la página según preferencias guardadas
+  useEffect(() => {
+    if (!user || initializedRef.current) return;
+
+    const allowedPages = new Set([
+      'dashboard', 'trip-reports', 'route-management', 'fleet-registry', 'fuel-by-fleet',
+      'maintenance', 'cleaning-reports', 'civil-works', 'incidents', 'notifications',
+      'tickets', 'user-management', 'profile', 'settings'
+    ]);
+
+    const remember = localStorage.getItem('rememberLastPage') === 'true';
+    const savedLast = localStorage.getItem('lastPage') || '';
+    const prefHome = localStorage.getItem('defaultHomePage') || 'dashboard';
+
+    let target = 'dashboard';
+    if (remember && allowedPages.has(savedLast)) {
+      target = savedLast;
+    } else if (allowedPages.has(prefHome)) {
+      target = prefHome;
+    }
+
+    setCurrentPage(target);
+    initializedRef.current = true;
+  }, [user]);
+
+  // Guarda la última página si la preferencia está activa
+  useEffect(() => {
+    const remember = localStorage.getItem('rememberLastPage') === 'true';
+    if (remember) {
+      localStorage.setItem('lastPage', currentPage);
+    }
+  }, [currentPage]);
 
   if (isLoading) {
     return (
@@ -98,10 +171,6 @@ const AppContent: React.FC = () => {
       return <UserProfile />;
     }
 
-    if (showProfile || currentPage === 'profile') {
-      return <UserProfile />;
-    }
-
     switch (currentPage) {
       case 'dashboard':
         return <DashboardHome />;
@@ -135,13 +204,13 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-950">
       <Sidebar currentPage={currentPage} 
       onPageChange={(page) => {
         setCurrentPage(page);
         setShowProfile(false);
       }} />
-      <div className="flex flex-col flex-1 overflow-hidden">
+  <div className="flex flex-col flex-1 overflow-hidden">
         <Header
           title={getPageTitle(currentPage)}
           onProfileClick={handleProfileClick}
@@ -151,7 +220,7 @@ const AppContent: React.FC = () => {
           }}
         />
         
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-6 overflow-y-auto bg-gray-100 dark:bg-gray-950">
           {renderPage()}
         </main>
       </div>

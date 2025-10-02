@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip, ThumbsUp, ThumbsDown, Send } from 'lucide-react'; // NOSONAR
+import { Plus, Search, Calendar, User, AlertCircle, CheckCircle, Clock, Eye, UserPlus, Paperclip, ThumbsUp, ThumbsDown } from 'lucide-react'; // NOSONAR
 import { getTickets, createTicket, updateTicket, CreateTicketPayload, approveTicketStep } from '../../utils/ticketApi'; // NOSONAR
 import { getUsers } from '../../utils/userApi'; // Assuming getUsers is in userApi
 import { Ticket, TicketStatus, TicketPriority } from '../../types/Ticket'; // NOSONAR
@@ -11,6 +11,23 @@ import { useAuth } from '../../contexts/AuthContext';
 const TICKET_CATEGORIES = ['Soporte IT', 'Solicitud Suministro', 'Mantenimiento', 'Reporte Incidente'];
 const RECIPIENT_AREAS = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', 'P_Riesgo'];
 
+// Tipos auxiliares locales para propiedades opcionales no presentes en el tipo importado
+type ApprovalStatus = 'Pendiente' | 'Aprobado' | 'Rechazado';
+interface Approval {
+  id: number;
+  status: ApprovalStatus;
+  approverRole: string;
+  approverArea: string;
+  approvedBy?: { username: string };
+  approvedAt?: string;
+  step: number;
+}
+interface UserRoleAssignment { area: string; isActive?: boolean }
+
+const getTicketApprovals = (t: Ticket): Approval[] => {
+  const withApprovals = t as unknown as { approvals?: Approval[] };
+  return withApprovals.approvals ?? [];
+};
 
 const EnhancedTicketSystem: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -67,12 +84,25 @@ const EnhancedTicketSystem: React.FC = () => {
     fetchUsers();
   }, []);
 
+  // Sincroniza con la búsqueda global del Header
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ query: string }>;
+      const q = ce.detail?.query ?? '';
+      setSearchTerm(q);
+      // Opcional: al llegar desde el buscador, cambia a vista de lista para ver coincidencias rápidamente
+      setViewMode('list');
+    };
+    window.addEventListener('global-search', handler as EventListener);
+    return () => window.removeEventListener('global-search', handler as EventListener);
+  }, []);
+
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'IT': return 'bg-blue-100 text-blue-800';
-      case 'Transporte': return 'bg-yellow-100 text-yellow-800';
-      case 'Obras': case 'Aseo': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'IT': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'Transporte': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'Obras': case 'Aseo': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
@@ -98,11 +128,11 @@ const EnhancedTicketSystem: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case TicketStatus.Pendiente: return 'bg-gray-100 text-gray-800';
-      case TicketStatus.EnProgreso: return 'bg-blue-100 text-blue-800';
-      case TicketStatus.Resuelto: return 'bg-green-100 text-green-800';
-      case TicketStatus.Cerrado: return 'bg-gray-100 text-gray-600';
-      default: return 'bg-gray-100 text-gray-800';
+      case TicketStatus.Pendiente: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+      case TicketStatus.EnProgreso: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case TicketStatus.Resuelto: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case TicketStatus.Cerrado: return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
@@ -134,9 +164,12 @@ const EnhancedTicketSystem: React.FC = () => {
   // 2. Obtenemos el usuario del contexto de autenticación
   const { user } = useAuth(); // Esto obtiene el usuario que ha iniciado sesión
 
+  const hasUserRole = (u: AppUser | null | undefined, role: string) => !!u && (u.roles as unknown as string[]).includes(role);
+  const hasUserArea = (u: AppUser | null | undefined, area: string) => !!u && (u.areas as unknown as string[]).includes(area);
+
   const filteredTickets = tickets.filter((ticket: Ticket) => {
     const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (ticket.description && ticket.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          String(ticket.id).includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || ticket.status === selectedStatus;
     const matchesCategory = selectedCategory === 'all' || ticket.category === selectedCategory;
@@ -150,15 +183,17 @@ const EnhancedTicketSystem: React.FC = () => {
     const isRecipient = (ticket.recipientArea ?? []).some((area: string) => user.areas.includes(area));
 
     // El usuario es un aprobador pendiente en el flujo del ticket
-    const isPendingApprover = (ticket.approvals ?? []).some(approval =>
+    const approvals = getTicketApprovals(ticket);
+    const isPendingApprover = approvals.some((approval: Approval) =>
       approval.status === 'Pendiente' &&
-      user.roles.includes(approval.approverRole) &&
-      user.areas.includes(approval.approverArea)
+      hasUserRole(user, approval.approverRole) &&
+      hasUserArea(user, approval.approverArea)
     );
 
     // Un supervisor o jefe puede ver todos los tickets creados por usuarios de su misma área.
-    const canSupervise = (user.roles.includes('Supervisor') || user.roles.includes('Jefe')) &&
-      (ticket.createdBy?.roleAssignments ?? []).some(assignment => user.areas.includes(assignment.area));
+    const createdByAssignments = (ticket.createdBy as unknown as { roleAssignments?: UserRoleAssignment[] })?.roleAssignments ?? [];
+    const canSupervise = (hasUserRole(user, 'Supervisor') || hasUserRole(user, 'Jefe')) &&
+      createdByAssignments.some((assignment: UserRoleAssignment) => user.areas.includes(assignment.area));
 
     const isRelevant = user.isAdmin || isCreator || isAssigned || isRecipient || isPendingApprover || canSupervise;
 
@@ -309,6 +344,18 @@ const EnhancedTicketSystem: React.FC = () => {
     title: getStatusLabel(status),
     tickets: filteredTickets.filter((t: Ticket) => t.status === status),
   }));
+  
+  const selectedTicketApprovals: Approval[] = selectedTicket ? getTicketApprovals(selectedTicket) : [];
+  const getApprovalBadgeClass = (status: ApprovalStatus) => {
+    switch (status) {
+      case 'Aprobado':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'Rechazado':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default:
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+    }
+  };
 
   // Usuarios filtrados para el modal de asignación
   const assignableUsers = users.filter((user: AppUser) =>
@@ -330,15 +377,15 @@ const EnhancedTicketSystem: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Sistema de Tickets</h2>
-          <p className="text-gray-600">Gestiona solicitudes de soporte y seguimiento de tareas</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Sistema de Tickets</h2>
+          <p className="text-gray-600 dark:text-gray-400">Gestiona solicitudes de soporte y seguimiento de tareas</p>
         </div>
         <div className="flex items-center space-x-3">
-          <div className="flex p-1 bg-gray-100 rounded-lg">
+          <div className="flex p-1 bg-gray-100 rounded-lg dark:bg-gray-800">
             <button
               onClick={() => setViewMode('kanban')}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'kanban' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                viewMode === 'kanban' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300'
               }`}
             >
               Kanban
@@ -346,7 +393,7 @@ const EnhancedTicketSystem: React.FC = () => {
             <button
               onClick={() => setViewMode('list')}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300'
               }`}
             >
               Lista
@@ -364,46 +411,46 @@ const EnhancedTicketSystem: React.FC = () => {
 
       {/* Enhanced Stats */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Tickets</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredTickets.length}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Tickets</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{filteredTickets.length}</p>
             </div>
             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
           </div>
         </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.Pendiente)}</p>
-              <p className="text-2xl font-bold text-gray-600">{tickets.filter((t: Ticket) => t.status === TicketStatus.Pendiente).length}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{getStatusLabel(TicketStatus.Pendiente)}</p>
+              <p className="text-2xl font-bold text-gray-600 dark:text-gray-300">{tickets.filter((t: Ticket) => t.status === TicketStatus.Pendiente).length}</p>
             </div>
             <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
           </div>
         </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.EnProgreso)}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{getStatusLabel(TicketStatus.EnProgreso)}</p>
               <p className="text-2xl font-bold text-blue-600">{tickets.filter((t: Ticket) => t.status === TicketStatus.EnProgreso).length}</p>
             </div>
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           </div>
         </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">{getStatusLabel(TicketStatus.Resuelto)}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{getStatusLabel(TicketStatus.Resuelto)}</p>
               <p className="text-2xl font-bold text-green-600">{tickets.filter((t: Ticket) => t.status === TicketStatus.Resuelto).length}</p>
             </div>
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           </div>
         </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Tiempo Promedio</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Tiempo Promedio</p>
               <p className="text-2xl font-bold text-purple-600">2.3h</p>
             </div>
             <Clock className="w-8 h-8 text-purple-600" />
@@ -412,22 +459,22 @@ const EnhancedTicketSystem: React.FC = () => {
       </div>
 
       {/* Enhanced Filters */}
-      <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-800">
         <div className="flex flex-col gap-4 lg:flex-row">
           <div className="relative flex-1">
-            <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2" />
+            <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2 dark:text-gray-500" />
             <input
               type="text"
               placeholder="Buscar tickets por título, descripción o ID..."
               value={searchTerm}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
           </div>
           <select
             value={selectedStatus}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
           >
             <option value="all">Todos los Estados</option>
             {Object.values(TicketStatus).map(status => (
@@ -437,7 +484,7 @@ const EnhancedTicketSystem: React.FC = () => {
           <select
             value={selectedCategory}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
           >
             <option value="all">Todas las Categorías</option>
             {TICKET_CATEGORIES.map(cat => (
@@ -447,7 +494,7 @@ const EnhancedTicketSystem: React.FC = () => {
           <select
             value={selectedPriority}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedPriority(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
           >
             <option value="all">Todas las Prioridades</option>
             {Object.values(TicketPriority).map(prio => (
@@ -461,10 +508,10 @@ const EnhancedTicketSystem: React.FC = () => {
       {viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[600px]">
           {columns.map((column) => (
-            <div key={column.id} className="p-4 rounded-lg bg-gray-50">
+            <div key={column.id} className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">{column.title}</h3>
-                <span className="px-2 py-1 text-sm text-gray-700 bg-gray-200 rounded-full">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{column.title}</h3>
+                <span className="px-2 py-1 text-sm text-gray-700 bg-gray-200 rounded-full dark:bg-gray-800 dark:text-gray-300">
                   {column.tickets.length}
                 </span>
               </div>
@@ -473,25 +520,25 @@ const EnhancedTicketSystem: React.FC = () => {
                 {column.tickets.map((ticket: Ticket) => (
                   <button
                     key={ticket.id} 
-                    className="p-4 transition-shadow bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:shadow-md"
+                    className="p-4 transition-shadow bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer hover:shadow-md dark:bg-gray-900 dark:border-gray-800"
                     onClick={() => setSelectedTicket(ticket)}
                     type="button"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-2">
                         <div className={`w-3 h-3 rounded-full ${getPriorityColor(ticket.priority)}`}></div>
-                        <span className="text-sm font-medium text-gray-900">{ticket.id}</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{ticket.id}</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(ticket.category)}`}>
                         {getCategoryLabel(ticket.category)}
                       </span>
                     </div>
                     
-                    <h4 className="mb-2 font-medium text-gray-900 line-clamp-2">
+                    <h4 className="mb-2 font-medium text-gray-900 line-clamp-2 dark:text-gray-100">
                       {ticket.title}
                     </h4>
                     
-                    <p className="mb-3 text-sm text-gray-600 line-clamp-2">
+                    <p className="mb-3 text-sm text-gray-600 line-clamp-2 dark:text-gray-400">
                       {ticket.description}
                     </p>
 
@@ -499,14 +546,14 @@ const EnhancedTicketSystem: React.FC = () => {
                     {ticket.tags && ticket.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {ticket.tags.slice(0, 3).map((tag: string) => (
-                          <span key={`${ticket.id}-${tag}`} className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded">
+                          <span key={`${ticket.id}-${tag}`} className="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded dark:text-gray-300 dark:bg-gray-800">
                             {tag}
                           </span>
                         ))}
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center space-x-1">
                           <User className="w-3 h-3" />
@@ -520,10 +567,10 @@ const EnhancedTicketSystem: React.FC = () => {
                     </div>
                     
                     {ticket.assignedTo && (
-                      <div className="pt-2 mt-2 border-t border-gray-100">
-                        <div className="flex items-center space-x-2 text-xs text-gray-600">
-                          <div className="flex items-center justify-center w-5 h-5 bg-blue-100 rounded-full">
-                            <span className="font-medium text-blue-600">{ticket.assignedTo.username.charAt(0)}</span>
+                      <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-300">
+                          <div className="flex items-center justify-center w-5 h-5 bg-blue-100 rounded-full dark:bg-blue-900">
+                            <span className="font-medium text-blue-600 dark:text-blue-200">{ticket.assignedTo.username.charAt(0)}</span>
                           </div>
                           <span>Asignado a {ticket.assignedTo.username}</span>
                         </div>
@@ -534,10 +581,10 @@ const EnhancedTicketSystem: React.FC = () => {
                 
                 {column.tickets.length === 0 && (
                   <div className="py-8 text-center">
-                    <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 bg-gray-200 rounded-full">
-                      {getStatusIcon(column.id as TicketStatus)}
+                    <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 bg-gray-200 rounded-full dark:bg-gray-700">
+                      {getStatusIcon(column.id)}
                     </div>
-                    <p className="text-sm text-gray-600">Sin tickets</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Sin tickets</p>
                   </div>
                 )}
               </div>
@@ -546,43 +593,43 @@ const EnhancedTicketSystem: React.FC = () => {
         </div>
       ) : (
         /* List View */
-        <div className="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-800">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+              <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-400">
                     Ticket
                   </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-400">
                     Categoría
                   </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-400">
                     Prioridad
                   </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-400">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-400">
                     Asignado
                   </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase dark:text-gray-400">
                     Actualizado
                   </th>
-                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-right text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-xs font-medium tracking-wider text-right text-gray-500 uppercase dark:text-gray-400">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-800">
                 {filteredTickets.map((ticket: Ticket) => (
-                  <tr key={ticket.id} className="hover:bg-gray-50">
+                  <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className={`w-3 h-3 rounded-full mr-3 ${getPriorityColor(ticket.priority)}`}></div>
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{ticket.id}</div>
-                          <div className="max-w-xs text-sm text-gray-600 truncate">{ticket.title}</div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{ticket.id}</div>
+                          <div className="max-w-xs text-sm text-gray-600 truncate dark:text-gray-400">{ticket.title}</div>
                         </div>
                       </div>
                     </td>
@@ -592,7 +639,7 @@ const EnhancedTicketSystem: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{getPriorityLabel(ticket.priority)}</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">{getPriorityLabel(ticket.priority)}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
@@ -600,10 +647,10 @@ const EnhancedTicketSystem: React.FC = () => {
                         <span className="ml-1">{getStatusLabel(ticket.status)}</span>
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
+                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap dark:text-gray-100">
                       {ticket.assignedTo?.username || 'Sin asignar'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap dark:text-gray-400">
                       {getTimeSince(ticket.updatedAt)}
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-right whitespace-nowrap">
@@ -625,12 +672,12 @@ const EnhancedTicketSystem: React.FC = () => {
       {/* Ticket Detail Modal */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto dark:bg-gray-900">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{selectedTicket.id}</h3>
-                  <p className="mt-1 text-gray-600">{selectedTicket.title}</p>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{selectedTicket.id}</h3>
+                  <p className="mt-1 text-gray-600 dark:text-gray-400">{selectedTicket.title}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(selectedTicket.category)}`}>
@@ -647,30 +694,30 @@ const EnhancedTicketSystem: React.FC = () => {
               {/* Ticket Info */}
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div>
-                  <p className="block text-sm font-medium text-gray-700">Prioridad</p>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Prioridad</p>
                   <div className="flex items-center mt-1 space-x-2">
                     <div className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTicket.priority)}`}></div>
-                    <span id="ticket-priority" className="text-sm">{getPriorityLabel(selectedTicket.priority)}</span>
+                    <span id="ticket-priority" className="text-sm dark:text-gray-200">{getPriorityLabel(selectedTicket.priority)}</span>
                   </div>
                 </div>
                 <div>
-                  <p className="block text-sm font-medium text-gray-700">Creado por</p>
- <p className="mt-1 text-sm">{selectedTicket.createdBy?.username || 'N/A'}</p>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Creado por</p>
+                  <p className="mt-1 text-sm dark:text-gray-200">{selectedTicket.createdBy?.username || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="block text-sm font-medium text-gray-700">Asignado a</p>
-                  <p className="mt-1 text-sm">{selectedTicket.assignedTo?.username || 'Sin asignar'}</p>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Asignado a</p>
+                  <p className="mt-1 text-sm dark:text-gray-200">{selectedTicket.assignedTo?.username || 'Sin asignar'}</p>
                 </div>
                 <div>
-                  <p className="block text-sm font-medium text-gray-700">Creado</p>
-                  <p className="mt-1 text-sm">{formatDate(selectedTicket.createdAt)}</p>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Creado</p>
+                  <p className="mt-1 text-sm dark:text-gray-200">{formatDate(selectedTicket.createdAt)}</p>
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label htmlFor="ticket-description" className="block mb-2 text-sm font-medium text-gray-700">Descripción</label>
-                <p id="ticket-description" className="p-4 text-gray-600 rounded-lg bg-gray-50">{selectedTicket.description}</p>
+                <label htmlFor="ticket-description" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
+                <p id="ticket-description" className="p-4 text-gray-600 rounded-lg bg-gray-50 dark:text-gray-300 dark:bg-gray-800">{selectedTicket.description}</p>
               </div>
 
               {/* Status and Assign Actions */}
@@ -679,7 +726,7 @@ const EnhancedTicketSystem: React.FC = () => {
                 <select
                   value={selectedTicket.status}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleStatusChange(selectedTicket.id, e.target.value as TicketStatus)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                 >
                   {Object.values(TicketStatus).map(status => (
                     <option key={status} value={status}>{getStatusLabel(status)}</option>
@@ -688,7 +735,7 @@ const EnhancedTicketSystem: React.FC = () => {
                 
                 <button
                   onClick={() => setShowAssignModal(true)}
-                  className="flex items-center px-4 py-2 space-x-2 text-blue-700 transition-colors bg-blue-100 rounded-lg hover:bg-blue-200"
+                  className="flex items-center px-4 py-2 space-x-2 text-blue-700 transition-colors bg-blue-100 rounded-lg hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Asignar</span>
@@ -697,19 +744,19 @@ const EnhancedTicketSystem: React.FC = () => {
 
               {/* Confirmation Workflow */}
               {selectedTicket.assignedTo && (
-                <div className="p-4 border-t border-b border-gray-200 bg-gray-50">
-                  <h4 className="mb-4 text-sm font-semibold text-gray-800">Flujo de Confirmación</h4>
+                <div className="p-4 border-t border-b border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-800">
+                  <h4 className="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-200">Flujo de Confirmación</h4>
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <input
                         id="assigned-confirm"
                         type="checkbox"
-                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50 dark:border-gray-600"
                         checked={!!selectedTicket.assignedUserConfirmation}
                         disabled={user?.id !== selectedTicket.assignedTo?.id}
                         onChange={(e) => handleConfirmationChange('assigned', e.target.checked)}
                       />
-                      <label htmlFor="assigned-confirm" className="ml-3 text-sm text-gray-700">
+                      <label htmlFor="assigned-confirm" className="ml-3 text-sm text-gray-700 dark:text-gray-300">
                         Confirmación de resolución por parte del asignado ({selectedTicket.assignedTo?.username})
                       </label>
                     </div>
@@ -717,12 +764,12 @@ const EnhancedTicketSystem: React.FC = () => {
                       <input
                         id="requester-confirm"
                         type="checkbox"
-                        className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50"
+                        className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50 dark:border-gray-600"
                         checked={!!selectedTicket.requestingUserConfirmation}
                         disabled={!selectedTicket.assignedUserConfirmation || user?.id !== selectedTicket.createdBy?.id}
                         onChange={(e) => handleConfirmationChange('requesting', e.target.checked)}
                       />
-                      <label htmlFor="requester-confirm" className="ml-3 text-sm text-gray-700">
+                      <label htmlFor="requester-confirm" className="ml-3 text-sm text-gray-700 dark:text-gray-300">
                         Confirmación de conformidad por parte del solicitante ({selectedTicket.createdBy?.username})
                       </label>
                     </div>
@@ -736,8 +783,8 @@ const EnhancedTicketSystem: React.FC = () => {
                 user?.roles.includes('Supervisor') &&
                 user?.areas.includes('Transporte') &&
               (
-                <div className="p-4 border-t border-b border-gray-200 bg-gray-50">
-                  <h4 className="mb-4 text-sm font-semibold text-gray-800">Acciones de Supervisor de Mantenimiento</h4>
+                <div className="p-4 border-t border-b border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-800">
+                  <h4 className="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-200">Acciones de Supervisor de Mantenimiento</h4>
                   <div className="flex items-center space-x-3">
                     <button
                       onClick={() => handleStatusChange(selectedTicket.id, TicketStatus.Resuelto)}
@@ -746,7 +793,7 @@ const EnhancedTicketSystem: React.FC = () => {
                       <CheckCircle className="w-4 h-4" />
                       <span>Aprobar y Completar</span>
                     </button>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Esto marcará la OT como completada y el vehículo como disponible.
                     </p>
                   </div>
@@ -754,42 +801,39 @@ const EnhancedTicketSystem: React.FC = () => {
               )}
 
               {/* NUEVO: Flujo de Aprobación para Solicitudes de Suministro */}
-              {selectedTicket.category === 'Solicitud_Suministro' && selectedTicket.approvals && selectedTicket.approvals.length > 0 && (
-                <div className="p-4 border-t border-b border-gray-200 bg-gray-50">
-                  <h4 className="mb-4 text-sm font-semibold text-gray-800">Flujo de Aprobación de Suministro</h4>
+              {selectedTicket.category === 'Solicitud_Suministro' && selectedTicketApprovals.length > 0 && (
+                <div className="p-4 border-t border-b border-gray-200 bg-gray-50 dark:bg-gray-900 dark:border-gray-800">
+                  <h4 className="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-200">Flujo de Aprobación de Suministro</h4>
                   <div className="space-y-4">
-                    {selectedTicket.approvals.map((approval, index) => {
-                      const canApprove = user?.roles.includes(approval.approverRole) && user?.areas.includes(approval.approverArea);
+                    {selectedTicketApprovals.map((approval: Approval, index: number) => {
+                      const canApprove = hasUserRole(user, approval.approverRole) && hasUserArea(user, approval.approverArea);
                       const isPending = approval.status === 'Pendiente';
                       // Un usuario puede aprobar si es su turno (o un paso anterior fue aprobado) y tiene el rol/área correctos.
-                      const isMyTurn = isPending && (index === 0 || selectedTicket.approvals[index - 1].status === 'Aprobado');
+                      const isMyTurn = isPending && (index === 0 || selectedTicketApprovals[index - 1].status === 'Aprobado');
 
                       return (
-                        <div key={approval.id} className="p-3 bg-white border rounded-lg">
+                        <div key={approval.id} className="p-3 bg-white border rounded-lg dark:bg-gray-900 dark:border-gray-800">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center">
                               {approval.status === 'Aprobado' && <CheckCircle className="w-5 h-5 mr-2 text-green-500" />}
                               {approval.status === 'Rechazado' && <ThumbsDown className="w-5 h-5 mr-2 text-red-500" />}
                               {approval.status === 'Pendiente' && <Clock className="w-5 h-5 mr-2 text-yellow-500" />}
-                              <p className="text-sm font-medium">
+                              <p className="text-sm font-medium dark:text-gray-200">
                                 Paso {approval.step}: {approval.approverRole} de {approval.approverArea}
                               </p>
                             </div>
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                              approval.status === 'Aprobado' ? 'bg-green-100 text-green-800' :
-                              approval.status === 'Rechazado' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                            }`}>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getApprovalBadgeClass(approval.status)}`}>
                               {approval.status}
                             </span>
                           </div>
-                          {approval.approvedBy && (
-                            <p className="mt-1 text-xs text-gray-500">
-                              Por: {approval.approvedBy.username} el {formatDate(approval.approvedAt!)}
+                          {approval.approvedBy && approval.approvedAt && (
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              Por: {approval.approvedBy.username} el {formatDate(approval.approvedAt)}
                             </p>
                           )}
                           {canApprove && isMyTurn && (
                             <div className="flex items-center mt-3 space-x-2">
-                              <input type="text" placeholder="Comentario (opcional)..." value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)} className="flex-grow px-2 py-1 text-sm border rounded"/>
+                              <input type="text" placeholder="Comentario (opcional)..." value={approvalComment} onChange={(e) => setApprovalComment(e.target.value)} className="flex-grow px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"/>
                               <button onClick={() => handleApprovalAction(approval.id, true)} className="p-2 text-white bg-green-500 rounded-full hover:bg-green-600"><ThumbsUp className="w-4 h-4" /></button>
                               <button onClick={() => handleApprovalAction(approval.id, false)} className="p-2 text-white bg-red-500 rounded-full hover:bg-red-600"><ThumbsDown className="w-4 h-4" /></button>
                             </div>
@@ -804,15 +848,15 @@ const EnhancedTicketSystem: React.FC = () => {
 
               {/* Comments */}
               <div>
-                <p className="block mb-4 text-sm font-medium text-gray-700">Comentarios</p>
-                <p className="text-sm text-gray-500">La funcionalidad de comentarios se implementará próximamente.</p>
+                <p className="block mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Comentarios</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">La funcionalidad de comentarios se implementará próximamente.</p>
               </div>
             </div>
 
-            <div className="flex justify-end p-6 border-t border-gray-200">
+            <div className="flex justify-end p-6 border-t border-gray-200 dark:border-gray-800">
               <button
                 onClick={() => setSelectedTicket(null)}
-                className="px-4 py-2 text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-100"
               >
                 Cerrar
               </button>
@@ -824,19 +868,19 @@ const EnhancedTicketSystem: React.FC = () => {
       {/* New Ticket Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900">Crear Nuevo Ticket</h3>
-              <p className="mt-1 text-gray-600">Envía una nueva solicitud de soporte o ticket</p>
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto dark:bg-gray-900">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Crear Nuevo Ticket</h3>
+              <p className="mt-1 text-gray-600 dark:text-gray-400">Envía una nueva solicitud de soporte o ticket</p>
             </div>
             
             <form className="p-6 space-y-4" onSubmit={handleCreateTicket}>
               <div>
-                <label htmlFor="new-ticket-title" className="block mb-2 text-sm font-medium text-gray-700">Título</label>
+                <label htmlFor="new-ticket-title" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Título</label>
                 <input
                   type="text"
                   placeholder="Descripción breve del problema o solicitud"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   value={newTicketForm.title}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTicketForm({ ...newTicketForm, title: e.target.value })}
                   required
@@ -846,9 +890,9 @@ const EnhancedTicketSystem: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="new-ticket-category" className="block mb-2 text-sm font-medium text-gray-700">Categoría</label>
+                  <label htmlFor="new-ticket-category" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Categoría</label>
                   <select id="new-ticket-category"
- className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+ className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                     value={newTicketForm.category}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ ...newTicketForm, category: e.target.value })}
                     required
@@ -860,9 +904,9 @@ const EnhancedTicketSystem: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="new-ticket-priority" className="block mb-2 text-sm font-medium text-gray-700">Prioridad</label>
+                  <label htmlFor="new-ticket-priority" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Prioridad</label>
                   <select id="new-ticket-priority"
- className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+ className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                     value={newTicketForm.priority}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ ...newTicketForm, priority: e.target.value as TicketPriority })}
                   >
@@ -875,10 +919,10 @@ const EnhancedTicketSystem: React.FC = () => {
               {/* Ocultar Área Destino si la categoría es Solicitud de Suministro */}
               {newTicketForm.category !== 'Solicitud Suministro' && (
                 <div>
-                  <label htmlFor="new-ticket-recipient" className="block mb-2 text-sm font-medium text-gray-700">Área Destino</label>
+                  <label htmlFor="new-ticket-recipient" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Área Destino</label>
                   <select id="new-ticket-recipient"
                     multiple
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                     value={newTicketForm.recipientArea}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewTicketForm({ 
                       ...newTicketForm, 
@@ -894,11 +938,11 @@ const EnhancedTicketSystem: React.FC = () => {
               )}
 
               <div>
-                <label htmlFor="new-ticket-description" className="block mb-2 text-sm font-medium text-gray-700">Descripción</label>
+                <label htmlFor="new-ticket-description" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
                 <textarea
                   rows={4}
                   placeholder="Proporciona información detallada sobre el problema o solicitud..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   value={newTicketForm.description}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewTicketForm({ ...newTicketForm, description: e.target.value })}
                   id="new-ticket-description"
@@ -906,23 +950,23 @@ const EnhancedTicketSystem: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="new-ticket-tags" className="block mb-2 text-sm font-medium text-gray-700">Etiquetas</label>
+                <label htmlFor="new-ticket-tags" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Etiquetas</label>
                 <input
                   id="new-ticket-tags"
                   type="text"
                   placeholder="ej: urgente, red, almacen (separadas por comas)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   value={newTicketForm.tags}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTicketForm({ ...newTicketForm, tags: e.target.value })}
                 />
               </div>
 
               <div>
-                <p className="block mb-2 text-sm font-medium text-gray-700">Archivos Adjuntos</p>
-                <div className="p-6 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400">
-                  <Paperclip className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600">Arrastra archivos o haz clic para subir</p>
-                  <p className="mt-1 text-xs text-gray-500">PNG, JPG, PDF hasta 10MB</p>
+                <p className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Archivos Adjuntos</p>
+                <div className="p-6 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 dark:border-gray-700">
+                  <Paperclip className="w-8 h-8 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Arrastra archivos o haz clic para subir</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">PNG, JPG, PDF hasta 10MB</p>
                   <input type="file" multiple className="hidden" />
                   <p className="mt-2 text-xs text-yellow-600">(Funcionalidad en desarrollo)</p>
                 </div>
@@ -932,7 +976,7 @@ const EnhancedTicketSystem: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-100"
                 >
                   Cancelar
                 </button>
@@ -951,18 +995,18 @@ const EnhancedTicketSystem: React.FC = () => {
       {/* Assign Modal */}
       {showAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="w-full max-w-md bg-white rounded-xl">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Asignar Ticket</h3>
+          <div className="w-full max-w-md bg-white rounded-xl dark:bg-gray-900">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Asignar Ticket</h3>
             </div>
             
             <div className="p-6">
-              <label htmlFor="assign-user" className="block mb-2 text-sm font-medium text-gray-700">
+              <label htmlFor="assign-user" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Asignar a (Área: {selectedTicket?.recipientArea.join(', ') || 'N/A'}):
               </label>
               <select 
                 id="assign-user" 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
                 value={assigneeId}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAssigneeId(e.target.value)}
               >
@@ -977,8 +1021,8 @@ const EnhancedTicketSystem: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex justify-end p-6 space-x-3 border-t border-gray-200">
-              <button onClick={() => setShowAssignModal(false)} className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50">
+            <div className="flex justify-end p-6 space-x-3 border-t border-gray-200 dark:border-gray-800">
+              <button onClick={() => setShowAssignModal(false)} className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 dark:text-gray-100">
                 Cancelar
               </button>
               <button onClick={handleAssignTicket} className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700">
