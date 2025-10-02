@@ -33,13 +33,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
     'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: () => hasAreaAccess('Transporte') },
     'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: () => hasAreaAccess('Transporte') },
     'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: () => hasAreaAccess('Transporte') },
-    'fuel-by-fleet': { id: 'fuel-by-fleet', label: 'Combustible por Flota', icon: Zap, show: () => hasAreaAccess('Transporte') },
+    'fuel-by-fleet': { id: 'fuel-by-fleet', label: 'Combustible', icon: Zap, show: () => hasAreaAccess('Transporte') },
     'notifications': { id: 'notifications', label: 'Notificaciones', icon: AlertCircle, show: () => true },
     maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasAreaAccess('Taller') },
     'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: HardHat, show: () => hasAreaAccess('Aseo') },
     'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasAreaAccess('Obras') },
     incidents: { id: 'incidents', label: 'Incidentes', icon: AlertCircle, show: () => true },
-    'user-management': { id: 'user-management', label: 'Gestión de Usuarios', icon: Users, show: () => hasAreaAccess('Admin') || hasAreaAccess('RRHH') },
+    'user-management': { id: 'user-management', label: 'Usuarios', icon: Users, show: () => hasAreaAccess('Admin') || hasAreaAccess('RRHH') },
   // Configuración se accede desde el menú del usuario en el Header para no duplicar navegación
   // settings: { id: 'settings', label: 'Configuración', icon: Settings, show: () => true },
   };
@@ -47,8 +47,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const handleLogout = () => {
     logout();
   };
-
-  const roleLabel = user?.roles?.includes('Admin') ? 'Admin' : user?.roles?.[0] ?? 'Usuario';
 
   // Lógica simplificada: iterar sobre todas las vistas posibles y usar su propia condición `show()` para decidir si se renderiza.
   const visibleItemsUnique = Object.values(viewsCatalog).filter(item => item.show());
@@ -107,8 +105,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-lg font-bold">EmpresaSystem</h1>
-                <p className="text-xs text-gray-400">Empresarial</p>
+                <h1 className="text-lg font-bold">P I G O</h1>
+                <p className="text-xs text-gray-400">Plataforma Integral</p>
               </div>
             </div>
           )}
@@ -120,21 +118,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
           </button>
         </div>
       </div>
-
-      {/* User Info */}
-      {!isCollapsed && (
-        <div className="p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-full">
-              <span className="text-sm font-medium">{user?.username.charAt(0)}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.username}</p>
-              <p className="text-xs text-gray-400 truncate">{roleLabel}</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-auto">{navContent}</nav>

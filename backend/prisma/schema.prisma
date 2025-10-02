@@ -8,38 +8,41 @@ datasource db {
 }
 
 model User {
-  id                   Int                  @id @default(autoincrement())
-  username             String
-  email                String               @unique
-  password             String
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  assignedTickets      Ticket[]             @relation("AssignedTickets")
-  createdTickets       Ticket[]             @relation("CreatedTickets")
-  active               Boolean              @default(true)
-  lastLogin            DateTime?
-  fuelLogs             FuelLog[]            @relation("FuelLogs")
-  mustChangePassword   Boolean              @default(false)
-  refreshToken         String?              @unique
-  notifications        Notification[]
-  createdNotifications Notification[]       @relation("CreatedNotifications")
-  roleAssignments      UserRoleAssignment[]
-  TicketApproval       TicketApproval[]
-  UserNotification     UserNotification[]
+  id                                   Int                  @id @default(autoincrement())
+  username                             String
+  email                                String               @unique
+  password                             String
+  createdAt                            DateTime             @default(now())
+  updatedAt                            DateTime             @updatedAt
+  active                               Boolean              @default(true)
+  mustChangePassword                   Boolean              @default(false)
+  refreshToken                         String?              @unique
+  lastLogin                            DateTime?            @map("last_login")
+  fuelLogs                             FuelLog[]            @relation("FuelLogs")
+  FuelLog_FuelLog_userIdToUser         FuelLog[]            @relation("FuelLog_userIdToUser")
+  Incident_Incident_reportedByIdToUser Incident[]           @relation("Incident_reportedByIdToUser")
+  Incident_Incident_reviewedByIdToUser Incident[]           @relation("Incident_reviewedByIdToUser")
+  createdNotifications                 Notification[]       @relation("CreatedNotifications")
+  assignedTickets                      Ticket[]             @relation("AssignedTickets")
+  createdTickets                       Ticket[]             @relation("CreatedTickets")
+  TicketApproval                       TicketApproval[]
+  UserNotification                     UserNotification[]
+  roleAssignments                      UserRoleAssignment[]
+  notifications                        Notification[]       @relation("NotificationToUser")
 }
 
 model UserRoleAssignment {
   id          Int          @id @default(autoincrement())
   userId      Int
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  area        String // 'IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', 'P_Riesgo'
-  role        Role // Roles jerárquicos
-  specialty   Specialty? // Solo para especialistas
+  area        String
+  role        Role
+  specialty   Specialty?
   permissions Permission[] @default([])
   isActive    Boolean      @default(true)
   assignedAt  DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, area, role]) // Un usuario no puede tener el mismo rol dos veces en la misma área
+  @@unique([userId, area, role])
   @@index([userId])
   @@index([area, role])
 }
@@ -55,15 +58,15 @@ model Ticket {
   updatedAt                  DateTime         @updatedAt
   createdById                Int
   assignedToId               Int?
-  assignedTo                 User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
-  createdBy                  User             @relation("CreatedTickets", fields: [createdById], references: [id])
   recipientArea              String[]         @default([])
   recipientRole              Role[]
   assignedUserConfirmation   Boolean?         @default(false)
   requestingUserConfirmation Boolean?         @default(false)
   tags                       String[]         @default([])
+  ordenTrabajoId             Int?             @unique
   attachments                Documento[]
-  ordenTrabajoId             Int?             @unique // Un ticket de revisión es único para una OT
+  assignedTo                 User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdBy                  User             @relation("CreatedTickets", fields: [createdById], references: [id])
   ordenTrabajo               OrdenTrabajo?    @relation("OTReviewTicket", fields: [ordenTrabajoId], references: [id])
   approvals                  TicketApproval[]
 }
@@ -71,61 +74,60 @@ model Ticket {
 model Vehiculo {
   id                  Int            @id @default(autoincrement())
   patente             String         @unique
-  marca               String         @default("")
-  modelo              String         @default("")
   capacidad           Float
   odometro            Int
   estado              VehiculoStatus @default(disponible)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
-  documentos          Documento[] // Relación con la tabla Documento
-  ordenes             OrdenTrabajo[]
   areaAsignada        String?
   conductorId         Int?
-  fuelLogs            FuelLog[]
   lastMaintenanceDate DateTime?
+  marca               String         @default("")
+  modelo              String         @default("")
+  documentos          Documento[]
+  fuelLogs            FuelLog[]
+  ordenes             OrdenTrabajo[]
 }
 
 model Documento {
   id          Int      @id @default(autoincrement())
   vehiculoId  Int
-  vehiculo    Vehiculo @relation(fields: [vehiculoId], references: [id])
-  tipo        String // Ej: "factura", "certificado", "foto"
-  url         String // URL o path del archivo subido (ej: S3, local storage)
+  tipo        String
+  url         String
   fechaSubida DateTime @default(now())
   descripcion String?
   ticketId    Int?
   ticket      Ticket?  @relation(fields: [ticketId], references: [id])
+  vehiculo    Vehiculo @relation(fields: [vehiculoId], references: [id])
 }
 
 model OrdenTrabajo {
   id              Int       @id @default(autoincrement())
-  tipo            String // Preventivo, Correctivo, Emergencia
+  tipo            String
   estado          String    @default("abierta")
-  vehiculo        Vehiculo  @relation(fields: [vehiculoId], references: [id])
   vehiculoId      Int
-  description     String?
-  scheduledDate   DateTime?
-  estimatedCost   Float?
-  observations    String?
-  responsableId   Int?
-  // responsable   User?    @relation("OTResponsable", fields: [responsableId], references: [id]) // Opcional si quieres la relación completa
-  nextServiceDate DateTime?
-  reviewTicket    Ticket?   @relation("OTReviewTicket")
-  repuestos       String[]  @default([])
   tareas          String[]  @default([])
+  responsableId   Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  description     String?
+  estimatedCost   Float?
+  observations    String?
+  repuestos       String[]  @default([])
+  scheduledDate   DateTime?
+  nextServiceDate DateTime?
+  vehiculo        Vehiculo  @relation(fields: [vehiculoId], references: [id])
   qa              QA[]
+  reviewTicket    Ticket?   @relation("OTReviewTicket")
 }
 
 model QA {
   id        Int          @id @default(autoincrement())
   checklist String
   resultado String
-  ot        OrdenTrabajo @relation(fields: [otId], references: [id])
   otId      Int
   createdAt DateTime     @default(now())
+  ot        OrdenTrabajo @relation(fields: [otId], references: [id])
 }
 
 model SolicitudCompra {
@@ -141,34 +143,34 @@ model Repuesto {
   nombre            String
   stock             Int              @default(0)
   costoUnitario     Float            @default(0)
-  solicitudCompra   SolicitudCompra? @relation(fields: [solicitudCompraId], references: [id])
   solicitudCompraId Int?
   createdAt         DateTime         @default(now())
+  solicitudCompra   SolicitudCompra? @relation(fields: [solicitudCompraId], references: [id])
 }
 
 model Notification {
   id          Int                @id @default(autoincrement())
   title       String
   message     String
-  type        String // Ej: "info", "warning", "ticket", "custom"
-  priority    String             @default("normal") // low, normal, high
+  type        String
   createdAt   DateTime           @default(now())
-  scheduledAt DateTime?
-  pinned      Boolean            @default(false)
-  user        User[]
   areas       String[]           @default([])
   roles       Role[]             @default([])
   createdById Int
+  pinned      Boolean            @default(false)
+  priority    String             @default("normal")
+  scheduledAt DateTime?
   createdBy   User               @relation("CreatedNotifications", fields: [createdById], references: [id])
   readBy      UserNotification[]
+  user        User[]             @relation("NotificationToUser")
 }
 
 model UserNotification {
   userId         Int
   notificationId Int
   read           Boolean      @default(false)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, notificationId])
 }
@@ -176,15 +178,15 @@ model UserNotification {
 model TicketApproval {
   id           Int            @id @default(autoincrement())
   ticketId     Int
-  ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  step         Int // Orden en la cadena de aprobación (1, 2, 3...)
+  step         Int
   status       ApprovalStatus @default(Pendiente)
   approverRole Role
   approverArea String
   approvedById Int?
-  approvedBy   User?          @relation(fields: [approvedById], references: [id])
   approvedAt   DateTime?
   comments     String?
+  approvedBy   User?          @relation(fields: [approvedById], references: [id])
+  ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@unique([ticketId, step])
   @@index([ticketId])
@@ -192,22 +194,44 @@ model TicketApproval {
 }
 
 model FuelLog {
-  id         Int      @id @default(autoincrement())
-  vehiculoId Int
-  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
-  date       DateTime
-  liters     Float
-  cost       Float?
-  odometer   Int
-  driverId   Int
-  driver     User     @relation("FuelLogs", fields: [driverId], references: [id])
-  invoiceUrl String?
-  createdAt  DateTime @default(now())
+  id                        Int      @id @default(autoincrement())
+  vehiculoId                Int
+  date                      DateTime
+  liters                    Float
+  cost                      Float?
+  odometer                  Int
+  driverId                  Int
+  invoiceUrl                String?
+  createdAt                 DateTime @default(now())
+  userId                    Int?
+  driver                    User     @relation("FuelLogs", fields: [driverId], references: [id])
+  User_FuelLog_userIdToUser User?    @relation("FuelLog_userIdToUser", fields: [userId], references: [id])
+  vehiculo                  Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
 
   @@index([vehiculoId, date])
 }
 
-//=================================================================>ENUMS<==================================================================
+model Incident {
+  id                               Int              @id @default(autoincrement())
+  title                            String
+  description                      String
+  area                             String
+  type                             IncidentType
+  severity                         IncidentSeverity
+  status                           IncidentStatus   @default(REPORTED)
+  location                         Json
+  photos                           String[]         @default([])
+  reportedById                     Int
+  reportedAt                       DateTime         @default(now())
+  reviewedAt                       DateTime?
+  reviewedById                     Int?
+  updatedAt                        DateTime
+  User_Incident_reportedByIdToUser User             @relation("Incident_reportedByIdToUser", fields: [reportedById], references: [id])
+  User_Incident_reviewedByIdToUser User?            @relation("Incident_reviewedByIdToUser", fields: [reviewedById], references: [id])
+
+  @@index([reportedById])
+  @@index([reviewedById])
+}
 
 /// Enum de roles
 enum Role {
@@ -221,56 +245,36 @@ enum Role {
 
 /// Enum de especialidades
 enum Specialty {
-  // Transporte
   DRIVER
   MECHANIC
 }
 
 /// Enum de permisos
 enum Permission {
-  // Permisos generales - ALL users y IT
   VIEW_DASHBOARD
   VIEW_TICKETS
   MANAGE_TICKETS
-
-  // Transporte - Supervisor
   MANAGE_ROUTES
   MANAGE_FLEET
-
-  // Transporte - Supervisor y Driver
   VIEW_TRIP_REPORTS
-  MANAGE_TRIP_REPORTS // Driver crea solamente reportes
+  MANAGE_TRIP_REPORTS
   VIEW_ROUTES
-
-  // Transporte - Supervisor y Mecánico
   VIEW_FLEET
   VIEW_MAINTENANCE
   MANAGE_MAINTENANCE
-
-  // Obras
   VIEW_CIVIL_WORKS
   MANAGE_CIVIL_WORKS
-
-  // Aseo
   VIEW_CLEANING_REPORTS
   MANAGE_CLEANING_REPORTS
-
-  // Admin
   VIEW_MANAGEMENT_USER
   MANAGE_MANAGEMENT_USER
-
-  // RRHH
   VIEW_EMPLOYEES
   MANAGE_EMPLOYEES
   VIEW_PAYROLL
   MANAGE_PAYROLL
-
-  // Finanzas
   VIEW_FINANCIAL_REPORTS
   MANAGE_BUDGETS
   APPROVE_EXPENSES
-
-  // P_Riesgo
   VIEW_RISK_ASSESSMENTS
   MANAGE_RISK_ASSESSMENTS
   CREATE_SAFETY_PROTOCOLS
@@ -308,4 +312,27 @@ enum ApprovalStatus {
   Pendiente
   Aprobado
   Rechazado
+}
+
+enum IncidentSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IncidentStatus {
+  REPORTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum IncidentType {
+  VEHICLE_BREAKDOWN
+  ACCIDENT
+  TRAFFIC_DELAY
+  WEATHER
+  SECURITY
+  OTHER
 }

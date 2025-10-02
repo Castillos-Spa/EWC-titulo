@@ -14,42 +14,101 @@ import {
 const DashboardHome: React.FC = () => {
   const { user } = useAuth();
 
+  // Helpers para roles/áreas actuales basados en el nuevo modelo
+  const isAdmin = !!(user?.isAdmin || user?.roles?.includes('Admin'));
+  const getChangeStyle = (change: string) => {
+    // Mantiene la lógica original evitando ternarias anidadas
+    const neutral = 'bg-gray-100 text-gray-800';
+    const green = 'bg-green-100 text-green-800';
+    const red = 'bg-red-100 text-red-800';
+
+    const hasLiters = change.includes('L');
+    const isPlus = change.startsWith('+');
+    const isMinus = change.startsWith('-');
+
+    if (!hasLiters) {
+      if (isPlus) return green;
+      if (isMinus) return red;
+      return neutral;
+    }
+    // Cuando incluye 'L', sólo se marca en verde si es mejora (negativo)
+    if (isMinus) return green;
+    return neutral; // '+' o cualquier otro caso permanece neutral
+  };
+
+  const getActivityDotColor = (type: string) => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-500';
+      case 'warning':
+        return 'bg-yellow-500';
+      case 'info':
+        return 'bg-blue-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+  const primaryRole = React.useMemo(() => {
+    if (!user) return undefined as
+      | 'admin'
+      | 'transport_supervisor'
+      | 'driver'
+      | 'it_staff'
+      | 'general_services'
+      | 'cleaning'
+      | 'civil_works'
+      | 'default'
+      | undefined;
+
+    if (isAdmin) return 'admin';
+
+    const assignments = user.roleAssignments || [];
+    // Inferencias heurísticas por área/especialidad
+    if (assignments.some(a => a.role === 'Supervisor' && /trans|flota/i.test(a.area))) return 'transport_supervisor';
+    if (assignments.some(a => a.specialty === 'DRIVER')) return 'driver';
+    if (assignments.some(a => /it|soporte|sistemas/i.test(a.area))) return 'it_staff';
+    if (assignments.some(a => /servicios?\s*generales/i.test(a.area))) return 'general_services';
+    if (assignments.some(a => /limpieza/i.test(a.area))) return 'cleaning';
+    if (assignments.some(a => /obras\s*civiles?|civil\s*works/i.test(a.area))) return 'civil_works';
+    return 'default';
+  }, [user, isAdmin]);
+
   const getStatsForRole = () => {
-    switch (user?.role) {
+    switch (primaryRole) {
       case 'admin':
         return [
-          { label: 'Usuarios Activos', value: '47', icon: Users, color: 'bg-blue-500', change: '+2.5%' },
-          { label: 'Tickets Abiertos', value: '23', icon: Ticket, color: 'bg-yellow-500', change: '-5.2%' },
-          { label: 'Vehículos de Flota', value: '18', icon: Truck, color: 'bg-green-500', change: '+1' },
-          { label: 'Tareas Pendientes', value: '12', icon: Clock, color: 'bg-purple-500', change: '+3' },
+          { key: 'users', label: 'Usuarios Activos', value: '47', icon: Users, color: 'bg-blue-500', change: '+2.5%' },
+          { key: 'tickets', label: 'Tickets Abiertos', value: '23', icon: Ticket, color: 'bg-yellow-500', change: '-5.2%' },
+          { key: 'fleet', label: 'Vehículos de Flota', value: '18', icon: Truck, color: 'bg-green-500', change: '+1' },
+          { key: 'tasks', label: 'Tareas Pendientes', value: '12', icon: Clock, color: 'bg-purple-500', change: '+3' },
         ];
       case 'transport_supervisor':
         return [
-          { label: 'Conductores Activos', value: '12', icon: Users, color: 'bg-blue-500', change: '0%' },
-          { label: 'Viajes Hoy', value: '8', icon: Truck, color: 'bg-green-500', change: '+2' },
-          { label: 'Mantenimiento Vencido', value: '3', icon: Wrench, color: 'bg-yellow-500', change: '+1' },
-          { label: 'Incidentes', value: '1', icon: AlertTriangle, color: 'bg-red-500', change: '0' },
+          { key: 'activeDrivers', label: 'Conductores Activos', value: '12', icon: Users, color: 'bg-blue-500', change: '0%' },
+          { key: 'tripsToday', label: 'Viajes Hoy', value: '8', icon: Truck, color: 'bg-green-500', change: '+2' },
+          { key: 'overdueMaint', label: 'Mantenimiento Vencido', value: '3', icon: Wrench, color: 'bg-yellow-500', change: '+1' },
+          { key: 'incidents', label: 'Incidentes', value: '1', icon: AlertTriangle, color: 'bg-red-500', change: '0' },
         ];
       case 'driver':
         return [
-          { label: 'Viajes Completados', value: '156', icon: CheckCircle, color: 'bg-green-500', change: '+5' },
-          { label: 'Horas Conducidas', value: '42.5', icon: Clock, color: 'bg-blue-500', change: '+8.2' },
-          { label: 'Eficiencia Combustible', value: '8.5L', icon: TrendingUp, color: 'bg-purple-500', change: '-0.3L' },
-          { label: 'Puntuación Ruta', value: '95%', icon: Truck, color: 'bg-green-500', change: '+2%' },
+          { key: 'completedTrips', label: 'Viajes Completados', value: '156', icon: CheckCircle, color: 'bg-green-500', change: '+5' },
+          { key: 'drivingHours', label: 'Horas Conducidas', value: '42.5', icon: Clock, color: 'bg-blue-500', change: '+8.2' },
+          { key: 'fuelEfficiency', label: 'Eficiencia Combustible', value: '8.5L', icon: TrendingUp, color: 'bg-purple-500', change: '-0.3L' },
+          { key: 'routeScore', label: 'Puntuación Ruta', value: '95%', icon: Truck, color: 'bg-green-500', change: '+2%' },
         ];
       case 'it_staff':
         return [
-          { label: 'Tickets Abiertos', value: '15', icon: Ticket, color: 'bg-yellow-500', change: '+3' },
-          { label: 'Resueltos Hoy', value: '7', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
-          { label: 'Alta Prioridad', value: '4', icon: AlertTriangle, color: 'bg-red-500', change: '+1' },
-          { label: 'Respuesta Promedio', value: '2.3h', icon: Clock, color: 'bg-blue-500', change: '-0.5h' },
+          { key: 'openTickets', label: 'Tickets Abiertos', value: '15', icon: Ticket, color: 'bg-yellow-500', change: '+3' },
+          { key: 'resolvedToday', label: 'Resueltos Hoy', value: '7', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
+          { key: 'highPriority', label: 'Alta Prioridad', value: '4', icon: AlertTriangle, color: 'bg-red-500', change: '+1' },
+          { key: 'avgResponse', label: 'Respuesta Promedio', value: '2.3h', icon: Clock, color: 'bg-blue-500', change: '-0.5h' },
         ];
       default:
         return [
-          { label: 'Tareas Hoy', value: '8', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
-          { label: 'Elementos Pendientes', value: '3', icon: Clock, color: 'bg-yellow-500', change: '-1' },
-          { label: 'Completados', value: '24', icon: TrendingUp, color: 'bg-blue-500', change: '+6' },
-          { label: 'Puntuación Equipo', value: '92%', icon: Users, color: 'bg-purple-500', change: '+3%' },
+          { key: 'tasksToday', label: 'Tareas Hoy', value: '8', icon: CheckCircle, color: 'bg-green-500', change: '+2' },
+          { key: 'pending', label: 'Elementos Pendientes', value: '3', icon: Clock, color: 'bg-yellow-500', change: '-1' },
+          { key: 'completed', label: 'Completados', value: '24', icon: TrendingUp, color: 'bg-blue-500', change: '+6' },
+          { key: 'teamScore', label: 'Puntuación Equipo', value: '92%', icon: Users, color: 'bg-purple-500', change: '+3%' },
         ];
     }
   };
@@ -63,43 +122,48 @@ const DashboardHome: React.FC = () => {
       { id: 5, action: 'Usuario agregado', details: 'Nueva conductora Maria Santos', time: 'hace 3 horas', type: 'info' },
     ];
 
-    return activities.slice(0, user?.role === 'admin' ? 5 : 3);
+    return activities.slice(0, primaryRole === 'admin' ? 5 : 3);
   };
 
   const stats = getStatsForRole();
   const activities = getRecentActivities();
 
+  const welcomeSubtitle = (() => {
+    switch (primaryRole) {
+      case 'admin':
+        return 'Resumen del sistema y herramientas de gestión';
+      case 'transport_supervisor':
+        return 'Monitorea tu flota y operaciones';
+      case 'driver':
+        return 'Tu rendimiento de conducción y asignaciones';
+      case 'it_staff':
+        return 'Tickets de soporte y estado del sistema';
+      default:
+        return 'Tus tareas diarias y progreso';
+    }
+  })();
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">¡Bienvenido de nuevo, {user?.name}!</h2>
-        <p className="text-blue-100">
-          {user?.role === 'admin' ? 'Resumen del sistema y herramientas de gestión' :
-           user?.role === 'transport_supervisor' ? 'Monitorea tu flota y operaciones' :
-           user?.role === 'driver' ? 'Tu rendimiento de conducción y asignaciones' :
-           user?.role === 'it_staff' ? 'Tickets de soporte y estado del sistema' :
-           'Tus tareas diarias y progreso'}
-        </p>
+        <h2 className="text-2xl font-bold mb-2">¡Bienvenido de nuevo, {user?.username}!</h2>
+        <p className="text-blue-100">{welcomeSubtitle}</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => {
+        {stats.map((stat) => {
           const Icon = stat.icon;
+          const changeStyle = getChangeStyle(stat.change);
           return (
-            <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+            <div key={stat.key} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">{stat.label}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
                   <div className="flex items-center mt-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      stat.change.startsWith('+') && !stat.change.includes('L') ? 'bg-green-100 text-green-800' : 
-                      stat.change.startsWith('-') && !stat.change.includes('L') ? 'bg-red-100 text-red-800' :
-                      stat.change.includes('L') && stat.change.startsWith('-') ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${changeStyle}`}>
                       {stat.change}
                     </span>
                   </div>
@@ -120,11 +184,7 @@ const DashboardHome: React.FC = () => {
           <div className="space-y-4">
             {activities.map((activity) => (
               <div key={activity.id} className="flex items-start space-x-3">
-                <div className={`w-2 h-2 rounded-full mt-2 ${
-                  activity.type === 'success' ? 'bg-green-500' :
-                  activity.type === 'warning' ? 'bg-yellow-500' :
-                  activity.type === 'info' ? 'bg-blue-500' : 'bg-gray-500'
-                }`} />
+                <div className={`w-2 h-2 rounded-full mt-2 ${getActivityDotColor(activity.type)}`} />
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium text-gray-900">{activity.action}</p>
                   <p className="text-sm text-gray-600">{activity.details}</p>
@@ -139,7 +199,7 @@ const DashboardHome: React.FC = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
           <div className="grid grid-cols-2 gap-3">
-            {user?.role === 'transport_supervisor' && (
+            {primaryRole === 'transport_supervisor' && (
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <Truck className="w-6 h-6 text-blue-600 mb-2" />
@@ -151,7 +211,7 @@ const DashboardHome: React.FC = () => {
                 </button>
               </>
             )}
-            {user?.role === 'driver' && (
+            {primaryRole === 'driver' && (
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <CheckCircle className="w-6 h-6 text-blue-600 mb-2" />
@@ -163,7 +223,7 @@ const DashboardHome: React.FC = () => {
                 </button>
               </>
             )}
-            {user?.role === 'it_staff' && (
+            {primaryRole === 'it_staff' && (
               <>
                 <button className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left">
                   <Ticket className="w-6 h-6 text-purple-600 mb-2" />
@@ -175,7 +235,7 @@ const DashboardHome: React.FC = () => {
                 </button>
               </>
             )}
-            {['general_services', 'cleaning', 'civil_works'].includes(user?.role || '') && (
+            {['general_services', 'cleaning', 'civil_works'].includes(primaryRole || '') && (
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <CheckCircle className="w-6 h-6 text-blue-600 mb-2" />
@@ -187,7 +247,7 @@ const DashboardHome: React.FC = () => {
                 </button>
               </>
             )}
-            {user?.role === 'admin' && (
+            {isAdmin && (
               <>
                 <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
                   <Users className="w-6 h-6 text-blue-600 mb-2" />

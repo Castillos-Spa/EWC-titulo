@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, MessageSquare, ChevronDown } from 'lucide-react';
+import { Bell, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
 import { markNotificationAsRead } from '../../utils/notificationApi';
@@ -51,7 +51,6 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadCount = notifications.filter(n => !n.read).length;
-  const [messageCount, setMessageCount] = useState(0);
   const [searchText, setSearchText] = useState('');
   const searchDebounceRef = useRef<number | undefined>(undefined);
 
@@ -169,12 +168,6 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
       };
 
       setNotifications((prev) => [newNotif, ...prev]);
-    });
-
-    // Escuchar mensajes (chat)
-    socket.on('message', (data) => {
-      console.log('Mensaje recibido:', data?.content ?? data);
-      setMessageCount((prev) => prev + 1);
     });
 
     return () => {
@@ -401,16 +394,6 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
               </div>
             )}
           </div>
-
-          {/* Messages */}
-          <button className="relative p-2 text-gray-600 transition-colors rounded-lg hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800">
-            <MessageSquare className="w-5 h-5" />
-            {messageCount > 0 && (
-              <span className="absolute flex items-center justify-center w-4 h-4 text-xs text-white bg-blue-500 rounded-full -top-1 -right-1">
-                {messageCount}
-              </span>
-            )}
-          </button>
 
           {/* Profile */}
           <div className="relative" ref={menuRef}>

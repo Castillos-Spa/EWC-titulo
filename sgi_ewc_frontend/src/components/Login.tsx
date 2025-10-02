@@ -27,7 +27,7 @@ const Login: React.FC = () => {
               <Lock className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900">Iniciar Sesión</h2>
-            <p className="text-gray-600 mt-2">Sistema de Gestión Empresarial</p>
+            <p className="text-gray-600 mt-2">Plataforma Integral de Gestion Operacional</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
