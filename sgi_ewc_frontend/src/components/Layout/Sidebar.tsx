@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  Truck, 
-  Wrench, 
-  ClipboardList, 
-  Settings, 
-  Users, 
+import {
+  Home,
+  Wrench,
+  Users,
   ChevronLeft,
   ChevronRight,
   LogOut,
   Ticket,
   HardHat,
-  Zap,
-  AlertCircle
+  Bell,
+  AlertTriangle,
+  FileText,
+  Map,
+  Car,
+  Sparkles,
+  Fuel,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,17 +31,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
 
   // Catálogo global de vistas (ids en kebab-case igual que en App.tsx)
   const viewsCatalog = {
-    dashboard: { id: 'dashboard', label: 'Dashboard', icon: Truck, show: () => true },
+    dashboard: { id: 'dashboard', label: 'Inicio', icon: Home, show: () => true },
     tickets: { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: () => true },
-    'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: Truck, show: () => hasAreaAccess('Transporte') },
-    'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: ClipboardList, show: () => hasAreaAccess('Transporte') },
-    'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Wrench, show: () => hasAreaAccess('Transporte') },
-    'fuel-by-fleet': { id: 'fuel-by-fleet', label: 'Combustible', icon: Zap, show: () => hasAreaAccess('Transporte') },
-    'notifications': { id: 'notifications', label: 'Notificaciones', icon: AlertCircle, show: () => true },
-    maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Settings, show: () => hasAreaAccess('Taller') },
-    'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: HardHat, show: () => hasAreaAccess('Aseo') },
+    'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: FileText, show: () => hasAreaAccess('Transporte') },
+    'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: Map, show: () => hasAreaAccess('Transporte') },
+    'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Car, show: () => hasAreaAccess('Transporte') },
+  'fuel-by-fleet': { id: 'fuel-by-fleet', label: 'Combustible', icon: Fuel, show: () => hasAreaAccess('Transporte') },
+    'notifications': { id: 'notifications', label: 'Notificaciones', icon: Bell, show: () => true },
+    maintenance: { id: 'maintenance', label: 'Mantenimiento', icon: Wrench, show: () => hasAreaAccess('Taller') },
+    'cleaning-reports': { id: 'cleaning-reports', label: 'Aseo', icon: Sparkles, show: () => hasAreaAccess('Aseo') },
     'civil-works': { id: 'civil-works', label: 'Obras Civiles', icon: HardHat, show: () => hasAreaAccess('Obras') },
-    incidents: { id: 'incidents', label: 'Incidentes', icon: AlertCircle, show: () => true },
+    incidents: { id: 'incidents', label: 'Incidentes', icon: AlertTriangle, show: () => true },
     'user-management': { id: 'user-management', label: 'Usuarios', icon: Users, show: () => hasAreaAccess('Admin') || hasAreaAccess('RRHH') },
   // Configuración se accede desde el menú del usuario en el Header para no duplicar navegación
   // settings: { id: 'settings', label: 'Configuración', icon: Settings, show: () => true },
@@ -102,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
               <div className="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-lg">
-                <Zap className="w-5 h-5" />
+                <Sparkles className="w-5 h-5" />
               </div>
               <div>
                 <h1 className="text-lg font-bold">P I G O</h1>
