@@ -16,7 +16,7 @@ import {
 
 // Tipos compartidos
 import type { Incident, IncidentType, IncidentSeverity, IncidentStatus } from '../../types/Incident';
-import { fetchIncidents, createIncident as apiCreateIncident } from '../../utils/incidentApi';
+import { fetchIncidents, createIncident as apiCreateIncident, updateIncident as apiUpdateIncident } from '../../utils/incidentApi';
 
 const TYPE_LABELS: Record<IncidentType, string> = {
   vehicle_breakdown: 'Avería de Vehículo',
@@ -99,10 +99,50 @@ function isGeoLocation(x: unknown): x is { latitude: number; longitude: number; 
 }
 
 // Card de incidente (estilo alineado a otros módulos con Tailwind)
-const IncidentCard: React.FC<{ incident: Incident; onClick: () => void }> = ({ incident, onClick }) => {
+const IncidentCard: React.FC<{ incident: Incident; onClick: () => void; onQuickResolve?: (id: string) => void; updatingId?: string | null }> = ({ incident, onClick, onQuickResolve, updatingId }) => {
   const status = statusColor(incident.status);
+  const nextMap: Record<IncidentStatus, IncidentStatus | null> = {
+    reported: 'acknowledged',
+    acknowledged: 'in_progress',
+    in_progress: 'resolved',
+    resolved: null,
+  };
+  const next = nextMap[incident.status];
+  let actionLabel = '';
+  let actionIcon: React.ReactNode = null;
+  switch (next) {
+    case 'acknowledged':
+      actionLabel = 'Marcar como revisado';
+      actionIcon = <AlertCircle className="w-4 h-4" />;
+      break;
+    case 'in_progress':
+      actionLabel = 'Marcar en progreso';
+      actionIcon = <Zap className="w-4 h-4" />;
+      break;
+    case 'resolved':
+      actionLabel = 'Marcar resuelto';
+      actionIcon = <CheckCircle className="w-4 h-4" />;
+      break;
+    default:
+      break;
+  }
+
   return (
-    <button onClick={onClick} className="w-full p-5 text-left transition-shadow bg-white border border-gray-200 shadow-sm dark:bg-slate-800 rounded-xl dark:border-slate-700 hover:shadow-md">
+    <div className="w-full p-5 transition-shadow bg-white border border-gray-200 shadow-sm dark:bg-slate-800 rounded-xl dark:border-slate-700 hover:shadow-md">
+      <div className="flex justify-end mb-2">
+        {next && onQuickResolve && (
+          <button
+            onClick={() => onQuickResolve(incident.id)}
+            disabled={updatingId === incident.id}
+            className="inline-flex items-center gap-2 px-3 py-1 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            title={actionLabel}
+          >
+            {actionIcon}
+            {actionLabel}
+          </button>
+        )}
+      </div>
+      <button onClick={onClick} className="w-full text-left">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
@@ -144,7 +184,8 @@ const IncidentCard: React.FC<{ incident: Incident; onClick: () => void }> = ({ i
           </div>
         </div>
       </div>
-    </button>
+      </button>
+    </div>
   );
 };
 
@@ -441,6 +482,7 @@ const Incidents: React.FC = () => {
   const [areaFilter, setAreaFilter] = useState<string>('all');
   const [detail, setDetail] = useState<Incident | null>(null);
   const [openCreate, setOpenCreate] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   
   // Load incidents from backend on mount
   useEffect(() => {
@@ -511,6 +553,37 @@ const Incidents: React.FC = () => {
       setIncidents((prev) => prev.map((i) => (i.id === tempId ? { ...i, syncStatus: 'failed' } : i)));
       alert('No se pudo crear el incidente en el servidor');
     }
+  };
+
+  const handleUpdateStatus = async (id: string, status: IncidentStatus) => {
+    setUpdatingId(id);
+    // optimistic update
+    setIncidents((prev) => prev.map((it) => (it.id === id ? { ...it, status } : it)));
+    try {
+      await apiUpdateIncident(id, { status });
+    } catch (err) {
+      console.error('Failed to update status', err);
+      // revert on failure
+      await fetchIncidents().then((list) => setIncidents(list.map((i) => ({ ...i, syncStatus: 'synced' } as Incident)))).catch(() => {});
+      alert('No se pudo actualizar el estado en el servidor');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Advance status sequentially: reported -> acknowledged -> in_progress -> resolved
+  const handleAdvanceStatus = (id: string) => {
+    const current = incidents.find((i) => i.id === id);
+    if (!current) return;
+    const seq: Record<IncidentStatus, IncidentStatus | null> = {
+      reported: 'acknowledged',
+      acknowledged: 'in_progress',
+      in_progress: 'resolved',
+      resolved: null,
+    };
+    const next = seq[current.status];
+    if (!next) return;
+    handleUpdateStatus(id, next);
   };
   return (
     <div className="space-y-6">
@@ -620,7 +693,7 @@ const Incidents: React.FC = () => {
       {/* Lista */}
       <div className="grid gap-4">
         {filtered.map((inc) => (
-          <IncidentCard key={inc.id} incident={inc} onClick={() => setDetail(inc)} />
+          <IncidentCard key={inc.id} incident={inc} onClick={() => setDetail(inc)} onQuickResolve={handleAdvanceStatus} updatingId={updatingId} />
         ))}
       </div>
 
@@ -632,7 +705,7 @@ const Incidents: React.FC = () => {
         </div>
       )}
 
-      <DetailModal incident={detail} onClose={() => setDetail(null)} />
+  <DetailModal incident={detail} onClose={() => setDetail(null)} />
       <CreateIncidentModal open={openCreate} onClose={() => setOpenCreate(false)} onCreate={handleCreate} />
     </div>
   );

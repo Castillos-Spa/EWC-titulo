@@ -47,7 +47,31 @@ export class IncidentService {
     return this.prisma.incident.update({
       where: { id },
       data: {
-        ...updateIncidentDto,
+        // Map DTO fields (which may be PascalCase from the client) to Prisma model fields
+        ...((updateIncidentDto as any).Title ? { title: (updateIncidentDto as any).Title } : {}),
+        ...((updateIncidentDto as any).Descripcion ? { description: (updateIncidentDto as any).Descripcion } : {}),
+        ...((updateIncidentDto as any).Area ? { area: (updateIncidentDto as any).Area } : {}),
+        ...((updateIncidentDto as any).Tipo ? { type: (updateIncidentDto as any).Tipo } : {}),
+        ...((updateIncidentDto as any).Severidad
+          ? { severity: (updateIncidentDto as any).Severidad?.toUpperCase() }
+          : {}),
+        ...((updateIncidentDto as any).Status ? { status: (updateIncidentDto as any).Status } : {}),
+        // Update location JSON merging existing fields
+        ...((updateIncidentDto as any).Direccion ||
+        (updateIncidentDto as any).Latitude ||
+        (updateIncidentDto as any).Longitude
+          ? {
+              location: {
+                ...((updateIncidentDto as any).Direccion ? { direccion: (updateIncidentDto as any).Direccion } : {}),
+                ...(typeof (updateIncidentDto as any).Latitude === 'number'
+                  ? { latitude: (updateIncidentDto as any).Latitude }
+                  : {}),
+                ...(typeof (updateIncidentDto as any).Longitude === 'number'
+                  ? { longitude: (updateIncidentDto as any).Longitude }
+                  : {}),
+              },
+            }
+          : {}),
         updatedAt: new Date(),
       },
     });
