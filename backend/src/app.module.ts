@@ -10,6 +10,7 @@ import { TallerModule } from './taller/taller.module';
 import { TicketModule } from './ticket/ticket.module';
 import { NotificacionModule } from './notificacion/notificacion.module';
 import { FuelModule } from './fuel/fuel.module';
+import { IncidentModule } from './incident/incident.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { FuelModule } from './fuel/fuel.module';
     TicketModule,
     NotificacionModule,
     FuelModule,
+    IncidentModule,
   ],
 
   controllers: [AppController],

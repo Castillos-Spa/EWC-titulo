@@ -1,13 +1,17 @@
 export type IncidentType =
-  | 'vehicle_breakdown'
-  | 'accident'
-  | 'traffic_delay'
-  | 'weather'
-  | 'security'
-  | 'other';
+  | "vehicle_breakdown"
+  | "accident"
+  | "traffic_delay"
+  | "weather"
+  | "security"
+  | "other";
 
-export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
-export type IncidentStatus = 'reported' | 'acknowledged' | 'in_progress' | 'resolved';
+export type IncidentSeverity = "low" | "medium" | "high" | "critical";
+export type IncidentStatus =
+  | "reported"
+  | "acknowledged"
+  | "in_progress"
+  | "resolved";
 
 export interface Incident {
   id: string;
@@ -16,19 +20,28 @@ export interface Incident {
   severity: IncidentSeverity;
   title: string;
   description: string;
-  location: {
-    latitude: number;
-    longitude: number;
-    address?: string;
-  };
+  // Location puede venir como coordenadas o JSON arbitrario del backend
+  location:
+    | {
+        latitude: number;
+        longitude: number;
+        address?: string;
+      }
+    | Record<string, unknown>;
   photos: string[];
+  // En frontend mostramos nombre, pero backend usa reportedById
   reportedBy: string;
+  reportedById?: number;
   reportedAt: string; // ISO
   status: IncidentStatus;
-  syncStatus: 'pending' | 'synced' | 'failed';
+  syncStatus: "pending" | "synced" | "failed";
   routeId?: string;
   vehicleId?: string;
   estimatedResolutionTime?: string;
   actualResolutionTime?: string;
   supervisorNotes?: string;
+  // Campos adicionales del backend
+  reviewedAt?: string | null;
+  reviewedById?: number | null;
+  updatedAt?: string;
 }
