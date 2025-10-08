@@ -119,8 +119,15 @@ function mapBackToFront(b: BackIncident): FrontIncident {
 }
 
 export async function fetchIncidents(): Promise<FrontIncident[]> {
-  const list = await apiFetch("/incident");
-  return (list as BackIncident[]).map(mapBackToFront);
+  const res: unknown = await apiFetch("/incident");
+  // Backend may return either an array of incidents or a paginated object { items, total, page, pageSize }
+  if (!res) return [];
+  if (Array.isArray(res)) return (res as BackIncident[]).map(mapBackToFront);
+  const obj = res as Record<string, unknown>;
+  if (obj.items && Array.isArray(obj.items)) {
+    return (obj.items as BackIncident[]).map(mapBackToFront);
+  }
+  return [];
 }
 
 export async function createIncident(
