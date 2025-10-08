@@ -336,3 +336,23 @@ enum IncidentType {
   SECURITY
   OTHER
 }
+
+enum CleaningStatus {
+  COMPLETED
+  PARTIAL
+  PENDING
+}
+
+model Aseo {
+  id               Int            @id @default(autoincrement())
+  date             DateTime
+  area             String
+  tasks            String[]       @default([])
+  responsibleStaff String
+  timeSpent        Float
+  issues           String[]       @default([])
+  status           CleaningStatus
+  observations     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
