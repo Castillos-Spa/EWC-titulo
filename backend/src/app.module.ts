@@ -11,6 +11,7 @@ import { TicketModule } from './ticket/ticket.module';
 import { NotificacionModule } from './notificacion/notificacion.module';
 import { FuelModule } from './fuel/fuel.module';
 import { IncidentModule } from './incident/incident.module';
+import { AseoModule } from './aseo/aseo.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { IncidentModule } from './incident/incident.module';
     NotificacionModule,
     FuelModule,
     IncidentModule,
+    AseoModule,
   ],
 
   controllers: [AppController],
