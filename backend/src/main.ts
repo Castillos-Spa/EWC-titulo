@@ -41,5 +41,17 @@ async function bootstrap() {
   });
 
   await app.listen(process.env.PORT ?? 3000);
+  // Optional memory usage logging for diagnosing memory pressure. Enable by setting ENABLE_MEM_LOG=1
+  if (process.env.ENABLE_MEM_LOG === '1') {
+    setInterval(() => {
+      const m = process.memoryUsage();
+      console.log('[mem-monitor]', {
+        rss: Math.round(m.rss / 1024 / 1024) + 'MB',
+        heapTotal: Math.round(m.heapTotal / 1024 / 1024) + 'MB',
+        heapUsed: Math.round(m.heapUsed / 1024 / 1024) + 'MB',
+        external: Math.round((m.external || 0) / 1024 / 1024) + 'MB',
+      });
+    }, 30_000);
+  }
 }
 bootstrap();

@@ -32,8 +32,32 @@ export class IncidentService {
     });
   }
 
-  async findAll() {
-    return this.prisma.incident.findMany();
+  async findAll(opts?: { page: number; pageSize: number }) {
+    opts ??= { page: 1, pageSize: 20 };
+    const { page, pageSize } = opts;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await Promise.all([
+      this.prisma.incident.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { reportedAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          area: true,
+          type: true,
+          severity: true,
+          status: true,
+          reportedAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.incident.count(),
+    ]);
+
+    return { items, total, page, pageSize };
   }
 
   async findOne(id: number) {

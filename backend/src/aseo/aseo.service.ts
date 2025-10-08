@@ -22,8 +22,29 @@ export class AseoService {
     });
   }
 
-  async findAll() {
-    return this.prisma.aseo.findMany({ orderBy: { date: 'desc' } });
+  async findAll(opts?: { page: number; pageSize: number }) {
+    opts ??= { page: 1, pageSize: 20 };
+    const { page, pageSize } = opts;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await Promise.all([
+      this.prisma.aseo.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { date: 'desc' },
+        select: {
+          id: true,
+          date: true,
+          area: true,
+          responsibleStaff: true,
+          timeSpent: true,
+          status: true,
+        },
+      }),
+      this.prisma.aseo.count(),
+    ]);
+
+    return { items, total, page, pageSize };
   }
 
   async findOne(id: number) {
