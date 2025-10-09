@@ -44,7 +44,7 @@ export class TallerController {
 
   @Get('vehiculos')
   findAllVehiculos() {
-    return this.tallerService.obtenerVehiculosDisponibles();
+    return this.tallerService.obtenerTodosLosVehiculos();
   }
 
   @Get('vehiculos/:patente')

@@ -53,27 +53,27 @@ export class TallerService {
   // Crear un vehículo desde el taller
   async crearVehiculo(createVehiculoDto: CreateVehiculoDto) {
     console.log('Orquestando la creación de un vehículo desde TallerService');
-    return this.vehiculoService.createVehiculos(createVehiculoDto);
+    return this.vehiculoService.create(createVehiculoDto);
   }
 
   // Actualizar un vehículo desde el taller
   async updateVehiculo(id: number, updateVehiculoDto: UpdateVehiculoDto) {
     console.log(`Orquestando la actualización del vehículo ${id} desde TallerService`);
-    return this.vehiculoService.updateVehiculo(id, updateVehiculoDto);
+    return this.vehiculoService.update(id, updateVehiculoDto);
   }
 
   // Obtener un vehículo por ID desde el taller
   async findOneVehiculo(patente: string) {
-    return this.vehiculoService.findOneVehiculos(patente);
+    return this.vehiculoService.findByPatente(patente);
   }
 
   // --- Ejemplo de Orquestación ---
 
   // Este método usa VehiculoService para obtener los vehículos.
   // El controlador de Taller puede exponer esto en un endpoint si es necesario.
-  async obtenerVehiculosDisponibles() {
+  async obtenerTodosLosVehiculos() {
     // Aquí puedes añadir lógica extra, como filtrar por estado, etc.
     console.log('Orquestando la obtención de vehículos desde TallerService');
-    return this.vehiculoService.findAllVehiculos();
+    return this.vehiculoService.findAll({ take: 200, orderBy: { id: 'desc' } }); // Aumentamos el límite para el taller
   }
 }

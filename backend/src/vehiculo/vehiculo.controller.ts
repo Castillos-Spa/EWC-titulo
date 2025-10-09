@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe } from '@nestjs/common';
 import { VehiculoService } from './vehiculo.service';
 import { CreateVehiculoDto } from './dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from './dto/update-vehiculo.dto';
@@ -9,27 +9,28 @@ export class VehiculoController {
 
   @Post()
   create(@Body() createVehiculoDto: CreateVehiculoDto) {
-    return this.vehiculoService.createVehiculos(createVehiculoDto);
+    return this.vehiculoService.create(createVehiculoDto);
   }
 
   @Get()
-  findAll() {
-    return this.vehiculoService.findAllVehiculos();
+  findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
+    const skip = (Number(page) - 1) * Number(pageSize);
+    return this.vehiculoService.findAll({ skip, take: Number(pageSize), orderBy: { id: 'desc' } });
   }
 
   @Get(':patente')
   findOne(@Param('patente') patente: string) {
-    return this.vehiculoService.findOneVehiculos(patente);
+    return this.vehiculoService.findByPatente(patente);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateVehiculoDto: UpdateVehiculoDto) {
-    return this.vehiculoService.updateVehiculo(+id, updateVehiculoDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateVehiculoDto: UpdateVehiculoDto) {
+    return this.vehiculoService.update(id, updateVehiculoDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.vehiculoService.removeVehiculo(+id);
+    return this.vehiculoService.remove(+id);
   }
 
   @Post(':id/documentos')

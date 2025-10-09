@@ -31,6 +31,7 @@ model User {
   notifications                        Notification[]       @relation("NotificationToUser")
 
   @@index([username], name: "idx_user_username")
+  @@index([refreshToken], name: "idx_user_refresh_token")
 }
 
 model UserRoleAssignment {
@@ -89,6 +90,10 @@ model Vehiculo {
   documentos          Documento[]
   fuelLogs            FuelLog[]
   ordenes             OrdenTrabajo[]
+
+  @@index([conductorId])
+  @@index([estado])
+  @@index([areaAsignada])
 }
 
 model Documento {
