@@ -127,18 +127,29 @@ export class TicketService {
     return ticket;
   }
 
-  findAll() {
-    return this.prisma.ticket.findMany({
-      include: {
-        createdBy: {
-          select: { id: true, username: true, email: true },
+  async findAll(opts?: { page: number; pageSize: number }) {
+    opts ??= { page: 1, pageSize: 20 };
+    const { page, pageSize } = opts;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await Promise.all([
+      this.prisma.ticket.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { id: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          category: true,
+          createdAt: true,
+          createdBy: { select: { id: true, username: true } },
         },
-        assignedTo: {
-          select: { id: true, username: true, email: true },
-        },
-        approvals: true, // Incluir los pasos de aprobación
-      },
-    });
+      }),
+      this.prisma.ticket.count(),
+    ]);
+
+    return { items, total, page, pageSize };
   }
 
   async findOne(id: number) {

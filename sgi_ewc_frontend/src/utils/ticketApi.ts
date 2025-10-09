@@ -13,7 +13,23 @@ export type CreateTicketPayload = {
 // --- Ticket Management ---
 
 export async function getTickets(): Promise<Ticket[]> {
-  return apiFetch("/tickets", { method: "GET" });
+  const res = await apiFetch("/tickets", { method: "GET" });
+  if (Array.isArray(res)) return res as Ticket[];
+  if (
+    res &&
+    typeof res === "object" &&
+    Array.isArray((res as Record<string, unknown>)["items"])
+  ) {
+    return (res as Record<string, unknown>)["items"] as Ticket[];
+  }
+  if (
+    res &&
+    typeof res === "object" &&
+    Array.isArray((res as Record<string, unknown>)["data"])
+  ) {
+    return (res as Record<string, unknown>)["data"] as Ticket[];
+  }
+  return [];
 }
 
 export async function getTicket(id: number): Promise<Ticket> {

@@ -153,13 +153,33 @@ export class UsersService {
     });
   }
 
-  async findAll(): Promise<Omit<User, 'password'>[]> {
-    const users = await this.prisma.user.findMany({
-      include: {
-        roleAssignments: true, // O podrías usar this.userInclude
-      },
-    });
-    return users.map(({ password, ...user }) => user);
+  async findAll(opts?: {
+    page: number;
+    pageSize: number;
+  }): Promise<{ items: Omit<User, 'password'>[]; total: number; page: number; pageSize: number }> {
+    opts ??= { page: 1, pageSize: 20 };
+    const { page, pageSize } = opts;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { id: 'desc' },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          active: true,
+          lastLogin: true,
+          roleAssignments: true,
+        },
+      }),
+      this.prisma.user.count(),
+    ]);
+
+    const sanitized = items.map(({ /* password omitted by select */ ...u }) => u as unknown as Omit<User, 'password'>);
+    return { items: sanitized, total, page, pageSize };
   }
 
   async deleteUser(id: number, requestingUserId: number): Promise<{ success: boolean }> {

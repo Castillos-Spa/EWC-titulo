@@ -6,7 +6,14 @@ import { PrismaModule } from 'prisma/prisma.module';
 @Module({
   imports: [PrismaModule],
   controllers: [QaController],
-  providers: [QaService],
-  exports: [QaService],
+  providers: [
+    QaService,
+    // Export a provider under the token 'IQaService' so modules that inject by token can resolve it
+    {
+      provide: 'IQaService',
+      useExisting: QaService,
+    },
+  ],
+  exports: [QaService, 'IQaService'],
 })
 export class QaModule {}
