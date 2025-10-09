@@ -87,12 +87,18 @@ export class FuelService {
 
     const vehicles = await this.prisma.vehiculo.findMany({
       where: vehicleWhereClause,
-      include: {
+      take: 50,
+      orderBy: { id: 'desc' },
+      select: {
+        id: true,
+        patente: true,
+        marca: true,
+        modelo: true,
+        estado: true,
         fuelLogs: {
+          take: 50,
           orderBy: { date: 'desc' },
-          include: {
-            driver: { select: { id: true, username: true } },
-          },
+          include: { driver: { select: { id: true, username: true } } },
         },
       },
     });

@@ -10,17 +10,22 @@ import {
   ForbiddenException,
   Request,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 
 import { UsersService } from './users.service';
 import { RegisterDto } from '../auth/dtos/register.dto';
 import { Role } from '@prisma/client';
+import { SimpleCacheInterceptor } from 'src/common/simple-cache.interceptor';
+import { CacheTTL } from 'src/common/cache-ttl.decorator';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
+  @UseInterceptors(SimpleCacheInterceptor)
+  @CacheTTL(10)
   async findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
     const p = Math.max(Number(page) || 1, 1);
     const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);

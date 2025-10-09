@@ -40,6 +40,16 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Authorization',
   });
 
+  // Middleware para loguear el tiempo de cada petición
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const time = Date.now() - start;
+      console.log(`⏳ ${req.method} ${req.url} - ${time}ms`);
+    });
+    next();
+  });
+
   await app.listen(process.env.PORT ?? 3000);
   // Optional memory usage logging for diagnosing memory pressure. Enable by setting ENABLE_MEM_LOG=1
   if (process.env.ENABLE_MEM_LOG === '1') {

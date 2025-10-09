@@ -29,6 +29,8 @@ model User {
   UserNotification                     UserNotification[]
   roleAssignments                      UserRoleAssignment[]
   notifications                        Notification[]       @relation("NotificationToUser")
+
+  @@index([username], name: "idx_user_username")
 }
 
 model UserRoleAssignment {

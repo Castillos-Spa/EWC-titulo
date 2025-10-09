@@ -16,7 +16,12 @@ export class VehiculoService {
   }
 
   findAllVehiculos() {
-    return this.prisma.vehiculo.findMany();
+    // Limitar a 50 y devolver solo campos relevantes para listados
+    return this.prisma.vehiculo.findMany({
+      take: 50,
+      orderBy: { id: 'desc' },
+      select: { id: true, patente: true, marca: true, modelo: true, estado: true, areaAsignada: true },
+    });
   }
 
   findOneVehiculos(patente: string): Promise<Vehiculo | null> {
