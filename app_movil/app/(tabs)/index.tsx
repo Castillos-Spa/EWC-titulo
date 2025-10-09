@@ -295,7 +295,6 @@ export default function HomeScreen() {
             <View style={styles.userDetails}>
               <Text style={[styles.userName, { color: colors.text }]}>{user?.name}</Text>
               <Text style={[styles.userRole, { color: colors.primary }]}>{getRoleDisplayName(user?.role || '')}</Text>
-              <Text style={[styles.userDepartment, { color: colors.textSecondary }]}>{getDepartmentName(user?.department || '')}</Text>
             </View>
           </View>
           <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.background }]} onPress={handleLogout}>

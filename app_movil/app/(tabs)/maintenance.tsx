@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useThemeStore } from '../stores/themeStore';
 import { useMaintenanceStore } from '../stores/maintenanceStore';
@@ -13,6 +13,7 @@ export default function MaintenanceScreen() {
   const { canFuel } = useAuthz(); // usar permiso de flota/mantenimiento
   const { getColors } = useThemeStore();
   const colors = getColors();
+  const insets = useSafeAreaInsets();
   const { items, loading, loadAll, create, setCurrent, current } = useMaintenanceStore();
   const { vehicles, loadVehicles } = useFleetStore();
 
@@ -108,7 +109,11 @@ export default function MaintenanceScreen() {
           </View>
         </View>
 
-        <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing || loading} onRefresh={onRefresh} />}> 
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing || loading} onRefresh={onRefresh} />}
+        > 
           {filteredItems.length === 0 ? (
             <View style={styles.emptyState}>
               <Wrench size={64} color={colors.textSecondary} />
@@ -189,7 +194,7 @@ export default function MaintenanceScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 22, fontWeight: '700' },

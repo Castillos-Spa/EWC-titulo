@@ -7,6 +7,8 @@ export interface KanbanTask {
   title: string;
   description: string;
   type: 'route' | 'cleaning' | 'civil_work' | 'it_ticket' | 'approval' | 'maintenance' | 'inspection';
+  // Categoría original del backend (para filtros compartidos con Lista)
+  category?: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   assignedTo: string;
@@ -313,6 +315,7 @@ function mapTicketToTask(t: Ticket): KanbanTask {
     title: t.title,
     description: t.description,
     type: mapTicketTypeToTaskType(t.type),
+    category: t.category,
     priority: t.priority,
     status: mapTicketStatusToTaskStatus(t.status),
     assignedTo: t.assignedTo || '',

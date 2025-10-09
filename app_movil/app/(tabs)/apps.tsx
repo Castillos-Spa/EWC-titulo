@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../stores/themeStore';
 import { useAuthz } from '@/hooks/useAuthz';
 import { router } from 'expo-router';
@@ -16,6 +17,7 @@ import {
   HardHat,
   AlertTriangle,
   Settings,
+  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -32,6 +34,8 @@ export default function AppsHubScreen() {
   const { getColors } = useThemeStore();
   const colors = getColors();
   const [query, setQuery] = useState('');
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { markUsed } = useNavigationStore();
   const {
     canRoutes,
@@ -73,10 +77,44 @@ export default function AppsHubScreen() {
     }, {});
   }, [filtered]);
 
+  // Responsive grid: calcular columnas y ancho de tarjeta según ancho
+  const { columns, cardWidth, gutter } = useMemo(() => {
+    // Breakpoints sencillos
+    let cols: number;
+    if (width >= 1024) {
+      cols = 5;
+    } else if (width >= 768) {
+      cols = 4;
+    } else if (width >= 600) {
+      cols = 3;
+    } else {
+      cols = 2;
+    }
+    const containerPadding = 16; // coincide con contentContainerStyle
+    const g = 12; // espacio horizontal entre tarjetas
+    const available = width - containerPadding * 2 - g * (cols - 1);
+    const cw = Math.max(120, Math.floor(available / cols));
+    return { columns: cols, cardWidth: cw, gutter: g };
+  }, [width]);
+
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ padding: 16 }}>
-      <Text style={[styles.title, { color: colors.text }]}>Aplicaciones</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
+      {/* Header fijo y seguro */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}> 
+        <View style={styles.headerTop}>
+          <View style={styles.headerTitle}>
+            <LayoutGrid size={28} color={colors.primary} />
+            <Text style={[styles.title, { color: colors.text }]}>Aplicaciones</Text>
+          </View>
+          {/* Reservado para acciones futuras */}
+          <View style={{ width: 1 }} />
+        </View>
+      </View>
+
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 100 }}
+      >
       <TextInput
         placeholder="Buscar módulo..."
         placeholderTextColor={colors.textSecondary}
@@ -89,10 +127,18 @@ export default function AppsHubScreen() {
         <View key={category} style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{category}</Text>
           <View style={styles.grid}>
-            {items.map(item => (
+            {items.map((item, i) => (
               <TouchableOpacity
                 key={item.key}
-                style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={[
+                  styles.card,
+                  {
+                    width: cardWidth,
+                    marginRight: (i % columns) === (columns - 1) ? 0 : gutter,
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
                 onPress={() => { markUsed(item.route); router.push(`/(tabs)/${item.route}` as any); }}
               >
                 <View style={[styles.iconWrap, { backgroundColor: colors.primary + '15' }]}>
@@ -104,13 +150,22 @@ export default function AppsHubScreen() {
           </View>
         </View>
       ))}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  // Header
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { fontSize: 22, fontWeight: '700' },
   search: {
     borderWidth: 1,
     borderRadius: 10,
@@ -120,15 +175,13 @@ const styles = StyleSheet.create({
   },
   section: { marginBottom: 16 },
   sectionTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
   card: {
-    width: '48%',
-    marginHorizontal: '1%',
     marginBottom: 12,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
-    minHeight: 84,
+    minHeight: 92,
     justifyContent: 'center',
   },
   iconWrap: {

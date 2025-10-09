@@ -443,7 +443,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTitle}>
-          <Settings size={28} color="#2563EB" />
+          <Settings size={28} color={colors.primary} />
           <Text style={[styles.title, { color: colors.text }]}>Configuración</Text>
         </View>
       </View>

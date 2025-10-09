@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Truck, RefreshCw, Plus, AlertTriangle } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 import { useFleetStore } from '../stores/fleetStore';
@@ -14,6 +14,7 @@ export default function FleetScreen() {
   const { canFuel } = useAuthz(); // Reusar permiso de flota/combustible
   const { getColors } = useThemeStore();
   const colors = getColors();
+  const insets = useSafeAreaInsets();
   const { vehicles, isLoading, error, loadVehicles, setCurrentVehicle, clearError, currentVehicle } = useFleetStore();
   const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -106,7 +107,11 @@ export default function FleetScreen() {
         )}
 
         {/* List */}
-        <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} />}> 
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} />}
+        > 
           {vehicles.length === 0 ? (
             <View style={styles.emptyState}>
               <Truck size={64} color={colors.textSecondary} />
@@ -137,7 +142,7 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
   retryButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
   retryButtonText: { fontWeight: '700' },
-  header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 22, fontWeight: '700' },

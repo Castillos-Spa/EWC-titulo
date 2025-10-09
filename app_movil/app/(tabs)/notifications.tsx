@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   headerTitle: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  title: { fontSize: 24, fontWeight: '700' },
+  title: { fontSize: 22, fontWeight: '700' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   connectionDot: { width: 10, height: 10, borderRadius: 5 },
   refreshButton: { padding: 12, borderRadius: 8, backgroundColor: '#F1F5F9', minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center' },

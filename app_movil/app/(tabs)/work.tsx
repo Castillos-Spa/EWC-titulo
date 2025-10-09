@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -13,11 +14,14 @@ import {
   Kanban as KanbanIcon,
   RefreshCw,
   Filter,
-  Calendar,
   TriangleAlert as AlertTriangle,
   FileText,
+  Search,
+  Layers,
+  X as XIcon,
 } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
+import { useUIStore } from '../stores/uiStore';
 import { useAuthStore } from '../stores/authStore';
 import { AccessGuard } from '../components/AccessGuard';
 import { useAuthz } from '@/hooks/useAuthz';
@@ -33,26 +37,6 @@ import { KanbanColumn } from '../components/KanbanColumn';
 import { TaskDetailModal } from '../components/TaskDetailModal';
 
 type ViewMode = 'list' | 'kanban';
-
-// Helpers
-function getDateRange(period: string) {
-  const now = new Date();
-  const start = new Date();
-  switch (period) {
-    case 'today':
-      start.setHours(0, 0, 0, 0);
-      break;
-    case 'week':
-      start.setDate(now.getDate() - 7);
-      break;
-    case 'month':
-      start.setMonth(now.getMonth() - 1);
-      break;
-    default:
-      return undefined;
-  }
-  return { start: start.toISOString(), end: now.toISOString() };
-}
 
 function ticketFilterStatusLabel(value: string) {
   switch (value) {
@@ -111,34 +95,6 @@ function ViewToggle({ mode, setMode }: Readonly<{ mode: ViewMode; setMode: (m: V
   );
 }
 
-function PeriodSelector({ selected, onSelect }: Readonly<{ selected: string; onSelect: (v: string) => void }>) {
-  return (
-    <View style={styles.periodSelector}>
-      <Calendar size={20} color="#64748B" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.periodRow}>
-          {[
-            { value: 'today', label: 'Hoy' },
-            { value: 'week', label: 'Semana' },
-            { value: 'month', label: 'Mes' },
-            { value: 'all', label: 'Todo' },
-          ].map((period) => (
-            <TouchableOpacity
-              key={period.value}
-              style={[styles.periodButton, selected === period.value && styles.periodButtonActive]}
-              onPress={() => onSelect(period.value)}
-            >
-              <Text style={[styles.periodButtonText, selected === period.value && styles.periodButtonTextActive]}>
-                {period.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
 function TicketStats({ stats, colors }: Readonly<{ stats: { total: number; assigned: number; inProgress: number; completed: number; onHold: number }; colors: any }>) {
   return (
     <View style={styles.statsRow}>
@@ -185,9 +141,50 @@ function KanbanStats({ stats }: Readonly<{ stats: { total: number; pending: numb
   );
 }
 
-function TicketFilters({ status, setStatus, priority, setPriority }: Readonly<{ status: string; setStatus: (v: string) => void; priority: string; setPriority: (v: string) => void }>) {
+function FiltersButton({ mode, showListFilters, showKanbanFilters, onToggle, badgeCount }: Readonly<{ mode: ViewMode; showListFilters: boolean; showKanbanFilters: boolean; onToggle: () => void; badgeCount: number }>) {
+  const isVisible = mode === 'list' ? showListFilters : showKanbanFilters;
+  const label = isVisible ? 'Ocultar filtros' : 'Mostrar filtros';
+  return (
+    <TouchableOpacity
+      style={[styles.refreshButton, styles.filtersToggleButton]}
+      onPress={onToggle}
+      accessibilityLabel={label}
+    >
+      <Filter size={20} color="#334155" />
+      <Text style={styles.filtersToggleText}>Filtros</Text>
+      {badgeCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badgeCount}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function TicketFilters({ status, setStatus, priority, setPriority, category, setCategory, search, setSearch }: Readonly<{ status: string; setStatus: (v: string) => void; priority: string; setPriority: (v: string) => void; category: string; setCategory: (v: string) => void; search: string; setSearch: (v: string) => void }>) {
   return (
     <View style={styles.filtersSection}>
+      {/* Búsqueda */}
+      <View style={styles.filterGroup}>
+        <Search size={16} color="#64748B" />
+        <Text style={styles.filterLabel}>Buscar:</Text>
+        <View style={styles.searchInputContainer}>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Título, descripción o ID..."
+            placeholderTextColor="#9CA3AF"
+            style={styles.searchInput}
+            returnKeyType="search"
+          />
+          {search?.length ? (
+            <TouchableOpacity style={styles.searchClearButton} onPress={() => setSearch('')} accessibilityLabel="Limpiar búsqueda">
+              <XIcon size={16} color="#6B7280" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+
       <View style={styles.filterGroup}>
         <Filter size={16} color="#64748B" />
         <Text style={styles.filterLabel}>Estado:</Text>
@@ -205,6 +202,33 @@ function TicketFilters({ status, setStatus, priority, setPriority }: Readonly<{ 
                 onPress={() => setStatus(filter.value)}
               >
                 <Text style={[styles.filterButtonText, status === filter.value && styles.filterButtonTextActive]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Categoría (como en la web) */}
+      <View style={styles.filterGroup}>
+        <Layers size={16} color="#64748B" />
+        <Text style={styles.filterLabel}>Categoría:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterRow}>
+            {[
+              { value: 'all', label: 'Todas' },
+              { value: 'Soporte_IT', label: 'Soporte IT' },
+              { value: 'Solicitud_Suministro', label: 'Solicitud Suministro' },
+              { value: 'Mantenimiento', label: 'Mantenimiento' },
+              { value: 'Reporte_Incidente', label: 'Reporte Incidente' },
+            ].map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[styles.filterButton, category === filter.value && styles.filterButtonActive]}
+                onPress={() => setCategory(filter.value)}
+              >
+                <Text style={[styles.filterButtonText, category === filter.value && styles.filterButtonTextActive]}>
                   {filter.label}
                 </Text>
               </TouchableOpacity>
@@ -242,31 +266,125 @@ function TicketFilters({ status, setStatus, priority, setPriority }: Readonly<{ 
   );
 }
 
-function KanbanFilterBar({ type, setType }: Readonly<{ type: string; setType: (v: string) => void }>) {
+function KanbanFilters({
+  status,
+  setStatus,
+  priority,
+  setPriority,
+  category,
+  setCategory,
+  search,
+  setSearch,
+}: Readonly<{
+  status: string; setStatus: (v: string) => void;
+  priority: string; setPriority: (v: string) => void;
+  category: string; setCategory: (v: string) => void;
+  search: string; setSearch: (v: string) => void;
+}>) {
   return (
-    <View style={styles.filterSection}>
-      <Filter size={20} color="#64748B" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.filterRow}>
-          {[
-            { value: 'all', label: 'Todas' },
-            { value: 'route', label: 'Rutas' },
-            { value: 'cleaning', label: 'Aseo' },
-            { value: 'civil_work', label: 'Obras' },
-            { value: 'approval', label: 'Aprobaciones' },
-          ].map((filter) => (
-            <TouchableOpacity
-              key={filter.value}
-              style={[styles.filterButton, type === filter.value && styles.filterButtonActive]}
-              onPress={() => setType(filter.value)}
-            >
-              <Text style={[styles.filterButtonText, type === filter.value && styles.filterButtonTextActive]}>
-                {filter.label}
-              </Text>
+    <View style={styles.filtersSection}>
+      {/* Búsqueda */}
+      <View style={styles.filterGroup}>
+        <Search size={16} color="#64748B" />
+        <Text style={styles.filterLabel}>Buscar:</Text>
+        <View style={styles.searchInputContainer}>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Título, descripción o ID..."
+            placeholderTextColor="#9CA3AF"
+            style={styles.searchInput}
+            returnKeyType="search"
+          />
+          {search?.length ? (
+            <TouchableOpacity style={styles.searchClearButton} onPress={() => setSearch('')} accessibilityLabel="Limpiar búsqueda">
+              <XIcon size={16} color="#6B7280" />
             </TouchableOpacity>
-          ))}
+          ) : null}
         </View>
-      </ScrollView>
+      </View>
+
+      {/* Estado (Kanban se basa en pending/in_progress/completed) */}
+      <View style={styles.filterGroup}>
+        <Filter size={16} color="#64748B" />
+        <Text style={styles.filterLabel}>Estado:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterRow}>
+            {[
+              { value: 'all', label: 'Todos' },
+              { value: 'pending', label: 'Pendientes' },
+              { value: 'in_progress', label: 'En Progreso' },
+              { value: 'completed', label: 'Completadas' },
+            ].map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[styles.filterButton, status === filter.value && styles.filterButtonActive]}
+                onPress={() => setStatus(filter.value)}
+              >
+                <Text style={[styles.filterButtonText, status === filter.value && styles.filterButtonTextActive]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Categoría (como en la lista) */}
+      <View style={styles.filterGroup}>
+        <Layers size={16} color="#64748B" />
+        <Text style={styles.filterLabel}>Categoría:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterRow}>
+            {[
+              { value: 'all', label: 'Todas' },
+              { value: 'Soporte_IT', label: 'Soporte IT' },
+              { value: 'Solicitud_Suministro', label: 'Solicitud Suministro' },
+              { value: 'Mantenimiento', label: 'Mantenimiento' },
+              { value: 'Reporte_Incidente', label: 'Reporte Incidente' },
+            ].map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[styles.filterButton, category === filter.value && styles.filterButtonActive]}
+                onPress={() => setCategory(filter.value)}
+              >
+                <Text style={[styles.filterButtonText, category === filter.value && styles.filterButtonTextActive]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Prioridad */}
+      <View style={styles.filterGroup}>
+        <AlertTriangle size={16} color="#64748B" />
+        <Text style={styles.filterLabel}>Prioridad:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterRow}>
+            {[
+              { value: 'all', label: 'Todas' },
+              { value: 'urgent', label: 'Urgente' },
+              { value: 'high', label: 'Alta' },
+              { value: 'medium', label: 'Media' },
+              { value: 'low', label: 'Baja' },
+            ].map((filter) => (
+              <TouchableOpacity
+                key={filter.value}
+                style={[styles.filterButton, priority === filter.value && styles.filterButtonActive]}
+                onPress={() => setPriority(filter.value)}
+              >
+                <Text style={[styles.filterButtonText, priority === filter.value && styles.filterButtonTextActive]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Tipo eliminado para paridad con Lista */}
     </View>
   );
 }
@@ -276,28 +394,27 @@ function useWorkData(
   viewMode: ViewMode,
   deps: {
     user: any;
-    loadTickets: (status?: string, range?: { start: string; end: string } | undefined) => Promise<void> | void;
+    loadTickets: (status?: string) => Promise<void> | void;
     ticketFilterStatus: string;
-    selectedPeriod: string;
     loadUserTasks: (userId: string) => Promise<void> | void;
   }
 ) {
-  const { user, loadTickets, ticketFilterStatus, selectedPeriod, loadUserTasks } = deps;
+  const { user, loadTickets, ticketFilterStatus, loadUserTasks } = deps;
 
   useEffect(() => {
     if (viewMode === 'list') {
-      loadTickets(ticketFilterStatus === 'all' ? undefined : ticketFilterStatus, getDateRange(selectedPeriod));
+      loadTickets(ticketFilterStatus === 'all' ? undefined : ticketFilterStatus);
       return;
     }
     if (viewMode === 'kanban' && user) {
       loadUserTasks(user.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, ticketFilterStatus, selectedPeriod]);
+  }, [viewMode, ticketFilterStatus]);
 
   const onRefresh = async () => {
     if (viewMode === 'list') {
-      await loadTickets(ticketFilterStatus === 'all' ? undefined : ticketFilterStatus, getDateRange(selectedPeriod));
+      await loadTickets(ticketFilterStatus === 'all' ? undefined : ticketFilterStatus);
       return;
     }
     if (viewMode === 'kanban' && user) {
@@ -326,10 +443,19 @@ export default function WorkScreen() {
     clearError: clearTicketsError,
   } = useTicketStore();
 
-  const [ticketFilterStatus, setTicketFilterStatus] = useState<string>('all');
-  const [ticketFilterPriority, setTicketFilterPriority] = useState<string>('all');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('week');
+  // Filtros persistentes compartidos
+  const {
+    ticketFilterStatus,
+    ticketFilterPriority,
+    ticketFilterCategory,
+    ticketSearch,
+    setTicketFilterStatus,
+    setTicketFilterPriority,
+    setTicketFilterCategory,
+    setTicketSearch,
+  } = useUIStore();
   const [showTicketDetailModal, setShowTicketDetailModal] = useState(false);
+  const { showListFilters: showFilters, showKanbanFilters, setShowListFilters, setShowKanbanFilters, loadUIPreferences } = useUIStore();
 
   // Kanban state
   const { user } = useAuthStore();
@@ -341,24 +467,27 @@ export default function WorkScreen() {
     setCurrentTask,
     clearError: clearKanbanError,
   } = useKanbanStore();
-  const [kanbanFilterType, setKanbanFilterType] = useState<string>('all');
+  // Eliminado filtro de tipo en Kanban para paridad con Lista
   const [showTaskDetailModal, setShowTaskDetailModal] = useState(false);
 
-  const [viewMode, setViewMode] = useState<ViewMode>(canTickets ? 'list' : 'kanban');
+  const { viewMode, setViewMode } = useUIStore();
   const [refreshing, setRefreshing] = useState(false);
 
   const { onRefresh } = useWorkData(viewMode, {
     user,
     loadTickets,
     ticketFilterStatus,
-    selectedPeriod,
     loadUserTasks,
   });
 
   // Derived data - Tickets
   const filteredTickets = useMemo(() => {
-    return tickets.filter((t) => (ticketFilterPriority !== 'all' ? t.priority === ticketFilterPriority : true));
-  }, [tickets, ticketFilterPriority]);
+    const q = ticketSearch.trim().toLowerCase();
+    return tickets
+      .filter((t) => (ticketFilterPriority !== 'all' ? t.priority === ticketFilterPriority : true))
+      .filter((t) => (ticketFilterCategory !== 'all' ? (t.category || '').toString() === ticketFilterCategory : true))
+      .filter((t) => (!q ? true : (t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) || String(t.id).includes(q))));
+  }, [tickets, ticketFilterPriority, ticketFilterCategory, ticketSearch]);
 
   const ticketStats = useMemo(() => {
     const total = tickets.length;
@@ -369,12 +498,36 @@ export default function WorkScreen() {
     return { total, assigned, inProgress, completed, onHold };
   }, [tickets]);
 
-  // Derived data - Kanban
+  // Contador de filtros activos
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (ticketFilterStatus !== 'all') count++;
+    if (ticketFilterPriority !== 'all') count++;
+    if (ticketFilterCategory !== 'all') count++;
+    if (ticketSearch.trim().length > 0) count++;
+    // Si se quiere incluir el periodo, descomentar:
+    // if (selectedPeriod !== 'week') count++;
+    return count;
+  }, [ticketFilterStatus, ticketFilterPriority, ticketFilterCategory, ticketSearch]);
+
+  // Derived data - Kanban (filtros equivalentes a Lista)
   const getTasksByStatus = (status: string) => {
+    const q = ticketSearch.trim().toLowerCase();
     return tasks.filter((task) => {
       const statusMatch = task.status === status;
-      const typeMatch = kanbanFilterType === 'all' || task.type === kanbanFilterType;
-      return statusMatch && typeMatch;
+      const typeMatch = true; // tipo eliminado
+      const priorityMatch = ticketFilterPriority === 'all' || task.priority === ticketFilterPriority;
+      const categoryMatch = ticketFilterCategory === 'all' || (task.category || '') === ticketFilterCategory;
+      const searchMatch = !q || task.title?.toLowerCase().includes(q) || task.description?.toLowerCase().includes(q) || String(task.id).includes(q);
+      let statusFilterOk = true;
+      if (ticketFilterStatus !== 'all') {
+        if (ticketFilterStatus === 'assigned') {
+          statusFilterOk = task.status === 'pending';
+        } else {
+          statusFilterOk = task.status === (ticketFilterStatus as any);
+        }
+      }
+      return statusMatch && typeMatch && priorityMatch && categoryMatch && searchMatch && statusFilterOk;
     });
   };
 
@@ -386,9 +539,33 @@ export default function WorkScreen() {
     return { total, pending, inProgress, completed };
   }, [tasks]);
 
+  // Contador de filtros activos (Kanban)
+  const activeKanbanFiltersCount = useMemo(() => {
+    let count = 0;
+    if (ticketFilterStatus !== 'all') count++;
+    if (ticketFilterPriority !== 'all') count++;
+    if (ticketFilterCategory !== 'all') count++;
+    if (ticketSearch.trim().length > 0) count++;
+    return count;
+  }, [ticketFilterStatus, ticketFilterPriority, ticketFilterCategory, ticketSearch]);
+
   // Error handling
   const activeError = viewMode === 'list' ? ticketsError : kanbanError;
   const clearActiveError = viewMode === 'list' ? clearTicketsError : clearKanbanError;
+
+  // Cargar preferencias de UI (visibilidad de filtros + modo de vista) una sola vez
+  useEffect(() => {
+    loadUIPreferences();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Si el modo actual no es permitido, forzar fallback
+  useEffect(() => {
+    const allowedDesired = viewMode === 'list' ? canTickets : canKanban;
+    if (!allowedDesired) {
+      setViewMode(canTickets ? 'list' : 'kanban');
+    }
+  }, [viewMode, canTickets, canKanban, setViewMode]);
 
   if (activeError) {
     return <ErrorView viewMode={viewMode} message={activeError} onRetry={clearActiveError} colors={colors} />;
@@ -397,40 +574,67 @@ export default function WorkScreen() {
   return (
     <AccessGuard allowed={allowed}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Header */}
+        {/* Header (alineado con Apps: una sola fila con icono + título y acciones) */}
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={styles.headerTop}>
             <View style={styles.headerTitle}>
               {viewMode === 'list' ? (
-                <TicketIcon size={28} color="#7C3AED" />
+                <TicketIcon size={28} color={colors.primary} />
               ) : (
-                <KanbanIcon size={28} color="#7C3AED" />
+                <KanbanIcon size={28} color={colors.primary} />
               )}
-              <Text style={[styles.title, { color: colors.text }]}>Trabajo</Text>
+              <Text style={[styles.title, { color: colors.text }]}>Solicitudes</Text>
             </View>
-            <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-              <RefreshCw size={24} color="#2563EB" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} accessibilityLabel="Refrescar">
+                <RefreshCw size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <FiltersButton
+                mode={viewMode}
+                showListFilters={showFilters}
+                showKanbanFilters={showKanbanFilters}
+                onToggle={() => (viewMode === 'list' ? setShowListFilters(!showFilters) : setShowKanbanFilters(!showKanbanFilters))}
+                badgeCount={viewMode === 'list' ? activeFiltersCount : activeKanbanFiltersCount}
+              />
+            </View>
           </View>
+        </View>
 
-          {/* View toggle */}
+        {/* Contenido superior debajo del header: toggle, KPIs y filtros */}
+        <View style={styles.headerBody}> 
           <ViewToggle mode={viewMode} setMode={setViewMode} />
 
           {viewMode === 'list' ? (
             <>
-              <PeriodSelector selected={selectedPeriod} onSelect={setSelectedPeriod} />
               <TicketStats stats={ticketStats} colors={colors} />
-              <TicketFilters
-                status={ticketFilterStatus}
-                setStatus={setTicketFilterStatus}
-                priority={ticketFilterPriority}
-                setPriority={setTicketFilterPriority}
-              />
+              {showFilters ? (
+                <TicketFilters
+                  status={ticketFilterStatus}
+                  setStatus={setTicketFilterStatus}
+                  priority={ticketFilterPriority}
+                  setPriority={setTicketFilterPriority}
+                  category={ticketFilterCategory}
+                  setCategory={setTicketFilterCategory}
+                  search={ticketSearch}
+                  setSearch={setTicketSearch}
+                />
+              ) : null}
             </>
           ) : (
             <>
               <KanbanStats stats={kanbanStats} />
-              <KanbanFilterBar type={kanbanFilterType} setType={setKanbanFilterType} />
+              {showKanbanFilters ? (
+                <KanbanFilters
+                  status={ticketFilterStatus}
+                  setStatus={setTicketFilterStatus}
+                  priority={ticketFilterPriority}
+                  setPriority={setTicketFilterPriority}
+                  category={ticketFilterCategory}
+                  setCategory={setTicketFilterCategory}
+                  search={ticketSearch}
+                  setSearch={setTicketSearch}
+                />
+              ) : null}
             </>
           )}
         </View>
@@ -533,8 +737,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -544,13 +748,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  headerBody: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
   headerTitle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1E293B',
   },
@@ -562,6 +770,22 @@ const styles = StyleSheet.create({
     minWidth: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filtersToggleButton: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    minWidth: undefined,
+  },
+  filtersToggleText: {
+    color: '#334155',
+    fontSize: 14,
+    fontWeight: '600',
   },
   toggleRow: {
     flexDirection: 'row',
@@ -689,6 +913,56 @@ const styles = StyleSheet.create({
   },
   filterButtonTextActive: {
     color: '#FFFFFF',
+  },
+  // Search pill styles
+  searchPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  searchText: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  // Search input styles
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minHeight: 36,
+    flex: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111827',
+    paddingVertical: 4,
+  },
+  searchClearButton: {
+    marginLeft: 8,
+    padding: 6,
+    borderRadius: 12,
+  },
+  // Badge
+  badge: {
+    marginLeft: 4,
+    backgroundColor: '#1D4ED8',
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   content: {
     flex: 1,

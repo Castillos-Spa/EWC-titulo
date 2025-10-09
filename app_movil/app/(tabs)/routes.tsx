@@ -8,6 +8,7 @@ import {
   RefreshControl,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, Clock, Truck, Plus } from 'lucide-react-native';
 import { useRouteStore } from '../stores/routeStore';
 import { useThemeStore } from '../stores/themeStore';
@@ -65,6 +66,7 @@ export default function RoutesScreen() {
   const { routes, loadRoutes, selectedTrip, selectRoute } = useRouteStore();
   const { getColors } = useThemeStore();
   const colors = getColors();
+  const insets = useSafeAreaInsets();
   const { isSmall, horizontalPadding, verticalPadHeader, cardGap, cardWidth, titleFontSize, subtitleFontSize, statNumberFont, statIconBox, addBtnSize } = useMemo(() => computeRouteLayout(width), [width]);
   
   const [refreshing, setRefreshing] = useState(false);
@@ -119,7 +121,7 @@ export default function RoutesScreen() {
 
   return (
     <AccessGuard allowed={canRoutes}>
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View
         style={[
@@ -132,11 +134,12 @@ export default function RoutesScreen() {
           },
         ]}
       >
-        <View>
-          <Text style={[styles.title, { color: colors.text, fontSize: titleFontSize }]}>Rutas</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: subtitleFontSize }]}>
-            Gestión de rutas y viajes
-          </Text>
+        <View style={styles.headerTitle}>
+          <MapPin size={isSmall ? 22 : 26} color={colors.primary} />
+          <View>
+            <Text style={[styles.title, { color: colors.text, fontSize: titleFontSize }]}>Rutas</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: subtitleFontSize }]}>Gestión de rutas y viajes</Text>
+          </View>
         </View>
         <TouchableOpacity
           style={[
@@ -184,6 +187,7 @@ export default function RoutesScreen() {
       {/* Routes List */}
       <ScrollView
         style={[styles.content, { paddingHorizontal: horizontalPadding }]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -231,7 +235,7 @@ export default function RoutesScreen() {
           onClose={() => setShowTripModal(false)}
         />
       )}
-    </View>
+    </SafeAreaView>
     </AccessGuard>
   );
 }
@@ -244,17 +248,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
   },
   subtitle: {
     fontSize: 14,
     marginTop: 2,
+  },
+  headerTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   addButton: {
     width: 44,
@@ -265,8 +274,8 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 12,
   },
   statCard: {

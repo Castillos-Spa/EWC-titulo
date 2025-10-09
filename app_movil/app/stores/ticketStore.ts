@@ -8,6 +8,8 @@ export interface Ticket {
   title: string;
   description: string;
   type: 'maintenance' | 'delivery' | 'pickup' | 'inspection' | 'repair' | 'other';
+  // Categoría original del backend (p.ej., "Soporte_IT", "Mantenimiento", ...)
+  category?: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'assigned' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
   assignedTo?: string;
@@ -129,17 +131,34 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const backendTickets: BackendTicket[] = await TicketApi.getTickets();
-      const mapped: Ticket[] = backendTickets.map(mapFromBackend);
+      const list = Array.isArray(backendTickets) ? backendTickets : [];
+      const mapped: Ticket[] = list.map(mapFromBackend);
+
+      // Filtrado opcional por estado y rango de fechas (creación)
+      const display: Ticket[] = mapped.filter((t) => {
+        const matchesStatus = status ? t.status === (status as Ticket['status']) : true;
+        const matchesDate = dateRange
+          ? (() => {
+              const created = new Date(t.createdAt).getTime();
+              const startMs = new Date(dateRange.start).getTime();
+              const endMs = new Date(dateRange.end).getTime();
+              return created >= startMs && created <= endMs;
+            })()
+          : true;
+        return matchesStatus && matchesDate;
+      });
       // Guardado local best-effort (no bloquear si SQLite falla)
       try {
+        // Persistimos todos los tickets recuperados para uso offline
         await DatabaseService.saveTickets(mapped);
       } catch (e) {
         console.warn('No se pudo persistir tickets en SQLite (continuando):', e);
       }
-      set({ tickets: mapped, isLoading: false });
+      set({ tickets: display, isLoading: false });
     } catch (error) {
       console.error('Error al cargar tickets:', error);
-      set({ error: 'Error al cargar tickets', isLoading: false });
+      const msg = (error as any)?.message || 'Error al cargar tickets';
+      set({ error: msg, isLoading: false });
     }
   },
 
@@ -375,7 +394,8 @@ function mapFromBackend(bt: BackendTicket): Ticket {
     title: bt.title,
     description: bt.description ?? '',
     type: inferTypeFromCategory(bt.category),
-    priority: mapPriorityFromBackend(bt.priority),
+    category: (bt as any).category as string | undefined,
+    priority: mapPriorityFromBackend((bt as any).priority ?? 'Media'),
     status: mapStatusFromBackend(bt.status),
     assignedTo: bt.assignedTo?.username ?? '',
     assignedBy: bt.createdBy?.username ?? '',
@@ -384,7 +404,7 @@ function mapFromBackend(bt: BackendTicket): Ticket {
     scheduledDate: new Date(bt.createdAt).toISOString().split('T')[0],
     photos: [],
     createdAt: bt.createdAt,
-    updatedAt: bt.updatedAt,
+    updatedAt: (bt as any).updatedAt ?? bt.createdAt,
     syncStatus: 'synced',
   };
 }

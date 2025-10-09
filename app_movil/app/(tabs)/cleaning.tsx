@@ -116,12 +116,12 @@ export default function CleaningScreen() {
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTitle}>
-            <Cleaning size={28} color="#06B6D4" />
+            <Cleaning size={28} color={colors.primary} />
             <Text style={[styles.title, { color: colors.text }]}>Aseo y Limpieza</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-              <RefreshCw size={24} color="#2563EB" />
+              <RefreshCw size={24} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -309,8 +309,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1E293B',
   },

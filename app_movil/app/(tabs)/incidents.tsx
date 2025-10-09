@@ -90,14 +90,14 @@ export default function IncidentsScreen() {
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTitle}>
-            <AlertTriangle size={28} color="#DC2626" />
+            <AlertTriangle size={28} color={colors.error} />
             <Text style={[styles.title, { color: colors.text }]}>Incidentes</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-              <RefreshCw size={24} color="#2563EB" />
+              <RefreshCw size={24} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.createButton} onPress={handleCreateIncident}>
+            <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={handleCreateIncident}>
               <Plus size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -228,8 +228,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1E293B',
   },

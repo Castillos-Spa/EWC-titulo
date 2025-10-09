@@ -129,7 +129,7 @@ export default function FuelScreen() {
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTitle}>
-            <Fuel size={28} color={colors.success} />
+            <Fuel size={28} color={colors.primary} />
             <Text style={[styles.title, { color: colors.text }]}>Combustible{currentVehicle ? ` • ${currentVehicle.patente}` : ''}</Text>
           </View>
           <View style={styles.headerActions}>
@@ -343,8 +343,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1E293B',
   },

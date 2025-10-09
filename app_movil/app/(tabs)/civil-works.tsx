@@ -91,15 +91,15 @@ export default function CivilWorksScreen() {
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerTitle}>
-            <HardHat size={28} color="#F59E0B" />
+            <HardHat size={28} color={colors.warning || '#F59E0B'} />
             <Text style={[styles.title, { color: colors.text }]}>Obras Civiles</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-              <RefreshCw size={24} color="#2563EB" />
+              <RefreshCw size={24} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.safetyButton} 
+              style={[styles.safetyButton, { backgroundColor: colors.primary }]} 
               onPress={() => setShowSafetyModal(true)}
             >
               <Shield size={24} color="#FFFFFF" />
@@ -261,8 +261,8 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1E293B',
   },

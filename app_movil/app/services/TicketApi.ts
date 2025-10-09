@@ -37,7 +37,15 @@ export interface CreateTicketPayload {
 
 export class TicketApiClass {
   async getTickets(): Promise<BackendTicket[]> {
-    return ApiClient.get<BackendTicket[]>(`/tickets`, true);
+    const res = await ApiClient.get<unknown>(`/tickets`, true);
+    // El backend puede devolver: Array<BackendTicket> | { items: BackendTicket[] } | { data: BackendTicket[] }
+    if (Array.isArray(res)) return res as BackendTicket[];
+    if (res && typeof res === 'object') {
+      const obj = res as Record<string, unknown>;
+      if (Array.isArray(obj.items)) return obj.items as BackendTicket[];
+      if (Array.isArray(obj.data)) return obj.data as BackendTicket[];
+    }
+    return [];
   }
 
   async getTicket(id: number): Promise<BackendTicket> {
