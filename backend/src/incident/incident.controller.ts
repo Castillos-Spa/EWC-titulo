@@ -24,6 +24,13 @@ export class IncidentController {
     return this.incidentService.findOne(Number(id));
   }
 
+  @Get(':id/photos')
+  async getPhotos(@Param('id') id: string) {
+    const incident = await this.incidentService.findOne(Number(id));
+    // Return only the photos field to avoid large payloads elsewhere
+    return { id: incident.id, photos: incident.photos || [] };
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateIncidentDto: UpdateIncidentDto) {
     return this.incidentService.update(Number(id), updateIncidentDto);
