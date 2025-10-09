@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Put, Patch, Delete, Param, Body, ForbiddenException, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  ForbiddenException,
+  Request,
+  Query,
+} from '@nestjs/common';
 
 import { UsersService } from './users.service';
 import { RegisterDto } from '../auth/dtos/register.dto';
@@ -9,8 +21,10 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  async findAll() {
-    return this.usersService.findAll();
+  async findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
+    const p = Math.max(Number(page) || 1, 1);
+    const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
+    return this.usersService.findAll({ page: p, pageSize: size });
   }
   // Endpoint para obtener la contraseña temporal (solo si mustChangePassword=true)
   @Get(':id/temp-password')

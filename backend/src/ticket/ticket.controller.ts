@@ -10,6 +10,7 @@ import {
   UseGuards,
   Req,
   NotFoundException,
+  Query,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -34,8 +35,10 @@ export class TicketController {
   }
 
   @Get()
-  findAll() {
-    return this.ticketsService.findAll();
+  findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
+    const p = Math.max(Number(page) || 1, 1);
+    const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
+    return this.ticketsService.findAll({ page: p, pageSize: size });
   }
 
   @Get(':id')
