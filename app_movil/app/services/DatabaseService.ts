@@ -27,6 +27,11 @@ class DatabaseServiceClass {
   // Usamos any para simplificar tipos entre nativo (SQLite) y stub web
   private db: DBLike | null = null;
 
+  private sanitizeParams(params?: readonly unknown[]): unknown[] {
+    if (!params) return [];
+    return params.map((v) => (v === undefined ? null : v as unknown));
+  }
+
   async init() {
     if (this.db) return;
     
@@ -206,6 +211,19 @@ class DatabaseServiceClass {
       `);
     } catch (error) {
       console.warn('Table creation failed:', error);
+    }
+  }
+
+  async healthCheck(): Promise<{ ok: boolean; message?: string }> {
+    try {
+      if (!this.db) await this.init();
+      if (!this.db) return { ok: false, message: 'DB not initialized' };
+      // Operación mínima y segura: crear tabla temporal y borrarla
+      await this.db.execAsync('CREATE TABLE IF NOT EXISTS __healthcheck (id INTEGER PRIMARY KEY)');
+      await this.db.execAsync('DELETE FROM __healthcheck');
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, message: e?.message || 'DB error' };
     }
   }
 
@@ -528,35 +546,35 @@ class DatabaseServiceClass {
           photos, notes, completionNotes, signaturePath, materials, checklist,
           createdAt, updatedAt, syncStatus
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+        this.sanitizeParams([
           ticket.id,
-          ticket.ticketNumber,
+          ticket.ticketNumber ?? null,
           ticket.title,
-          ticket.description,
+          ticket.description ?? '',
           ticket.type,
           ticket.priority,
           ticket.status,
-          ticket.assignedTo,
-          ticket.assignedBy,
-          ticket.clientName,
-          ticket.location.latitude,
-          ticket.location.longitude,
-          ticket.location.address,
+          ticket.assignedTo ?? '',
+          ticket.assignedBy ?? '',
+          ticket.clientName ?? null,
+          ticket.location?.latitude ?? 0,
+          ticket.location?.longitude ?? 0,
+          ticket.location?.address ?? null,
           ticket.estimatedDuration,
-          ticket.actualDuration,
+          ticket.actualDuration ?? null,
           ticket.scheduledDate,
-          ticket.startTime,
-          ticket.endTime,
-          JSON.stringify(ticket.photos),
-          ticket.notes,
-          ticket.completionNotes,
-          ticket.signaturePath,
+          ticket.startTime ?? null,
+          ticket.endTime ?? null,
+          JSON.stringify(ticket.photos || []),
+          ticket.notes ?? null,
+          ticket.completionNotes ?? null,
+          ticket.signaturePath ?? null,
           JSON.stringify(ticket.materials || []),
           JSON.stringify(ticket.checklist || []),
           ticket.createdAt,
           ticket.updatedAt,
           ticket.syncStatus,
-        ]
+        ])
       );
     }
   }
@@ -572,35 +590,35 @@ class DatabaseServiceClass {
         photos, notes, completionNotes, signaturePath, materials, checklist,
         createdAt, updatedAt, syncStatus
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
+      this.sanitizeParams([
         ticket.id,
-        ticket.ticketNumber,
+        ticket.ticketNumber ?? null,
         ticket.title,
-        ticket.description,
+        ticket.description ?? '',
         ticket.type,
         ticket.priority,
         ticket.status,
-        ticket.assignedTo,
-        ticket.assignedBy,
-        ticket.clientName,
-        ticket.location.latitude,
-        ticket.location.longitude,
-        ticket.location.address,
+        ticket.assignedTo ?? '',
+        ticket.assignedBy ?? '',
+        ticket.clientName ?? null,
+        ticket.location?.latitude ?? 0,
+        ticket.location?.longitude ?? 0,
+        ticket.location?.address ?? null,
         ticket.estimatedDuration,
-        ticket.actualDuration,
+        ticket.actualDuration ?? null,
         ticket.scheduledDate,
-        ticket.startTime,
-        ticket.endTime,
-        JSON.stringify(ticket.photos),
-        ticket.notes,
-        ticket.completionNotes,
-        ticket.signaturePath,
+        ticket.startTime ?? null,
+        ticket.endTime ?? null,
+        JSON.stringify(ticket.photos || []),
+        ticket.notes ?? null,
+        ticket.completionNotes ?? null,
+        ticket.signaturePath ?? null,
         JSON.stringify(ticket.materials || []),
         JSON.stringify(ticket.checklist || []),
         ticket.createdAt,
         ticket.updatedAt,
         ticket.syncStatus,
-      ]
+      ])
     );
 
     // Add to sync queue
@@ -669,11 +687,11 @@ class DatabaseServiceClass {
     if (!this.db) await this.init();
     
     const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(updates);
+    const values = this.sanitizeParams(Object.values(updates));
     
     await this.db!.runAsync(
       `UPDATE tickets SET ${setClause} WHERE id = ?`,
-      [...values, ticketId]
+      this.sanitizeParams([...values, ticketId])
     );
 
     // Add to sync queue

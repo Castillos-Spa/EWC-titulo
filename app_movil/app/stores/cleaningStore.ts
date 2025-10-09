@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { CleaningApi, type CleaningRecord, type CreateCleaningInput } from '../services/CleaningApi';
+import { useAuthStore } from './authStore';
 
 export interface CleaningArea {
   id: string;
@@ -149,78 +151,33 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
   isSubmitting: false,
   error: null,
 
-  loadCleaningReports: async (dateRange?: { start: string; end: string }) => {
+  loadCleaningReports: async (_dateRange?: { start: string; end: string }) => {
     set({ isLoading: true, error: null });
     try {
-      // Mock data for cleaning reports
-      const mockReports: CleaningReport[] = [
-        {
-          id: 'cleaning-001',
-          date: new Date().toISOString().split('T')[0],
-          shift: 'morning',
-          crewMembers: ['Rosa Martínez', 'Carmen López'],
-          areas: [
-            {
-              id: 'area-001',
-              name: 'Oficinas Administrativas',
-              type: 'office',
-              floor: '1',
-              building: 'Principal',
-              estimatedTime: 60,
-            },
-            {
-              id: 'area-002',
-              name: 'Baños Planta Baja',
-              type: 'bathroom',
-              floor: '1',
-              building: 'Principal',
-              estimatedTime: 30,
-            },
-          ],
-          tasks: [
-            {
-              id: 'task-001',
-              areaId: 'area-001',
-              description: 'Aspirar alfombras y limpiar escritorios',
-              completed: true,
-              photoRequired: true,
-              completedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'task-002',
-              areaId: 'area-002',
-              description: 'Desinfectar sanitarios y reponer insumos',
-              completed: false,
-              photoRequired: true,
-            },
-          ],
-          startTime: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          status: 'in_progress',
+      const { items } = await CleaningApi.list(1, 50);
+      // Mapear registros del backend a modelo de UI; por ahora mostramos como una lista simple
+      const mapped: CleaningReport[] = items.map((r: CleaningRecord) => {
+        let statusUi: CleaningReport['status'] = 'in_progress';
+        if (r.status === 'COMPLETED') statusUi = 'completed';
+        else if (r.status === 'PENDING') statusUi = 'pending';
+        return {
+          id: String(r.id),
+          date: new Date(r.date).toISOString().split('T')[0],
+          shift: 'morning', // sin campo en backend; asumimos 'morning' por defecto
+          crewMembers: r.responsibleStaff ? [r.responsibleStaff] : [],
+          areas: [],
+          tasks: [],
+          startTime: new Date(r.date).toISOString(),
+          status: statusUi,
           photos: [],
-          supplies: [
-            {
-              id: 'supply-001',
-              name: 'Detergente Multiuso',
-              quantity: 2,
-              unit: 'litros',
-              category: 'cleaning',
-            },
-            {
-              id: 'supply-002',
-              name: 'Bolsas de Basura',
-              quantity: 20,
-              unit: 'unidades',
-              category: 'cleaning',
-            },
-          ],
+          supplies: [],
           incidents: [],
-          createdBy: 'Rosa Martínez',
-          createdAt: new Date().toISOString(),
-          syncStatus: 'pending',
-        },
-      ];
-
-      set({ reports: mockReports, isLoading: false });
+          createdBy: r.responsibleStaff || 'Desconocido',
+          createdAt: new Date(r.date).toISOString(),
+          syncStatus: 'synced',
+        };
+      });
+      set({ reports: mapped, isLoading: false });
     } catch (error) {
       console.error('Error al cargar reportes de limpieza:', error);
       set({ error: 'Error al cargar reportes de limpieza', isLoading: false });
@@ -230,17 +187,26 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
   createCleaningReport: async (reportData) => {
     set({ isSubmitting: true, error: null });
     try {
-      const newReport: CleaningReport = {
-        ...reportData,
-        id: `cleaning-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        syncStatus: 'pending',
+      // Mapear a DTO del backend
+      const { user } = useAuthStore.getState();
+      const input: CreateCleaningInput = {
+        date: new Date().toISOString(),
+        area: reportData.areas?.[0]?.name || 'General',
+        tasks: reportData.tasks?.map(t => t.description) || [],
+        responsibleStaff: user?.name || 'Usuario',
+        timeSpent: 60,
+        issues: [],
+        status: 'PENDING',
+        observations: reportData.notes,
       };
-
-      set(state => ({
-        reports: [newReport, ...state.reports],
-        isSubmitting: false,
-      }));
+      const created = await CleaningApi.create(input);
+      const ui: CleaningReport = {
+        ...reportData,
+        id: String(created.id),
+        createdAt: new Date().toISOString(),
+        syncStatus: 'synced',
+      };
+      set(state => ({ reports: [ui, ...state.reports], isSubmitting: false }));
     } catch (error) {
       console.error('Error al crear reporte de limpieza:', error);
       set({ error: 'Error al crear reporte de limpieza', isSubmitting: false });
@@ -249,10 +215,14 @@ export const useCleaningStore = create<CleaningState>((set, get) => ({
 
   updateReportStatus: async (reportId: string, status: CleaningReport['status']) => {
     try {
+      let backendStatus: 'COMPLETED' | 'PENDING' | 'PARTIAL' = 'PARTIAL';
+      if (status === 'completed') backendStatus = 'COMPLETED';
+      else if (status === 'pending') backendStatus = 'PENDING';
+      await CleaningApi.update(Number(reportId), { status: backendStatus });
       set(state => ({
         reports: state.reports.map(report =>
           report.id === reportId 
-            ? { ...report, status, syncStatus: 'pending' as const }
+            ? { ...report, status }
             : report
         ),
       }));

@@ -80,6 +80,15 @@ export function IncidentCard({ incident, onPress }: IncidentCardProps) {
   const severityColor = getSeverityColor(incident.severity);
   const statusColor = getStatusColor(incident.status);
   const StatusIcon = getStatusIcon(incident.status);
+  const photos: string[] = Array.isArray(incident.photos) ? incident.photos : [];
+  const loc = incident.location as
+    | { latitude?: number; longitude?: number; address?: string }
+    | undefined;
+  const locationText =
+    loc?.address ??
+    (typeof loc?.latitude === 'number' && typeof loc?.longitude === 'number'
+      ? `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`
+      : 'Sin ubicación');
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -123,7 +132,7 @@ export function IncidentCard({ incident, onPress }: IncidentCardProps) {
           <View style={styles.metaItem}>
             <MapPin size={16} color="#64748B" />
             <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
-              {incident.location.address || `${incident.location.latitude.toFixed(4)}, ${incident.location.longitude.toFixed(4)}`}
+                {locationText}
             </Text>
           </View>
           <View style={styles.metaItem}>
@@ -135,18 +144,18 @@ export function IncidentCard({ incident, onPress }: IncidentCardProps) {
         </View>
 
         {/* Photos indicator */}
-        {incident.photos.length > 0 && (
+        {photos.length > 0 && (
           <View style={styles.photosSection}>
             <Camera size={16} color="#64748B" />
             <Text style={[styles.photosText, { color: colors.textSecondary }]}>
-              {incident.photos.length} foto{incident.photos.length !== 1 ? 's' : ''}
+              {photos.length} foto{photos.length !== 1 ? 's' : ''}
             </Text>
-            {incident.photos.slice(0, 3).map((photo: string) => (
+            {photos.slice(0, 3).map((photo: string) => (
               <Image key={photo} source={{ uri: photo }} style={styles.photoThumbnail} />
             ))}
-            {incident.photos.length > 3 && (
+            {photos.length > 3 && (
               <View style={styles.morePhotos}>
-                <Text style={styles.morePhotosText}>+{incident.photos.length - 3}</Text>
+                <Text style={styles.morePhotosText}>+{photos.length - 3}</Text>
               </View>
             )}
           </View>

@@ -4,10 +4,10 @@ import { X as Close, Bell } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 import { AppNotification, useNotificationsStore } from '../stores/notificationsStore';
 
-type Props = {
+type Props = Readonly<{
   visible: boolean;
   onClose: () => void;
-};
+}>;
 
 export function NotificationsDrawer({ visible, onClose }: Props) {
   const { height } = useWindowDimensions();
@@ -60,13 +60,10 @@ export function NotificationsDrawer({ visible, onClose }: Props) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>
-          {item.type || 'Notificación'}
-        </Text>
-        <Text style={{ color: colors.textSecondary, fontSize: 13 }} numberOfLines={2}>
-          {item.message}
+          {item.message || item.type || 'Notificación'}
         </Text>
         <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-          {new Date(item.timestamp).toLocaleString()}
+          {new Date(item.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
       {!item.read && (

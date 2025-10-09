@@ -130,8 +130,12 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     try {
       const backendTickets: BackendTicket[] = await TicketApi.getTickets();
       const mapped: Ticket[] = backendTickets.map(mapFromBackend);
-      // Opcional: guardar localmente
-      await DatabaseService.saveTickets(mapped);
+      // Guardado local best-effort (no bloquear si SQLite falla)
+      try {
+        await DatabaseService.saveTickets(mapped);
+      } catch (e) {
+        console.warn('No se pudo persistir tickets en SQLite (continuando):', e);
+      }
       set({ tickets: mapped, isLoading: false });
     } catch (error) {
       console.error('Error al cargar tickets:', error);
@@ -159,7 +163,11 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       };
       const created = await TicketApi.createTicket(payload);
       const mapped = mapFromBackend(created);
-      await DatabaseService.saveTicket(mapped);
+      try {
+        await DatabaseService.saveTicket(mapped);
+      } catch (e) {
+        console.warn('No se pudo persistir ticket en SQLite (continuando):', e);
+      }
       set(state => ({ tickets: [mapped, ...state.tickets], isSubmitting: false }));
     } catch (error) {
       console.error('Error al crear ticket:', error);
@@ -174,11 +182,15 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       const numericId = parseInt(ticketId.replace(/\D/g, ''), 10) || Number(ticketId);
       const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: backendStatus });
       const mapped = mapFromBackend(updatedFromBackend);
-      await DatabaseService.updateTicket(ticketId, {
-        status: mapped.status,
-        updatedAt: mapped.updatedAt,
-        syncStatus: 'synced',
-      });
+      try {
+        await DatabaseService.updateTicket(ticketId, {
+          status: mapped.status,
+          updatedAt: mapped.updatedAt,
+          syncStatus: 'synced',
+        });
+      } catch (e) {
+        console.warn('No se pudo actualizar ticket en SQLite (continuando):', e);
+      }
       set(state => ({ tickets: state.tickets.map(t => (t.id === ticketId ? { ...t, status: mapped.status, updatedAt: mapped.updatedAt, syncStatus: 'synced' } : t)) }));
     } catch (error) {
       console.error('Error al actualizar ticket:', error);
@@ -192,12 +204,16 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: 'EnProgreso' });
       const mapped = mapFromBackend(updatedFromBackend);
       const startTime = new Date().toISOString();
-      await DatabaseService.updateTicket(ticketId, {
-        status: mapped.status,
-        startTime,
-        updatedAt: mapped.updatedAt,
-        syncStatus: 'synced',
-      });
+      try {
+        await DatabaseService.updateTicket(ticketId, {
+          status: mapped.status,
+          startTime,
+          updatedAt: mapped.updatedAt,
+          syncStatus: 'synced',
+        });
+      } catch (e) {
+        console.warn('No se pudo actualizar inicio en SQLite (continuando):', e);
+      }
       set(state => ({ tickets: state.tickets.map(t => (t.id === ticketId ? { ...t, status: mapped.status, startTime, updatedAt: mapped.updatedAt, syncStatus: 'synced' } : t)) }));
     } catch (error) {
       console.error('Error al iniciar ticket:', error);
@@ -218,14 +234,18 @@ export const useTicketStore = create<TicketState>((set, get) => ({
       const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: 'Resuelto' });
       const mapped = mapFromBackend(updatedFromBackend);
       const endTime = new Date().toISOString();
-      await DatabaseService.updateTicket(ticketId, {
-        status: mapped.status,
-        endTime,
-        actualDuration,
-        completionNotes: completionData.completionNotes,
-        updatedAt: mapped.updatedAt,
-        syncStatus: 'synced',
-      });
+      try {
+        await DatabaseService.updateTicket(ticketId, {
+          status: mapped.status,
+          endTime,
+          actualDuration,
+          completionNotes: completionData.completionNotes,
+          updatedAt: mapped.updatedAt,
+          syncStatus: 'synced',
+        });
+      } catch (e) {
+        console.warn('No se pudo finalizar ticket en SQLite (continuando):', e);
+      }
       set(state => ({ 
         tickets: state.tickets.map(t => (t.id === ticketId ? { ...t, status: mapped.status, endTime, actualDuration, completionNotes: completionData.completionNotes, updatedAt: mapped.updatedAt, syncStatus: 'synced' } : t)), 
         currentTicket: null 

@@ -4,7 +4,24 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="" />
+    <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/_layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/components/IncidentCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/IncidentCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/components/NotificationsDrawer.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/NotificationsDrawer.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/services/DatabaseService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/DatabaseService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/services/NotificationApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/NotificationApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/services/OrdenTrabajoApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/OrdenTrabajoApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/services/TicketApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/TicketApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/services/UserApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/UserApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/services/VehiculoApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/VehiculoApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/cleaningStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/cleaningStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/incidentStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/incidentStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/ticketStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/ticketStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/hooks/useAuthz.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/hooks/useAuthz.ts" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

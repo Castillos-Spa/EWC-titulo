@@ -11,9 +11,140 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
-import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Building2 } from 'lucide-react-native';
+import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Map, Car, Wrench, Settings } from 'lucide-react-native';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { NotificationsDrawer } from '../components/NotificationsDrawer';
+import { useSyncStore } from '../stores/syncStore';
+import { useAuthz } from '@/hooks/useAuthz';
+import { useNavigationStore } from '../stores/navigationStore';
+import { DashboardApi, type DaySummary } from '../services/DashboardApi';
+
+function SummarySection({
+  role,
+  colors,
+  summary,
+  loading,
+}: Readonly<{
+  role?: string;
+  colors: any;
+  summary: DaySummary | null;
+  loading: boolean;
+}>) {
+  return (
+    <>
+      {role === 'driver' && (
+        <>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <Route size={16} color="#2563EB" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Rutas Completadas</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.routesCompleted ?? 0} / ${summary?.routesAssigned ?? 0}`}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <Fuel size={16} color="#16A34A" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Combustible Registrado</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.fuelRecords ?? 0} registros`}
+            </Text>
+          </View>
+        </>
+      )}
+
+      {role === 'cleaning_crew' && (
+        <>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <Cleaning size={16} color="#06B6D4" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Áreas Limpiadas</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.cleaningAreas ?? 0}`}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <CheckCircle size={16} color="#16A34A" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Checklist Completado</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.checklistCompletion ?? 0}%`}
+            </Text>
+          </View>
+        </>
+      )}
+
+      {role === 'civil_works' && (
+        <>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <HardHat size={16} color="#F59E0B" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Órdenes Activas</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.workOrdersActive ?? 0}`}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <TrendingUp size={16} color="#16A34A" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Avance Promedio</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.progressAvg ?? 0}%`}
+            </Text>
+          </View>
+        </>
+      )}
+
+      {role === 'it_support' && (
+        <>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <Kanban size={16} color="#8B5CF6" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Tickets Asignados</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.ticketsAssigned ?? 0}`}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <Clock size={16} color="#F59E0B" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Tiempo Promedio</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>—</Text>
+          </View>
+        </>
+      )}
+
+      {(role === 'supervisor' || role === 'manager' || role === 'admin') && (
+        <>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <Ticket size={16} color="#7C3AED" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Pendientes Aprobación</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>—</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
+              <AlertTriangle size={16} color="#EA580C" />
+            </View>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Incidentes Abiertos</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
+              {loading ? '...' : `${summary?.incidentsOpen ?? 0}`}
+            </Text>
+          </View>
+        </>
+      )}
+    </>
+  );
+}
 
 export default function HomeScreen() {
   const { user, logout } = useAuthStore();
@@ -23,13 +154,34 @@ export default function HomeScreen() {
 
   const colors = getColors();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { online, lastApiOk, syncing, checkNow, dbOk, checkDb } = useSyncStore();
+  const [dbChecking, setDbChecking] = useState(false);
+  const [summary, setSummary] = useState<DaySummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   useEffect(() => {
     // Conectar WS al montar o cuando cambia el usuario
     useNotificationsStore.getState().connect();
+    // Chequear estado de sincronización al entrar
+    useSyncStore.getState().checkNow();
     return () => {
       useNotificationsStore.getState().disconnect();
     };
+  }, [user?.id]);
+
+  useEffect(() => {
+    // cargar resumen del día cuando haya usuario
+    const load = async () => {
+      if (!user?.id) return;
+      try {
+        setSummaryLoading(true);
+        const s = await DashboardApi.myDaySummary();
+        setSummary(s);
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+    load();
   }, [user?.id]);
 
   const handleLogout = async () => {
@@ -40,92 +192,67 @@ export default function HomeScreen() {
     router.push(`/(tabs)/${tabName}` as any);
   };
 
-  // Acciones rápidas basadas en el rol del usuario
-  const getQuickActionsForRole = () => {
-    const baseActions = [
-      {
-        title: 'Trabajo',
-        subtitle: 'Lista / Kanban',
-        icon: Kanban,
-        color: '#7C3AED',
-        bgColor: '#F3E8FF',
-        onPress: () => navigateToTab('work'),
-        roles: ['all'],
-      },
-      {
-        title: 'Incidentes',
-        subtitle: 'Reportar problema',
-        icon: AlertTriangle,
-        color: '#EA580C',
-        bgColor: '#FFF7ED',
-        onPress: () => navigateToTab('incidents'),
-        roles: ['all'],
-      },
-    ];
-
-    const roleSpecificActions = [
-      // Transporte
-      {
-        title: 'Rutas del Día',
-        subtitle: '3 rutas asignadas',
-        icon: Route,
-        color: '#2563EB',
-        bgColor: '#EFF6FF',
-        onPress: () => navigateToTab('routes'),
-        roles: ['driver', 'supervisor'],
-      },
-      {
-        title: 'Combustible',
-        subtitle: 'Registrar consumo',
-        icon: Fuel,
-        color: '#16A34A',
-        bgColor: '#F0FDF4',
-        onPress: () => navigateToTab('fuel'),
-        roles: ['driver', 'supervisor'],
-      },
-      
-      // Aseo
-      {
-        title: 'Parte Diario',
-        subtitle: 'Reportar limpieza',
-        icon: Cleaning,
-        color: '#06B6D4',
-        bgColor: '#F0F9FF',
-        onPress: () => navigateToTab('cleaning'),
-        roles: ['cleaning_crew'],
-      },
-      
-      // Obras Civiles
-      {
-        title: 'Órdenes de Trabajo',
-        subtitle: 'Ver asignaciones',
-        icon: HardHat,
-        color: '#F59E0B',
-        bgColor: '#FFFBEB',
-        onPress: () => navigateToTab('civil-works'),
-        roles: ['civil_works'],
-      },
-      
-      // TIC eliminado
-      
-      // Supervisores y Gerencia
-      {
-        title: 'Tickets',
-        subtitle: 'Gestionar tickets',
-        icon: Ticket,
-        color: '#7C3AED',
-        bgColor: '#F3E8FF',
-        onPress: () => navigateToTab('work'),
-        roles: ['supervisor', 'admin', 'manager', 'technician'],
-      },
-    ];
-
-    return [...baseActions, ...roleSpecificActions].filter(action => 
-      action.roles.includes('all') || action.roles.includes(user?.role || '')
-    );
+  const handleRefresh = async () => {
+    try {
+      setSummaryLoading(true);
+      await Promise.all([
+        checkNow(),
+        DashboardApi.myDaySummary().then(setSummary).catch(() => {}),
+      ]);
+    } finally {
+      setSummaryLoading(false);
+    }
   };
 
-  const quickActions = getQuickActionsForRole();
+  // Acciones rápidas: atajos a módulos visibles para el usuario que NO están en la barra de navegación
+  const {
+    canRoutes,
+    canFuel,
+    canMaintenance,
+    canCleaning,
+    canCivilWorks,
+    canTickets,
+    canIncidents,
+  } = useAuthz();
+  const usage = useNavigationStore((s) => s.usage);
+  const { getTop, markUsed } = useNavigationStore();
+
+  const allRoutes = [
+    { name: 'index', title: 'Inicio', icon: Map, visible: true, fixed: true, candidate: false },
+    { name: 'work', title: 'Sistema de Tickets', icon: Ticket, visible: canTickets, candidate: true },
+    { name: 'routes', title: 'Gestión de Rutas', icon: Map, visible: canRoutes, candidate: true },
+    { name: 'notifications', title: 'Notificaciones', icon: Bell, visible: true, fixed: true, candidate: false },
+    { name: 'apps', title: 'Aplicaciones', icon: Map, visible: true, fixed: true, candidate: false },
+    { name: 'fuel', title: 'Combustible', icon: Fuel, visible: canFuel, candidate: false },
+    { name: 'fleet', title: 'Registro de Flota', icon: Car, visible: canRoutes, candidate: false },
+    { name: 'cleaning', title: 'Aseo', icon: Cleaning, visible: canCleaning, candidate: false },
+    { name: 'settings', title: 'Configuración', icon: Settings, visible: true, candidate: false },
+    { name: 'incidents', title: 'Incidentes', icon: AlertTriangle, visible: canIncidents, candidate: false },
+    { name: 'civil-works', title: 'Obras Civiles', icon: HardHat, visible: canCivilWorks, candidate: false },
+    { name: 'maintenance', title: 'Mantenimiento', icon: Wrench, visible: canMaintenance, candidate: false },
+  ] as const;
+
+  const dynamicCandidates = allRoutes.filter(r => r.candidate && r.visible).map(r => r.name as string);
+  const topDyn = getTop(dynamicCandidates, 2);
+  const chosenDyn = topDyn.length > 0 ? topDyn : dynamicCandidates.slice(0, 2);
+  const primarySet = new Set<string>(['index', 'notifications', 'apps', ...chosenDyn]);
+
+  const nonPrimaryVisible = allRoutes.filter(r => r.visible && !primarySet.has(r.name as string));
+  const recentOrder = Object.entries(usage)
+    .sort((a, b) => (b[1].lastVisited || 0) - (a[1].lastVisited || 0))
+    .map(([route]) => route);
+  const recentModules = recentOrder
+    .map(n => nonPrimaryVisible.find(r => r.name === n))
+    .filter((x): x is typeof nonPrimaryVisible[number] => !!x)
+    .slice(0, 6) // limitar a 6 recientes
+    .map(r => ({
+      title: r.title,
+      subtitle: 'Reciente',
+      icon: r.icon,
+      color: '#2563EB',
+      bgColor: '#EFF6FF',
+      onPress: () => { markUsed(r.name as string); navigateToTab(r.name as string); },
+    }));
 
   const getDepartmentName = (department: string) => {
     const departments = {
@@ -153,27 +280,13 @@ export default function HomeScreen() {
     };
     return roles[role as keyof typeof roles] || role;
   };
-
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={[
-        styles.contentContainer,
-        { paddingBottom: insets.bottom + 100 }
-      ]}
+      contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 100 }]}
     >
-      {/* Header corporativo */}
+      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.companySection}>
-          <View style={styles.companyLogo}>
-            <Building2 size={32} color="#2563EB" />
-          </View>
-          <View style={styles.companyInfo}>
-            <Text style={[styles.companyName, { color: colors.text }]}>Wilson Castillo</Text>
-            <Text style={[styles.companySubtitle, { color: colors.textSecondary }]}>Hub Corporativo Móvil</Text>
-          </View>
-        </View>
-        
         <View style={styles.userSection}>
           <View style={styles.userInfo}>
             <View style={styles.avatar}>
@@ -181,42 +294,44 @@ export default function HomeScreen() {
             </View>
             <View style={styles.userDetails}>
               <Text style={[styles.userName, { color: colors.text }]}>{user?.name}</Text>
-              <Text style={[styles.userRole, { color: colors.primary }]}>
-                {getRoleDisplayName(user?.role || '')}
-              </Text>
-              <Text style={[styles.userDepartment, { color: colors.textSecondary }]}>
-                {getDepartmentName(user?.department || '')}
-              </Text>
+              <Text style={[styles.userRole, { color: colors.primary }]}>{getRoleDisplayName(user?.role || '')}</Text>
+              <Text style={[styles.userDepartment, { color: colors.textSecondary }]}>{getDepartmentName(user?.department || '')}</Text>
             </View>
           </View>
-          <TouchableOpacity 
-            style={[styles.logoutButton, { backgroundColor: colors.background }]}
-            onPress={handleLogout}
-          >
+          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.background }]} onPress={handleLogout}>
             <LogOut size={18} color="#6B7280" />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Estado de sincronización */}
-      <View style={[styles.syncStatus, { backgroundColor: colors.success + '15', borderBottomColor: colors.border }]}>
-        <View style={styles.syncIndicator} />
-        <Text style={[styles.syncText, { color: colors.success }]}>
-          Sincronizado • Última actualización: hace 5 min
+      <View style={[styles.syncStatus, { backgroundColor: (online ? colors.success : colors.warning) + '15', borderBottomColor: colors.border }]}> 
+        <View style={[styles.syncIndicator, { backgroundColor: online ? '#16A34A' : '#EA580C' }]} />
+        <Text style={[styles.syncText, { color: online ? colors.success : colors.warning }]}> 
+          {online ? 'API: Online' : 'API: Offline'} • Últ. API: {lastApiOk ? new Date(lastApiOk).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
+          {'  '}• BD: {dbOk === undefined ? '—' : (dbOk ? 'OK' : 'Error')}
         </Text>
-        <Bell size={16} color="#16A34A" />
+        <TouchableOpacity onPress={handleRefresh} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background, marginRight: 8 }}>
+          <Text style={{ color: colors.textSecondary }}>{(syncing || summaryLoading) ? 'Actualizando…' : 'Actualizar'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={async () => { setDbChecking(true); await checkDb().catch(() => {}); setDbChecking(false); }} 
+          style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background }}
+        >
+          <Text style={{ color: colors.textSecondary }}>{dbChecking ? 'Chequeando BD…' : 'BD'}</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Acciones rápidas personalizadas por rol */}
+      {/* Recientes */}
       <View style={styles.quickActions}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Acciones Rápidas</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recientes</Text>
         <View style={styles.actionsGrid}>
-          {quickActions.map((action) => (
-            <TouchableOpacity 
-              key={`qa-${action.title}`} 
-              style={[styles.actionCard, { backgroundColor: action.bgColor }]}
-              onPress={action.onPress}
-            >
+          {recentModules.length === 0 ? (
+            <View style={[styles.actionCard, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }]}>
+              <Text style={{ color: colors.textSecondary }}>Aún no hay módulos recientes</Text>
+            </View>
+          ) : recentModules.map((action) => (
+            <TouchableOpacity key={`qa-${action.title}`} style={[styles.actionCard, { backgroundColor: action.bgColor }]} onPress={action.onPress}>
               <View style={styles.actionIcon}>
                 <action.icon size={28} color={action.color} strokeWidth={2} />
               </View>
@@ -227,113 +342,11 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Resumen del día personalizado */}
+      {/* Resumen del día conectado */}
       <View style={styles.dailySummary}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumen del Día</Text>
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {user?.role === 'driver' && (
-            <>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <Route size={16} color="#2563EB" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Rutas Completadas</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>1 / 3</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <Fuel size={16} color="#16A34A" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Combustible Registrado</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>2 registros</Text>
-              </View>
-            </>
-          )}
-          
-          {user?.role === 'cleaning_crew' && (
-            <>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <Cleaning size={16} color="#06B6D4" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Áreas Limpiadas</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>5 / 8</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <CheckCircle size={16} color="#16A34A" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Checklist Completado</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>85%</Text>
-              </View>
-            </>
-          )}
-          
-          {user?.role === 'civil_works' && (
-            <>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <HardHat size={16} color="#F59E0B" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Órdenes Activas</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>3</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <TrendingUp size={16} color="#16A34A" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Avance Promedio</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>67%</Text>
-              </View>
-            </>
-          )}
-          
-          {user?.role === 'it_support' && (
-            <>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <Kanban size={16} color="#8B5CF6" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Tickets Asignados</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>12</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <Clock size={16} color="#F59E0B" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Tiempo Promedio</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>2.5h</Text>
-              </View>
-            </>
-          )}
-
-          {(user?.role === 'supervisor' || user?.role === 'manager' || user?.role === 'admin') && (
-            <>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <Ticket size={16} color="#7C3AED" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Pendientes Aprobación</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>8</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-                  <AlertTriangle size={16} color="#EA580C" />
-                </View>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Incidentes Abiertos</Text>
-                <Text style={[styles.summaryValue, { color: colors.text }]}>2</Text>
-              </View>
-            </>
-          )}
-
-          {/* Fila común para todos */}
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryIcon, { backgroundColor: colors.background }]}>
-              <CheckCircle size={16} color="#16A34A" />
-            </View>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Tareas Completadas</Text>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>12</Text>
-          </View>
+          <SummarySection role={user?.role} colors={colors} summary={summary} loading={summaryLoading} />
         </View>
       </View>
 
@@ -363,13 +376,10 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.notificationContent}>
                   <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
-                    {n.type || 'Notificación'}
-                  </Text>
-                  <Text style={[styles.notificationText, { color: colors.textSecondary }]} numberOfLines={2}>
-                    {n.message}
+                    {n.message || n.type || 'Notificación'}
                   </Text>
                   <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
-                    {new Date(n.timestamp).toLocaleTimeString()}
+                    {new Date(n.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
               </View>
@@ -378,7 +388,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-  <NotificationsDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <NotificationsDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </ScrollView>
   );
 }

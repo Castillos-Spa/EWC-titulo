@@ -1,22 +1,23 @@
 import { create } from 'zustand';
-import { DatabaseService } from '../services/DatabaseService';
+import { IncidentApi, type Incident as ApiIncident, type CreateIncidentInput } from '../services/IncidentApi';
+import { useAuthStore } from './authStore';
 
 export interface Incident {
   id: string;
-  type: 'vehicle_breakdown' | 'accident' | 'traffic_delay' | 'weather' | 'security' | 'other';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: string;
+  severity: string;
   title: string;
   description: string;
-  location: {
-    latitude: number;
-    longitude: number;
+  location?: {
+    latitude?: number;
+    longitude?: number;
     address?: string;
   };
-  photos: string[];
-  reportedBy: string;
+  photos?: string[];
+  reportedBy?: string;
   reportedAt: string;
-  status: 'reported' | 'acknowledged' | 'in_progress' | 'resolved';
-  syncStatus: 'pending' | 'synced' | 'failed';
+  status: string;
+  syncStatus?: 'pending' | 'synced' | 'failed';
   routeId?: string;
   vehicleId?: string;
   estimatedResolutionTime?: string;
@@ -40,6 +41,19 @@ interface IncidentState {
   clearError: () => void;
 }
 
+function mapApiToUi(i: ApiIncident): Incident {
+  return {
+    id: String(i.id),
+    title: i.title,
+    description: i.description || '',
+    type: (i.type || 'other').toString().toLowerCase(),
+    severity: (i.severity || 'medium').toString().toLowerCase(),
+    status: (i.status || 'reported').toString().toLowerCase(),
+    reportedAt: i.reportedAt || new Date().toISOString(),
+    // location y photos pueden venir solo en get(id); mantener opcionales
+  };
+}
+
 export const useIncidentStore = create<IncidentState>((set, get) => ({
   incidents: [],
   currentIncident: null,
@@ -50,78 +64,40 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
   loadIncidents: async () => {
     set({ isLoading: true, error: null });
     try {
-      // Simular datos de incidentes para evitar errores de base de datos
-      const mockIncidents: Incident[] = [
-        {
-          id: 'incident-001',
-          type: 'vehicle_breakdown',
-          severity: 'high',
-          title: 'Avería en Sistema de Frenos',
-          description: 'El vehículo ABC-123 presenta problemas en el sistema de frenos durante la ruta matutina. Se requiere asistencia técnica inmediata.',
-          location: {
-            latitude: -34.6037,
-            longitude: -58.3816,
-            address: 'Av. Corrientes 1234, Buenos Aires',
-          },
-          photos: [],
-          reportedBy: 'Juan Pérez',
-          reportedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          status: 'reported',
-          syncStatus: 'pending',
-        },
-        {
-          id: 'incident-002',
-          type: 'traffic_delay',
-          severity: 'medium',
-          title: 'Retraso por Tráfico Intenso',
-          description: 'Tráfico congestionado en Av. 9 de Julio causando retrasos significativos en las entregas programadas.',
-          location: {
-            latitude: -34.6118,
-            longitude: -58.3960,
-            address: 'Av. 9 de Julio, Buenos Aires',
-          },
-          photos: [],
-          reportedBy: 'María González',
-          reportedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          status: 'acknowledged',
-          syncStatus: 'synced',
-        },
-      ];
-      
-      // Intentar guardar en base de datos, pero continuar si falla
-      try {
-        await DatabaseService.saveIncidents(mockIncidents);
-      } catch (dbError) {
-        console.warn('Database save failed, continuing with mock data:', dbError);
-      }
-      
-      set({ incidents: mockIncidents, isLoading: false });
-    } catch (error) {
+      const { items } = await IncidentApi.list(1, 50);
+      const mapped = items.map(mapApiToUi);
+      set({ incidents: mapped, isLoading: false });
+    } catch (error: any) {
       console.error('Error al cargar incidentes:', error);
-      set({ error: 'Error al cargar incidentes', isLoading: false });
+      set({ error: error?.message || 'Error al cargar incidentes', isLoading: false });
     }
   },
 
   createIncident: async (incidentData) => {
     set({ isSubmitting: true, error: null });
     try {
-      const newIncident: Incident = {
-        ...incidentData,
-        id: `incident-${Date.now()}`,
-        reportedAt: new Date().toISOString(),
-        syncStatus: 'pending',
-      };
-
-      try {
-        await DatabaseService.saveIncident(newIncident);
-      } catch (dbError) {
-        console.warn('Database save failed, continuing with local state:', dbError);
+      // Mapear a DTO del backend
+      const user = useAuthStore.getState().user;
+      const sev = String(incidentData.severity || 'medium').toLowerCase();
+      let sevBackend: CreateIncidentInput['Severidad'] = 'MEDIUM';
+      if (sev === 'high' || sev === 'critical') {
+        sevBackend = 'HIGH';
+      } else if (sev === 'low') {
+        sevBackend = 'LOW';
       }
-      
-      set(state => ({
-        incidents: [newIncident, ...state.incidents],
-        isSubmitting: false,
-      }));
+      const input: CreateIncidentInput = {
+        Area: user?.department ? String(user.department) : 'General',
+        Descripcion: incidentData.description,
+        Tipo: incidentData.type,
+        Severidad: sevBackend,
+        Direccion: incidentData.location?.address,
+        Latitude: typeof incidentData.location?.latitude === 'number' ? incidentData.location?.latitude : undefined,
+        Longitude: typeof incidentData.location?.longitude === 'number' ? incidentData.location?.longitude : undefined,
+        Fecha: new Date().toISOString(),
+      };
+      const created = await IncidentApi.create(input);
+      const ui = mapApiToUi(created);
+      set(state => ({ incidents: [ui, ...state.incidents], isSubmitting: false }));
     } catch (error) {
       console.error('Error al crear incidente:', error);
       set({ error: 'Error al crear incidente', isSubmitting: false });
@@ -130,12 +106,11 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
 
   updateIncidentStatus: async (incidentId: string, status: Incident['status']) => {
     try {
-      await DatabaseService.updateIncidentStatus(incidentId, status);
-      
+      await IncidentApi.update(Number(incidentId), { Status: String(status).toUpperCase() });
       set(state => ({
         incidents: state.incidents.map(incident =>
           incident.id === incidentId 
-            ? { ...incident, status, syncStatus: 'pending' as const }
+            ? { ...incident, status }
             : incident
         ),
       }));
@@ -149,11 +124,11 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
     set(state => ({
       incidents: state.incidents.map(incident =>
         incident.id === incidentId
-          ? { ...incident, photos: [...incident.photos, photoUri] }
+          ? { ...incident, photos: [ ...(incident.photos ?? []), photoUri ] }
           : incident
       ),
       currentIncident: state.currentIncident?.id === incidentId
-        ? { ...state.currentIncident, photos: [...state.currentIncident.photos, photoUri] }
+        ? { ...state.currentIncident, photos: [ ...(state.currentIncident?.photos ?? []), photoUri ] }
         : state.currentIncident,
     }));
   },
