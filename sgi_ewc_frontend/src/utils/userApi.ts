@@ -46,13 +46,13 @@ export async function changePassword(
 
 // --- User Management ---
 export async function getUsers(): Promise<User[]> {
-  const res = await apiFetch("/users", { method: "GET" });
-  // Backend may return either an array or a paginated object { items, total, page, pageSize }
-  if (Array.isArray(res)) return res as User[];
-  if (res && Array.isArray(res.items)) return res.items as User[];
-  // fallback: try to extract from data property
-  if (res && Array.isArray(res.data)) return res.data as User[];
-  return [];
+  const response = await apiFetch("/users", { method: "GET" });
+  // El backend devuelve un objeto paginado: { items: User[], total: number, ... }
+  // Nos aseguramos de que la respuesta tenga la propiedad 'items' y sea un array.
+  if (response && Array.isArray(response.items)) {
+    return response.items as User[];
+  }
+  return []; // Devolvemos un array vacío si la respuesta no es la esperada.
 }
 
 // Corrige el tipo de respuesta para incluir tempPassword

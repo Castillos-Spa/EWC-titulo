@@ -92,7 +92,7 @@ export class NotificacionService {
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
     const userRoles = user.roleAssignments.map(ra => ra.role);
-    const userAreas = user.roleAssignments.map(ra => ra.area).filter(Boolean) as string[];
+    const userAreas = user.roleAssignments.map(ra => ra.area).filter(Boolean);
 
     return this.prisma.notification.findMany({
       where: {
@@ -108,6 +108,7 @@ export class NotificacionService {
         readBy: { where: { userId: userId } }, // Trae el estado de lectura SOLO para el usuario actual
       },
       orderBy: { createdAt: 'desc' },
+      take: 50,
     });
   }
 
@@ -140,7 +141,7 @@ export class NotificacionService {
     if (!user) return null;
 
     const roles = user.roleAssignments.map(ra => ra.role);
-    const areas = user.roleAssignments.map(ra => ra.area).filter(Boolean) as string[];
+    const areas = user.roleAssignments.map(ra => ra.area).filter(Boolean);
 
     return { roles: [...new Set(roles)], areas: [...new Set(areas)] };
   }

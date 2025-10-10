@@ -60,7 +60,13 @@ export async function getTallerWorkOrders(): Promise<OrdenTrabajo[]> {
  * Asume un endpoint GET /taller/vehiculos
  */
 export async function getVehiculosFromTaller(): Promise<Vehiculo[]> {
-  return apiFetch("/taller/vehiculos");
+  const response = await apiFetch("/taller/vehiculos");
+  // El backend devuelve un objeto paginado { items: [], total: 0 }.
+  // Nos aseguramos de devolver solo el array de vehículos.
+  if (response && Array.isArray(response.items)) {
+    return response.items as Vehiculo[];
+  }
+  return []; // Devolvemos un array vacío si la respuesta no es la esperada.
 }
 
 /**

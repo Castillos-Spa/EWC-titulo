@@ -3,6 +3,7 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dtos/register.dto';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { JwtPayload, RolesByArea } from './interfaces/jwt-payload.interface';
 import { Prisma, Role } from '@prisma/client';
 
@@ -37,8 +38,13 @@ export class AuthService {
     const access_token = this.jwtService.sign(payload);
     const refresh_token = this.jwtService.sign({ sub: user.id, email: user.email }, { expiresIn: '7d' });
 
-    const hashedRefreshToken = await bcrypt.hash(refresh_token, 10);
-    await this.usersService.setRefreshToken(user.id, hashedRefreshToken);
+    // Use HMAC-SHA256 to hash refresh tokens (faster than bcrypt for this use-case)
+    const refreshTokenHash = crypto
+      .createHmac('sha256', process.env.REFRESH_TOKEN_SECRET || '')
+      .update(refresh_token)
+      .digest('hex');
+
+    await this.usersService.setRefreshToken(user.id, refreshTokenHash);
     await this.usersService.updateLastLogin(user.id);
 
     return {
@@ -66,9 +72,13 @@ export class AuthService {
         throw new UnauthorizedException('Access Denied');
       }
 
-      const isRefreshTokenMatching = await bcrypt.compare(token, user.refreshToken);
+      // Verify HMAC-SHA256 hash of incoming token matches stored hash
+      const incomingHash = crypto
+        .createHmac('sha256', process.env.REFRESH_TOKEN_SECRET || '')
+        .update(token)
+        .digest('hex');
 
-      if (!isRefreshTokenMatching) {
+      if (incomingHash !== user.refreshToken) {
         throw new UnauthorizedException('Access Denied');
       }
 
@@ -178,7 +188,6 @@ export class AuthService {
     const user = await this.usersService.findById(userId);
     if (!user) return false;
 
-    // Admin puede acceder a todo
     if (user.roleAssignments?.some(a => a.role === 'Admin' && a.isActive)) {
       return true;
     }

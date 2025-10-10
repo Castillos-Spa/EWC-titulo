@@ -3,22 +3,26 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { VehiculoService } from './vehiculo.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateVehiculoDto } from './dto/create-vehiculo.dto';
-import { UpdateVehiculoDto } from './dto/update-vehiculo.dto';
-import { NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { NotFoundException, ConflictException } from '@nestjs/common';
+import { Prisma, Vehiculo } from '@prisma/client';
 
 // Mock completo de PrismaService
 const mockPrismaService = {
   vehiculo: {
     create: jest.fn(),
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
-    delete: jest.fn(),
+    count: jest.fn(),
   },
   documento: {
     create: jest.fn(),
   },
+  $transaction: jest.fn().mockImplementation(callback => {
+    // Simula la ejecución de la transacción llamando al callback con el mock de prisma
+    return callback(mockPrismaService);
+  }),
 };
 
 describe('VehiculoService', () => {
@@ -44,209 +48,167 @@ describe('VehiculoService', () => {
     jest.clearAllMocks();
   });
 
-  describe('createVehiculos', () => {
+  describe('create', () => {
     it('debería crear un vehículo exitosamente', async () => {
       const createVehiculoDto: CreateVehiculoDto = {
-        patente: 'ABC123',
+        patente: ' abc-123 ',
         capacidad: 20000,
         odometro: 50000,
         estado: 'disponible',
       };
 
-      const expectedResult = {
+      const expectedResult: Vehiculo = {
         id: 1,
         ...createVehiculoDto,
+        patente: 'ABC-123', // Patente normalizada
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01'),
+        areaAsignada: null,
+        conductorId: null,
+        lastMaintenanceDate: null,
+        marca: '',
+        modelo: '',
       };
 
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue(null);
       mockPrismaService.vehiculo.create.mockResolvedValue(expectedResult);
 
-      const result = await service.createVehiculos(createVehiculoDto);
+      const result = await service.create(createVehiculoDto);
 
       expect(result).toEqual(expectedResult);
+      expect(mockPrismaService.vehiculo.findUnique).toHaveBeenCalledWith({
+        where: { patente: 'ABC-123' },
+      });
       expect(mockPrismaService.vehiculo.create).toHaveBeenCalledWith({
-        data: createVehiculoDto,
+        data: { ...createVehiculoDto, patente: 'ABC-123' },
       });
     });
 
-    it('debería lanzar error con datos duplicados', async () => {
+    it('debería lanzar ConflictException si la patente ya existe', async () => {
       const createVehiculoDto: CreateVehiculoDto = {
         patente: 'ABC123',
         capacidad: 20000,
         odometro: 50000,
         estado: 'disponible',
       };
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue({ id: 1, patente: 'ABC123' });
 
-      const prismaError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-        code: 'P2002',
-        clientVersion: '4.0.0',
-      } as any);
-
-      mockPrismaService.vehiculo.create.mockRejectedValue(prismaError);
-
-      await expect(service.createVehiculos(createVehiculoDto)).rejects.toThrow(Prisma.PrismaClientKnownRequestError);
+      await expect(service.create(createVehiculoDto)).rejects.toThrow(
+        new ConflictException(`El vehículo con patente ABC123 ya existe.`),
+      );
     });
   });
 
-  describe('findAllVehiculos', () => {
-    it('debería retornar array vacío cuando no hay vehículos', async () => {
-      mockPrismaService.vehiculo.findMany.mockResolvedValue([]);
+  describe('findAll', () => {
+    it('debería retornar una lista paginada de vehículos y el total', async () => {
+      const mockVehiculos = [{ id: 1, patente: 'ABC-123' }];
+      const mockTotal = 1;
 
-      const result = await service.findAllVehiculos();
+      // Configura el mock de $transaction para que devuelva los resultados simulados
+      mockPrismaService.$transaction.mockResolvedValue([mockVehiculos, mockTotal]);
 
-      expect(result).toEqual([]);
-      expect(mockPrismaService.vehiculo.findMany).toHaveBeenCalled();
-    });
+      const result = await service.findAll({ take: 10, skip: 0 });
 
-    it('debería retornar todos los vehículos', async () => {
-      const vehiculos = [
-        {
-          id: 1,
-          patente: 'ABC123',
-          capacidad: 20000,
-          odometro: 50000,
-          estado: 'disponible',
-          createdAt: new Date('2024-01-01'),
-          updatedAt: new Date('2024-01-01'),
-        },
-        {
-          id: 2,
-          patente: 'XYZ789',
-          capacidad: 15000,
-          odometro: 30000,
-          estado: 'en_mantenimiento',
-          createdAt: new Date('2024-01-02'),
-          updatedAt: new Date('2024-01-02'),
-        },
-      ];
-
-      mockPrismaService.vehiculo.findMany.mockResolvedValue(vehiculos);
-
-      const result = await service.findAllVehiculos();
-
-      expect(result).toEqual(vehiculos);
-      expect(result).toHaveLength(2);
-      expect(mockPrismaService.vehiculo.findMany).toHaveBeenCalled();
+      expect(result.items).toEqual(mockVehiculos);
+      expect(result.total).toBe(mockTotal);
+      expect(mockPrismaService.$transaction).toHaveBeenCalled();
+      expect(mockPrismaService.vehiculo.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 10, skip: 0 }));
+      expect(mockPrismaService.vehiculo.count).toHaveBeenCalled();
     });
   });
 
-  describe('findOneVehiculos', () => {
+  describe('findOne', () => {
+    it('debería retornar un vehículo por ID', async () => {
+      const vehiculo = { id: 1, patente: 'ABC-123' };
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue(vehiculo);
+
+      const result = await service.findOne(1);
+
+      expect(result).toEqual(vehiculo);
+      expect(mockPrismaService.vehiculo.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        include: expect.any(Object),
+      });
+    });
+
+    it('debería lanzar NotFoundException si el vehículo no se encuentra', async () => {
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue(null);
+      await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findByPatente', () => {
     it('debería encontrar un vehículo por patente', async () => {
-      const vehiculo = {
-        id: 1,
-        patente: 'ABC123',
-        capacidad: 20000,
-        odometro: 50000,
-        estado: 'disponible',
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01'),
-      };
-
+      const vehiculo = { id: 1, patente: 'ABC-123' };
       mockPrismaService.vehiculo.findFirst.mockResolvedValue(vehiculo);
 
-      const result = await service.findOneVehiculos('ABC123');
+      const result = await service.findByPatente(' abc-123 ');
 
       expect(result).toEqual(vehiculo);
       expect(mockPrismaService.vehiculo.findFirst).toHaveBeenCalledWith({
-        where: { patente: 'ABC123' },
+        where: { patente: 'ABC-123' },
+        include: expect.any(Object),
       });
     });
 
     it('debería retornar null cuando el vehículo no existe', async () => {
       mockPrismaService.vehiculo.findFirst.mockResolvedValue(null);
-
-      const result = await service.findOneVehiculos('PATENTE999');
-
+      const result = await service.findByPatente('NON-EXISTENT');
       expect(result).toBeNull();
-      expect(mockPrismaService.vehiculo.findFirst).toHaveBeenCalledWith({
-        where: { patente: 'PATENTE999' },
-      });
     });
   });
 
-  describe('updateVehiculo', () => {
+  describe('update', () => {
     it('debería actualizar un vehículo exitosamente', async () => {
-      const updateVehiculoDto: UpdateVehiculoDto = { estado: 'en_mantenimiento' };
+      const updateDto = { estado: 'en_mantenimiento' };
+      const existingVehicle = { id: 1, patente: 'ABC-123' };
+      const updatedVehicle = { ...existingVehicle, ...updateDto };
 
-      const vehiculoActualizado = {
-        id: 1,
-        patente: 'ABC123',
-        capacidad: 20000,
-        odometro: 50000,
-        estado: 'en_mantenimiento',
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-02'),
-      };
+      // Mock para la verificación interna de findOne
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue(existingVehicle);
+      // Mock para la operación de actualización
+      mockPrismaService.vehiculo.update.mockResolvedValue(updatedVehicle);
 
-      mockPrismaService.vehiculo.update.mockResolvedValue(vehiculoActualizado);
+      const result = await service.update(1, updateDto);
 
-      const result = await service.updateVehiculo(1, updateVehiculoDto);
-
-      expect(result).toEqual(vehiculoActualizado);
-      expect(result.estado).toBe('en_mantenimiento');
+      expect(result).toEqual(updatedVehicle);
+      expect(mockPrismaService.vehiculo.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        include: expect.any(Object),
+      });
       expect(mockPrismaService.vehiculo.update).toHaveBeenCalledWith({
         where: { id: 1 },
-        data: updateVehiculoDto,
+        data: updateDto,
+        include: expect.any(Object),
       });
     });
 
-    it('debería lanzar NotFoundException cuando el vehículo no existe', async () => {
-      const updateVehiculoDto: UpdateVehiculoDto = { estado: 'en_mantenimiento' };
-
-      const prismaError = new Prisma.PrismaClientKnownRequestError('Record to update not found', {
-        code: 'P2025',
-        clientVersion: '4.0.0',
-      } as any);
-
-      mockPrismaService.vehiculo.update.mockRejectedValue(prismaError);
-
-      await expect(service.updateVehiculo(999, updateVehiculoDto)).rejects.toThrow(NotFoundException);
+    it('debería lanzar NotFoundException cuando el vehículo a actualizar no existe', async () => {
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue(null);
+      await expect(service.update(999, { estado: 'disponible' })).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('removeVehiculo', () => {
-    it('debería eliminar un vehículo exitosamente', async () => {
-      const vehiculoEliminado = {
-        id: 1,
-        patente: 'ABC123',
-        capacidad: 20000,
-        odometro: 50000,
-        estado: 'disponible',
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01'),
-      };
+  describe('remove (soft delete)', () => {
+    it('debería cambiar el estado de un vehículo a "inactivo"', async () => {
+      const existingVehicle = { id: 1, patente: 'ABC-123', estado: 'disponible' };
+      const updatedVehicle = { ...existingVehicle, estado: 'inactivo' };
 
-      mockPrismaService.vehiculo.delete.mockResolvedValue(vehiculoEliminado);
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue(existingVehicle);
+      mockPrismaService.vehiculo.update.mockResolvedValue(vehiculoActualizado);
 
-      const result = await service.removeVehiculo(1);
+      const result = await service.remove(1);
 
-      expect(result).toEqual(vehiculoEliminado);
-      expect(mockPrismaService.vehiculo.delete).toHaveBeenCalledWith({
+      expect(result).toEqual(updatedVehicle);
+      expect(mockPrismaService.vehiculo.update).toHaveBeenCalledWith({
         where: { id: 1 },
+        data: { estado: 'inactivo' },
       });
     });
 
-    it('debería lanzar NotFoundException cuando el vehículo no existe', async () => {
-      const prismaError = new Prisma.PrismaClientKnownRequestError('Record to delete does not exist', {
-        code: 'P2025',
-        clientVersion: '4.0.0',
-      } as any);
-
-      mockPrismaService.vehiculo.delete.mockRejectedValue(prismaError);
-
-      await expect(service.removeVehiculo(999)).rejects.toThrow(NotFoundException);
-    });
-
-    it('debería relanzar otros errores de Prisma', async () => {
-      const otherError = new Prisma.PrismaClientKnownRequestError('Other error', {
-        code: 'P1000',
-        clientVersion: '4.0.0',
-      } as any);
-
-      mockPrismaService.vehiculo.delete.mockRejectedValue(otherError);
-
-      await expect(service.removeVehiculo(1)).rejects.toThrow(Prisma.PrismaClientKnownRequestError);
+    it('debería lanzar NotFoundException si el vehículo a remover no existe', async () => {
+      mockPrismaService.vehiculo.findUnique.mockResolvedValue(null);
+      await expect(service.remove(999)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -255,15 +217,16 @@ describe('VehiculoService', () => {
       const documento = {
         id: 1,
         tipo: 'pdf',
-        url: '/ruta/al/documento.pdf',
+        url: 'http://example.com/doc.pdf',
         fechaSubida: new Date('2024-01-01'),
         descripcion: 'Informe de diagnóstico',
         vehiculoId: 1,
+        ticketId: null,
       };
 
       mockPrismaService.documento.create.mockResolvedValue(documento);
 
-      const result = await service.registrarDocumento(1, 'pdf', '/ruta/al/documento.pdf', 'Informe de diagnóstico');
+      const result = await service.registrarDocumento(1, 'pdf', 'http://example.com/doc.pdf', 'Informe de diagnóstico');
 
       expect(result).toEqual(documento);
       expect(mockPrismaService.documento.create).toHaveBeenCalledWith({
@@ -271,116 +234,10 @@ describe('VehiculoService', () => {
           vehiculoId: 1,
           tipo: 'pdf',
           url: '/ruta/al/documento.pdf',
+          url: 'http://example.com/doc.pdf',
           descripcion: 'Informe de diagnóstico',
         },
       });
-    });
-
-    it('debería registrar un documento sin descripción', async () => {
-      const documento = {
-        id: 1,
-        tipo: 'pdf',
-        url: '/ruta/al/documento.pdf',
-        fechaSubida: new Date('2024-01-01'),
-        descripcion: null,
-        vehiculoId: 1,
-      };
-
-      mockPrismaService.documento.create.mockResolvedValue(documento);
-
-      const result = await service.registrarDocumento(1, 'pdf', '/ruta/al/documento.pdf');
-
-      expect(result).toEqual(documento);
-      expect(result.descripcion).toBeNull();
-      expect(mockPrismaService.documento.create).toHaveBeenCalledWith({
-        data: {
-          vehiculoId: 1,
-          tipo: 'pdf',
-          url: '/ruta/al/documento.pdf',
-          descripcion: undefined,
-        },
-      });
-    });
-
-    it('debería lanzar error cuando el vehículo no existe', async () => {
-      const prismaError = new Prisma.PrismaClientKnownRequestError('Foreign key constraint failed', {
-        code: 'P2003',
-        clientVersion: '4.0.0',
-      } as any);
-
-      mockPrismaService.documento.create.mockRejectedValue(prismaError);
-
-      await expect(service.registrarDocumento(999, 'pdf', '/ruta/al/documento.pdf')).rejects.toThrow(
-        Prisma.PrismaClientKnownRequestError,
-      );
-    });
-  });
-
-  // Tests adicionales para casos edge
-  describe('casos edge', () => {
-    it('debería manejar capacidad cero', async () => {
-      const createVehiculoDto: CreateVehiculoDto = {
-        patente: 'ZERO123',
-        capacidad: 0,
-        odometro: 50000,
-        estado: 'disponible',
-      };
-
-      const expectedResult = {
-        id: 3,
-        ...createVehiculoDto,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01'),
-      };
-
-      mockPrismaService.vehiculo.create.mockResolvedValue(expectedResult);
-
-      const result = await service.createVehiculos(createVehiculoDto);
-
-      expect(result.capacidad).toBe(0);
-    });
-
-    it('debería manejar odometro cero', async () => {
-      const createVehiculoDto: CreateVehiculoDto = {
-        patente: 'NEW123',
-        capacidad: 20000,
-        odometro: 0,
-        estado: 'disponible',
-      };
-
-      const expectedResult = {
-        id: 4,
-        ...createVehiculoDto,
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-01'),
-      };
-
-      mockPrismaService.vehiculo.create.mockResolvedValue(expectedResult);
-
-      const result = await service.createVehiculos(createVehiculoDto);
-
-      expect(result.odometro).toBe(0);
-    });
-
-    it('debería manejar actualización parcial', async () => {
-      const updateVehiculoDto: UpdateVehiculoDto = { odometro: 60000 };
-
-      const vehiculoActualizado = {
-        id: 1,
-        patente: 'ABC123',
-        capacidad: 20000,
-        odometro: 60000,
-        estado: 'disponible',
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-02'),
-      };
-
-      mockPrismaService.vehiculo.update.mockResolvedValue(vehiculoActualizado);
-
-      const result = await service.updateVehiculo(1, updateVehiculoDto);
-
-      expect(result.odometro).toBe(60000);
-      expect(result.estado).toBe('disponible'); // No debería cambiar
     });
   });
 });

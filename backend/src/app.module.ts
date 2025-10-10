@@ -12,6 +12,7 @@ import { NotificacionModule } from './notificacion/notificacion.module';
 import { FuelModule } from './fuel/fuel.module';
 import { IncidentModule } from './incident/incident.module';
 import { AseoModule } from './aseo/aseo.module';
+import { CivilWorkModule } from './civil-work/civil-work.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AseoModule } from './aseo/aseo.module';
     FuelModule,
     IncidentModule,
     AseoModule,
+    CivilWorkModule,
   ],
 
   controllers: [AppController],

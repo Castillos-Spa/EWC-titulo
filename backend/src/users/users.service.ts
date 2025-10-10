@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { User, Role, Permission, Specialty, Prisma } from '@prisma/client';
+import { CacheService } from '../common/cache.service';
+import { User, Role, Permission, Prisma } from '@prisma/client';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -13,6 +14,7 @@ export class UsersService {
     // @Inject(forwardRef(() => NotificacionService))
     private readonly notificationService: NotificacionService,
     private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
   ) {}
 
   private readonly userInclude = {
@@ -106,6 +108,10 @@ export class UsersService {
       createdById: result.id, // El ID del usuario que se acaba de crear
     });
 
+    // Invalidar cache de total y listados de usuarios
+    this.cacheService.del('users_total');
+    this.cacheService.delPrefix('cache:GET:/users');
+
     return { user: result, tempPassword };
   }
 
@@ -161,22 +167,75 @@ export class UsersService {
     const { page, pageSize } = opts;
     const skip = (page - 1) * pageSize;
 
-    const [items, total] = await Promise.all([
-      this.prisma.user.findMany({
-        skip,
-        take: pageSize,
-        orderBy: { id: 'desc' },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          active: true,
-          lastLogin: true,
-          roleAssignments: true,
-        },
-      }),
-      this.prisma.user.count(),
-    ]);
+    // Use a single SQL query to fetch users and their active roleAssignments as JSON (avoids separate IN (...) queries)
+    const rawItems = await this.prisma.$queryRawUnsafe(
+      `SELECT
+        u.id,
+        u.username,
+        u.email,
+        u.active,
+        u.last_login AS "lastLogin",
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'area', ura.area,
+                'role', ura.role::text,
+                'specialty', ura.specialty,
+                'additionalPermissions', ura.permissions,
+                'isActive', ura."isActive"
+              )
+            ) FILTER (WHERE ura.id IS NOT NULL),
+            '[]'
+          ) AS "roleAssignments"
+      FROM "User" u
+      LEFT JOIN "UserRoleAssignment" ura ON ura."userId" = u.id AND ura."isActive" = true
+      GROUP BY u.id
+      ORDER BY u.id DESC
+      LIMIT ${pageSize} OFFSET ${skip}`,
+    );
+
+    // Parse roleAssignments if returned as string
+    const rawItemsAny = rawItems as any[];
+    const items = rawItemsAny.map(row => {
+      const ra = typeof row.roleAssignments === 'string' ? JSON.parse(row.roleAssignments) : row.roleAssignments;
+      // Build derived fields expected by frontend
+      const rolesArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.role).filter(Boolean)));
+      const areasArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.area).filter(Boolean)));
+      const rolesByArea: Record<string, { role: string; specialty?: string | null; permissions: string[] }> = {};
+      (ra || []).forEach((r: any) => {
+        if (!r?.area) return;
+        rolesByArea[r.area] = {
+          role: r.role,
+          specialty: r.specialty ?? null,
+          permissions: Array.isArray(r.additionalPermissions) ? r.additionalPermissions : [],
+        };
+      });
+
+      return {
+        id: row.id,
+        username: row.username,
+        email: row.email,
+        active: row.active,
+        lastLogin: row.lastLogin,
+        roleAssignments: ra,
+        roles: rolesArr,
+        areas: areasArr,
+        rolesByArea,
+        isAdmin: rolesArr.includes('Admin'),
+      } as unknown as Omit<User, 'password'>;
+    });
+
+    let total = 0;
+    if (page === 1) {
+      total = (this.cacheService.get<number>('users_total') as number) ?? 0;
+      if (!total) {
+        const res: any = await this.prisma.$queryRawUnsafe('SELECT COUNT(*)::int AS count FROM "User"');
+        total = res[0]?.count ?? 0;
+        this.cacheService.set('users_total', total, 30_000); // cache por 30s
+      }
+    } else {
+      total = this.cacheService.get<number>('users_total') ?? 0;
+    }
 
     const sanitized = items.map(({ /* password omitted by select */ ...u }) => u as unknown as Omit<User, 'password'>);
     return { items: sanitized, total, page, pageSize };
