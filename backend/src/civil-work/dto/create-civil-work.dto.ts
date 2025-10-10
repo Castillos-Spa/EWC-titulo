@@ -38,7 +38,10 @@ export class CreateCivilWorkDto {
   location: string;
 
   @IsDateString()
-  date: string;
+  startDate: string;
+
+  @IsDateString()
+  estimatedEndDate: string;
 
   @IsEnum(CivilWorkType)
   workType: CivilWorkType;
@@ -47,11 +50,6 @@ export class CreateCivilWorkDto {
   @IsString({ each: true })
   @IsOptional()
   tasks?: string[];
-
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  timeSpent?: number;
 
   @IsInt()
   @Min(0)

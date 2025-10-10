@@ -366,25 +366,26 @@ model Aseo {
 }
 
 model CivilWork {
-  id               Int             @id @default(autoincrement())
-  project          String
-  location         String
-  date             DateTime
-  workType         CivilWorkType
-  tasks            String[]        @default([])
-  timeSpent        Float           @default(0)
-  progress         Int             @default(0)
-  issues           String[]        @default([])
-  status           CivilWorkStatus @default(PENDING)
-  observations     String?
-  photos           String[]        @default([])
-  responsibleStaff String[]        @default([])
-  materialsUsed    String[]        @default([])
+  id                        Int             @id @default(autoincrement())
+  project                   String
+  location                  String
+  startDate                 DateTime
+  estimatedEndDate          DateTime
+  actualEndDate             DateTime?
+  workType                  CivilWorkType
+  tasks                     Json
+  progress                  Int             @default(0)
+  issues                    String[]        @default([])
+  status                    CivilWorkStatus @default(PENDING)
+  observations              String?
+  photos                    String[]        @default([])
+  responsibleStaffUsernames String[]        @default([])
+  materialsUsed             String[]        @default([])
   // Auditoría
-  createdById      Int
-  createdBy        User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdById               Int
+  createdBy                 User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
 
   @@index([createdById])
 }
