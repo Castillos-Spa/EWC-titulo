@@ -41,6 +41,8 @@ export class OrdenTrabajoService {
 
   async findAll() {
     return this.prisma.ordenTrabajo.findMany({
+      take: 50,
+      orderBy: { id: 'desc' },
       include: { vehiculo: true, qa: true },
     });
   }

@@ -8,27 +8,31 @@ datasource db {
 }
 
 model User {
-  id                                   Int                  @id @default(autoincrement())
-  username                             String
-  email                                String               @unique
-  password                             String
-  createdAt                            DateTime             @default(now())
-  updatedAt                            DateTime             @updatedAt
-  active                               Boolean              @default(true)
-  mustChangePassword                   Boolean              @default(false)
-  refreshToken                         String?              @unique
-  lastLogin                            DateTime?            @map("last_login")
-  fuelLogs                             FuelLog[]            @relation("FuelLogs")
-  FuelLog_FuelLog_userIdToUser         FuelLog[]            @relation("FuelLog_userIdToUser")
-  Incident_Incident_reportedByIdToUser Incident[]           @relation("Incident_reportedByIdToUser")
-  Incident_Incident_reviewedByIdToUser Incident[]           @relation("Incident_reviewedByIdToUser")
-  createdNotifications                 Notification[]       @relation("CreatedNotifications")
-  assignedTickets                      Ticket[]             @relation("AssignedTickets")
-  createdTickets                       Ticket[]             @relation("CreatedTickets")
-  TicketApproval                       TicketApproval[]
-  UserNotification                     UserNotification[]
-  roleAssignments                      UserRoleAssignment[]
-  notifications                        Notification[]       @relation("NotificationToUser")
+  id                   Int                  @id @default(autoincrement())
+  username             String
+  email                String               @unique
+  password             String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  active               Boolean              @default(true)
+  mustChangePassword   Boolean              @default(false)
+  refreshToken         String?              @unique
+  lastLogin            DateTime?            @map("last_login")
+  drivenFuelLogs       FuelLog[]            @relation("DriverFuelLogs")
+  createdFuelLogs      FuelLog[]            @relation("UserFuelLogs")
+  reportedIncidents    Incident[]           @relation("ReportedIncidents")
+  reviewedIncidents    Incident[]           @relation("ReviewedIncidents")
+  createdNotifications Notification[]       @relation("CreatedNotifications")
+  assignedTickets      Ticket[]             @relation("AssignedTickets")
+  createdTickets       Ticket[]             @relation("CreatedTickets")
+  TicketApproval       TicketApproval[]
+  UserNotification     UserNotification[]
+  roleAssignments      UserRoleAssignment[]
+  notifications        Notification[]       @relation("NotificationToUser")
+  createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
+
+  @@index([username], name: "idx_user_username")
+  @@index([refreshToken], name: "idx_user_refresh_token")
 }
 
 model UserRoleAssignment {
@@ -87,6 +91,10 @@ model Vehiculo {
   documentos          Documento[]
   fuelLogs            FuelLog[]
   ordenes             OrdenTrabajo[]
+
+  @@index([conductorId])
+  @@index([estado])
+  @@index([areaAsignada])
 }
 
 model Documento {
@@ -194,40 +202,40 @@ model TicketApproval {
 }
 
 model FuelLog {
-  id                        Int      @id @default(autoincrement())
-  vehiculoId                Int
-  date                      DateTime
-  liters                    Float
-  cost                      Float?
-  odometer                  Int
-  driverId                  Int
-  invoiceUrl                String?
-  createdAt                 DateTime @default(now())
-  userId                    Int?
-  driver                    User     @relation("FuelLogs", fields: [driverId], references: [id])
-  User_FuelLog_userIdToUser User?    @relation("FuelLog_userIdToUser", fields: [userId], references: [id])
-  vehiculo                  Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  vehiculoId Int
+  date       DateTime
+  liters     Float
+  cost       Float?
+  odometer   Int
+  driverId   Int
+  invoiceUrl String?
+  createdAt  DateTime @default(now())
+  userId     Int?
+  driver     User     @relation("DriverFuelLogs", fields: [driverId], references: [id])
+  user       User?    @relation("UserFuelLogs", fields: [userId], references: [id])
+  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
 
   @@index([vehiculoId, date])
 }
 
 model Incident {
-  id                               Int              @id @default(autoincrement())
-  title                            String
-  description                      String
-  area                             String
-  type                             IncidentType
-  severity                         IncidentSeverity
-  status                           IncidentStatus   @default(REPORTED)
-  location                         Json
-  photos                           String[]         @default([])
-  reportedById                     Int
-  reportedAt                       DateTime         @default(now())
-  reviewedAt                       DateTime?
-  reviewedById                     Int?
-  updatedAt                        DateTime
-  User_Incident_reportedByIdToUser User             @relation("Incident_reportedByIdToUser", fields: [reportedById], references: [id])
-  User_Incident_reviewedByIdToUser User?            @relation("Incident_reviewedByIdToUser", fields: [reviewedById], references: [id])
+  id           Int              @id @default(autoincrement())
+  title        String
+  description  String
+  area         String
+  type         IncidentType
+  severity     IncidentSeverity
+  status       IncidentStatus   @default(REPORTED)
+  location     Json
+  photos       String[]         @default([])
+  reportedById Int
+  reportedAt   DateTime         @default(now())
+  reviewedAt   DateTime?
+  reviewedById Int?
+  updatedAt    DateTime         @updatedAt
+  reportedBy   User             @relation("ReportedIncidents", fields: [reportedById], references: [id])
+  reviewedBy   User?            @relation("ReviewedIncidents", fields: [reviewedById], references: [id])
 
   @@index([reportedById])
   @@index([reviewedById])
@@ -355,4 +363,42 @@ model Aseo {
   observations     String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+}
+
+model CivilWork {
+  id               Int             @id @default(autoincrement())
+  project          String
+  location         String
+  date             DateTime
+  workType         CivilWorkType
+  tasks            String[]        @default([])
+  timeSpent        Float           @default(0)
+  progress         Int             @default(0)
+  issues           String[]        @default([])
+  status           CivilWorkStatus @default(PENDING)
+  observations     String?
+  photos           String[]        @default([])
+  responsibleStaff String[]        @default([])
+  materialsUsed    String[]        @default([])
+  // Auditoría
+  createdById      Int
+  createdBy        User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([createdById])
+}
+
+enum CivilWorkType {
+  CONSTRUCTION
+  REPAIR
+  MAINTENANCE
+  INSPECTION
+}
+
+enum CivilWorkStatus {
+  COMPLETED
+  IN_PROGRESS
+  PENDING
+  ON_HOLD
 }

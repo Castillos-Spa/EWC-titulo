@@ -30,6 +30,8 @@ export class QaService implements IQaService {
 
   async findAll() {
     return this.prisma.qA.findMany({
+      take: 50,
+      orderBy: { createdAt: 'desc' },
       include: { ot: true },
     });
   }
