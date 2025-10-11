@@ -25,7 +25,7 @@ import { Role } from '@prisma/client';
 import type { User } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard, RolesGuard, AreaGuard)
-@Controller('civil-works')
+@Controller('civil-work')
 export class CivilWorkController {
   constructor(private readonly civilWorkService: CivilWorkService) {}
 
@@ -47,7 +47,7 @@ export class CivilWorkController {
     return this.civilWorkService.findAll({
       skip,
       take: Number(pageSize),
-      orderBy: { date: 'desc' },
+      orderBy: { startDate: 'desc' },
     });
   }
 
@@ -68,5 +68,11 @@ export class CivilWorkController {
   @Area('Obras')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.civilWorkService.remove(id);
+  }
+
+  @Patch(':id/tasks')
+  @Roles(Role.Admin, Role.Jefe, Role.Supervisor)
+  updateTasks(@Param('id', ParseIntPipe) id: number, @Body('tasks') tasks: { name: string; completed: boolean }[]) {
+    return this.civilWorkService.updateTasks(id, tasks);
   }
 }

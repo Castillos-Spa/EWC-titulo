@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Calendar, MapPin, HardHat, CheckCircle, Clock, AlertTriangle, Hammer } from 'lucide-react';
-import type { CivilWork, CivilWorkStatus, CivilWorkType, CivilWorkMaterial } from '../../types/CivilWork';
-import { fetchCivilWorks, fetchCivilWorkById, createCivilWork, updateCivilWork } from '../../utils/civilWorkApi';
+import type { CivilWork, CivilWorkStatus, CivilWorkType, CivilWorkTask, CreateCivilWorkPayload } from '../../types/CivilWork';
+import { fetchCivilWorks, fetchCivilWorkById, createCivilWork, updateCivilWork, updateCivilWorkTasks } from '../../utils/civilWorkApi';
 
 const CivilWorks: React.FC = () => {
   const [reports, setReports] = useState<Partial<CivilWork>[]>([]);
@@ -45,14 +45,16 @@ const CivilWorks: React.FC = () => {
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
+    
+    const tasks = (formData.get('tasks') as string).split(',').map(t => t.trim()).filter(Boolean);
 
-    const payload: Partial<CivilWork> = {
+    const payload: CreateCivilWorkPayload = {
       project: formData.get('project') as string,
       location: formData.get('location') as string,
-      date: new Date(formData.get('date') as string).toISOString(),
+      startDate: new Date(formData.get('startDate') as string).toISOString(),
+      estimatedEndDate: new Date(formData.get('estimatedEndDate') as string).toISOString(),
       workType: formData.get('workType') as CivilWorkType,
-      tasks: formData.getAll('tasks').map(String),
-      timeSpent: parseFloat(formData.get('timeSpent') as string || '0'),
+      tasks: tasks,
       progress: 0, // El progreso siempre inicia en 0
       status: formData.get('status') as CivilWorkStatus,
       observations: formData.get('observations') as string || '',
@@ -65,7 +67,7 @@ const CivilWorks: React.FC = () => {
         .split(',')
         .map(name => name.trim())
         .filter(name => name.length > 0),
-      materialsUsed,
+      materialsUsed: materialsUsed,
     };
 
     try {
@@ -75,6 +77,25 @@ const CivilWorks: React.FC = () => {
     } catch (error) {
       console.error("Error al crear la obra civil:", error);
       alert('No se pudo crear el reporte. Revisa la consola para más detalles.');
+    }
+  };
+
+  const handleTaskToggle = async (reportId: number | undefined, taskIndex: number) => {
+    const reportToUpdate = reports.find(r => r.id === reportId);
+    if (!reportToUpdate || !reportToUpdate.tasks) return;
+
+    // Clonamos y actualizamos la tarea específica
+    const updatedTasks = [...(reportToUpdate.tasks as CivilWorkTask[])];
+    updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], completed: !updatedTasks[taskIndex].completed };
+
+    try { // @ts-ignore
+      const updatedReport = await updateCivilWorkTasks(reportId, updatedTasks);
+      setReports(prev => prev.map(r => (r.id === reportId ? { ...r, ...updatedReport } : r)));
+      if (selectedReport && selectedReport.id === reportId) {
+        setSelectedReport(updatedReport);
+      }
+    } catch (error) {
+      console.error("Error al actualizar la tarea:", error);
     }
   };
 
@@ -131,7 +152,7 @@ const CivilWorks: React.FC = () => {
   const filteredReports = reports.filter(report =>
     report.project?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     report.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    report.responsibleStaff?.some(staffName => staffName.toLowerCase().includes(searchTerm.toLowerCase()))
+    (report.responsibleStaffUsernames as string[])?.some(staffName => staffName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -183,10 +204,10 @@ const CivilWorks: React.FC = () => {
         <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-slate-800 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Horas Trabajadas</p>
-              <p className="text-2xl font-bold text-purple-600">{isLoading ? '...' : reports.reduce((sum, r) => sum + (r.timeSpent || 0), 0)}h</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Pendientes</p>
+              <p className="text-2xl font-bold text-yellow-600">{isLoading ? '...' : reports.filter(r => r.status === 'PENDING' || r.status === 'ON_HOLD').length}</p>
             </div>
-            <Clock className="w-8 h-8 text-purple-600" />
+            <AlertTriangle className="w-8 h-8 text-yellow-600" />
           </div>
         </div>
       </div>
@@ -235,12 +256,12 @@ const CivilWorks: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(report.status)}`}>
-                      {getStatusIcon(report.status as CivilWorkStatus)}
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${getStatusColor(report.status!)}`}>
+                      {getStatusIcon(report.status!)}
                       <span className="capitalize">{report.status?.replace('_', ' ')}</span>
                     </span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getWorkTypeColor(report.workType as CivilWorkType)}`}>
-                      {getWorkTypeLabel(report.workType as CivilWorkType)}
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getWorkTypeColor(report.workType!)}`}>
+                      {getWorkTypeLabel(report.workType!)}
                     </span>
                   </div>
                 </div>
@@ -263,41 +284,40 @@ const CivilWorks: React.FC = () => {
                 <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span className="text-gray-600 dark:text-gray-400">Fecha:</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{new Date(report.date || '').toLocaleDateString('es-CL')}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Inicio:</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{report.startDate ? new Date(report.startDate).toLocaleDateString('es-CL') : 'N/A'}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span className="text-gray-600 dark:text-gray-400">Tiempo:</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{report.timeSpent || 0}h</span>
+                    <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <span className="text-gray-600 dark:text-gray-400">Término Est:</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{report.estimatedEndDate ? new Date(report.estimatedEndDate).toLocaleDateString('es-CL') : 'N/A'}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-gray-600 dark:text-gray-400">Personal:</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{report.responsibleStaff?.length || 0} personas</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{(report.responsibleStaffUsernames as string[])?.length || 0} personas</span>
                   </div>
                 </div>
 
                 {/* Tasks */}
                 <div>
                   <h4 className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">Tareas Realizadas:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {report.tasks?.map((task) => (
-                      <span key={`${report.id}-${task}`} className="px-2 py-1 text-xs text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-100">
-                        {task}
-                      </span>
+                  <div className="space-y-1">
+                    {(report.tasks as CivilWorkTask[])?.slice(0, 3).map((task, index) => (
+                      <div key={`${report.id}-${task.name}-${index}`} className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded-full ${task.completed ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                        <span className={`text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</span>
+                      </div>
                     ))}
                   </div>
+                  {(report.tasks as CivilWorkTask[])?.length > 3 && <p className="mt-1 text-xs text-gray-500">...y {(report.tasks as CivilWorkTask[]).length - 3} más</p>}
                 </div>
 
                 {/* Materials */}
                 <div>
                   <h4 className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">Materiales Utilizados:</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-3">
-                    {report.materialsUsed?.slice(0, 3).map((material, index) => (
-                      <div key={`${report.id}-material-${index}`} className="p-2 rounded bg-blue-50 dark:bg-blue-900/30">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{material}</span>
-                        <br />
-                      </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(report.materialsUsed as string[] | undefined)?.slice(0, 3).map((material, index) => (
+                      <span key={`${report.id}-material-${index}`} className="px-2 py-1 text-xs text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900/30 dark:text-blue-200">{material}</span>
                     ))}
                   </div>
                 </div>
@@ -310,7 +330,7 @@ const CivilWorks: React.FC = () => {
                       <span>Incidencias:</span>
                     </h4>
                     <div className="space-y-1">
-                      {report.issues?.map((issue) => (
+                      {(report.issues as string[] | undefined)?.map((issue) => (
                         <div key={`${report.id}-${issue}`} className="flex items-start space-x-2">
                           <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
                           <span className="text-sm text-gray-700 dark:text-gray-300">{issue}</span>
@@ -367,11 +387,11 @@ const CivilWorks: React.FC = () => {
             <form onSubmit={handleCreateSubmit} className="p-6 space-y-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="cw-date" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Fecha</label>
+                  <label htmlFor="cw-startDate" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Fecha de Inicio</label>
                   <input
                     type="date"
-                    id="cw-date"
-                    name="date"
+                    id="cw-startDate"
+                    name="startDate"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100"
                     defaultValue={new Date().toISOString().split('T')[0]}
                   />
@@ -411,14 +431,13 @@ const CivilWorks: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="cw-time" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tiempo Trabajado (horas)</label>
+                  <label htmlFor="cw-estimatedEndDate" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Fecha Estimada de Término</label>
                   <input
-                    type="number"
-                    step="0.5"
-                    name="timeSpent"
-                    placeholder="8"
-                    id="cw-time"
+                    type="date"
+                    id="cw-estimatedEndDate"
+                    name="estimatedEndDate"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                    defaultValue={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div>
@@ -449,18 +468,14 @@ const CivilWorks: React.FC = () => {
               </div>
 
               <fieldset>
-                <legend className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tareas Realizadas</legend>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Demolición', 'Excavación', 'Fundición', 'Albañilería', 'Soldadura', 'Pintura', 'Instalación', 'Acabados'].map((task, idx) => {
-                    const id = `cw-task-${idx}`;
-                    return (
-                      <div key={task} className="flex items-center gap-2">
-                        <input id={id} name="tasks" value={task} type="checkbox" className="text-blue-600 border-gray-300 rounded dark:border-slate-600 focus:ring-blue-500" />
-                        <label htmlFor={id} className="text-sm text-gray-700 dark:text-gray-300">{task}</label>
-                      </div>
-                    );
-                  })}
-                </div>
+                <legend className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tareas a Realizar (separadas por coma)</legend>
+                <input
+                  type="text"
+                  name="tasks"
+                  placeholder="Ej: Preparar terreno, Instalar cimientos, Levantar muros"
+                  id="cw-tasks"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                />
               </fieldset>
 
               <div>
@@ -541,14 +556,14 @@ const CivilWorks: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</p>
-                  <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedReport.status as CivilWorkStatus)}`}>
+                  <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedReport.status!)}`}>
                     {selectedReport.status?.replace('_', ' ')}
                   </span>
                 </div>
                 <div>
                   <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de Trabajo</p>
-                  <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getWorkTypeColor(selectedReport.workType as CivilWorkType)}`}>
-                    {getWorkTypeLabel(selectedReport.workType as CivilWorkType)}
+                  <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getWorkTypeColor(selectedReport.workType!)}`}>
+                    {getWorkTypeLabel(selectedReport.workType!)}
                   </span>
                 </div>
               </div>
@@ -570,19 +585,29 @@ const CivilWorks: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ubicación</p>
-                  <p className="mt-1 text-gray-900 dark:text-gray-100">{selectedReport.location}</p>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha de Inicio</p>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">{selectedReport.startDate ? new Date(selectedReport.startDate).toLocaleDateString('es-CL') : 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tiempo Trabajado</p>
-                  <p className="mt-1 text-gray-900 dark:text-gray-100">{selectedReport.timeSpent} horas</p>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha Estimada de Término</p>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">{selectedReport.estimatedEndDate ? new Date(selectedReport.estimatedEndDate).toLocaleDateString('es-CL') : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha Real de Término</p>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">
+                    {selectedReport.actualEndDate ? new Date(selectedReport.actualEndDate).toLocaleDateString('es-CL') : 'Aún en progreso'}
+                  </p>
+                </div>
+                <div>
+                  <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ubicación</p>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">{selectedReport.location}</p>
                 </div>
               </div>
 
               <div>
                 <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Personal Responsable</p>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedReport.responsibleStaff.map((staff) => (
+                  {(selectedReport.responsibleStaffUsernames as string[]).map((staff) => (
                     <span key={`${selectedReport.id}-${staff}`} className="px-3 py-1 text-sm text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900/30 dark:text-blue-100">
                       {staff}
                     </span>
@@ -592,11 +617,12 @@ const CivilWorks: React.FC = () => {
 
               <div>
                 <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tareas Realizadas</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedReport.tasks.map((task) => (
-                    <span key={`${selectedReport.id}-${task}`} className="px-2 py-1 text-sm text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-100">
-                      {task}
-                    </span>
+                <div className="mt-2 space-y-2">
+                  {(selectedReport.tasks as CivilWorkTask[] | undefined)?.map((task, index) => (
+                    <div key={`${selectedReport.id}-detail-${task.name}-${index}`} className="flex items-center gap-3 p-2 rounded-md bg-gray-50 dark:bg-slate-800/50">
+                      <input type="checkbox" checked={task.completed} onChange={() => handleTaskToggle(selectedReport.id, index)} className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                      <label className={`flex-1 text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -604,7 +630,7 @@ const CivilWorks: React.FC = () => {
               <div>
                 <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Materiales Utilizados</p>
                 <div className="grid grid-cols-2 gap-3 mt-2 md:grid-cols-3">
-                  {selectedReport.materialsUsed.map((material, index) => (
+                  {(selectedReport.materialsUsed as string[] | undefined)?.map((material, index) => (
                     <div key={`${selectedReport.id}-material-detail-${index}`} className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{material}</div>
                     </div>
@@ -612,11 +638,11 @@ const CivilWorks: React.FC = () => {
                 </div>
               </div>
 
-              {selectedReport.issues.length > 0 && (
+              {selectedReport.issues && (selectedReport.issues as string[] | undefined)?.length > 0 && (
                 <div>
                   <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Incidencias</p>
                   <div className="mt-2 space-y-2">
-                    {selectedReport.issues.map((issue) => (
+                    {(selectedReport.issues as string[] | undefined)?.map((issue) => (
                       <div key={`${selectedReport.id}-${issue}`} className="flex items-start p-3 space-x-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/30">
                         <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">{issue}</span>
