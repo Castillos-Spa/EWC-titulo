@@ -1,15 +1,11 @@
-import type { CivilWork } from "../types/CivilWork";
+import type {
+  CivilWork,
+  CreateCivilWorkPayload,
+  CivilWorkTask,
+} from "../types/CivilWork";
 import apiFetch from "./api";
 
-export type CreateCivilWorkPayload = Omit<
-  CivilWork,
-  "id" | "responsibleStaff" | "materialsUsed" | "issues"
-> & {
-  responsibleStaffIds: number[];
-  materialsUsed?: { name: string; quantity: number; unit: string }[];
-};
-
-export type UpdateCivilWorkPayload = Partial<CreateCivilWorkPayload>;
+export type UpdateCivilWorkPayload = Partial<Omit<CivilWork, "id">>;
 
 /**
  * Obtiene todos los reportes de obras civiles con paginación.
@@ -20,7 +16,7 @@ export async function fetchCivilWorks(
   page = 1,
   pageSize = 20
 ): Promise<{ items: Partial<CivilWork>[]; total: number }> {
-  return apiFetch(`/civil-works?page=${page}&pageSize=${pageSize}`);
+  return apiFetch(`/civil-work?page=${page}&pageSize=${pageSize}`);
 }
 
 /**
@@ -28,7 +24,7 @@ export async function fetchCivilWorks(
  * @param id - ID del reporte
  */
 export async function fetchCivilWorkById(id: number): Promise<CivilWork> {
-  return apiFetch(`/civil-works/${id}`);
+  return apiFetch(`/civil-work/${id}`);
 }
 
 /**
@@ -38,7 +34,7 @@ export async function fetchCivilWorkById(id: number): Promise<CivilWork> {
 export async function createCivilWork(
   payload: CreateCivilWorkPayload
 ): Promise<CivilWork> {
-  return apiFetch("/civil-works", {
+  return apiFetch("/civil-work", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -53,7 +49,7 @@ export async function updateCivilWork(
   id: number,
   payload: UpdateCivilWorkPayload
 ): Promise<CivilWork> {
-  return apiFetch(`/civil-works/${id}`, {
+  return apiFetch(`/civil-work/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -64,5 +60,15 @@ export async function updateCivilWork(
  * @param id - ID del reporte a eliminar
  */
 export async function deleteCivilWork(id: number): Promise<CivilWork> {
-  return apiFetch(`/civil-works/${id}`, { method: "DELETE" });
+  return apiFetch(`/civil-work/${id}`, { method: "DELETE" });
 }
+
+export const updateCivilWorkTasks = async (
+  id: number,
+  tasks: CivilWorkTask[]
+): Promise<CivilWork> => {
+  return apiFetch(`/civil-work/${id}/tasks`, {
+    method: "PATCH",
+    body: JSON.stringify({ tasks }),
+  });
+};

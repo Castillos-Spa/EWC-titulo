@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateCivilWorkDto } from './dto/create-civil-work.dto';
 import { UpdateCivilWorkDto } from './dto/update-civil-work.dto';
-import { CivilWork, Prisma } from '@prisma/client';
+import { CivilWork, Prisma, CivilWorkStatus } from '@prisma/client';
 
 @Injectable()
 export class CivilWorkService {
@@ -12,16 +12,24 @@ export class CivilWorkService {
   private readonly civilWorkInclude = {
     createdBy: { select: { id: true, username: true } },
     // responsibleStaff y materialsUsed son ahora arreglos de strings, se obtienen por defecto.
+    // El campo 'tasks' ahora será un JSON, por lo que se obtiene por defecto.
   } satisfies Prisma.CivilWorkInclude;
 
   async create(createDto: CreateCivilWorkDto, createdById: number): Promise<CivilWork> {
-    const { responsibleStaffUsernames, materialsUsed, ...workData } = createDto;
+    const { responsibleStaffUsernames, materialsUsed, tasks, ...workData } = createDto;
+
+    // Convertimos el array de strings de tareas a un array de objetos con estado 'completed: false'
+    const tasksAsObjects = (tasks || []).map(taskName => ({
+      name: taskName,
+      completed: false,
+    }));
 
     return this.prisma.civilWork.create({
       data: {
         ...workData,
         createdBy: { connect: { id: createdById } },
-        responsibleStaff: responsibleStaffUsernames, // Guardamos directamente el array de strings
+        tasks: tasksAsObjects as any,
+        responsibleStaffUsernames: responsibleStaffUsernames, // Guardamos directamente el array de strings
         materialsUsed: materialsUsed, // Guardamos directamente el array de strings
       },
       include: this.civilWorkInclude,
@@ -49,11 +57,12 @@ export class CivilWorkService {
           id: true,
           project: true,
           location: true,
-          date: true,
+          startDate: true,
+          estimatedEndDate: true,
           workType: true,
           status: true,
           progress: true,
-          responsibleStaff: true,
+          responsibleStaffUsernames: true,
         },
       }),
     ]);
@@ -73,6 +82,42 @@ export class CivilWorkService {
     return civilWork;
   }
 
+  async updateTasks(id: number, tasks: { name: string; completed: boolean }[]): Promise<CivilWork> {
+    if (!Array.isArray(tasks)) {
+      throw new BadRequestException('El campo de tareas debe ser un arreglo.');
+    }
+
+    // Calcular el nuevo progreso
+    const completedTasks = tasks.filter(t => t.completed).length;
+    const totalTasks = tasks.length;
+    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    // Determinar el nuevo estado basado en el progreso
+    let status: CivilWorkStatus;
+    let actualEndDate: Date | null = null;
+
+    if (progress === 100) {
+      status = CivilWorkStatus.COMPLETED;
+      actualEndDate = new Date(); // Establece la fecha de término real al completar
+    } else if (progress > 0) {
+      status = CivilWorkStatus.IN_PROGRESS;
+    } else {
+      const currentWork = await this.findOne(id);
+      status = currentWork.status;
+    }
+
+    return this.prisma.civilWork.update({
+      where: { id },
+      data: {
+        tasks: tasks as any, // Prisma espera un JsonValue
+        progress,
+        status,
+        ...(actualEndDate && { actualEndDate }), // Actualiza solo si se completó
+      },
+      include: this.civilWorkInclude,
+    });
+  }
+
   async update(id: number, updateDto: UpdateCivilWorkDto): Promise<CivilWork> {
     return this.prisma.$transaction(async tx => {
       // Verificamos que la obra exista dentro de la misma transacción.
@@ -84,14 +129,15 @@ export class CivilWorkService {
         throw new NotFoundException(`Obra Civil con ID #${id} no encontrada.`);
       }
 
-      const { responsibleStaffUsernames, materialsUsed, ...workData } = updateDto;
+      const { responsibleStaffUsernames, materialsUsed, tasks, ...workData } = updateDto;
 
       return tx.civilWork.update({
         where: { id },
         data: {
           ...workData,
+          tasks: tasks as any,
           // Si se proveen nombres de responsables, actualizamos el arreglo de strings.
-          responsibleStaff: responsibleStaffUsernames,
+          responsibleStaffUsernames: responsibleStaffUsernames,
           materialsUsed: materialsUsed,
         },
         include: this.civilWorkInclude,

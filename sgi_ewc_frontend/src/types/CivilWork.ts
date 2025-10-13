@@ -9,31 +9,32 @@ export type CivilWorkStatus =
   | "PENDING"
   | "ON_HOLD";
 
-export interface CivilWorkMaterial {
-  id: number;
+export interface CivilWorkTask {
   name: string;
-  quantity: number;
-  unit: string;
-}
-
-export interface ResponsibleStaff {
-  id: number;
-  username: string;
+  completed: boolean;
 }
 
 export interface CivilWork {
   id: number;
-  date: string; // ISO Date String
   project: string;
   location: string;
+  startDate: string;
+  estimatedEndDate: string;
+  actualEndDate?: string | null;
   workType: CivilWorkType;
-  tasks: string[];
-  responsibleStaff: ResponsibleStaff[];
-  materialsUsed: CivilWorkMaterial[];
-  timeSpent: number;
+  tasks: CivilWorkTask[];
   progress: number;
-  issues: string[];
   status: CivilWorkStatus;
-  observations: string | null;
-  photos?: string[];
+  observations?: string;
+  issues: string[];
+  photos: string[];
+  createdById: number;
+  responsibleStaffUsernames: string[];
+  materialsUsed: string[];
 }
+
+// Este tipo se usa para el payload de creación
+export type CreateCivilWorkPayload = Omit<
+  CivilWork,
+  "id" | "actualEndDate" | "createdById"
+>;
