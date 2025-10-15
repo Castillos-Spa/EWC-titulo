@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  TextInput,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HardHat, Filter, RefreshCw, FileText, TriangleAlert as AlertTriangle, Shield } from 'lucide-react-native';
@@ -26,8 +28,12 @@ export default function CivilWorksScreen() {
     currentWorkOrder,
     error,
     loadWorkOrders,
+    fetchAndSetCurrentWorkOrder,
+    loadMoreWorkOrders,
     setCurrentWorkOrder,
     clearError,
+    isLoadingMore,
+    total,
   } = useCivilWorksStore();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -35,6 +41,7 @@ export default function CivilWorksScreen() {
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadWorkOrders();
@@ -46,14 +53,21 @@ export default function CivilWorksScreen() {
     setRefreshing(false);
   };
 
-  const handleWorkOrderPress = (workOrder: any) => {
-    setCurrentWorkOrder(workOrder);
+  const handleWorkOrderPress = async (workOrder: any) => {
+    await fetchAndSetCurrentWorkOrder(String(workOrder.id));
     setShowDetailModal(true);
   };
 
   const filteredWorkOrders = workOrders.filter(order => {
     if (filterStatus !== 'all' && order.status !== filterStatus) return false;
     if (filterPriority !== 'all' && order.priority !== filterPriority) return false;
+    if (search.trim().length > 0) {
+      const q = search.toLowerCase();
+      const staff = (order.assignedTo || []).join(', ').toLowerCase();
+      if (!order.title.toLowerCase().includes(q)
+        && !(order.location?.address || '').toLowerCase().includes(q)
+        && !staff.includes(q)) return false;
+    }
     return true;
   });
 
@@ -138,6 +152,7 @@ export default function CivilWorksScreen() {
                   { value: 'all', label: 'Todos' },
                   { value: 'assigned', label: 'Asignadas' },
                   { value: 'in_progress', label: 'En Progreso' },
+                  { value: 'on_hold', label: 'En Espera' },
                   { value: 'completed', label: 'Completadas' },
                 ].map((filter) => (
                   <TouchableOpacity
@@ -191,43 +206,56 @@ export default function CivilWorksScreen() {
               </View>
             </ScrollView>
           </View>
+
+          {/* Search */}
+          <View style={styles.searchGroup}>
+            <TextInput
+              placeholder="Buscar por proyecto, ubicación o personal..."
+              placeholderTextColor={colors.textSecondary}
+              value={search}
+              onChangeText={setSearch}
+              style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+            />
+            <Text style={[styles.searchMeta, { color: colors.textSecondary }]}>
+              {filteredWorkOrders.length} de {total} resultados
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Work Orders List */}
-      <ScrollView
+      {/* Work Orders List + Pagination */}
+      <FlatList
         style={styles.content}
-        contentContainerStyle={[
-          styles.contentContainer,
-          { paddingBottom: insets.bottom + 100 }
-        ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        {filteredWorkOrders.length === 0 ? (
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 100 }]}
+        data={filteredWorkOrders}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => (
+          <WorkOrderCard workOrder={item} onPress={() => { void handleWorkOrderPress(item); }} />
+        )}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => { void loadMoreWorkOrders(filterStatus !== 'all' ? filterStatus : undefined); }}
+        ListEmptyComponent={
           <View style={styles.emptyState}>
             <FileText size={64} color="#9CA3AF" />
             <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
               {filterStatus === 'all' ? 'No hay órdenes de trabajo' : 'No hay órdenes con este filtro'}
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              {filterStatus === 'all' 
+              {filterStatus === 'all'
                 ? 'Las órdenes de trabajo aparecerán aquí'
-                : 'Cambia el filtro para ver otras órdenes'
-              }
+                : 'Cambia el filtro para ver otras órdenes'}
             </Text>
           </View>
-        ) : (
-          filteredWorkOrders.map((workOrder) => (
-            <WorkOrderCard
-              key={workOrder.id}
-              workOrder={workOrder}
-              onPress={() => handleWorkOrderPress(workOrder)}
-            />
-          ))
-        )}
-      </ScrollView>
+        }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={{ paddingVertical: 16 }}>
+              <Text style={{ textAlign: 'center', color: colors.textSecondary }}>Cargando más...</Text>
+            </View>
+          ) : null
+        }
+      />
 
       {/* Work Order Detail Modal */}
       {currentWorkOrder && (
@@ -391,6 +419,22 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  searchGroup: {
+    marginTop: 8,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  searchMeta: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#64748B',
   },
   errorContainer: {
     flex: 1,

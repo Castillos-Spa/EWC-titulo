@@ -5,22 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/apps.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/apps.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/civil-works.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/civil-works.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/cleaning.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/cleaning.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/maintenance.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/maintenance.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/notifications.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/notifications.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/routes.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/routes.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/settings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/settings.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/work.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/work.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/TicketApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/TicketApi.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/kanbanStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/kanbanStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/ticketStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/ticketStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/civilWorksStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/civilWorksStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

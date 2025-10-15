@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { CivilWorksApi, CivilWorkStatus as BStatus, CivilWorkType as BType, CivilWork } from '../services/CivilWorksApi';
 
 export interface WorkOrder {
   id: string;
@@ -165,9 +166,16 @@ interface CivilWorksState {
   isLoading: boolean;
   isSubmitting: boolean;
   error: string | null;
+  // paginación
+  page: number;
+  pageSize: number;
+  total: number;
+  isLoadingMore: boolean;
   
   // Actions
   loadWorkOrders: (status?: string, dateRange?: { start: string; end: string }) => Promise<void>;
+  fetchAndSetCurrentWorkOrder: (orderId: string) => Promise<void>;
+  loadMoreWorkOrders: (status?: string, dateRange?: { start: string; end: string }) => Promise<void>;
   createWorkOrder: (orderData: Omit<WorkOrder, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>) => Promise<void>;
   updateWorkOrderStatus: (orderId: string, status: WorkOrder['status']) => Promise<void>;
   startWorkOrder: (orderId: string) => Promise<void>;
@@ -183,143 +191,222 @@ interface CivilWorksState {
   clearError: () => void;
 }
 
+// Mapeos backend -> UI centralizados
+const mapStatusToUi = (s: BStatus): WorkOrder['status'] => {
+  switch (s) {
+    case 'COMPLETED': return 'completed';
+    case 'IN_PROGRESS': return 'in_progress';
+    case 'ON_HOLD': return 'on_hold';
+    case 'PENDING':
+    default: return 'assigned';
+  }
+};
+const mapTypeToUi = (t: BType): WorkOrder['type'] => {
+  switch (t) {
+    case 'CONSTRUCTION': return 'construction';
+    case 'REPAIR': return 'repair';
+    case 'MAINTENANCE': return 'maintenance';
+    case 'INSPECTION':
+    default: return 'inspection';
+  }
+};
+
 export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
   workOrders: [],
   currentWorkOrder: null,
   isLoading: false,
   isSubmitting: false,
   error: null,
+  page: 1,
+  pageSize: 20,
+  total: 0,
+  isLoadingMore: false,
 
+  // Helpers de mapeo backend -> UI
+  
   loadWorkOrders: async (status?: string, dateRange?: { start: string; end: string }) => {
     set({ isLoading: true, error: null });
     try {
-      // Mock data for work orders
-      const mockWorkOrders: WorkOrder[] = [
-        {
-          id: 'work-001',
-          orderNumber: 'OT-2025-001',
-          title: 'Reparación de Acera Principal',
-          description: 'Reparar grietas en la acera principal del edificio administrativo',
-          type: 'repair',
-          priority: 'high',
-          status: 'assigned',
-          assignedTo: ['Miguel Rodríguez', 'Fernando Silva'],
-          assignedBy: 'Supervisor García',
-          location: {
-            latitude: -34.6037,
-            longitude: -58.3816,
-            address: 'Av. Principal 123, Buenos Aires',
-            site: 'Edificio Administrativo',
-          },
-          estimatedDuration: 8,
-          scheduledDate: new Date().toISOString().split('T')[0],
-          materials: [
-            {
-              id: 'mat-001',
-              name: 'Cemento Portland',
-              quantity: 10,
-              unit: 'bolsas',
-              category: 'cement',
-              cost: 50,
-            },
-            {
-              id: 'mat-002',
-              name: 'Arena Fina',
-              quantity: 2,
-              unit: 'm³',
-              category: 'other',
-              cost: 80,
-            },
-          ],
-          safetyChecklist: [
-            {
-              id: 'safety-001',
-              description: 'Uso de casco de seguridad',
-              category: 'ppe',
-              completed: false,
-              photoRequired: true,
-            },
-            {
-              id: 'safety-002',
-              description: 'Verificar condiciones del terreno',
-              category: 'site_conditions',
-              completed: false,
-              photoRequired: true,
-            },
-            {
-              id: 'safety-003',
-              description: 'Inspeccionar herramientas',
-              category: 'equipment',
-              completed: false,
-              photoRequired: false,
-            },
-          ],
-          progressPhotos: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          syncStatus: 'synced',
-        },
-        {
-          id: 'work-002',
-          orderNumber: 'OT-2025-002',
-          title: 'Instalación de Luminarias LED',
-          description: 'Reemplazar luminarias tradicionales por LED en área de almacén',
-          type: 'installation',
-          priority: 'medium',
-          status: 'in_progress',
-          assignedTo: ['Miguel Rodríguez'],
-          assignedBy: 'Supervisor García',
-          location: {
-            latitude: -34.6118,
-            longitude: -58.3960,
-            address: 'Zona Industrial 456, Buenos Aires',
-            site: 'Almacén Norte',
-          },
-          estimatedDuration: 4,
-          scheduledDate: new Date().toISOString().split('T')[0],
-          startTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          materials: [
-            {
-              id: 'mat-003',
-              name: 'Luminarias LED 40W',
-              quantity: 12,
-              unit: 'unidades',
-              category: 'electrical',
-              used: 8,
-              cost: 120,
-            },
-          ],
-          safetyChecklist: [
-            {
-              id: 'safety-004',
-              description: 'Cortar energía eléctrica',
-              category: 'procedures',
-              completed: true,
-              photoRequired: false,
-              completedBy: 'Miguel Rodríguez',
-              completedAt: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
-            },
-          ],
-          progressPhotos: [
-            {
-              id: 'photo-001',
-              uri: 'https://images.pexels.com/photos/1108101/pexels-photo-1108101.jpeg',
-              description: 'Estado inicial del área',
-              takenAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-              takenBy: 'Miguel Rodríguez',
-              stage: 'before',
-            },
-          ],
-          createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date().toISOString(),
-          syncStatus: 'pending',
-        },
-      ];
+      // 1) Obtener lista paginada desde backend
+      const { pageSize } = get();
+      const { items, total } = await CivilWorksApi.list(1, pageSize);
 
-      set({ workOrders: mockWorkOrders, isLoading: false });
+      const mapStatus = mapStatusToUi;
+      const mapType = mapTypeToUi;
+
+      const mapped: WorkOrder[] = items.map(it => ({
+        id: String(it.id),
+        orderNumber: `OC-${String(it.id).padStart(4, '0')}`,
+        title: it.project,
+        description: '',
+        type: mapType(it.workType),
+        priority: 'medium',
+        status: mapStatus(it.status),
+        assignedTo: (it.responsibleStaff || []).map(s => String(s)),
+        assignedBy: '',
+        location: {
+          latitude: 0,
+          longitude: 0,
+          address: it.location,
+          site: it.location,
+        },
+        estimatedDuration: 8,
+        actualDuration: undefined,
+        scheduledDate: it.date,
+        materials: [],
+        safetyChecklist: [],
+        progressPhotos: [],
+        notes: undefined,
+        completionNotes: undefined,
+        supervisorApproval: undefined,
+        createdAt: it.date,
+        updatedAt: it.date,
+        syncStatus: 'synced',
+      }));
+
+      // 3) Filtro en cliente si se especifica
+      const filtered = mapped.filter(order => {
+        if (status && status !== 'all' && order.status !== status) return false;
+        if (dateRange) {
+          const d = new Date(order.scheduledDate).getTime();
+          const s = new Date(dateRange.start).getTime();
+          const e = new Date(dateRange.end).getTime();
+          if (d < s || d > e) return false;
+        }
+        return true;
+      });
+
+      set({ workOrders: filtered, isLoading: false, page: 1, total });
     } catch (error) {
       console.error('Error al cargar órdenes de trabajo:', error);
       set({ error: 'Error al cargar órdenes de trabajo', isLoading: false });
+    }
+  },
+
+  loadMoreWorkOrders: async (status?: string, dateRange?: { start: string; end: string }) => {
+    const { isLoading, isLoadingMore, workOrders, page, pageSize, total } = get();
+    if (isLoading || isLoadingMore) return;
+    if (workOrders.length >= total) return; // no hay más
+    const nextPage = page + 1;
+    set({ isLoadingMore: true });
+    try {
+      const { items } = await CivilWorksApi.list(nextPage, pageSize);
+      const mapped: WorkOrder[] = items.map(it => ({
+        id: String(it.id),
+        orderNumber: `OC-${String(it.id).padStart(4, '0')}`,
+        title: it.project,
+        description: '',
+        type: mapTypeToUi(it.workType),
+        priority: 'medium',
+        status: mapStatusToUi(it.status),
+        assignedTo: (it.responsibleStaff || []).map(s => String(s)),
+        assignedBy: '',
+        location: {
+          latitude: 0,
+          longitude: 0,
+          address: it.location,
+          site: it.location,
+        },
+        estimatedDuration: 8,
+        actualDuration: undefined,
+        scheduledDate: it.date,
+        materials: [],
+        safetyChecklist: [],
+        progressPhotos: [],
+        notes: undefined,
+        completionNotes: undefined,
+        supervisorApproval: undefined,
+        createdAt: it.date,
+        updatedAt: it.date,
+        syncStatus: 'synced',
+      }));
+
+      // filtro del lado cliente si aplica
+      const appended = [...workOrders, ...mapped].filter(order => {
+        if (status && status !== 'all' && order.status !== status) return false;
+        if (dateRange) {
+          const d = new Date(order.scheduledDate).getTime();
+          const s = new Date(dateRange.start).getTime();
+          const e = new Date(dateRange.end).getTime();
+          if (d < s || d > e) return false;
+        }
+        return true;
+      });
+
+      set({ workOrders: appended, page: nextPage, isLoadingMore: false });
+    } catch (error) {
+      console.error('Error al cargar más obras civiles:', error);
+      set({ isLoadingMore: false });
+    }
+  },
+
+  fetchAndSetCurrentWorkOrder: async (orderId: string) => {
+    try {
+      const idNum = Number(orderId);
+      if (Number.isNaN(idNum)) return;
+      const cw: CivilWork = await CivilWorksApi.get(idNum);
+
+      const mapStatus = mapStatusToUi;
+      const mapType = mapTypeToUi;
+      const parseMaterial = (s: string, idx: number): WorkMaterial => {
+        // Intento de parseo: "Nombre: 10 sacos" o "Nombre 10 sacos"
+        const [left, right] = s.includes(':') ? s.split(':', 2).map(x => x.trim()) : [s, ''];
+  const re = /(\d+(?:\.\d+)?)/;
+  const exec = re.exec(right);
+  const quantity = exec ? parseFloat(exec[1]) : 1;
+  const unit = exec ? right.slice(exec.index + exec[1].length).trim() : '';
+        return {
+          id: `mat-${idx}`,
+          name: left || s,
+          quantity: Number.isFinite(quantity) ? quantity : 1,
+          unit: unit || '',
+          category: 'other',
+        };
+      };
+
+      const wo: WorkOrder = {
+        id: String(cw.id),
+        orderNumber: `OC-${String(cw.id).padStart(4, '0')}`,
+        title: cw.project,
+        description: cw.observations || '',
+        type: mapType(cw.workType),
+        priority: 'medium',
+        status: mapStatus(cw.status),
+        assignedTo: (cw.responsibleStaff || []).map(s => String(s)),
+        assignedBy: '',
+        location: {
+          latitude: 0,
+          longitude: 0,
+          address: cw.location,
+          site: cw.location,
+        },
+        estimatedDuration: cw.timeSpent ?? 8,
+        actualDuration: cw.status === 'COMPLETED' ? (cw.timeSpent ?? undefined) : undefined,
+        scheduledDate: cw.date,
+        startTime: undefined,
+        endTime: undefined,
+        materials: (cw.materialsUsed || []).map(parseMaterial),
+        safetyChecklist: [],
+        progressPhotos: (cw.photos || []).map((p, idx) => ({
+          id: `photo-${cw.id}-${idx}`,
+          uri: p,
+          description: '',
+          takenAt: new Date().toISOString(),
+          takenBy: 'Sistema',
+          stage: 'during',
+        })),
+        notes: cw.observations || undefined,
+        completionNotes: undefined,
+        supervisorApproval: undefined,
+        createdAt: (cw as any).createdAt || cw.date,
+        updatedAt: (cw as any).updatedAt || cw.date,
+        syncStatus: 'synced',
+      };
+
+      set({ currentWorkOrder: wo });
+    } catch (error) {
+      console.error('Error al obtener detalle de obra civil:', error);
+      set({ error: 'Error al obtener detalle de obra civil' });
     }
   },
 
@@ -346,6 +433,20 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
 
   updateWorkOrderStatus: async (orderId: string, status: WorkOrder['status']) => {
     try {
+      // Mapear estado UI -> backend
+      const toBackend = (s: WorkOrder['status']): BStatus => {
+        switch (s) {
+          case 'completed': return 'COMPLETED';
+          case 'in_progress': return 'IN_PROGRESS';
+          case 'on_hold': return 'ON_HOLD';
+          case 'assigned':
+          default: return 'PENDING';
+        }
+      };
+      const idNum = Number(orderId);
+      if (!Number.isNaN(idNum)) {
+        await CivilWorksApi.update(idNum, { status: toBackend(status) });
+      }
       set(state => ({
         workOrders: state.workOrders.map(order =>
           order.id === orderId 
@@ -353,7 +454,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
                 ...order, 
                 status, 
                 updatedAt: new Date().toISOString(),
-                syncStatus: 'pending' as const 
+                syncStatus: 'synced' as const 
               }
             : order
         ),
@@ -366,15 +467,13 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
 
   startWorkOrder: async (orderId: string) => {
     try {
+      await get().updateWorkOrderStatus(orderId, 'in_progress');
       set(state => ({
         workOrders: state.workOrders.map(order =>
           order.id === orderId 
             ? { 
                 ...order, 
-                status: 'in_progress' as const,
                 startTime: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                syncStatus: 'pending' as const 
               }
             : order
         ),
@@ -394,16 +493,16 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         ? Math.round((Date.now() - new Date(order.startTime).getTime()) / (1000 * 60 * 60))
         : undefined;
 
+      await get().updateWorkOrderStatus(orderId, 'completed');
       set(state => ({
         workOrders: state.workOrders.map(order =>
           order.id === orderId 
             ? { 
                 ...order, 
-                status: 'completed' as const,
                 endTime: new Date().toISOString(),
                 actualDuration,
                 updatedAt: new Date().toISOString(),
-                syncStatus: 'pending' as const,
+                syncStatus: 'synced' as const,
                 ...completionData,
               }
             : order

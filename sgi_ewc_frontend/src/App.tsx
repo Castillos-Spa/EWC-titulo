@@ -10,6 +10,8 @@ import FleetRegistry from './components/WaterTransport/FleetRegistry';
 import MaintenanceManagement from './components/WaterTransport/MaintenanceManagement';
 import FuelByFleet from './components/WaterTransport/FuelByFleet';
 import RouteManagement from './components/WaterTransport/RouteManagement';
+import RouteModulePage from './components/TransportRoutes/RouteModulePage';
+import TruckAssignmentPage from './components/TruckAssignments/TruckAssignmentPage';
 import EnhancedTicketSystem from './components/Tickets/EnhancedTicketSystem';
 import CleaningReports from './components/GeneralServices/CleaningReports';
 import CivilWorks from './components/GeneralServices/CivilWorks';
@@ -145,8 +147,10 @@ const AppContent: React.FC = () => {
       case 'dashboard': return 'Dashboard';
       case 'trip-reports': return 'Trip Reports';
       case 'route-management': return 'Gestión de Rutas';
+  case 'transport-routes': return 'Rutas (Mock)';
       case 'fleet-registry': return 'Fleet Registry';
-      case 'fuel-by-fleet': return 'Consumo de Combustible';
+  case 'fuel-by-fleet': return 'Consumo de Combustible';
+  case 'truck-assignments': return 'Asignación de Camiones';
       case 'maintenance': return 'Maintenance Management';
       case 'cleaning-reports': return 'Cleaning Reports';
       case 'civil-works': return 'Civil Works Reports';
@@ -195,7 +199,12 @@ const AppContent: React.FC = () => {
       case 'user-management':
         return <UserManagement />;
       case 'route-management':
+        // Página existente de gestión de rutas (legacy). Para el mock nuevo usar 'transport-routes'
         return <RouteManagement />;
+      case 'transport-routes':
+        return <RouteModulePage />;
+      case 'truck-assignments':
+        return <TruckAssignmentPage />;
       case 'settings':
         return <SettingsPage />;
       default:
