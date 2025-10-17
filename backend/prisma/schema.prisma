@@ -30,6 +30,7 @@ model User {
   roleAssignments      UserRoleAssignment[]
   notifications        Notification[]       @relation("NotificationToUser")
   createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
+  assignments          TruckAssignment[]    @relation("DriverToAssignments")
 
   @@index([username], name: "idx_user_username")
   @@index([refreshToken], name: "idx_user_refresh_token")
@@ -76,23 +77,25 @@ model Ticket {
 }
 
 model Vehiculo {
-  id                  Int            @id @default(autoincrement())
-  patente             String         @unique
+  id                  Int               @id @default(autoincrement())
+  patente             String            @unique
   capacidad           Float
   odometro            Int
-  estado              VehiculoStatus @default(disponible)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  tipo                String?
+  estado              VehiculoStatus    @default(disponible)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
   areaAsignada        String?
-  conductorId         Int?
   lastMaintenanceDate DateTime?
-  marca               String         @default("")
-  modelo              String         @default("")
+  tipo                String?
+  marca               String            @default("")
+  modelo              String            @default("")
+  codigo              String?           @unique
   documentos          Documento[]
   fuelLogs            FuelLog[]
   ordenes             OrdenTrabajo[]
+  assignments         TruckAssignment[] @relation("TruckToAssignments")
 
-  @@index([conductorId])
   @@index([estado])
   @@index([areaAsignada])
 }
@@ -402,4 +405,44 @@ enum CivilWorkStatus {
   IN_PROGRESS
   PENDING
   ON_HOLD
+}
+
+/// Enum para la frecuencia de las rutas de transporte
+enum RouteFrequency {
+  Diaria
+  Semanal
+  Mensual
+  Ocasional
+  Adhoc
+}
+
+model TransportRoute {
+  id          Int               @id @default(autoincrement())
+  code        String            @unique
+  origin      String
+  destination String
+  distanceKm  Float
+  frequency   RouteFrequency
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  assignments TruckAssignment[] @relation("RouteToAssignments")
+}
+
+model TruckAssignment {
+  id           Int      @id @default(autoincrement())
+  truckId      Int
+  routeId      Int
+  driverId     Int
+  date         DateTime
+  status       String   @default("Planificada") // Planificada, Programada, Iniciada, Cancelada
+  volumeLiters Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  truck  Vehiculo       @relation("TruckToAssignments", fields: [truckId], references: [id])
+  route  TransportRoute @relation("RouteToAssignments", fields: [routeId], references: [id])
+  driver User           @relation("DriverToAssignments", fields: [driverId], references: [id])
+
+  @@unique([truckId, routeId, date])
 }

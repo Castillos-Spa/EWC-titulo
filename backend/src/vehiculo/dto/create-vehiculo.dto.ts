@@ -4,6 +4,14 @@ export class CreateVehiculoDto {
   patente: string;
 
   @IsString()
+  @IsOptional()
+  codigo?: string;
+
+  @IsString()
+  @IsOptional()
+  tipo?: string;
+
+  @IsString()
   marca: string;
 
   @IsString()

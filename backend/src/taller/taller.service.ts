@@ -66,14 +66,4 @@ export class TallerService {
   async findOneVehiculo(patente: string) {
     return this.vehiculoService.findByPatente(patente);
   }
-
-  // --- Ejemplo de Orquestación ---
-
-  // Este método usa VehiculoService para obtener los vehículos.
-  // El controlador de Taller puede exponer esto en un endpoint si es necesario.
-  async obtenerTodosLosVehiculos() {
-    // Aquí puedes añadir lógica extra, como filtrar por estado, etc.
-    console.log('Orquestando la obtención de vehículos desde TallerService');
-    return this.vehiculoService.findAll({ take: 200, orderBy: { id: 'desc' } }); // Aumentamos el límite para el taller
-  }
 }

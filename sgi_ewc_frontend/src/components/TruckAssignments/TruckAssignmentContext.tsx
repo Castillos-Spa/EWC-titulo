@@ -1,4 +1,6 @@
-import React, { createContext, useCallback, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useMemo, useState, useEffect } from 'react';
+import { getVehiculosFromTaller, getDrivers } from '../../utils/tallerApi';
+import { getAssignments, createAssignment, deleteAssignment } from '../../utils/assignmentsApi';
 
 export interface Truck {
   id: string;
@@ -57,50 +59,48 @@ const sameDay = (a: Date, b: Date) => {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 };
 
-// Seeds
-const seedTrucks: Truck[] = [
-  { id: 't1', code: 'CAM-001', capacityTons: 10, active: true },
-  { id: 't2', code: 'CAM-002', capacityTons: 8, active: true },
-  { id: 't3', code: 'CAM-003', capacityTons: 12, active: false },
-  { id: 't4', code: 'CAM-004', capacityTons: 7, active: true },
-  { id: 't5', code: 'CAM-005', capacityTons: 15, active: true },
-];
-
-const seedDrivers: Driver[] = [
-  { id: 'd1', name: 'Juan Pérez', active: true },
-  { id: 'd2', name: 'María González', active: true },
-  { id: 'd3', name: 'Carlos Jiménez', active: true },
-  { id: 'd4', name: 'Ana Torres', active: false },
-  { id: 'd5', name: 'Luis Romero', active: true },
-];
-
 export const TruckAssignmentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [trucks] = useState<Truck[]>(seedTrucks);
-  const [drivers] = useState<Driver[]>(seedDrivers);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [assignments, setAssignments] = useState<TruckAssignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [truckData, driverData, assignmentData] = await Promise.all([
+        getVehiculosFromTaller({ tipo: 'Camion', estado: 'disponible' }), // Filtra por tipo 'Camion' y estado 'disponible'
+        getDrivers(),
+        getAssignments(),
+      ]);
+      setTrucks(truckData);
+      setDrivers(driverData);
+      setAssignments(assignmentData.map(a => ({...a, date: new Date(a.date)}))); // Asegurarse que las fechas son objetos Date
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al cargar datos de asignación';
+      setError(message);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const addAssignment: ContextValue['addAssignment'] = (data) => {
-    // Reglas: una asignación por camión por día y un conductor no puede estar asignado a más de un camión el mismo día
-    let conflict = false;
-    setAssignments(prev => {
-      const targetDay = dateOnly(data.date);
-      // Conflicto de conductor
-      const driverConflict = prev.some(a => sameDay(a.date, targetDay) && a.driverId === data.driverId && a.truckId !== data.truckId);
-      if (driverConflict) {
-        conflict = true;
-        return prev;
-      }
-      // Permitir múltiples rutas por camión y día: solo evitar duplicados exactos de (truckId, date, routeId)
-      const duplicate = prev.some(a => a.truckId === data.truckId && sameDay(a.date, targetDay) && a.routeId === data.routeId);
-      if (duplicate) return prev; // no agregar duplicado
-      return [...prev, { id: 'a' + (prev.length + 1 + Math.round(Math.random()*1000)), ...data }];
-    });
-    if (conflict) return { ok: false, error: 'El conductor ya está asignado a otro camión en esa fecha.' };
+    // Esta función ahora se manejará principalmente a través de `setTruckDayAssignment`
+    // Se mantiene por compatibilidad pero la lógica principal se mueve.
+    console.warn('addAssignment está deprecado, usar setTruckDayAssignment');
     return { ok: true };
   };
 
   const removeAssignment: ContextValue['removeAssignment'] = (id) => {
-    setAssignments(prev => prev.filter(a => a.id !== id));
+    // Asumimos que el ID es numérico si viene de la DB
+    void deleteAssignment(Number(id)).then(fetchData);
   };
 
   // Actual implementation with details
@@ -108,45 +108,50 @@ export const TruckAssignmentProvider: React.FC<{ children: React.ReactNode }> = 
     truckId: string,
     date: Date,
     driverId: string,
-    routesWithVolumes: Array<{ routeId: string; volumeLiters?: number }>
+    routesWithVolumes: Array<{ routeId: string; volumeLiters?: number }>,
   ): { ok: boolean; error?: string } => {
     let conflict = false;
-    setAssignments(prev => {
+    const currentAssignments = assignments;
       const d0 = dateOnly(date);
       // Validar conductor no asignado a otro camión en el mismo día (excluye el mismo camión)
-      const driverConflict = prev.some(a => sameDay(a.date, d0) && a.driverId === driverId && a.truckId !== truckId);
+      const driverConflict = currentAssignments.some(a => sameDay(a.date, d0) && a.driverId === driverId && a.truckId !== truckId);
       if (driverConflict) {
         conflict = true;
-        return prev;
+        return { ok: false, error: 'El conductor ya está asignado a otro camión en esa fecha.' };
       }
       // Eliminar todas las asignaciones existentes del camión para ese día
-      const rest = prev.filter(a => !(a.truckId === truckId && sameDay(a.date, d0)));
-      // Agregar nuevas asignaciones para cada ruta
-      const next: TruckAssignment[] = [...rest];
-      for (const entry of routesWithVolumes) {
-        next.push({
-          id: 'a' + (next.length + 1 + Math.round(Math.random()*1000)),
-          truckId,
-          routeId: entry.routeId,
-          driverId,
-          date: d0,
-          status: 'Planificada',
-          volumeLiters: entry.volumeLiters,
-        });
-      }
-      return next;
-    });
-    if (conflict) return { ok: false, error: 'El conductor ya está asignado a otro camión en esa fecha.' };
-    return { ok: true };
+      const toDelete = currentAssignments.filter(a => a.truckId === truckId && sameDay(a.date, d0));
+      const toCreate = routesWithVolumes.map(entry => ({
+        truckId,
+        routeId: entry.routeId,
+        driverId,
+        date,
+        status: 'Planificada' as const,
+        volumeLiters: entry.volumeLiters,
+      }));
+
+      // Ejecutar operaciones en la API
+      Promise.all([
+        ...toDelete.map(a => deleteAssignment(Number(a.id))),
+        ...toCreate.map(c => createAssignment(c))
+      ]).then(fetchData).catch(err => {
+        console.error("Error al guardar asignaciones:", err);
+        setError(err instanceof Error ? err.message : 'Error al guardar');
+      });
+
+      return { ok: true };
   };
 
   // Rebind exported function to actual impl (keeping type compatibility)
   const setTruckDayAssignmentWithDetails: ContextValue['setTruckDayAssignment'] = useCallback(
     (truckId, date, driverId, routes) => _setTruckDayAssignmentImpl(truckId, date, driverId, routes),
-    []
+    [assignments] // Depende de assignments para la validación
   );
 
   const updateAssignment: ContextValue['updateAssignment'] = (id, patch) => {
+    // La actualización completa se maneja con setTruckDayAssignment.
+    // Esta función podría usarse para cambios de estado menores en el futuro.
+    console.warn('updateAssignment no está completamente implementado con la API');
     setAssignments(prev => prev.map(a => (a.id === id ? { ...a, ...patch } : a)));
   };
 

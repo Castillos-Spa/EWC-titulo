@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { TransportRoute } from './RouteContext';
+import type { TransportRoute } from './RouteContext';
 import { useRouteContext } from './useRouteContext';
 import { Pencil, Power, Download } from 'lucide-react';
 import ReactDOM from 'react-dom';
 
 const RouteList: React.FC = () => {
-  const { routes, toggleActive } = useRouteContext();
+  const { routes, toggleActive, loading, error } = useRouteContext();
   const [editTarget, setEditTarget] = useState<TransportRoute | null>(null);
   const [query, setQuery] = useState('');
   const [frequencyFilter, setFrequencyFilter] = useState<string>('');
@@ -92,15 +92,15 @@ const RouteList: React.FC = () => {
 
   return (
     <div className="p-4 bg-white rounded-lg shadow dark:bg-gray-900">
-      <div className="mb-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40">
-        <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-6 items-end">
+      <div className="p-4 mb-4 border border-gray-200 rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40">
+        <div className="grid items-end gap-4 md:grid-cols-4 lg:grid-cols-6">
           <div className="md:col-span-2 lg:col-span-2">
-            <label htmlFor="route-search" className="block mb-1 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Buscar (código / origen / destino)</label>
-            <input id="route-search" value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} placeholder="Ej: R-001 o Planta" className="w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-gray-900 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+            <label htmlFor="route-search" className="block mb-1 text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Buscar (código / origen / destino)</label>
+            <input id="route-search" value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} placeholder="Ej: R-001 o Planta" className="w-full px-3 py-2 text-sm text-gray-900 border rounded focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500" />
           </div>
           <div>
-            <label htmlFor="freq-filter" className="block mb-1 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Frecuencia</label>
-            <select id="freq-filter" value={frequencyFilter} onChange={e => { setFrequencyFilter(e.target.value); setPage(1); }} className="w-full px-3 py-2 text-sm border rounded focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-gray-900 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700">
+            <label htmlFor="freq-filter" className="block mb-1 text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Frecuencia</label>
+            <select id="freq-filter" value={frequencyFilter} onChange={e => { setFrequencyFilter(e.target.value); setPage(1); }} className="w-full px-3 py-2 text-sm text-gray-900 border rounded focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700">
               <option value=''>Todas</option>
               <option value='Diaria'>Diaria</option>
               <option value='Semanal'>Semanal</option>
@@ -109,8 +109,8 @@ const RouteList: React.FC = () => {
             </select>
           </div>
           <fieldset className="md:col-span-2 lg:col-span-2">
-            <legend className="block mb-1 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Estado</legend>
-            <div className="inline-flex overflow-hidden rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs">
+            <legend className="block mb-1 text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Estado</legend>
+            <div className="inline-flex overflow-hidden text-xs bg-white border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-900">
               <button type="button" aria-pressed={!onlyActive} onClick={() => { if (onlyActive) { setOnlyActive(false); setPage(1); } }} className={`px-3 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${!onlyActive ? 'bg-blue-600 text-white dark:bg-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>Todas</button>
               <button type="button" aria-pressed={onlyActive} onClick={() => { if (!onlyActive) { setOnlyActive(true); setPage(1); } }} className={`px-3 py-1 font-medium border-l border-gray-300 dark:border-gray-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${onlyActive ? 'bg-blue-600 text-white dark:bg-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>Solo activas</button>
             </div>
@@ -140,23 +140,29 @@ const RouteList: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {paged.map(r => <RouteRow key={r.id} route={r} onEdit={() => setEditTarget(r)} onToggle={() => {
-              if (r.active) {
-                if (window.confirm('¿Desactivar esta ruta?')) toggleActive(r.id);
-              } else {
-                toggleActive(r.id);
-              }
-            }} />)}
-            {paged.length === 0 && (
+            {loading && (
               <tr>
+                <td colSpan={8} className="px-3 py-10 text-sm text-center text-gray-500 dark:text-gray-400">Cargando rutas...</td>
+              </tr>
+            )}
+            {error && (
+              <tr>
+                <td colSpan={8} className="px-3 py-10 text-sm text-center text-red-500 dark:text-red-400">
+                  Error: {error}
+                </td>
+              </tr>
+            )}
+            {paged.map(r => <RouteRow key={r.id} route={r} onEdit={() => setEditTarget(r)} onToggle={() => toggleActive(r.id)} />)}
+            {paged.length === 0 && (
+              !loading && !error && <tr>
                 <td colSpan={8} className="px-3 py-4 text-sm text-center text-gray-500 dark:text-gray-400">Sin resultados</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       {editTarget && <RouteListEditPortal route={editTarget} onClose={() => setEditTarget(null)} />}
+      {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onChange={setPage} />}
     </div>
   );
 };
@@ -166,7 +172,7 @@ interface RowProps { route: TransportRoute; onEdit: () => void; onToggle: () => 
 const RouteRow: React.FC<RowProps> = ({ route, onEdit, onToggle }) => {
   const tdCls = 'px-3 py-2 text-sm text-gray-800 dark:text-gray-200 whitespace-nowrap';
   return (
-  <tr className="border-b last:border-0 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/60">
+    <tr className="border-b border-gray-200 last:border-0 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/60">
       <td className={tdCls}>{route.code}</td>
       <td className={tdCls}>{route.origin}</td>
       <td className={tdCls}>{route.destination}</td>
@@ -190,11 +196,86 @@ const RouteRow: React.FC<RowProps> = ({ route, onEdit, onToggle }) => {
   );
 };
 
+// Portal para reutilizar el modal de edición (montado en body para evitar overflow issues)
+const RouteListEditPortal: React.FC<{ route: TransportRoute; onClose: () => void; }> = ({ route, onClose }) => {
+  return ReactDOM.createPortal( // @ts-ignore createPortal es válido
+    <EditOverlay route={route} onClose={onClose} />,
+    document.body
+  );
+};
+
+const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = ({ route, onClose }) => {
+  const { updateRoute } = useRouteContext();
+  // Usaremos el formulario en modo edit pero aquí implementamos wrapper simple sin reutilizar EditRouteModal para simplificar
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-xl p-6 mt-10 bg-white border border-gray-200 rounded-lg shadow-xl dark:bg-gray-900 dark:border-gray-700">
+        <div className="flex items-start justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Editar {route.code}</h2>
+          <button onClick={onClose} className="p-2 text-gray-500 rounded hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Cerrar">×</button>
+        </div>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const form = e.currentTarget as HTMLFormElement;
+          const fd = new FormData(form); // FormData no es ideal con React, pero se mantiene por simplicidad del mock.
+          void updateRoute(route.id, {
+            code: fd.get('code') as string || route.code,
+            origin: fd.get('origin') as string || route.origin,
+            destination: fd.get('destination') as string || route.destination,
+            distanceKm: Number(fd.get('distanceKm')) || route.distanceKm,
+            frequency: fd.get('frequency') as string || route.frequency,
+            active: fd.get('active') === 'on',
+          }).then(() => {
+          onClose();
+          });
+        }} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="edit-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Código</label>
+              <input id="edit-code" name="code" defaultValue={route.code} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+            </div>
+            <div>
+              <label htmlFor="edit-frequency" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Frecuencia</label>
+              <select id="edit-frequency" name="frequency" defaultValue={route.frequency} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                <option>Diaria</option>
+                <option>Semanal</option>
+                <option>Mensual</option>
+                <option>Ocasional</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="edit-origin" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Origen</label>
+              <input id="edit-origin" name="origin" defaultValue={route.origin} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+            </div>
+            <div>
+              <label htmlFor="edit-destination" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Destino</label>
+              <input id="edit-destination" name="destination" defaultValue={route.destination} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+            </div>
+            <div>
+              <label htmlFor="edit-distance" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Distancia (km)</label>
+              <input id="edit-distance" name="distanceKm" type="number" min={1} defaultValue={route.distanceKm} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+            </div>
+            <div className="flex items-center pt-6 space-x-2">
+              <input id="active-edit" name="active" type="checkbox" defaultChecked={route.active} />
+              <label htmlFor="active-edit" className="text-sm text-gray-700 dark:text-gray-200">Activa</label>
+            </div>
+          </div>
+          <div className="flex justify-end pt-2 space-x-2 border-t border-gray-200 dark:border-gray-700">
+            <button type="button" onClick={onClose} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Cancelar</button>
+            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded hover:bg-blue-700">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const SortableTh: React.FC<{ label: string; field: string; sort: { field: string; dir: 'asc' | 'desc' } | null; onToggle: (f: string) => void; }> = ({ label, field, sort, onToggle }) => {
   const active = sort?.field === field;
   const dir = active ? sort?.dir : undefined;
+  const thCls = 'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300';
   return (
-    <th onClick={() => onToggle(field)} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide cursor-pointer select-none text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+    <th onClick={() => onToggle(field)} className={`${thCls} cursor-pointer select-none hover:text-gray-900 dark:hover:text-white`}>
       <span className="inline-flex items-center gap-1">{label}{active && (dir === 'asc' ? '▲' : '▼')}</span>
     </th>
   );
@@ -209,79 +290,6 @@ const Pagination: React.FC<{ page: number; totalPages: number; onChange: (p: num
       <div className="flex gap-2">
         <button disabled={!canPrev} onClick={() => canPrev && onChange(page - 1)} className={`px-2 py-1 rounded border text-gray-700 dark:text-gray-200 ${canPrev ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600' : 'opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700'}`}>Anterior</button>
         <button disabled={!canNext} onClick={() => canNext && onChange(page + 1)} className={`px-2 py-1 rounded border text-gray-700 dark:text-gray-200 ${canNext ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600' : 'opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700'}`}>Siguiente</button>
-      </div>
-    </div>
-  );
-};
-
-// Portal para reutilizar el modal de edición (montado en body para evitar overflow issues)
-const RouteListEditPortal: React.FC<{ route: TransportRoute; onClose: () => void; }> = ({ route, onClose }) => {
-  return ReactDOM.createPortal(
-    <EditOverlay route={route} onClose={onClose} />,
-    document.body
-  );
-};
-
-const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = ({ route, onClose }) => {
-  const { updateRoute } = useRouteContext();
-  // Usaremos el formulario en modo edit pero aquí implementamos wrapper simple sin reutilizar EditRouteModal para simplificar
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-xl p-6 mt-10 bg-white rounded-lg shadow-xl dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-start justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Editar {route.code}</h2>
-          <button onClick={onClose} className="p-2 text-gray-500 rounded hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Cerrar">×</button>
-        </div>
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          const form = e.currentTarget as HTMLFormElement;
-          const fd = new FormData(form);
-          updateRoute(route.id, {
-            code: fd.get('code') as string,
-            origin: fd.get('origin') as string,
-            destination: fd.get('destination') as string,
-            distanceKm: Number(fd.get('distanceKm')),
-            frequency: fd.get('frequency') as string,
-            active: fd.get('active') === 'on'
-          });
-          onClose();
-        }} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="edit-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Código</label>
-              <input id="edit-code" name="code" defaultValue={route.code} className="w-full px-3 py-2 text-sm border rounded text-gray-900 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
-            </div>
-            <div>
-              <label htmlFor="edit-frequency" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Frecuencia</label>
-              <select id="edit-frequency" name="frequency" defaultValue={route.frequency} className="w-full px-3 py-2 text-sm border rounded text-gray-900 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700">
-                <option>Diaria</option>
-                <option>Semanal</option>
-                <option>Mensual</option>
-                <option>Ocasional</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="edit-origin" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Origen</label>
-              <input id="edit-origin" name="origin" defaultValue={route.origin} className="w-full px-3 py-2 text-sm border rounded text-gray-900 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
-            </div>
-            <div>
-              <label htmlFor="edit-destination" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Destino</label>
-              <input id="edit-destination" name="destination" defaultValue={route.destination} className="w-full px-3 py-2 text-sm border rounded text-gray-900 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
-            </div>
-            <div>
-              <label htmlFor="edit-distance" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Distancia (km)</label>
-              <input id="edit-distance" name="distanceKm" type="number" min={1} defaultValue={route.distanceKm} className="w-full px-3 py-2 text-sm border rounded text-gray-900 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
-            </div>
-            <div className="flex items-center space-x-2 pt-6">
-              <input id="active-edit" name="active" type="checkbox" defaultChecked={route.active} />
-              <label htmlFor="active-edit" className="text-sm text-gray-700 dark:text-gray-200">Activa</label>
-            </div>
-          </div>
-          <div className="flex justify-end pt-2 space-x-2 border-t border-gray-200 dark:border-gray-700">
-            <button type="button" onClick={onClose} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Cancelar</button>
-            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded hover:bg-blue-700">Guardar</button>
-          </div>
-        </form>
       </div>
     </div>
   );

@@ -59,8 +59,19 @@ export async function getTallerWorkOrders(): Promise<OrdenTrabajo[]> {
  * Obtiene la lista completa de vehículos desde el módulo de taller.
  * Asume un endpoint GET /taller/vehiculos
  */
-export async function getVehiculosFromTaller(): Promise<Vehiculo[]> {
-  const response = await apiFetch("/taller/vehiculos");
+export async function getVehiculosFromTaller(filters?: {
+  tipo?: string;
+  estado?: string;
+}): Promise<Vehiculo[]> {
+  const params = new URLSearchParams();
+  if (filters?.tipo) {
+    params.append("tipo", filters.tipo);
+  }
+  if (filters?.estado) {
+    params.append("estado", filters.estado);
+  }
+  const url = `/taller/vehiculos?${params.toString()}`;
+  const response = await apiFetch(url);
   // El backend devuelve un objeto paginado { items: [], total: 0 }.
   // Nos aseguramos de devolver solo el array de vehículos.
   if (response && Array.isArray(response.items)) {
@@ -133,4 +144,18 @@ export async function updateWorkOrderStatus(
     method: "PATCH",
     body: JSON.stringify({ estado }),
   });
+}
+
+/**
+ * Obtiene la lista de personal filtrado por rol (ej. 'Conductor').
+ * Asume un endpoint GET /personal?role=Conductor
+ */
+export async function getDrivers(): Promise<any[]> {
+  // Usamos el endpoint de usuarios con el filtro de especialidad
+  const response = await apiFetch("/users?specialty=DRIVER");
+  // El backend devuelve un objeto paginado { items: [], ... }
+  if (response && Array.isArray(response.items)) {
+    return response.items;
+  }
+  return [];
 }

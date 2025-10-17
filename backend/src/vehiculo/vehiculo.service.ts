@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateVehiculoDto } from './dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from './dto/update-vehiculo.dto';
 import { PrismaService } from 'prisma/prisma.service';
@@ -24,21 +24,22 @@ export class VehiculoService {
   } satisfies Prisma.VehiculoInclude;
 
   async create(createVehiculoDto: CreateVehiculoDto): Promise<Vehiculo> {
-    // Asegurarse de que la patente esté en mayúsculas y sin espacios.
-    const patente = createVehiculoDto.patente.toUpperCase().trim();
+    const { patente, ...restDto } = createVehiculoDto;
+    const normalizedPatente = patente.toUpperCase().trim();
 
-    const vehiculoExistente = await this.prisma.vehiculo.findUnique({
-      where: { patente },
+    const existing = await this.prisma.vehiculo.findUnique({
+      where: { patente: normalizedPatente },
     });
 
-    if (vehiculoExistente) {
-      throw new NotFoundException(`El vehículo con patente ${patente} ya existe.`);
+    if (existing) {
+      // Se usa ConflictException (409) que es más apropiado para duplicados.
+      throw new ConflictException(`El vehículo con patente ${normalizedPatente} ya existe.`);
     }
 
     return this.prisma.vehiculo.create({
       data: {
-        ...createVehiculoDto,
-        patente, // Usar la patente normalizada
+        ...restDto,
+        patente: normalizedPatente, // Usar la patente normalizada
       },
     });
   }
@@ -49,19 +50,19 @@ export class VehiculoService {
     cursor?: Prisma.VehiculoWhereUniqueInput;
     where?: Prisma.VehiculoWhereInput;
     orderBy?: Prisma.VehiculoOrderByWithRelationInput;
-  }): Promise<{ items: Vehiculo[]; total: number }> {
-    const { skip, take, cursor, where, orderBy } = params;
+  }) {
+    const { skip, take, cursor, where = {}, orderBy } = params;
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.vehiculo.findMany({
         skip,
         take,
         cursor,
-        where,
+        where: where,
         orderBy,
         include: this.vehiculoInclude,
       }),
-      this.prisma.vehiculo.count({ where }),
+      this.prisma.vehiculo.count({ where: where }),
     ]);
 
     return { items, total };

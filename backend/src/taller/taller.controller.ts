@@ -42,11 +42,6 @@ export class TallerController {
     return this.tallerService.updateVehiculo(id, updateVehiculoDto);
   }
 
-  @Get('vehiculos')
-  findAllVehiculos() {
-    return this.tallerService.obtenerTodosLosVehiculos();
-  }
-
   @Get('vehiculos/:patente')
   async findOneVehiculo(@Param('patente') patente: string) {
     const vehiculo = await this.tallerService.findOneVehiculo(patente);

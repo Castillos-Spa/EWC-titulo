@@ -5,11 +5,9 @@ import Login from './components/Login';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import DashboardHome from './components/Dashboard/DashboardHome';
-import TripReports from './components/WaterTransport/TripReports';
 import FleetRegistry from './components/WaterTransport/FleetRegistry';
 import MaintenanceManagement from './components/WaterTransport/MaintenanceManagement';
 import FuelByFleet from './components/WaterTransport/FuelByFleet';
-import RouteManagement from './components/WaterTransport/RouteManagement';
 import RouteModulePage from './components/TransportRoutes/RouteModulePage';
 import TruckAssignmentPage from './components/TruckAssignments/TruckAssignmentPage';
 import EnhancedTicketSystem from './components/Tickets/EnhancedTicketSystem';
@@ -178,8 +176,7 @@ const AppContent: React.FC = () => {
     switch (currentPage) {
       case 'dashboard':
         return <DashboardHome />;
-      case 'trip-reports':
-        return <TripReports />;
+      
       case 'fleet-registry':
         return <FleetRegistry />;
       case 'fuel-by-fleet':
@@ -198,9 +195,7 @@ const AppContent: React.FC = () => {
         return <NotificationsCenter />;
       case 'user-management':
         return <UserManagement />;
-      case 'route-management':
-        // Página existente de gestión de rutas (legacy). Para el mock nuevo usar 'transport-routes'
-        return <RouteManagement />;
+      
       case 'transport-routes':
         return <RouteModulePage />;
       case 'truck-assignments':

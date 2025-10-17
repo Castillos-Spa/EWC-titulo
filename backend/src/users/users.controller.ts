@@ -15,7 +15,7 @@ import {
 
 import { UsersService } from './users.service';
 import { RegisterDto } from '../auth/dtos/register.dto';
-import { Role } from '@prisma/client';
+import { Role, Specialty } from '@prisma/client';
 import { SimpleCacheInterceptor } from 'src/common/simple-cache.interceptor';
 import { CacheTTL } from 'src/common/cache-ttl.decorator';
 
@@ -26,10 +26,14 @@ export class UsersController {
   @Get()
   @UseInterceptors(SimpleCacheInterceptor)
   @CacheTTL(10)
-  async findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
+  async findAll(
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '20',
+    @Query('specialty') specialty?: Specialty,
+  ) {
     const p = Math.max(Number(page) || 1, 1);
     const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
-    return this.usersService.findAll({ page: p, pageSize: size });
+    return this.usersService.findAll({ page: p, pageSize: size, specialty });
   }
   // Endpoint para obtener la contraseña temporal (solo si mustChangePassword=true)
   @Get(':id/temp-password')

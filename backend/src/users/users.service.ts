@@ -1,7 +1,13 @@
-import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../common/cache.service';
-import { User, Role, Permission, Prisma } from '@prisma/client';
+import { User, Role, Permission, Prisma, Specialty } from '@prisma/client';
 import { RegisterDto } from 'src/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -162,10 +168,20 @@ export class UsersService {
   async findAll(opts?: {
     page: number;
     pageSize: number;
+    specialty?: Specialty;
   }): Promise<{ items: Omit<User, 'password'>[]; total: number; page: number; pageSize: number }> {
     opts ??= { page: 1, pageSize: 20 };
-    const { page, pageSize } = opts;
+    const { page, pageSize, specialty } = opts;
     const skip = (page - 1) * pageSize;
+
+    const where: Prisma.UserWhereInput = {};
+    if (specialty) {
+      where.roleAssignments = {
+        some: {
+          specialty: specialty,
+        },
+      };
+    }
 
     // Use a single SQL query to fetch users and their active roleAssignments as JSON (avoids separate IN (...) queries)
     const rawItems = await this.prisma.$queryRawUnsafe(
@@ -229,7 +245,7 @@ export class UsersService {
     if (page === 1) {
       total = (this.cacheService.get<number>('users_total') as number) ?? 0;
       if (!total) {
-        const res: any = await this.prisma.$queryRawUnsafe('SELECT COUNT(*)::int AS count FROM "User"');
+        const res: any = await this.prisma.user.count({ where });
         total = res[0]?.count ?? 0;
         this.cacheService.set('users_total', total, 30_000); // cache por 30s
       }

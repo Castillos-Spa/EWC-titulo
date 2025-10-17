@@ -11,7 +11,6 @@ import {
   HardHat,
   Bell,
   AlertTriangle,
-  FileText,
   Map,
   Car,
   Sparkles,
@@ -33,8 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const viewsCatalog = {
     dashboard: { id: 'dashboard', label: 'Inicio', icon: Home, show: () => true },
     tickets: { id: 'tickets', label: 'Sistema de Tickets', icon: Ticket, show: () => true },
-    'trip-reports': { id: 'trip-reports', label: 'Reportes de Viajes', icon: FileText, show: () => hasAreaAccess('Transporte') },
-    'route-management': { id: 'route-management', label: 'Gestión de Rutas', icon: Map, show: () => hasAreaAccess('Transporte') },
+    
   'transport-routes': { id: 'transport-routes', label: 'Rutas (Mock)', icon: Map, show: () => hasAreaAccess('Transporte') },
     'fleet-registry': { id: 'fleet-registry', label: 'Registro de Flota', icon: Car, show: () => hasAreaAccess('Transporte') },
   'fuel-by-fleet': { id: 'fuel-by-fleet', label: 'Combustible', icon: Fuel, show: () => hasAreaAccess('Transporte') },

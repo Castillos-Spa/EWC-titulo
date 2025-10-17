@@ -2,8 +2,9 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe 
 import { VehiculoService } from './vehiculo.service';
 import { CreateVehiculoDto } from './dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from './dto/update-vehiculo.dto';
+import { Prisma, VehiculoStatus } from '@prisma/client';
 
-@Controller('vehiculo')
+@Controller('taller/vehiculos')
 export class VehiculoController {
   constructor(private readonly vehiculoService: VehiculoService) {}
 
@@ -13,9 +14,24 @@ export class VehiculoController {
   }
 
   @Get()
-  findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
-    const skip = (Number(page) - 1) * Number(pageSize);
-    return this.vehiculoService.findAll({ skip, take: Number(pageSize), orderBy: { id: 'desc' } });
+  async findAll(
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '20',
+    @Query('tipo') tipo?: string,
+    @Query('estado') estado?: string,
+  ) {
+    const p = Math.max(Number(page) || 1, 1);
+    const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
+
+    const where: Prisma.VehiculoWhereInput = {};
+    if (tipo) {
+      where.tipo = tipo;
+    }
+    if (estado) {
+      where.estado = estado as VehiculoStatus;
+    }
+
+    return this.vehiculoService.findAll({ skip: (p - 1) * size, take: size, where, orderBy: { id: 'desc' } });
   }
 
   @Get(':patente')

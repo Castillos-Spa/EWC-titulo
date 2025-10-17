@@ -51,11 +51,6 @@ export class FuelService {
       throw new NotFoundException(`Vehículo con ID #${vehiculoId} no encontrado.`);
     }
 
-    // Un conductor solo puede ver el historial de su vehículo asignado.
-    if (isDriver && !isAdminOrSupervisor && vehicle.conductorId !== requestingUserId) {
-      throw new ForbiddenException('No tienes permiso para ver el historial de este vehículo.');
-    }
-
     return this.prisma.fuelLog.findMany({
       where: { vehiculoId },
       orderBy: { date: 'desc' },
@@ -79,11 +74,7 @@ export class FuelService {
 
     // Si el usuario NO es admin o supervisor, se asume que es un conductor y solo ve su vehículo asignado.
     // Si ES admin o supervisor, el where clause queda vacío para traer TODOS los vehículos.
-    if (!isAdminOrSupervisor) {
-      vehicleWhereClause = {
-        conductorId: requestingUserId,
-      };
-    }
+    // TODO: Re-evaluar la lógica de filtrado si es necesario ahora que no hay conductorId
 
     const vehicles = await this.prisma.vehiculo.findMany({
       where: vehicleWhereClause,

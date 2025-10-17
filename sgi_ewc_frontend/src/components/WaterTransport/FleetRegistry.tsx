@@ -70,15 +70,6 @@ const FleetRegistry: React.FC = () => {
     }
   };
 
-  const drivers = useMemo(() => {
-    return users.filter(user => 
-      user.roleAssignments?.some(
-        assignment => 
-          assignment.role === 'Especialista' && assignment.specialty === 'DRIVER'
-      )
-    );
-  }, [users]);
-
   const handleCreateVehicle = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -94,7 +85,7 @@ const FleetRegistry: React.FC = () => {
       odometro: getNum(formData, 'odometro') ?? 0,
       estado: estadoCreate,
       areaAsignada: getStr(formData, 'area'),
-      conductorId: driverId,
+      codigo: getStr(formData, 'codigo'),
       lastMaintenanceDate: maintenanceDate ? new Date(maintenanceDate).toISOString() : undefined,
     };
 
@@ -126,7 +117,7 @@ const FleetRegistry: React.FC = () => {
       odometro: getNum(formData, 'odometro') ?? 0,
       estado: estadoUpdate,
       areaAsignada: getStr(formData, 'area'),
-      conductorId: driverId,
+      codigo: getStr(formData, 'codigo'),
       lastMaintenanceDate: maintenanceDate ? new Date(maintenanceDate).toISOString() : undefined,
     };
 
@@ -240,10 +231,10 @@ const FleetRegistry: React.FC = () => {
               placeholder="Buscar por placa, marca, conductor o área..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700"
+              className="w-full px-4 py-2 pl-10 placeholder-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:placeholder-gray-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700"
             />
           </div>
-          <button className="flex items-center px-4 py-2 space-x-2 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700">
+          <button className="flex items-center px-4 py-2 space-x-2 text-gray-700 transition-colors border border-gray-300 rounded-lg hover:bg-gray-50 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700">
             <Filter className="w-4 h-4" />
             <span>Filtrar</span>
           </button>
@@ -286,7 +277,7 @@ const FleetRegistry: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-300">Conductor Asignado</p>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{users.find(u => u.id === vehicle.conductorId)?.username || 'N/A'}</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{vehicle.codigo || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-gray-600 dark:text-gray-300">Último Mantenimiento</p>
@@ -348,13 +339,13 @@ const FleetRegistry: React.FC = () => {
                     name="patente"
                     type="text"
                     placeholder="TK-004"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500"
+                    className="w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:placeholder-gray-500"
                     required
                   />
                 </div>
                 <div>
                   <label htmlFor="marca" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Marca</label>
-                  <input id="marca" name="marca" type="text" placeholder="Volvo" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500" required />
+                  <input id="marca" name="marca" type="text" placeholder="Volvo" className="w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:placeholder-gray-500" required />
                 </div>
               </div>
 
@@ -366,7 +357,7 @@ const FleetRegistry: React.FC = () => {
                     name="modelo"
                     type="text"
                     placeholder="FMX"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500"
+                    className="w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:placeholder-gray-500"
                     required
                   />
                 </div>
@@ -378,7 +369,7 @@ const FleetRegistry: React.FC = () => {
                       name="capacidad"
                       type="number"
                       placeholder="30000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500"
+                      className="w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:placeholder-gray-500"
                       required
                     />
                   </div>
@@ -393,7 +384,7 @@ const FleetRegistry: React.FC = () => {
                     name="odometro"
                     type="number"
                     placeholder="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500"
+                    className="w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:placeholder-gray-500"
                     required
                   />
                 </div>
@@ -419,13 +410,13 @@ const FleetRegistry: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="driver" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Conductor Asignado</label>
-                  <select id="driver" name="driver" defaultValue="" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700">
-                    <option value="" disabled>Seleccionar conductor</option>
-                    {drivers.map(driver => (
-                      <option key={driver.id} value={driver.id}>{driver.username}</option>
-                    ))}
-                  </select>
+                  <label htmlFor="codigo" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Código en Faena</label>
+                  <input
+                    id="codigo"
+                    name="codigo"
+                    type="text"
+                    placeholder="Ej: C-101"
+                    className="w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 dark:placeholder-gray-500" />
                 </div>
               </div>
 
@@ -547,13 +538,13 @@ const FleetRegistry: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="driver-edit" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Conductor Asignado</label>
-                  <select id="driver-edit" name="driver" defaultValue={editingVehicle.conductorId || ""} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700">
-                    <option value="">Sin Asignar</option>
-                    {drivers.map(driver => (
-                      <option key={driver.id} value={driver.id}>{driver.username}</option>
-                    ))}
-                  </select>
+                  <label htmlFor="codigo-edit" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Código en Faena</label>
+                  <input
+                    id="codigo-edit"
+                    name="codigo"
+                    type="text"
+                    defaultValue={editingVehicle.codigo || ""}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" />
                 </div>
               </div>
 

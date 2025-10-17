@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TransportRoute } from './RouteContext';
+import type { TransportRoute, CreateTransportRoutePayload } from './RouteContext';
 import { useRouteContext } from './useRouteContext';
 
 const frequencies = ['Diaria', 'Semanal', 'Mensual', 'Ocasional'];
@@ -29,21 +29,30 @@ const RouteForm: React.FC<RouteFormProps> = ({ initial, mode = 'create', onSubmi
     setActive(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || !origin || !destination || distanceKm === '' || distanceKm <= 0) return;
-  // Validación código único (ignora ruta actual en modo edición)
-  const normalized = code.trim().toLowerCase();
-  const duplicate = routes.some(r => r.code.trim().toLowerCase() === normalized && r.id !== initial?.id);
+    // Validación código único (ignora ruta actual en modo edición)
+    const normalized = code.trim().toLowerCase();
+    const duplicate = routes.some(r => r.code.trim().toLowerCase() === normalized && r.id !== initial?.id);
     if (duplicate) {
       setCodeError('El código ya existe. Debe ser único.');
       return;
     }
     setCodeError(null);
+
+    const payload: CreateTransportRoutePayload = {
+      code,
+      origin,
+      destination,
+      distanceKm: Number(distanceKm),
+      frequency,
+    };
+
     if (mode === 'edit' && initial?.id) {
-      updateRoute(initial.id, { code, origin, destination, distanceKm: Number(distanceKm), frequency, active });
+      await updateRoute(initial.id, { ...payload, active });
     } else {
-      addRoute({ code, origin, destination, distanceKm: Number(distanceKm), frequency, active });
+      await addRoute(payload);
       reset();
     }
     onSubmitSuccess?.();

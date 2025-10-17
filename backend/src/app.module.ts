@@ -13,6 +13,8 @@ import { FuelModule } from './fuel/fuel.module';
 import { IncidentModule } from './incident/incident.module';
 import { AseoModule } from './aseo/aseo.module';
 import { CivilWorkModule } from './civil-work/civil-work.module';
+import { RutasModule } from './rutas/rutas.module';
+import { VehiculoModule } from './vehiculo/vehiculo.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { CivilWorkModule } from './civil-work/civil-work.module';
     IncidentModule,
     AseoModule,
     CivilWorkModule,
+    RutasModule,
+    VehiculoModule,
   ],
 
   controllers: [AppController],
