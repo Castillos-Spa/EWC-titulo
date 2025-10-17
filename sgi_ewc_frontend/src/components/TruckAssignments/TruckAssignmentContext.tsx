@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useMemo, useState, useEffect } from 'react';
-import { getVehiculosFromTaller, getDrivers } from '../../utils/tallerApi';
+import { getVehiculosFromTaller, getDrivers, type TallerDriver } from '../../utils/tallerApi';
 import { getAssignments, createAssignment, deleteAssignment } from '../../utils/assignmentsApi';
+import type { Vehiculo } from '../../types/Vehiculo';
 
 export interface Truck {
   id: string;
@@ -23,7 +24,7 @@ export interface TruckAssignment {
   date: Date; // día planificado
   status?: 'Planificada' | 'Programada' | 'Iniciada' | 'Cancelada';
   startTime?: string; // HH:mm
-  endTime?: string;   // HH:mm
+  endTime?: string; // HH:mm
   volumeLiters?: number;
 }
 
@@ -46,44 +47,108 @@ interface ContextValue {
   };
 }
 
+type BackendAssignment = {
+  id: number | string;
+  truckId?: number | string;
+  routeId?: number | string;
+  driverId?: number | string;
+  date: string | Date;
+  status?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  volumeLiters?: number | null;
+  truck?: { id?: number | string } | null;
+  route?: { id?: number | string } | null;
+  driver?: { id?: number | string } | null;
+};
+
 const TruckAssignmentContext = createContext<ContextValue | undefined>(undefined);
 
 const dateOnly = (input?: Date) => {
   const d = input ? new Date(input) : new Date();
-  d.setHours(0,0,0,0);
+  d.setHours(0, 0, 0, 0);
   return d;
 };
 
-
 const sameDay = (a: Date, b: Date) => {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+};
+
+const toTruck = (vehiculo: Vehiculo): Truck => {
+  const withOptionalCode = vehiculo as Vehiculo & { codigo?: string | null };
+  const rawCode = (withOptionalCode.codigo ?? vehiculo.patente ?? '').trim();
+  const code = (rawCode.length > 0 ? rawCode : `VEH-${vehiculo.id}`).toUpperCase();
+  const capacity = typeof vehiculo.capacidad === 'number' ? Number(vehiculo.capacidad) : undefined;
+  const id = vehiculo.id !== undefined && vehiculo.id !== null ? String(vehiculo.id) : code;
+  return {
+    id,
+    code,
+    capacityTons: capacity,
+    active: vehiculo.estado === 'disponible',
+  };
+};
+
+const toDriver = (driver: TallerDriver): Driver => {
+  const rawId = driver.id ?? driver.userId ?? driver.username ?? driver.email ?? '';
+  const nameParts = [driver.firstName, driver.lastName].filter(Boolean) as string[];
+  const composedName = nameParts.join(' ').trim();
+  const name = (driver.fullName?.trim() || composedName || driver.username || driver.email || `Conductor ${rawId || 'sin_id'}`).trim();
+  return {
+    id: rawId ? String(rawId) : name,
+    name,
+    active: driver.active ?? true,
+  };
+};
+
+const ASSIGNMENT_STATUSES: readonly NonNullable<TruckAssignment['status']>[] = ['Planificada', 'Programada', 'Iniciada', 'Cancelada'] as const;
+
+const toAssignment = (assignment: BackendAssignment): TruckAssignment => {
+  const truckId = assignment.truckId ?? assignment.truck?.id ?? '';
+  const routeId = assignment.routeId ?? assignment.route?.id ?? '';
+  const driverId = assignment.driverId ?? assignment.driver?.id ?? '';
+  const date = assignment.date instanceof Date ? assignment.date : new Date(assignment.date);
+  const statusRaw = assignment.status ?? 'Planificada';
+  const normalizedStatus = ASSIGNMENT_STATUSES.includes(statusRaw as (typeof ASSIGNMENT_STATUSES)[number])
+    ? (statusRaw as TruckAssignment['status'])
+    : 'Planificada';
+  const volume = typeof assignment.volumeLiters === 'number' ? assignment.volumeLiters : undefined;
+  return {
+    id: String(assignment.id),
+    truckId: truckId ? String(truckId) : '',
+    routeId: routeId ? String(routeId) : '',
+    driverId: driverId ? String(driverId) : '',
+    date,
+    status: normalizedStatus,
+    startTime: assignment.startTime ?? undefined,
+    endTime: assignment.endTime ?? undefined,
+    volumeLiters: volume,
+  };
 };
 
 export const TruckAssignmentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [assignments, setAssignments] = useState<TruckAssignment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
       const [truckData, driverData, assignmentData] = await Promise.all([
-        getVehiculosFromTaller({ tipo: 'Camion', estado: 'disponible' }), // Filtra por tipo 'Camion' y estado 'disponible'
+        getVehiculosFromTaller(),
         getDrivers(),
         getAssignments(),
       ]);
-      setTrucks(truckData);
-      setDrivers(driverData);
-      setAssignments(assignmentData.map(a => ({...a, date: new Date(a.date)}))); // Asegurarse que las fechas son objetos Date
+      const filteredVehicles = truckData.filter(vehiculo => {
+        const rawType = (vehiculo.tipo ?? '').toLowerCase();
+        const isTruck = rawType === 'camion' || rawType === 'camión' || rawType === 'truck';
+        const isAvailable = (vehiculo.estado ?? '').toLowerCase() === 'disponible';
+        return isTruck && isAvailable;
+      });
+      setTrucks(filteredVehicles.map(toTruck));
+  setDrivers(driverData.map(toDriver));
+      setAssignments((assignmentData as unknown as BackendAssignment[]).map(toAssignment));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al cargar datos de asignación';
-      setError(message);
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error(message, err);
     }
   }, []);
 
@@ -91,36 +156,43 @@ export const TruckAssignmentProvider: React.FC<{ children: React.ReactNode }> = 
     void fetchData();
   }, [fetchData]);
 
-  const addAssignment: ContextValue['addAssignment'] = (data) => {
-    // Esta función ahora se manejará principalmente a través de `setTruckDayAssignment`
-    // Se mantiene por compatibilidad pero la lógica principal se mueve.
-    console.warn('addAssignment está deprecado, usar setTruckDayAssignment');
+  const addAssignment: ContextValue['addAssignment'] = useCallback((_data) => {
+    console.warn('addAssignment está deprecado, usar setTruckDayAssignment', _data);
     return { ok: true };
-  };
+  }, []);
 
-  const removeAssignment: ContextValue['removeAssignment'] = (id) => {
-    // Asumimos que el ID es numérico si viene de la DB
+  const removeAssignment: ContextValue['removeAssignment'] = useCallback((id) => {
     void deleteAssignment(Number(id)).then(fetchData);
-  };
+  }, [fetchData]);
 
-  // Actual implementation with details
-  const _setTruckDayAssignmentImpl = (
-    truckId: string,
-    date: Date,
-    driverId: string,
-    routesWithVolumes: Array<{ routeId: string; volumeLiters?: number }>,
-  ): { ok: boolean; error?: string } => {
-    let conflict = false;
-    const currentAssignments = assignments;
+  const setTruckDayAssignmentImpl = useCallback(
+    (
+      truckId: string,
+      date: Date,
+      driverId: string,
+      routesWithVolumes: Array<{ routeId: string; volumeLiters?: number }>,
+    ): { ok: boolean; error?: string } => {
+      const truck = trucks.find(t => t.id === truckId);
+      const maxCapacity = typeof truck?.capacityTons === 'number' ? truck.capacityTons : null;
+      if (maxCapacity != null) {
+        const exceedingEntry = routesWithVolumes.find(entry => (entry.volumeLiters ?? 0) > maxCapacity);
+        if (exceedingEntry) {
+          return {
+            ok: false,
+            error: `La ruta ${exceedingEntry.routeId} excede la capacidad del camión (${maxCapacity} L).`,
+          };
+        }
+      }
+
       const d0 = dateOnly(date);
-      // Validar conductor no asignado a otro camión en el mismo día (excluye el mismo camión)
-      const driverConflict = currentAssignments.some(a => sameDay(a.date, d0) && a.driverId === driverId && a.truckId !== truckId);
+      const driverConflict = assignments.some(
+        a => sameDay(a.date, d0) && a.driverId === driverId && a.truckId !== truckId,
+      );
       if (driverConflict) {
-        conflict = true;
         return { ok: false, error: 'El conductor ya está asignado a otro camión en esa fecha.' };
       }
-      // Eliminar todas las asignaciones existentes del camión para ese día
-      const toDelete = currentAssignments.filter(a => a.truckId === truckId && sameDay(a.date, d0));
+
+      const toDelete = assignments.filter(a => a.truckId === truckId && sameDay(a.date, d0));
       const toCreate = routesWithVolumes.map(entry => ({
         truckId,
         routeId: entry.routeId,
@@ -130,30 +202,29 @@ export const TruckAssignmentProvider: React.FC<{ children: React.ReactNode }> = 
         volumeLiters: entry.volumeLiters,
       }));
 
-      // Ejecutar operaciones en la API
       Promise.all([
         ...toDelete.map(a => deleteAssignment(Number(a.id))),
-        ...toCreate.map(c => createAssignment(c))
-      ]).then(fetchData).catch(err => {
-        console.error("Error al guardar asignaciones:", err);
-        setError(err instanceof Error ? err.message : 'Error al guardar');
-      });
+        ...toCreate.map(c => createAssignment(c)),
+      ])
+        .then(fetchData)
+        .catch(err => {
+          console.error('Error al guardar asignaciones:', err);
+        });
 
       return { ok: true };
-  };
-
-  // Rebind exported function to actual impl (keeping type compatibility)
-  const setTruckDayAssignmentWithDetails: ContextValue['setTruckDayAssignment'] = useCallback(
-    (truckId, date, driverId, routes) => _setTruckDayAssignmentImpl(truckId, date, driverId, routes),
-    [assignments] // Depende de assignments para la validación
+    },
+    [assignments, fetchData, trucks],
   );
 
-  const updateAssignment: ContextValue['updateAssignment'] = (id, patch) => {
-    // La actualización completa se maneja con setTruckDayAssignment.
-    // Esta función podría usarse para cambios de estado menores en el futuro.
+  const setTruckDayAssignmentWithDetails: ContextValue['setTruckDayAssignment'] = useCallback(
+    (truckId, date, driverId, routes) => setTruckDayAssignmentImpl(truckId, date, driverId, routes),
+    [setTruckDayAssignmentImpl],
+  );
+
+  const updateAssignment: ContextValue['updateAssignment'] = useCallback((id, patch) => {
     console.warn('updateAssignment no está completamente implementado con la API');
     setAssignments(prev => prev.map(a => (a.id === id ? { ...a, ...patch } : a)));
-  };
+  }, []);
 
   const kpis = useMemo(() => {
     const totalTrucks = trucks.length;
@@ -161,7 +232,28 @@ export const TruckAssignmentProvider: React.FC<{ children: React.ReactNode }> = 
     return { totalTrucks, activeTrucks };
   }, [trucks]);
 
-  const value = useMemo(() => ({ trucks, drivers, assignments, addAssignment, removeAssignment, setTruckDayAssignment: setTruckDayAssignmentWithDetails, updateAssignment, kpis }), [trucks, drivers, assignments, kpis, setTruckDayAssignmentWithDetails]);
+  const value = useMemo(
+    () => ({
+      trucks,
+      drivers,
+      assignments,
+      addAssignment,
+      removeAssignment,
+      setTruckDayAssignment: setTruckDayAssignmentWithDetails,
+      updateAssignment,
+      kpis,
+    }),
+    [
+      trucks,
+      drivers,
+      assignments,
+      addAssignment,
+      removeAssignment,
+      setTruckDayAssignmentWithDetails,
+      updateAssignment,
+      kpis,
+    ],
+  );
 
   return <TruckAssignmentContext.Provider value={value}>{children}</TruckAssignmentContext.Provider>;
 };

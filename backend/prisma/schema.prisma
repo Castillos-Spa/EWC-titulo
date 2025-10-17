@@ -87,7 +87,6 @@ model Vehiculo {
   updatedAt           DateTime          @updatedAt
   areaAsignada        String?
   lastMaintenanceDate DateTime?
-  tipo                String?
   marca               String            @default("")
   modelo              String            @default("")
   codigo              String?           @unique

@@ -25,7 +25,7 @@ export class VehiculoController {
 
     const where: Prisma.VehiculoWhereInput = {};
     if (tipo) {
-      where.tipo = tipo;
+      where.tipo = { equals: tipo.trim(), mode: 'insensitive' };
     }
     if (estado) {
       where.estado = estado as VehiculoStatus;

@@ -24,8 +24,9 @@ export class VehiculoService {
   } satisfies Prisma.VehiculoInclude;
 
   async create(createVehiculoDto: CreateVehiculoDto): Promise<Vehiculo> {
-    const { patente, ...restDto } = createVehiculoDto;
+    const { patente, tipo, ...restDto } = createVehiculoDto;
     const normalizedPatente = patente.toUpperCase().trim();
+    const normalizedTipo = tipo?.trim() || null;
 
     const existing = await this.prisma.vehiculo.findUnique({
       where: { patente: normalizedPatente },
@@ -39,6 +40,7 @@ export class VehiculoService {
     return this.prisma.vehiculo.create({
       data: {
         ...restDto,
+        tipo: normalizedTipo,
         patente: normalizedPatente, // Usar la patente normalizada
       },
     });
@@ -91,9 +93,23 @@ export class VehiculoService {
     // Primero, verifica que el vehículo exista para lanzar un error 404 claro.
     await this.findOne(id);
 
+    const { tipo, ...restDto } = updateVehiculoDto;
+    let normalizedTipo: string | null | undefined;
+    if (tipo === undefined) {
+      normalizedTipo = undefined;
+    } else {
+      normalizedTipo = tipo?.trim() || null;
+    }
+    const data: Prisma.VehiculoUpdateInput = {
+      ...restDto,
+    };
+    if (normalizedTipo !== undefined) {
+      data.tipo = normalizedTipo;
+    }
+
     return this.prisma.vehiculo.update({
       where: { id },
-      data: updateVehiculoDto,
+      data,
       include: this.vehiculoInclude,
     });
   }

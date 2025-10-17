@@ -26,10 +26,12 @@ export type CreateVehiculoPayload = {
   patente: string;
   marca: string;
   modelo: string;
+  tipo?: string;
   capacidad: number;
   odometro: number;
   estado: "disponible" | "en_mantenimiento" | "en_ruta" | "fuera_de_servicio";
   areaAsignada?: string;
+  codigo?: string;
   conductorId?: number;
   lastMaintenanceDate?: string;
 };
@@ -110,7 +112,7 @@ export async function createVehiculoFromTaller(
 export async function closeTallerWorkOrder(
   otId: number,
   payload: { checklist: string; resultado: string }
-): Promise<any> {
+): Promise<unknown> {
   // El tipo de retorno depende de lo que devuelva `qaService.create`
   return apiFetch(`/taller/orden-trabajo/${otId}/cerrar`, {
     method: "PATCH",
@@ -150,7 +152,18 @@ export async function updateWorkOrderStatus(
  * Obtiene la lista de personal filtrado por rol (ej. 'Conductor').
  * Asume un endpoint GET /personal?role=Conductor
  */
-export async function getDrivers(): Promise<any[]> {
+export type TallerDriver = {
+  id?: number;
+  userId?: number;
+  username?: string;
+  email?: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  active?: boolean;
+};
+
+export async function getDrivers(): Promise<TallerDriver[]> {
   // Usamos el endpoint de usuarios con el filtro de especialidad
   const response = await apiFetch("/users?specialty=DRIVER");
   // El backend devuelve un objeto paginado { items: [], ... }

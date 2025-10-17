@@ -1,15 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Search, Filter, Truck, Wrench, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { createVehiculoFromTaller, getVehiculosFromTaller, updateVehiculoFromTaller, type CreateVehiculoPayload } from '../../utils/tallerApi';
 import type { Vehiculo, VehiculoStatus } from '../../types/Vehiculo';
-import { getUsers } from '../../utils/userApi';
-import type { User as AppUser } from '../../types/User';
 
 const VEHICLE_AREAS = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', 'P_Riesgo'];
 
 const FleetRegistry: React.FC = () => {
   const [vehicles, setVehicles] = useState<Vehiculo[]>([]);
-  const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,18 +31,23 @@ const FleetRegistry: React.FC = () => {
       }
     };
 
-    const fetchUsers = async () => {
-      try {
-        const usersData = await getUsers();
-        setUsers(usersData);
-      } catch (err) {
-        console.error('Error al cargar los usuarios:', err);
-      }
-    };
-
     fetchVehicles();
-    fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (!editingVehicle) {
+      setVehicleType('camion');
+      return;
+    }
+    const rawType = editingVehicle.tipo?.toLowerCase() ?? '';
+    if (rawType.includes('camion')) {
+      setVehicleType('camion');
+    } else if (rawType.includes('camioneta')) {
+      setVehicleType('camioneta');
+    } else {
+      setVehicleType(editingVehicle.capacidad > 0 ? 'camion' : 'camioneta');
+    }
+  }, [editingVehicle]);
 
   // Helpers seguros para leer valores desde FormData
   const getStr = (fd: FormData, key: string, fallback = ''): string => {
@@ -73,7 +75,6 @@ const FleetRegistry: React.FC = () => {
   const handleCreateVehicle = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const driverId = getNum(formData, 'driver');
     const maintenanceDate = getStr(formData, 'lastMaintenanceDate');
 
     const estadoCreate = getStr(formData, 'estado') as unknown as CreateVehiculoPayload['estado'];
@@ -81,6 +82,7 @@ const FleetRegistry: React.FC = () => {
       patente: getStr(formData, 'patente'),
       marca: getStr(formData, 'marca'),
       modelo: getStr(formData, 'modelo'),
+      tipo: vehicleType === 'camion' ? 'Camion' : 'Camioneta',
       capacidad: vehicleType === 'camion' ? (getNum(formData, 'capacidad') ?? 0) : 0,
       odometro: getNum(formData, 'odometro') ?? 0,
       estado: estadoCreate,
@@ -104,7 +106,6 @@ const FleetRegistry: React.FC = () => {
     if (!editingVehicle) return;
 
     const formData = new FormData(e.currentTarget);
-    const driverId = getNum(formData, 'driver');
     const maintenanceDate = getStr(formData, 'lastMaintenanceDate');
     const currentVehicleType = getStr(formData, 'vehicleType') as 'camion' | 'camioneta';
 
@@ -113,6 +114,7 @@ const FleetRegistry: React.FC = () => {
       patente: getStr(formData, 'patente'),
       marca: getStr(formData, 'marca'),
       modelo: getStr(formData, 'modelo'),
+      tipo: currentVehicleType === 'camion' ? 'Camion' : 'Camioneta',
       capacidad: currentVehicleType === 'camion' ? (getNum(formData, 'capacidad') ?? 0) : 0,
       odometro: getNum(formData, 'odometro') ?? 0,
       estado: estadoUpdate,

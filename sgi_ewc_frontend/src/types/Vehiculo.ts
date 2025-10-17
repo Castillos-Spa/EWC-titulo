@@ -15,6 +15,8 @@ export type Vehiculo = {
   marca: string;
   modelo: string;
   estado: VehiculoStatus;
+  codigo?: string | null;
+  tipo?: string | null;
   createdAt: string; // Prisma DateTime se convierte en string (ISO 8601)
   updatedAt: string;
   areaAsignada: string | null;
