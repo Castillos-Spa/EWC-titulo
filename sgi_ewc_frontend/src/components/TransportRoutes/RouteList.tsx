@@ -76,15 +76,17 @@ const RouteList: React.FC = () => {
   const exportFiltered = () => {
     const header = ['Codigo','Origen','Destino','DistanciaKm','Frecuencia','Activa','Creada'];
     const rows = sorted.map(r => [r.code, r.origin, r.destination, r.distanceKm, r.frequency, r.active ? 'SI' : 'NO', r.createdAt.toISOString().split('T')[0]]);
-    const csv = [header, ...rows].map(line => line.map(val => `"${String(val).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const csv = [header, ...rows]
+      .map(line => line.map(val => `"${String(val).split('"').join('""')}"`).join(','))
+      .join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `rutas_filtradas_${new Date().toISOString().slice(0,10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
     URL.revokeObjectURL(url);
   };
 
@@ -111,8 +113,32 @@ const RouteList: React.FC = () => {
           <fieldset className="md:col-span-2 lg:col-span-2">
             <legend className="block mb-1 text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Estado</legend>
             <div className="inline-flex overflow-hidden text-xs bg-white border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-900">
-              <button type="button" aria-pressed={!onlyActive} onClick={() => { if (onlyActive) { setOnlyActive(false); setPage(1); } }} className={`px-3 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${!onlyActive ? 'bg-blue-600 text-white dark:bg-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>Todas</button>
-              <button type="button" aria-pressed={onlyActive} onClick={() => { if (!onlyActive) { setOnlyActive(true); setPage(1); } }} className={`px-3 py-1 font-medium border-l border-gray-300 dark:border-gray-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${onlyActive ? 'bg-blue-600 text-white dark:bg-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>Solo activas</button>
+              <button
+                type="button"
+                aria-pressed={!onlyActive}
+                onClick={() => {
+                  if (onlyActive) {
+                    setOnlyActive(false);
+                    setPage(1);
+                  }
+                }}
+                className={`px-3 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${onlyActive ? 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300' : 'bg-blue-600 text-white dark:bg-blue-500'}`}
+              >
+                Todas
+              </button>
+              <button
+                type="button"
+                aria-pressed={onlyActive}
+                onClick={() => {
+                  if (onlyActive === false) {
+                    setOnlyActive(true);
+                    setPage(1);
+                  }
+                }}
+                className={`px-3 py-1 font-medium border-l border-gray-300 dark:border-gray-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${onlyActive ? 'bg-blue-600 text-white dark:bg-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+              >
+                Solo activas
+              </button>
             </div>
           </fieldset>
           <div className="flex gap-4">
@@ -153,8 +179,8 @@ const RouteList: React.FC = () => {
               </tr>
             )}
             {paged.map(r => <RouteRow key={r.id} route={r} onEdit={() => setEditTarget(r)} onToggle={() => toggleActive(r.id)} />)}
-            {paged.length === 0 && (
-              !loading && !error && <tr>
+            {paged.length === 0 && loading === false && error == null && (
+              <tr>
                 <td colSpan={8} className="px-3 py-4 text-sm text-center text-gray-500 dark:text-gray-400">Sin resultados</td>
               </tr>
             )}
@@ -198,9 +224,13 @@ const RouteRow: React.FC<RowProps> = ({ route, onEdit, onToggle }) => {
 
 // Portal para reutilizar el modal de edición (montado en body para evitar overflow issues)
 const RouteListEditPortal: React.FC<{ route: TransportRoute; onClose: () => void; }> = ({ route, onClose }) => {
-  return ReactDOM.createPortal( // @ts-ignore createPortal es válido
+  const portalTarget = typeof document === 'undefined' ? null : document.body;
+  if (!portalTarget) {
+    return null;
+  }
+  return ReactDOM.createPortal(
     <EditOverlay route={route} onClose={onClose} />,
-    document.body
+    portalTarget
   );
 };
 

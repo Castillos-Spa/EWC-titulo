@@ -36,6 +36,11 @@ const TicketSystem: React.FC = () => {
       attachments: 1
     },
     {
+      id: 'TK-002',
+      title: 'Cleaning supplies restock',
+      description: 'Request additional cleaning supplies for upcoming maintenance rotation',
+      category: 'supply_request',
+      priority: 'medium',
       status: 'pending',
       createdBy: 'Maria Cleaning',
       createdAt: '2025-01-27T08:15:00Z',
@@ -44,7 +49,11 @@ const TicketSystem: React.FC = () => {
       attachments: 0
     },
     {
+      id: 'TK-003',
+      title: 'Warehouse gate maintenance',
+      description: 'Rolling gate at loading bay produces loud noise when closing',
       category: 'maintenance',
+      priority: 'medium',
       status: 'resolved',
       createdBy: 'Transport Supervisor',
       assignedTo: 'Maintenance Team',
@@ -54,7 +63,11 @@ const TicketSystem: React.FC = () => {
       attachments: 2
     },
     {
+      id: 'TK-004',
+      title: 'Forklift incident notification',
+      description: 'Operator reported minor collision with pallet near dock 3',
       category: 'incident',
+      priority: 'high',
       status: 'in_progress',
       createdBy: 'Carlos Rodriguez',
       assignedTo: 'Transport Supervisor',
@@ -69,9 +82,6 @@ const TicketSystem: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-
-    const [newTickets, setNewTickets] = useState<Ticket[]>([]);
-
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -103,16 +113,6 @@ const TicketSystem: React.FC = () => {
     }
   };
 
-  // const getStatusColor = (status: string) => {
-  //   switch (status) {
-  //     case 'pending': return 'bg-gray-100 text-gray-800';
-  //     case 'in_progress': return 'bg-blue-100 text-blue-800';
-  //     case 'resolved': return 'bg-green-100 text-green-800';
-  //     case 'closed': return 'bg-gray-100 text-gray-600';
-  //     default: return 'bg-gray-100 text-gray-800';
-  //   }
-  // };
-
   const getCategoryLabel = (category: string) => {
     switch (category) {
       case 'it_support': return 'IT Support';
@@ -142,11 +142,6 @@ const TicketSystem: React.FC = () => {
         };
         fetchTickets();
     }, []);
-
-  // const formatDate = (dateString: string) => {
-  //   const date = new Date(dateString);
-  //   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  // };
 
   // Kanban columns
   const columns = [
@@ -345,8 +340,9 @@ const TicketSystem: React.FC = () => {
             
             <form className="p-6 space-y-4">
               <div>
-                <label className="block mb-2 text-sm font-medium text-gray-700">Title</label>
+                <label htmlFor="ticket-title" className="block mb-2 text-sm font-medium text-gray-700">Title</label>
                 <input
+                  id="ticket-title"
                   type="text"
                   placeholder="Brief description of the issue or request"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -355,8 +351,8 @@ const TicketSystem: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Category</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <label htmlFor="ticket-category" className="block mb-2 text-sm font-medium text-gray-700">Category</label>
+                  <select id="ticket-category" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="">Select category</option>
                     <option value="it_support">IT Support</option>
                     <option value="supply_request">Supply Request</option>
@@ -365,8 +361,8 @@ const TicketSystem: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Priority</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                  <label htmlFor="ticket-priority" className="block mb-2 text-sm font-medium text-gray-700">Priority</label>
+                  <select id="ticket-priority" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
@@ -376,8 +372,9 @@ const TicketSystem: React.FC = () => {
               </div>
 
               <div>
-                <label className="block mb-2 text-sm font-medium text-gray-700">Description</label>
+                <label htmlFor="ticket-description" className="block mb-2 text-sm font-medium text-gray-700">Description</label>
                 <textarea
+                  id="ticket-description"
                   rows={4}
                   placeholder="Provide detailed information about the issue or request..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -385,13 +382,13 @@ const TicketSystem: React.FC = () => {
               </div>
 
               <div>
-                <label className="block mb-2 text-sm font-medium text-gray-700">Attachments</label>
-                <div className="p-6 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400">
+                <label htmlFor="ticket-attachments" className="block mb-2 text-sm font-medium text-gray-700">Attachments</label>
+                <label htmlFor="ticket-attachments" className="block p-6 text-center transition-colors border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-blue-400">
                   <Paperclip className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                   <p className="text-sm text-gray-600">Drop files here or click to upload</p>
                   <p className="mt-1 text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
-                  <input type="file" multiple className="hidden" />
-                </div>
+                  <input id="ticket-attachments" type="file" multiple className="hidden" />
+                </label>
               </div>
 
               <div className="flex justify-end pt-4 space-x-3">

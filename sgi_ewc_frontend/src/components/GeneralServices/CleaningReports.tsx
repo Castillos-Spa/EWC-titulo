@@ -77,7 +77,7 @@ const CleaningReports: React.FC = () => {
     try {
       const d = iso ? new Date(iso) : new Date();
       return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
-    } catch (err) {
+    } catch {
       return iso ?? '';
     }
   };

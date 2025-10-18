@@ -1,6 +1,15 @@
 import React, { createContext, useState, useMemo, ReactNode, useEffect, useCallback } from 'react';
-import { getRoutes, createRoute, deleteRoute, updateRoute as apiUpdateRoute } from '../../utils/RoutesApi';
-import type { TransportRoute as ApiTransportRoute } from '../../types/TransportRoute';
+import {
+  getRoutes,
+  createRoute,
+  updateRoute as apiUpdateRoute,
+  type CreateRoutePayload,
+  type UpdateRoutePayload,
+} from '../../utils/RoutesApi';
+import type {
+  TransportRoute as ApiTransportRoute,
+  CreateTransportRoutePayload as ApiCreateTransportRoutePayload,
+} from '../../types/TransportRoute';
 
 /**
  * Tipo de Ruta de Transporte para la UI.
@@ -30,7 +39,7 @@ interface RouteContextValue {
   loading: boolean;
   error: string | null;
   addRoute: (data: CreateTransportRoutePayload) => Promise<void>;
-  updateRoute: (id: number, changes: Partial<CreateTransportRoutePayload>) => Promise<void>;
+  updateRoute: (id: number, changes: UpdateTransportRoutePayload) => Promise<void>;
   toggleActive: (id: number) => Promise<void>;
   kpis: {
     total: number;
@@ -41,6 +50,7 @@ interface RouteContextValue {
 }
 
 const RouteContext = createContext<RouteContextValue | undefined>(undefined);
+export type UpdateTransportRoutePayload = Partial<CreateTransportRoutePayload> & { active?: boolean };
 
 /**
  * Adapta una ruta de la API (`ApiRoute`) al formato de la UI (`TransportRoute`).
@@ -84,14 +94,16 @@ export const RouteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [fetchRoutes]);
 
   const addRoute = async (data: CreateTransportRoutePayload) => {
-    await createRoute(data as any); // Enviamos el payload del formulario directamente
+    const payload: CreateRoutePayload = mapToApiPayload(data);
+    await createRoute(payload);
     // Volvemos a obtener todas las rutas para reflejar el cambio
     await fetchRoutes();
   };
 
-  const updateRoute = async (id: number, changes: Partial<CreateTransportRoutePayload>) => {
+  const updateRoute = async (id: number, changes: UpdateTransportRoutePayload) => {
     // Llama a la API para actualizar y luego refresca los datos.
-    await apiUpdateRoute(id, changes as any);
+    const payload: UpdateRoutePayload = mapToUpdatePayload(changes);
+    await apiUpdateRoute(id, payload);
     await fetchRoutes();
   };
 
@@ -101,9 +113,9 @@ export const RouteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const confirmationMessage = route.active ? '¿Desactivar esta ruta?' : '¿Activar esta ruta?';
 
-    if (window.confirm(confirmationMessage)) {
+    if (globalThis.confirm(confirmationMessage)) {
       try {
-        await apiUpdateRoute(id, { active: !route.active } as any);
+        await apiUpdateRoute(id, { active: !route.active });
         await fetchRoutes(); // Recargar rutas
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Error al desactivar la ruta';
@@ -139,3 +151,46 @@ export const RouteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 };
 
 export default RouteContext;
+
+function mapToApiPayload(data: CreateTransportRoutePayload): CreateRoutePayload {
+  const apiPayload: ApiCreateTransportRoutePayload = {
+    code: data.code,
+    origin: data.origin,
+    destination: data.destination,
+    distanceKm: data.distanceKm,
+    frequency: normalizeFrequency(data.frequency),
+  };
+  return apiPayload;
+}
+
+function mapToUpdatePayload(
+  changes: UpdateTransportRoutePayload
+): UpdateRoutePayload {
+  const payload: UpdateRoutePayload = {};
+  if (typeof changes.code === 'string') payload.code = changes.code;
+  if (typeof changes.origin === 'string') payload.origin = changes.origin;
+  if (typeof changes.destination === 'string') payload.destination = changes.destination;
+  if (typeof changes.distanceKm === 'number') payload.distanceKm = changes.distanceKm;
+  if (typeof changes.frequency === 'string') {
+    payload.frequency = normalizeFrequency(changes.frequency);
+  }
+  if (typeof changes.active === 'boolean') {
+    payload.active = changes.active;
+  }
+  return payload;
+}
+
+function normalizeFrequency(
+  rawFrequency: string
+): ApiCreateTransportRoutePayload['frequency'] {
+  const allowed: ApiCreateTransportRoutePayload['frequency'][] = [
+    'Diaria',
+    'Semanal',
+    'Mensual',
+    'Ocasional',
+    'Adhoc',
+  ];
+  return (allowed.includes(rawFrequency as typeof allowed[number])
+    ? rawFrequency
+    : 'Ocasional') as ApiCreateTransportRoutePayload['frequency'];
+}
