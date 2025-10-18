@@ -11,6 +11,7 @@ import {
   Request,
   Query,
   UseInterceptors,
+  ValidationPipe,
 } from '@nestjs/common';
 
 import { UsersService } from './users.service';
@@ -18,6 +19,7 @@ import { RegisterDto } from '../auth/dtos/register.dto';
 import { Role, Specialty } from '@prisma/client';
 import { SimpleCacheInterceptor } from 'src/common/simple-cache.interceptor';
 import { CacheTTL } from 'src/common/cache-ttl.decorator';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Controller('users')
 export class UsersController {
@@ -27,13 +29,11 @@ export class UsersController {
   @UseInterceptors(SimpleCacheInterceptor)
   @CacheTTL(10)
   async findAll(
-    @Query('page') page = '1',
-    @Query('pageSize') pageSize = '20',
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
     @Query('specialty') specialty?: Specialty,
   ) {
-    const p = Math.max(Number(page) || 1, 1);
-    const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
-    return this.usersService.findAll({ page: p, pageSize: size, specialty });
+    return this.usersService.findAll({ ...paginationQuery, specialty });
   }
   // Endpoint para obtener la contraseña temporal (solo si mustChangePassword=true)
   @Get(':id/temp-password')

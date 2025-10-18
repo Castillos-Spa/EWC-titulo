@@ -3,6 +3,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { CreateFuelLogDto } from './dto/create-fuel-log.dto';
 import { Role } from '@prisma/client';
 import { UsersService } from '@/features/users/users.service';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class FuelService {
@@ -32,7 +33,7 @@ export class FuelService {
     });
   }
 
-  async getVehicleFuelHistory(vehiculoId: number, requestingUserId: number) {
+  async getVehicleFuelHistory(vehiculoId: number, requestingUserId: number, paginationQuery: PaginationQueryDto) {
     const user = await this.usersService.findById(requestingUserId);
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
@@ -51,16 +52,27 @@ export class FuelService {
       throw new NotFoundException(`Vehículo con ID #${vehiculoId} no encontrado.`);
     }
 
-    return this.prisma.fuelLog.findMany({
-      where: { vehiculoId },
-      orderBy: { date: 'desc' },
-      include: {
-        driver: { select: { id: true, username: true } },
-      },
-    });
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.fuelLog.findMany({
+        where: { vehiculoId },
+        skip,
+        take: pageSize,
+        orderBy: { date: 'desc' },
+        include: {
+          driver: { select: { id: true, username: true } },
+        },
+      }),
+      this.prisma.fuelLog.count({ where: { vehiculoId } }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return { items, total, page, pageSize, totalPages };
   }
 
-  async getFleetFuelSummary(requestingUserId: number) {
+  async getFleetFuelSummary(requestingUserId: number, paginationQuery: PaginationQueryDto) {
     const user = await this.usersService.findById(requestingUserId);
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
@@ -76,26 +88,32 @@ export class FuelService {
     // Si ES admin o supervisor, el where clause queda vacío para traer TODOS los vehículos.
     // TODO: Re-evaluar la lógica de filtrado si es necesario ahora que no hay conductorId
 
-    const vehicles = await this.prisma.vehiculo.findMany({
-      where: vehicleWhereClause,
-      take: 50,
-      orderBy: { id: 'desc' },
-      select: {
-        id: true,
-        patente: true,
-        marca: true,
-        modelo: true,
-        estado: true,
-        fuelLogs: {
-          take: 50,
-          orderBy: { date: 'desc' },
-          include: { driver: { select: { id: true, username: true } } },
-        },
-      },
-    });
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
 
-    // Aquí podrías agregar lógica para calcular resúmenes si lo necesitas.
-    // Por ahora, devolvemos los vehículos con su historial de combustible.
-    return vehicles;
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.vehiculo.findMany({
+        where: vehicleWhereClause,
+        skip,
+        take: pageSize,
+        orderBy: { id: 'desc' },
+        select: {
+          id: true,
+          patente: true,
+          marca: true,
+          modelo: true,
+          estado: true,
+          fuelLogs: {
+            take: 10, // Limitamos los logs anidados para no sobrecargar la respuesta
+            orderBy: { date: 'desc' },
+            include: { driver: { select: { id: true, username: true } } },
+          },
+        },
+      }),
+      this.prisma.vehiculo.count({ where: vehicleWhereClause }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return { items, total, page, pageSize, totalPages };
   }
 }

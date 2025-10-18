@@ -4,6 +4,7 @@ import { Role, Ticket } from '@prisma/client';
 import { NotificacionGateway } from './notificacion.gateway';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { OnEvent } from '@nestjs/event-emitter';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class NotificacionService {
@@ -84,7 +85,7 @@ export class NotificacionService {
     return createdNotification;
   }
 
-  async findAllForUser(userId: number) {
+  async findAllForUser(userId: number, paginationQuery: PaginationQueryDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { roleAssignments: true },
@@ -95,7 +96,7 @@ export class NotificacionService {
     const userRoles = user.roleAssignments.map(ra => ra.role);
     const userAreas = user.roleAssignments.map(ra => ra.area).filter(Boolean);
 
-    return this.prisma.notification.findMany({
+    const whereClause = {
       where: {
         OR: [
           { user: { some: { id: userId } } }, // Notificaciones directas
@@ -104,13 +105,27 @@ export class NotificacionService {
           { areas: { isEmpty: true }, roles: { isEmpty: true }, user: { none: {} } }, // Globales
         ],
       },
-      include: {
-        createdBy: { select: { username: true } },
-        readBy: { where: { userId: userId } }, // Trae el estado de lectura SOLO para el usuario actual
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    };
+
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.notification.findMany({
+        ...whereClause,
+        skip,
+        take: pageSize,
+        include: {
+          createdBy: { select: { username: true } },
+          readBy: { where: { userId: userId } }, // Trae el estado de lectura SOLO para el usuario actual
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.notification.count(whereClause),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return { items, total, page, pageSize, totalPages };
   }
 
   async update(id: number, updateNotificationDto: UpdateNotificationDto) {

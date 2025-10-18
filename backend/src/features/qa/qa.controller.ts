@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, ParseIntPipe, Query, ValidationPipe } from '@nestjs/common';
 import { QaService } from './qa.service';
 import { CreateQADto } from './dto/create-qa.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Controller('qa')
 export class QaController {
@@ -12,8 +13,11 @@ export class QaController {
   }
 
   @Get()
-  findAll() {
-    return this.qaService.findAll();
+  findAll(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
+  ) {
+    return this.qaService.findAll(paginationQuery);
   }
 
   @Get(':id')

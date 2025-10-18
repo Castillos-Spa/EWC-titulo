@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Query, ValidationPipe } from '@nestjs/common';
 import { IncidentService } from './incident.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Controller('incident')
 export class IncidentController {
@@ -13,10 +14,11 @@ export class IncidentController {
   }
 
   @Get()
-  findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
-    const p = Math.max(Number(page) || 1, 1);
-    const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
-    return this.incidentService.findAll({ page: p, pageSize: size });
+  findAll(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
+  ) {
+    return this.incidentService.findAll(paginationQuery);
   }
 
   @Get(':id')

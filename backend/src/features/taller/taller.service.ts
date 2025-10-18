@@ -5,6 +5,7 @@ import { VehiculoService } from '../vehiculo/vehiculo.service';
 import { CreateVehiculoDto } from '../vehiculo/dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from '../vehiculo/dto/update-vehiculo.dto';
 import type { IQaService } from './interfaces/qa.interface';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class TallerService {
@@ -41,8 +42,8 @@ export class TallerService {
   }
 
   // Obtener todas las órdenes de trabajo
-  async findAllWorkOrders() {
-    return this.ordenTrabajoService.findAll();
+  async findAllWorkOrders(paginationQuery: PaginationQueryDto) {
+    return this.ordenTrabajoService.findAll(paginationQuery);
   }
 
   // Actualizar el estado de una orden de trabajo

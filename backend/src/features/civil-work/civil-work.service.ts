@@ -3,6 +3,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { CreateCivilWorkDto } from './dto/create-civil-work.dto';
 import { UpdateCivilWorkDto } from './dto/update-civil-work.dto';
 import { CivilWork, Prisma, CivilWorkStatus } from '@prisma/client';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class CivilWorkService {
@@ -36,22 +37,17 @@ export class CivilWorkService {
     });
   }
 
-  async findAll(params: {
-    skip?: number;
-    take?: number;
-    where?: Prisma.CivilWorkWhereInput;
-    orderBy?: Prisma.CivilWorkOrderByWithRelationInput;
-  }): Promise<{ items: Partial<CivilWork>[]; total: number }> {
-    const { skip, take, where, orderBy } = params;
+  async findAll(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
 
     // Usamos $transaction para ejecutar ambas consultas (conteo y obtención) en paralelo.
     const [total, items] = await this.prisma.$transaction([
-      this.prisma.civilWork.count({ where }),
+      this.prisma.civilWork.count(),
       this.prisma.civilWork.findMany({
         skip,
-        take,
-        where,
-        orderBy,
+        take: pageSize,
+        orderBy: { startDate: 'desc' },
         // Optimizamos la consulta seleccionando solo los campos necesarios para la vista de lista.
         select: {
           id: true,
@@ -67,7 +63,9 @@ export class CivilWorkService {
       }),
     ]);
 
-    return { items, total };
+    const totalPages = Math.ceil(total / pageSize);
+
+    return { items, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number): Promise<CivilWork> {

@@ -13,6 +13,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { ticketInclude } from 'prisma/prisma-includes';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { ApproveStepDto } from './dto/approve-step.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 
@@ -111,10 +112,9 @@ export class TicketService {
     return newTicket;
   }
 
-  async findAll(opts?: { page: number; pageSize: number }) {
-    opts ??= { page: 1, pageSize: 20 };
-    const { page, pageSize } = opts;
-    const skip = (page - 1) * pageSize;
+  async findAll(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * Number(pageSize);
 
     const [items, total] = await Promise.all([
       this.prisma.ticket.findMany({
@@ -133,7 +133,9 @@ export class TicketService {
       this.prisma.ticket.count(),
     ]);
 
-    return { items, total, page, pageSize };
+    const totalPages = Math.ceil(total / pageSize);
+
+    return { items, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number) {

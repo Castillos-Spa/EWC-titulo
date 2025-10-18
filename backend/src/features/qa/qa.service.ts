@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateQADto } from './dto/create-qa.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import { IQaService } from '@/features/taller/interfaces/qa.interface';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class QaService implements IQaService {
@@ -28,12 +29,23 @@ export class QaService implements IQaService {
     });
   }
 
-  async findAll() {
-    return this.prisma.qA.findMany({
-      take: 50,
-      orderBy: { createdAt: 'desc' },
-      include: { ot: true },
-    });
+  async findAll(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.qA.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: { ot: true },
+      }),
+      this.prisma.qA.count(),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+
+    return { items, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number) {

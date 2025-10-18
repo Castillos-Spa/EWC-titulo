@@ -10,6 +10,7 @@ import {
   UseGuards,
   Req,
   NotFoundException,
+  ValidationPipe,
   Query,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
@@ -20,6 +21,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApproveStepDto } from './dto/approve-step.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Controller('tickets')
 @UseGuards(JwtAuthGuard)
@@ -35,10 +37,11 @@ export class TicketController {
   }
 
   @Get()
-  findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
-    const p = Math.max(Number(page) || 1, 1);
-    const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
-    return this.ticketsService.findAll({ page: p, pageSize: size });
+  findAll(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
+  ) {
+    return this.ticketsService.findAll(paginationQuery);
   }
 
   @Get(':id')

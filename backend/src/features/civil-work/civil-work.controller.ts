@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  ValidationPipe,
   ParseIntPipe,
   UseGuards,
   Request,
@@ -15,6 +16,7 @@ import {
 import { CivilWorkService } from './civil-work.service';
 import { CreateCivilWorkDto } from './dto/create-civil-work.dto';
 import { UpdateCivilWorkDto } from './dto/update-civil-work.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/features/auth/guards/roles.guard';
 import { AreaGuard } from '@/features/auth/guards/area.guard';
@@ -41,13 +43,8 @@ export class CivilWorkController {
   }
 
   @Get()
-  findAll(@Query('page') page = '1', @Query('pageSize') pageSize = '20') {
-    const skip = (Number(page) - 1) * Number(pageSize);
-    return this.civilWorkService.findAll({
-      skip,
-      take: Number(pageSize),
-      orderBy: { startDate: 'desc' },
-    });
+  findAll(@Query(new ValidationPipe({ transform: true, whitelist: true })) paginationQuery: PaginationQueryDto) {
+    return this.civilWorkService.findAll(paginationQuery);
   }
 
   @Get(':id')

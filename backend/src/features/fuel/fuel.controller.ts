@@ -1,7 +1,19 @@
-import { Controller, Get, Post, Body, Param, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+  Query,
+  ValidationPipe,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { FuelService } from './fuel.service';
 import { CreateFuelLogDto } from './dto/create-fuel-log.dto';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('fuel')
@@ -15,14 +27,21 @@ export class FuelController {
   }
 
   @Get('summary')
-  getFleetSummary(@Request() req) {
+  getFleetSummary(
+    @Request() req,
+    @Query(new ValidationPipe({ transform: true, whitelist: true })) paginationQuery: PaginationQueryDto,
+  ) {
     const userId = req.user.userId;
-    return this.fuelService.getFleetFuelSummary(userId);
+    return this.fuelService.getFleetFuelSummary(userId, paginationQuery);
   }
 
   @Get('history/:vehiculoId')
-  getVehicleHistory(@Param('vehiculoId') vehiculoId: string, @Request() req) {
+  getVehicleHistory(
+    @Param('vehiculoId', ParseIntPipe) vehiculoId: number,
+    @Request() req,
+    @Query(new ValidationPipe({ transform: true, whitelist: true })) paginationQuery: PaginationQueryDto,
+  ) {
     const userId = req.user.userId;
-    return this.fuelService.getVehicleFuelHistory(Number(vehiculoId), userId);
+    return this.fuelService.getVehicleFuelHistory(vehiculoId, userId, paginationQuery);
   }
 }

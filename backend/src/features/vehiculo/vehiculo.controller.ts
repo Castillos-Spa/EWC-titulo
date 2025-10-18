@@ -1,10 +1,24 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  ValidationPipe,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { VehiculoService } from './vehiculo.service';
 import { CreateVehiculoDto } from './dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from './dto/update-vehiculo.dto';
-import { Prisma, VehiculoStatus } from '@prisma/client';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
 
-@Controller('taller/vehiculos')
+@UseGuards(JwtAuthGuard)
+@Controller('vehiculos')
 export class VehiculoController {
   constructor(private readonly vehiculoService: VehiculoService) {}
 
@@ -14,29 +28,16 @@ export class VehiculoController {
   }
 
   @Get()
-  async findAll(
-    @Query('page') page = '1',
-    @Query('pageSize') pageSize = '20',
-    @Query('tipo') tipo?: string,
-    @Query('estado') estado?: string,
+  findAll(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
   ) {
-    const p = Math.max(Number(page) || 1, 1);
-    const size = Math.min(Math.max(Number(pageSize) || 20, 1), 200);
-
-    const where: Prisma.VehiculoWhereInput = {};
-    if (tipo) {
-      where.tipo = { equals: tipo.trim(), mode: 'insensitive' };
-    }
-    if (estado) {
-      where.estado = estado as VehiculoStatus;
-    }
-
-    return this.vehiculoService.findAll({ skip: (p - 1) * size, take: size, where, orderBy: { id: 'desc' } });
+    return this.vehiculoService.findAll(paginationQuery);
   }
 
-  @Get(':patente')
-  findOne(@Param('patente') patente: string) {
-    return this.vehiculoService.findByPatente(patente);
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.vehiculoService.findOne(id);
   }
 
   @Patch(':id')
@@ -45,15 +46,7 @@ export class VehiculoController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.vehiculoService.remove(+id);
-  }
-
-  @Post(':id/documentos')
-  registrarDocumento(
-    @Param('id') vehiculoId: string,
-    @Body() data: { tipo: string; url: string; descripcion?: string },
-  ) {
-    return this.vehiculoService.registrarDocumento(+vehiculoId, data.tipo, data.url, data.descripcion);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.vehiculoService.remove(id);
   }
 }

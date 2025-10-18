@@ -3,6 +3,7 @@ import { WebSocketGateway, WebSocketServer, OnGatewayConnection } from '@nestjs/
 import { Inject, forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { NotificacionService } from './notificacion.service';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @WebSocketGateway({ cors: true })
 export class NotificacionGateway implements OnGatewayConnection {
@@ -32,7 +33,7 @@ export class NotificacionGateway implements OnGatewayConnection {
         // This check is now correctly placed.
         // It was inside the `if (user)` block before, which was also fine,
         // but this is slightly cleaner. The important part is that it's inside the userId check.
-        const notifications = await this.notiService.findAllForUser(userId);
+        const notifications = await this.notiService.findAllForUser(userId, new PaginationQueryDto());
         client.emit('notifications:init', notifications);
       }
     } catch (err) {

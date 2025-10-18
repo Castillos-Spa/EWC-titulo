@@ -6,6 +6,7 @@ import { RegisterDto } from '@/features/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { NotificacionService } from '../notificacion/notificacion.service';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class UsersService {
@@ -159,55 +160,50 @@ export class UsersService {
     });
   }
 
-  async findAll(opts?: {
-    page: number;
-    pageSize: number;
-    specialty?: Specialty;
-  }): Promise<{ items: Omit<User, 'password'>[]; total: number; page: number; pageSize: number }> {
-    opts ??= { page: 1, pageSize: 20 };
-    const { page, pageSize, specialty } = opts;
+  async findAll(query: PaginationQueryDto & { specialty?: Specialty }) {
+    const { page = 1, pageSize = 10, specialty } = query;
     const skip = (page - 1) * pageSize;
 
     const where: Prisma.UserWhereInput = {};
     if (specialty) {
       where.roleAssignments = {
         some: {
-          specialty: specialty,
+          specialty,
         },
       };
     }
 
-    // Use a single SQL query to fetch users and their active roleAssignments as JSON (avoids separate IN (...) queries)
-    const rawItems = await this.prisma.$queryRawUnsafe(
-      `SELECT
-        u.id,
-        u.username,
-        u.email,
-        u.active,
-        u.last_login AS "lastLogin",
-          COALESCE(
-            json_agg(
-              json_build_object(
-                'area', ura.area,
-                'role', ura.role::text,
-                'specialty', ura.specialty,
-                'additionalPermissions', ura.permissions,
-                'isActive', ura."isActive"
-              )
-            ) FILTER (WHERE ura.id IS NOT NULL),
-            '[]'
-          ) AS "roleAssignments"
-      FROM "User" u
-      LEFT JOIN "UserRoleAssignment" ura ON ura."userId" = u.id AND ura."isActive" = true
-      GROUP BY u.id
-      ORDER BY u.id DESC
-      LIMIT ${pageSize} OFFSET ${skip}`,
-    );
+    const [users, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        skip,
+        take: pageSize,
+        where,
+        orderBy: { id: 'desc' },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          active: true,
+          lastLogin: true,
+          roleAssignments: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              area: true,
+              role: true,
+              specialty: true,
+              permissions: true,
+              isActive: true,
+            },
+          },
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
 
-    // Parse roleAssignments if returned as string
-    const rawItemsAny = rawItems as any[];
-    const items = rawItemsAny.map(row => {
-      const ra = typeof row.roleAssignments === 'string' ? JSON.parse(row.roleAssignments) : row.roleAssignments;
+    // Procesamos los resultados para añadir los campos derivados que espera el frontend
+    const items = users.map(user => {
+      const ra = user.roleAssignments;
       // Build derived fields expected by frontend
       const rolesArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.role).filter(Boolean)));
       const areasArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.area).filter(Boolean)));
@@ -222,11 +218,11 @@ export class UsersService {
       });
 
       return {
-        id: row.id,
-        username: row.username,
-        email: row.email,
-        active: row.active,
-        lastLogin: row.lastLogin,
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        active: user.active,
+        lastLogin: user.lastLogin,
         roleAssignments: ra,
         roles: rolesArr,
         areas: areasArr,
@@ -235,20 +231,9 @@ export class UsersService {
       } as unknown as Omit<User, 'password'>;
     });
 
-    let total = 0;
-    if (page === 1) {
-      total = (this.cacheService.get<number>('users_total') as number) ?? 0;
-      if (!total) {
-        const res: any = await this.prisma.user.count({ where });
-        total = res[0]?.count ?? 0;
-        this.cacheService.set('users_total', total, 30_000); // cache por 30s
-      }
-    } else {
-      total = this.cacheService.get<number>('users_total') ?? 0;
-    }
+    const totalPages = Math.ceil(total / pageSize);
 
-    const sanitized = items.map(({ /* password omitted by select */ ...u }) => u as unknown as Omit<User, 'password'>);
-    return { items: sanitized, total, page, pageSize };
+    return { items, total, page, pageSize, totalPages };
   }
 
   async deleteUser(id: number, requestingUserId: number): Promise<{ success: boolean }> {

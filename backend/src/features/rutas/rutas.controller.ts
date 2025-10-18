@@ -1,9 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  ParseIntPipe,
+  Query,
+  ValidationPipe,
+} from '@nestjs/common';
 import { RutasService } from './rutas.service';
 import { CreateRutaDto } from './dto/create-ruta.dto';
 import { UpdateRutaDto } from './dto/update-ruta.dto';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/features/auth/guards/permissions.guard';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('rutas')
@@ -16,13 +29,19 @@ export class RutasController {
   }
 
   @Get()
-  findAll() {
-    return this.rutasService.findAll();
+  findAll(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
+  ) {
+    return this.rutasService.findAll(paginationQuery);
   }
 
   @Get('assignments')
-  findAllAssignments() {
-    return this.rutasService.findAllAssignments();
+  findAllAssignments(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
+  ) {
+    return this.rutasService.findAllAssignments(paginationQuery);
   }
 
   @Post('assignments')

@@ -1,8 +1,20 @@
-import { Controller, Post, Body, Param, ParseIntPipe, Get, NotFoundException, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  ParseIntPipe,
+  Get,
+  NotFoundException,
+  Patch,
+  Query,
+  ValidationPipe,
+} from '@nestjs/common';
 import { TallerService } from './taller.service';
 import { CreateOrdenTrabajoTallerDto } from '../orden-trabajo/dto/create-orden-trabajo.dto';
 import { CreateVehiculoDto } from '../vehiculo/dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from '../vehiculo/dto/update-vehiculo.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Controller('taller')
 export class TallerController {
@@ -14,8 +26,11 @@ export class TallerController {
   }
 
   @Get('orden-trabajo')
-  findAllWorkOrders() {
-    return this.tallerService.findAllWorkOrders();
+  findAllWorkOrders(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    paginationQuery: PaginationQueryDto,
+  ) {
+    return this.tallerService.findAllWorkOrders(paginationQuery);
   }
 
   @Patch('orden-trabajo/:id/status')

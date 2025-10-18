@@ -3,6 +3,7 @@ import { CreateOrdenTrabajoTallerDto } from './dto/create-orden-trabajo.dto';
 import { UpdateOrdenTrabajoDto } from './dto/update-orden-trabajo.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class OrdenTrabajoService {
@@ -37,12 +38,23 @@ export class OrdenTrabajoService {
     });
   }
 
-  async findAll() {
-    return this.prisma.ordenTrabajo.findMany({
-      take: 50,
-      orderBy: { id: 'desc' },
-      include: { vehiculo: true, qa: true },
-    });
+  async findAll(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.ordenTrabajo.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { id: 'desc' },
+        include: { vehiculo: true, qa: true },
+      }),
+      this.prisma.ordenTrabajo.count(),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+
+    return { items, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number) {

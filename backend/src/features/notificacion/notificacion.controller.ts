@@ -9,6 +9,8 @@ import {
   Request,
   ForbiddenException,
   ParseIntPipe,
+  Query,
+  ValidationPipe,
 } from '@nestjs/common';
 import { NotificacionService } from './notificacion.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -16,6 +18,7 @@ import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
 import { Roles } from '@/features/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('notificacion')
@@ -29,8 +32,11 @@ export class NotificacionController {
   }
 
   @Get()
-  findAll(@Request() req) {
-    return this.notificacionService.findAllForUser(req.user.userId);
+  findAll(
+    @Request() req,
+    @Query(new ValidationPipe({ transform: true, whitelist: true })) paginationQuery: PaginationQueryDto,
+  ) {
+    return this.notificacionService.findAllForUser(req.user.userId, paginationQuery);
   }
 
   @Patch(':id')

@@ -18,10 +18,4 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     NotificacionModule,
   ],
 })
-export class CoreModule {
-  constructor(private configService: ConfigService) {
-    const dbUrl = this.configService.get<string>('DATABASE_URL');
-    console.log('--- Verificando DATABASE_URL en CoreModule ---');
-    console.log(`DATABASE_URL: ${dbUrl ? 'Cargada correctamente' : 'NO encontrada'}`);
-  }
-}
+export class CoreModule {}

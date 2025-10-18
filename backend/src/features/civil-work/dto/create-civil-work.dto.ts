@@ -8,10 +8,8 @@ import {
   IsNumber,
   Min,
   Max,
-  ValidateNested,
   IsInt,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { CivilWorkStatus, CivilWorkType } from '@prisma/client';
 
 class MaterialDto {

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class IncidentService {
@@ -32,9 +33,8 @@ export class IncidentService {
     });
   }
 
-  async findAll(opts?: { page: number; pageSize: number }) {
-    opts ??= { page: 1, pageSize: 20 };
-    const { page, pageSize } = opts;
+  async findAll(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
     const skip = (page - 1) * pageSize;
 
     const [items, total] = await Promise.all([
@@ -57,7 +57,9 @@ export class IncidentService {
       this.prisma.incident.count(),
     ]);
 
-    return { items, total, page, pageSize };
+    const totalPages = Math.ceil(total / pageSize);
+
+    return { items, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number) {

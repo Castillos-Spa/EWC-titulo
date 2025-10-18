@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateRutaDto } from './dto/create-ruta.dto';
 import { UpdateRutaDto } from './dto/update-ruta.dto';
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class RutasService {
@@ -13,23 +14,45 @@ export class RutasService {
     });
   }
 
-  async findAll() {
-    return this.prisma.transportRoute.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+  async findAll(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.transportRoute.findMany({
+        skip,
+        take: pageSize,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.transportRoute.count(),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return { items, total, page, pageSize, totalPages };
   }
 
-  async findAllAssignments() {
-    return this.prisma.truckAssignment.findMany({
-      include: {
-        truck: true,
-        route: true,
-        driver: true,
-      },
-      orderBy: { date: 'desc' },
-    });
+  async findAllAssignments(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.truckAssignment.findMany({
+        skip,
+        take: pageSize,
+        include: {
+          truck: true,
+          route: true,
+          driver: true,
+        },
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.truckAssignment.count(),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return { items, total, page, pageSize, totalPages };
   }
 
   async createAssignment(data: any) {

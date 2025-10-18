@@ -3,6 +3,7 @@ import { CreateVehiculoDto } from './dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from './dto/update-vehiculo.dto';
 import { PrismaService } from 'prisma/prisma.service';
 
+import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { Prisma, Vehiculo } from '@prisma/client';
 
 @Injectable()
@@ -46,28 +47,26 @@ export class VehiculoService {
     });
   }
 
-  async findAll(params: {
-    skip?: number;
-    take?: number;
-    cursor?: Prisma.VehiculoWhereUniqueInput;
-    where?: Prisma.VehiculoWhereInput;
-    orderBy?: Prisma.VehiculoOrderByWithRelationInput;
-  }) {
-    const { skip, take, cursor, where = {}, orderBy } = params;
+  async findAll(paginationQuery: PaginationQueryDto) {
+    const { page = 1, pageSize = 20 } = paginationQuery;
+    const skip = (page - 1) * pageSize;
+
+    // Puedes añadir filtros aquí si es necesario, por ahora el `where` está vacío.
+    const where: Prisma.VehiculoWhereInput = {};
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.vehiculo.findMany({
         skip,
-        take,
-        cursor,
-        where: where,
-        orderBy,
+        take: pageSize,
+        where,
+        orderBy: { id: 'desc' },
         include: this.vehiculoInclude,
       }),
-      this.prisma.vehiculo.count({ where: where }),
+      this.prisma.vehiculo.count({ where }),
     ]);
 
-    return { items, total };
+    const totalPages = Math.ceil(total / pageSize);
+    return { items, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number): Promise<Vehiculo> {
