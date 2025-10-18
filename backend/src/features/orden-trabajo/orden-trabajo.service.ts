@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateOrdenTrabajoTallerDto } from './dto/create-orden-trabajo.dto';
 import { UpdateOrdenTrabajoDto } from './dto/update-orden-trabajo.dto';
 import { PrismaService } from 'prisma/prisma.service';
@@ -95,7 +95,7 @@ export class OrdenTrabajoService {
     // Verificar si la orden de OT existe
     const ordenTrabajo = await this.prisma.ordenTrabajo.findUnique({ where: { id } });
     if (!ordenTrabajo) {
-      throw new Error(`Orden de trabajo con ID ${id} no encontrada`);
+      throw new NotFoundException(`Orden de trabajo con ID ${id} no encontrada`);
     } // Actualizar el estado de la OT a "Cerrada"
 
     await this.prisma.ordenTrabajo.update({

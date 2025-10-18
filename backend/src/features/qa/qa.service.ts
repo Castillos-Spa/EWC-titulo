@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateQADto } from './dto/create-qa.dto';
 import { PrismaService } from 'prisma/prisma.service';
-import { IQaService } from '@/taller/interfaces/qa.interface';
+import { IQaService } from '@/features/taller/interfaces/qa.interface';
 
 @Injectable()
 export class QaService implements IQaService {

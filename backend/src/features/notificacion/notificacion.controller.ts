@@ -5,7 +5,6 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
   UseGuards,
   Request,
   ForbiddenException,
@@ -14,8 +13,8 @@ import {
 import { NotificacionService } from './notificacion.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { Roles } from 'src/auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
+import { Roles } from '@/features/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard)

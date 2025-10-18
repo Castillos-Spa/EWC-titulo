@@ -17,7 +17,11 @@ import { CoreModule } from './core/core.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Configura el ConfigModule para que sea global y cargue las variables .env
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     AuthModule,
     UsersModule,
     TallerModule,

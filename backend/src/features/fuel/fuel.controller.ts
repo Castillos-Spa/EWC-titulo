@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Request, UseGuards } from '@nestjs/common';
 import { FuelService } from './fuel.service';
 import { CreateFuelLogDto } from './dto/create-fuel-log.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('fuel')

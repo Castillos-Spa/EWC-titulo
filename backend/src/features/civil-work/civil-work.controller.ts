@@ -15,14 +15,13 @@ import {
 import { CivilWorkService } from './civil-work.service';
 import { CreateCivilWorkDto } from './dto/create-civil-work.dto';
 import { UpdateCivilWorkDto } from './dto/update-civil-work.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { AreaGuard } from 'src/auth/guards/area.guard';
+import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/features/auth/guards/roles.guard';
+import { AreaGuard } from '@/features/auth/guards/area.guard';
 
-import { Roles } from 'src/auth/decorators/roles.decorator'; // Asumo que tienes este decorador
-import { Area } from 'src/auth/decorators/area.decorator';
+import { Roles } from '@/features/auth/decorators/roles.decorator'; // Asumo que tienes este decorador
+import { Area } from '@/features/auth/decorators/area.decorator';
 import { Role } from '@prisma/client';
-import type { User } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard, RolesGuard, AreaGuard)
 @Controller('civil-work')

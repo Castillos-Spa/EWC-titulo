@@ -2,9 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntP
 import { RutasService } from './rutas.service';
 import { CreateRutaDto } from './dto/create-ruta.dto';
 import { UpdateRutaDto } from './dto/update-ruta.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { Permission } from '@prisma/client';
+import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '@/features/auth/guards/permissions.guard';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('rutas')
