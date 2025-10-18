@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 // Lazy pages from current locations
 const DashboardHome = lazy(() => import('../components/Dashboard/DashboardHome'));
 const FleetPage = lazy(() => import('../features/fleet/pages/FleetPage'));
-const MaintenanceManagement = lazy(() => import('../components/WaterTransport/MaintenanceManagement'));
+const MaintenancePage = lazy(() => import('../features/maintenance/pages/MaintenancePage'));
 const FuelByFleet = lazy(() => import('../features/fuel/pages/FuelPage'));
 const RoutesPage = lazy(() => import('../features/transport-routes/pages/RoutesPage'));
 const TruckAssignmentPage = lazy(() => import('../features/truck-assignments/pages/TruckAssignmentPage'));
@@ -45,11 +45,11 @@ export function AppRouter() {
         </RequireAuth>
       ),
       children: [
-        { index: true, element: <Suspense fallback={<div className="p-8">Cargando…</div>}><DashboardHome /></Suspense> },
-  { path: 'rutas', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><RoutesPage /></Suspense> },
-  { path: 'flota', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><FleetPage /></Suspense> },
+    { index: true, element: <Suspense fallback={<div className="p-8">Cargando…</div>}><DashboardHome /></Suspense> },
+    { path: 'rutas', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><RoutesPage /></Suspense> },
+    { path: 'flota', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><FleetPage /></Suspense> },
         { path: 'combustible', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><FuelByFleet /></Suspense> },
-        { path: 'mantenimiento', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><MaintenanceManagement /></Suspense> },
+    { path: 'mantenimiento', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><MaintenancePage /></Suspense> },
         { path: 'aseo', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><CleaningReports /></Suspense> },
         { path: 'obras-civiles', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><CivilWorks /></Suspense> },
         { path: 'incidentes', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><Incidents /></Suspense> },

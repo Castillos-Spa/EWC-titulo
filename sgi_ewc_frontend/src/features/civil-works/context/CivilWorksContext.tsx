@@ -9,6 +9,7 @@ type Ctx = {
   error: string | null;
   refresh: () => Promise<void>;
   selectById: (id: number) => Promise<void>;
+  clearSelection: () => void;
   create: (payload: CreateCivilWorkPayload) => Promise<CivilWork>;
   update: (id: number, payload: Partial<CivilWork>) => Promise<CivilWork>;
   updateTasks: (id: number, tasks: CivilWorkTask[]) => Promise<CivilWork>;
@@ -44,6 +45,10 @@ export const CivilWorksProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setSelected(full);
   }, []);
 
+  const clearSelection = useCallback(() => {
+    setSelected(null);
+  }, []);
+
   const create = useCallback(async (payload: CreateCivilWorkPayload) => {
     const created = await createCivilWork(payload);
     setItems(prev => [created, ...prev]);
@@ -70,7 +75,10 @@ export const CivilWorksProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (selected?.id === id) setSelected(null);
   }, [selected]);
 
-  const value = useMemo<Ctx>(() => ({ items, selected, loading, error, refresh, selectById, create, update, updateTasks, remove }), [items, selected, loading, error, refresh, selectById, create, update, updateTasks, remove]);
+  const value = useMemo<Ctx>(
+    () => ({ items, selected, loading, error, refresh, selectById, clearSelection, create, update, updateTasks, remove }),
+    [items, selected, loading, error, refresh, selectById, clearSelection, create, update, updateTasks, remove],
+  );
 
   return <CivilWorksContext.Provider value={value}>{children}</CivilWorksContext.Provider>;
 };

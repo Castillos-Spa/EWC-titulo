@@ -1,11 +1,26 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import { X, MapPin, CalendarDays, CalendarClock, Layers, Gauge, Users2, ClipboardList, Package, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { CivilWork, CivilWorkTask } from '../../../types/CivilWork';
 import { useCivilWorks } from '../hooks/useCivilWorks';
 
-function fmtDate(iso?: string | null) {
-  if (!iso) return 'N/A';
-  try { return new Date(iso).toLocaleDateString('es-CL'); } catch { return String(iso); }
-}
+const formatDate = (iso?: string | null) => {
+  if (!iso) return 'Sin registro';
+  try {
+    return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' }).format(new Date(iso));
+  } catch {
+    return iso ?? '';
+  }
+};
+
+const computeTimeline = (estimated?: string | null) => {
+  if (!estimated) return 'Sin estimación';
+  const ts = new Date(estimated).getTime();
+  if (!Number.isFinite(ts)) return 'Sin estimación';
+  const days = Math.ceil((ts - Date.now()) / (1000 * 60 * 60 * 24));
+  if (days < 0) return `${Math.abs(days)} días de retraso`;
+  if (days === 0) return 'Entrega hoy';
+  return `${days} días restantes`;
+};
 
 export const CivilWorkDetailModal: React.FC<{
   report: CivilWork;
@@ -14,108 +29,202 @@ export const CivilWorkDetailModal: React.FC<{
 }> = ({ report, onClose, onEdit }) => {
   const { updateTasks } = useCivilWorks();
 
-  const handleToggle = useCallback(async (idx: number) => {
-    const list: CivilWorkTask[] = Array.isArray(report.tasks) ? report.tasks.map((t, i) => ({ ...t, completed: i === idx ? !t.completed : t.completed })) : [];
+  const handleToggle = useCallback(async (index: number) => {
+    const list: CivilWorkTask[] = Array.isArray(report.tasks)
+      ? report.tasks.map((task, idx) => ({ ...task, completed: idx === index ? !task.completed : task.completed }))
+      : [];
     await updateTasks(report.id, list);
   }, [report, updateTasks]);
 
   const staff = Array.isArray(report.responsibleStaffUsernames) ? report.responsibleStaffUsernames : [];
   const issues = Array.isArray(report.issues) ? report.issues : [];
   const materials = Array.isArray(report.materialsUsed) ? report.materialsUsed : [];
+  const timeline = useMemo(() => computeTimeline(report.estimatedEndDate), [report.estimatedEndDate]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-slate-900 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-transparent dark:border-slate-700">
-        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Detalle del Proyecto</h3>
-          <p className="mt-1 text-gray-600 dark:text-gray-400">{report.project}</p>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
+      <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 text-slate-800 shadow-2xl shadow-slate-300/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/95 dark:text-slate-100">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(125,211,252,0.24),_rgba(15,23,42,0)_70%)] dark:bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.26),_rgba(15,23,42,0.45))]" />
+        <div className="relative flex max-h-[90vh] flex-col">
+          <header className="flex flex-wrap items-start justify-between gap-6 px-8 pt-8">
+            <div className="space-y-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+                <MapPin className="h-4 w-4" /> {report.location}
+              </span>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{report.project}</h2>
+              <p className="max-w-2xl text-sm text-slate-500 dark:text-blue-200/80">
+                Estado en tiempo real de la intervención, con responsables, materiales y tareas sincronizadas en el nuevo módulo translúcido.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-blue-100">
+                  <Layers className="h-4 w-4" /> {report.workType}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/60 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-600 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100">
+                  <CheckCircle2 className="h-4 w-4" /> {report.status.replace('_', ' ')}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/80 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </header>
 
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Estado</p>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{report.status.replace('_', ' ')}</p>
-            </div>
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de Trabajo</p>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{report.workType}</p>
-            </div>
-          </div>
+          <div className="mt-6 flex-1 space-y-6 overflow-y-auto px-8 pb-8 text-sm text-slate-600 dark:text-blue-200/80">
+            <section className="grid gap-4 lg:grid-cols-4">
+              <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <CalendarDays className="h-4 w-4" /> Inicio
+                </p>
+                <p className="mt-3 text-slate-700 dark:text-blue-100">{formatDate(report.startDate)}</p>
+              </div>
+              <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <CalendarClock className="h-4 w-4" /> Estimada
+                </p>
+                <p className="mt-3 text-slate-700 dark:text-blue-100">{formatDate(report.estimatedEndDate)}</p>
+              </div>
+              <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <CalendarClock className="h-4 w-4" /> Real
+                </p>
+                <p className="mt-3 text-slate-700 dark:text-blue-100">{report.actualEndDate ? formatDate(report.actualEndDate) : 'Aún en progreso'}</p>
+              </div>
+              <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <Gauge className="h-4 w-4" /> Panorama
+                </p>
+                <p className="mt-3 font-semibold text-slate-700 dark:text-blue-100">{timeline}</p>
+              </div>
+            </section>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha de Inicio</p>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{fmtDate(report.startDate)}</p>
-            </div>
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha Estimada de Término</p>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{fmtDate(report.estimatedEndDate)}</p>
-            </div>
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha Real de Término</p>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{report.actualEndDate ? fmtDate(report.actualEndDate) : 'Aún en progreso'}</p>
-            </div>
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ubicación</p>
-              <p className="mt-1 text-gray-900 dark:text-gray-100">{report.location}</p>
-            </div>
-          </div>
-
-          <div>
-            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Personal Responsable</p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {staff.map((s) => (
-                <span key={`${report.id}-${s}`} className="px-3 py-1 text-sm text-blue-800 bg-blue-100 rounded-full dark:bg-blue-900/30 dark:text-blue-100">{s}</span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Tareas</p>
-            <div className="mt-2 space-y-2">
-              {report.tasks.map((task, index) => (
-                <label key={`${report.id}-task-${task.name}-${index}`} className="flex items-center gap-3 p-2 rounded-md bg-gray-50 dark:bg-slate-800/50">
-                  <input type="checkbox" checked={task.completed} onChange={() => { void handleToggle(index); }} className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
-                  <span className={`flex-1 text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>{task.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Materiales Utilizados</p>
-            <div className="grid grid-cols-2 gap-3 mt-2 md:grid-cols-3">
-              {materials.map((m, i) => (
-                <div key={`${report.id}-mat-${i}`} className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{m}</div>
+            <section className="rounded-3xl border border-slate-200/70 bg-slate-50/80 px-6 py-5 shadow-inner shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-white/5 dark:shadow-slate-900/40">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Avance consolidado</p>
+                  <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{report.progress}%</p>
                 </div>
-              ))}
-            </div>
-          </div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-blue-200/80">
+                  <ClipboardList className="h-4 w-4" /> Tareas vinculadas: {report.tasks.length}
+                </span>
+              </div>
+              <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-400"
+                  style={{ width: `${Math.max(0, Math.min(100, report.progress ?? 0))}%` }}
+                />
+              </div>
+            </section>
 
-          {issues.length > 0 && (
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Incidencias</p>
-              <ul className="mt-1 text-sm text-gray-700 list-disc list-inside dark:text-gray-300">
-                {issues.map((it, i) => <li key={`${report.id}-issue-${i}`}>{it}</li>)}
-              </ul>
-            </div>
-          )}
+            <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                <Users2 className="h-4 w-4" /> Personal responsable
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {staff.length === 0 && <span className="text-xs text-slate-500 dark:text-blue-200/70">Sin responsables asignados.</span>}
+                {staff.map(username => (
+                  <span
+                    key={`${report.id}-${username}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                  >
+                    {username}
+                  </span>
+                ))}
+              </div>
+            </section>
 
-          {report.observations && (
-            <div>
-              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">{report.observations}</p>
-            </div>
-          )}
+            <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                <ClipboardList className="h-4 w-4" /> Tareas vinculadas
+              </p>
+              <div className="mt-3 space-y-2">
+                {report.tasks.map((task, index) => (
+                  <label
+                    key={`${report.id}-task-${task.name}-${index}`}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={() => { void handleToggle(index); }}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-400 dark:border-white/20 dark:bg-white/10"
+                    />
+                    <span className={task.completed ? 'line-through opacity-70' : ''}>{task.name}</span>
+                  </label>
+                ))}
+                {report.tasks.length === 0 && (
+                  <span className="text-xs text-slate-500 dark:text-blue-200/70">No hay tareas registradas.</span>
+                )}
+              </div>
+            </section>
 
-          <div className="flex justify-end gap-2 mt-4">
-            <button onClick={onClose} className="px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded dark:border-slate-600 dark:text-slate-100 dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700">Cerrar</button>
-            {onEdit && (
-              <button onClick={() => onEdit(report)} className="px-3 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">Editar</button>
+            {materials.length > 0 && (
+              <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <Package className="h-4 w-4" /> Materiales utilizados
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {materials.map((material, index) => (
+                    <div
+                      key={`${report.id}-material-${index}`}
+                      className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                    >
+                      {material}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {issues.length > 0 && (
+              <section className="rounded-3xl border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-rose-700 shadow-sm shadow-rose-200/40 backdrop-blur dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-100">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em]">
+                  <AlertTriangle className="h-4 w-4" /> Incidencias detectadas
+                </p>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {issues.map((issue, index) => (
+                    <li key={`${report.id}-issue-${index}`} className="flex items-start gap-2">
+                      <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-rose-500" />
+                      <span>{issue}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {report.observations && (
+              <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-inner shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-white/5 dark:shadow-slate-900/40">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Observaciones</p>
+                <p className="mt-3 leading-relaxed text-slate-600 dark:text-blue-200/80">{report.observations}</p>
+              </section>
             )}
           </div>
+
+          <footer className="flex flex-col gap-3 border-t border-white/60 bg-white/70 px-8 py-6 backdrop-blur dark:border-white/10 dark:bg-white/5 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Visualización alineada al nuevo hub de operaciones.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white/80 px-5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+              >
+                Cerrar
+              </button>
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(report)}
+                  className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
+                >
+                  Editar obra
+                </button>
+              )}
+            </div>
+          </footer>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+/* Legacy maintenance module preserved while the feature is migrated to the new design system.
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Wrench, DollarSign, AlertTriangle, CheckCircle, Clock, Eye } from 'lucide-react';
 import { createTallerWorkOrder, getTallerWorkOrders, getVehiculosFromTaller, updateWorkOrderStatus } from '../../utils/tallerApi';
@@ -655,5 +656,5 @@ const MaintenanceManagement: React.FC = () => {
     </div>
   );
 };
-
-export default MaintenanceManagement;
+*/
+export { default } from '../../features/maintenance/pages/MaintenancePage';

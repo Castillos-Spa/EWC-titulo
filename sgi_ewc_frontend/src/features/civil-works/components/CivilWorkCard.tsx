@@ -1,87 +1,150 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { CivilWork, CivilWorkStatus, CivilWorkType } from '../../../types/CivilWork';
-import { Calendar, MapPin, CheckCircle, Clock, AlertTriangle, Hammer } from 'lucide-react';
+import { MapPin, CalendarDays, CalendarClock, Layers, ClipboardList, AlertTriangle, Hammer, CheckCircle2 } from 'lucide-react';
 
-const statusColor = (status: CivilWorkStatus) => {
-  switch (status) {
-    case 'COMPLETED': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
-    case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
-    case 'PENDING': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
-    case 'ON_HOLD': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
-    default: return 'bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-200';
+const STATUS_CONFIG: Record<CivilWorkStatus, { label: string; badge: string; icon: React.ReactNode }> = {
+  COMPLETED: {
+    label: 'Completado',
+    badge: 'border-emerald-400/70 bg-emerald-500/10 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-100',
+    icon: <CheckCircle2 className="h-4 w-4" />,
+  },
+  IN_PROGRESS: {
+    label: 'En progreso',
+    badge: 'border-sky-400/70 bg-sky-500/10 text-sky-600 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-100',
+    icon: <Hammer className="h-4 w-4" />,
+  },
+  PENDING: {
+    label: 'Pendiente',
+    badge: 'border-amber-400/70 bg-amber-500/10 text-amber-600 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100',
+    icon: <CalendarClock className="h-4 w-4" />,
+  },
+  ON_HOLD: {
+    label: 'En pausa',
+    badge: 'border-rose-400/70 bg-rose-500/10 text-rose-600 dark:border-rose-500/40 dark:bg-rose-500/15 dark:text-rose-100',
+    icon: <AlertTriangle className="h-4 w-4" />,
+  },
+};
+
+const WORK_TYPE_LABEL: Record<CivilWorkType, string> = {
+  CONSTRUCTION: 'Construcción',
+  REPAIR: 'Reparación',
+  MAINTENANCE: 'Mantenimiento',
+  INSPECTION: 'Inspección',
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return 'Sin registro';
+  try {
+    return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' }).format(new Date(value));
+  } catch {
+    return value;
   }
 };
 
-const statusIcon = (status: CivilWorkStatus) => {
-  switch (status) {
-    case 'COMPLETED': return <CheckCircle className="w-4 h-4" />;
-    case 'IN_PROGRESS': return <Hammer className="w-4 h-4" />;
-    case 'PENDING': return <Clock className="w-4 h-4" />;
-    case 'ON_HOLD': return <AlertTriangle className="w-4 h-4" />;
-    default: return <Clock className="w-4 h-4" />;
-  }
-};
-
-const typeLabel = (type: CivilWorkType) => {
-  switch (type) {
-    case 'CONSTRUCTION': return 'Construcción';
-    case 'REPAIR': return 'Reparación';
-    case 'MAINTENANCE': return 'Mantenimiento';
-    case 'INSPECTION': return 'Inspección';
-    default: return type;
-  }
+const computeDaysToDeadline = (estimated?: string | null) => {
+  if (!estimated) return null;
+  const ts = new Date(estimated).getTime();
+  if (!Number.isFinite(ts)) return null;
+  const diffDays = Math.ceil((ts - Date.now()) / (1000 * 60 * 60 * 24));
+  return diffDays;
 };
 
 export const CivilWorkCard: React.FC<{
   item: Partial<CivilWork> & Pick<CivilWork, 'id' | 'project' | 'location' | 'startDate' | 'estimatedEndDate' | 'status' | 'workType' | 'progress'>;
   onView: (id: number) => void;
 }> = ({ item, onView }) => {
-  return (
-    <div className="p-6 transition-shadow bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-slate-800 dark:border-slate-700 hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-900/30">
-              <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{item.project}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Obra #{item.id}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
-            <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-              <span className="text-gray-600 dark:text-gray-400">Inicio:</span>
-              <span className="font-medium text-gray-900 dark:text-gray-100">{new Date(item.startDate).toLocaleDateString('es-CL')}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-              <span className="text-gray-600 dark:text-gray-400">Estimada:</span>
-              <span className="font-medium text-gray-900 dark:text-gray-100">{new Date(item.estimatedEndDate).toLocaleDateString('es-CL')}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-gray-600 dark:text-gray-400">Tipo:</span>
-              <span className="font-medium text-gray-900 dark:text-gray-100">{typeLabel(item.workType)}</span>
-            </div>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progreso</span>
-            <div className="w-full h-3 mt-2 bg-gray-200 rounded-full dark:bg-slate-700">
-              <div className="h-3 bg-blue-600 rounded-full" style={{ width: `${item.progress}%` }} />
-            </div>
-          </div>
-        </div>
-        <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1 ${statusColor(item.status)}`}>
-          {statusIcon(item.status)}
-          <span className="capitalize">{item.status.replace('_', ' ')}</span>
-        </div>
-      </div>
+  const statusInfo = STATUS_CONFIG[item.status];
+  const progress = Math.max(0, Math.min(100, Math.round(item.progress ?? 0)));
 
-      <div className="flex justify-end mt-4">
-        <button onClick={() => onView(item.id)} className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700">Ver Detalles</button>
+  const deadlineInfo = useMemo(() => {
+    const remaining = computeDaysToDeadline(item.estimatedEndDate);
+    if (remaining === null) return { label: 'Sin estimación', delayed: false };
+    if (remaining < 0) return { label: `${Math.abs(remaining)} días de retraso`, delayed: true };
+    if (remaining === 0) return { label: 'Entrega hoy', delayed: false };
+    return { label: `${remaining} días restantes`, delayed: false };
+  }, [item.estimatedEndDate]);
+
+  return (
+    <article className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 p-6 text-slate-800 shadow-lg shadow-slate-200/50 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:shadow-slate-900/40">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(125,211,252,0.18),_rgba(15,23,42,0)_70%)] dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_rgba(15,23,42,0.45))]" />
+      <div className="relative flex flex-col gap-5">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+              <MapPin className="h-4 w-4" /> {item.location}
+            </span>
+            <div>
+              <h3 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{item.project}</h3>
+              <p className="text-sm text-slate-500 dark:text-blue-200/80">Obra #{item.id}</p>
+            </div>
+          </div>
+          {statusInfo && (
+            <span className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] ${statusInfo.badge}`}>
+              {statusInfo.icon}
+              {statusInfo.label}
+            </span>
+          )}
+        </header>
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/10">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+              <CalendarDays className="h-4 w-4" /> Inicio
+            </p>
+            <p className="mt-2 text-slate-700 dark:text-blue-100">{formatDate(item.startDate)}</p>
+          </div>
+          <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/10">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+              <CalendarClock className="h-4 w-4" /> Estimada
+            </p>
+            <p className="mt-2 text-slate-700 dark:text-blue-100">{formatDate(item.estimatedEndDate)}</p>
+          </div>
+          <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/10">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+              <Layers className="h-4 w-4" /> Tipo
+            </p>
+            <p className="mt-2 text-slate-700 dark:text-blue-100">{WORK_TYPE_LABEL[item.workType]}</p>
+          </div>
+          <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/10">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+              <ClipboardList className="h-4 w-4" /> Seguimiento
+            </p>
+            <p className={`mt-2 font-semibold ${deadlineInfo.delayed ? 'text-rose-500 dark:text-rose-300' : 'text-slate-700 dark:text-blue-100'}`}>{deadlineInfo.label}</p>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200/70 bg-slate-50/80 px-5 py-4 shadow-inner shadow-slate-200/40 dark:border-white/10 dark:bg-white/5 dark:shadow-slate-900/40">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Progreso</p>
+              <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{progress}%</p>
+            </div>
+            <span className="text-xs text-slate-500 dark:text-blue-200/80">Rastrea avances respecto a la meta trimestral.</span>
+          </div>
+          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-400"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </section>
+
+        <footer className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {deadlineInfo.delayed && (
+            <span className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/60 bg-rose-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-rose-600 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-100">
+              <AlertTriangle className="h-4 w-4" /> Atención requerida
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => onView(item.id)}
+            className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
+          >
+            Ver detalle
+          </button>
+        </footer>
       </div>
-    </div>
+    </article>
   );
 };
 
