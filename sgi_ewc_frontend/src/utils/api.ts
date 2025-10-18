@@ -4,13 +4,12 @@ let isRefreshing = false;
 let failedQueue: ((token: string) => void)[] = [];
 
 const processQueue = (error: Error | null, token: string | null = null) => {
-  failedQueue.forEach((resolve) => {
-    if (error || !token) {
-      // No reintentamos si el refresh falla
-    } else {
+  for (const resolve of failedQueue) {
+    if (!error && token) {
       resolve(token);
     }
-  });
+    // Si hay error, simplemente no resolvemos con nuevo token; los callers manejarán su propio error.
+  }
   failedQueue = [];
 };
 
@@ -19,22 +18,25 @@ const handleLogout = () => {
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("userData");
   // Disparamos un evento global para que la UI reaccione (AuthContext lo escucha).
-  window.dispatchEvent(new Event("session-expired"));
+  globalThis.dispatchEvent?.(new Event("session-expired"));
 };
 
-async function apiFetch(path: string, options: RequestInit = {}) {
+async function apiFetch(path: string, options?: RequestInit) {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...((options.headers as Record<string, string>) || {}),
   };
+  if (options?.headers) {
+    Object.assign(headers, options.headers as Record<string, string>);
+  }
 
   const token = localStorage.getItem("authToken");
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  let res = await fetch(url, { ...options, headers });
+  const init: RequestInit = options ? { ...options, headers } : { headers };
+  let res = await fetch(url, init);
 
   if (res.status === 401) {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -45,11 +47,11 @@ async function apiFetch(path: string, options: RequestInit = {}) {
 
     if (isRefreshing) {
       // Si ya se está refrescando, encolamos la petición para reintentarla después.
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         failedQueue.push((newAccessToken) => {
           headers["Authorization"] = `Bearer ${newAccessToken}`;
           // Reintentamos la petición y resolvemos la promesa con el resultado.
-          resolve(fetch(url, { ...options, headers }));
+          resolve(fetch(url, { ...init, headers }));
         });
       }).then(async (newResponse) => {
         // Una vez que la promesa se resuelve, procesamos la respuesta.
@@ -76,7 +78,7 @@ async function apiFetch(path: string, options: RequestInit = {}) {
       headers["Authorization"] = `Bearer ${newAccessToken}`;
       processQueue(null, newAccessToken); // Procesamos la cola de peticiones pendientes.
 
-      res = await fetch(url, { ...options, headers }); // Reintentamos la petición original.
+  res = await fetch(url, { ...init, headers }); // Reintentamos la petición original.
     } catch (error) {
       processQueue(error as Error, null);
       handleLogout();
@@ -89,12 +91,17 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
-    const err = new Error(data?.message || res.statusText);
-    (err as any).status = res.status;
-    (err as any).body = data;
+    const err: ApiError = new Error(data?.message || res.statusText);
+    err.status = res.status;
+    err.body = data;
     throw err;
   }
   return data;
 }
 
 export default apiFetch;
+
+type ApiError = Error & {
+  status?: number;
+  body?: unknown;
+};

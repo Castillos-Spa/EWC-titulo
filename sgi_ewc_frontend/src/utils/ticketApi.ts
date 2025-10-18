@@ -45,7 +45,7 @@ export async function createTicket(data: CreateTicketPayload): Promise<Ticket> {
 
 export async function updateTicket(
   id: number,
-  data: Partial<Ticket>
+  data: Partial<Ticket> & { assignedToId?: number }
 ): Promise<Ticket> {
   return apiFetch(`/tickets/${id}`, {
     method: "PATCH",

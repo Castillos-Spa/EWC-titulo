@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTruckAssignment } from './useTruckAssignment';
-import { useRouteContext } from '../TransportRoutes/useRouteContext';
+import { useRouteContext } from '@features/transport-routes/context/useRouteContext';
 import AssignTruckModal from './AssignTruckModal';
 
 interface Props {
@@ -11,17 +11,23 @@ type AssignedInfo = { assignmentId: string; driverId: string; driverName: string
 const buildAssignmentMap = (
   asgs: { id: string; truckId: string; routeId: string; driverId: string; date: Date }[],
   drivers: { id: string; name: string }[],
-  routes: { id: string; code: string }[],
+  routes: Array<{ id: string | number; code: string }>,
   refDay: Date
 ): Map<string, AssignedInfo> => {
   const map = new Map<string, AssignedInfo>();
   for (const a of asgs) {
     const d = a.date instanceof Date ? a.date : new Date(a.date);
-    if (!d || isNaN(d.getTime())) continue;
-    if (d.getFullYear() !== refDay.getFullYear() || d.getMonth() !== refDay.getMonth() || d.getDate() !== refDay.getDate()) continue;
-  const drv = drivers.find(dv => dv.id === a.driverId);
-    const rt = routes.find(r => r.id === a.routeId);
-  map.set(a.truckId, { assignmentId: a.id, driverId: a.driverId, driverName: drv?.name || '-', routeCode: rt?.code || '-' });
+    if (!d || Number.isNaN(d.getTime())) continue;
+    if (
+      d.getFullYear() !== refDay.getFullYear() ||
+      d.getMonth() !== refDay.getMonth() ||
+      d.getDate() !== refDay.getDate()
+    ) {
+      continue;
+    }
+    const drv = drivers.find(dv => dv.id === a.driverId);
+    const rt = routes.find(r => String(r.id) === String(a.routeId));
+    map.set(a.truckId, { assignmentId: a.id, driverId: a.driverId, driverName: drv?.name || '-', routeCode: rt?.code || '-' });
   }
   return map;
 };
@@ -39,7 +45,7 @@ const TruckAssignmentList: React.FC<Props> = ({ refDay }) => {
     return trucks.filter(t => t.active && (!q || t.code.toLowerCase().includes(q)));
   }, [trucks, search]);
 
-  const assignmentByTruckDay = useMemo(() => buildAssignmentMap(assignments, drivers, routes, refDay), [assignments, drivers, routes, refDay]);
+  const assignmentByTruckDay = useMemo(() => buildAssignmentMap(assignments, drivers, routes as Array<{ id: string | number; code: string }>, refDay), [assignments, drivers, routes, refDay]);
 
   const trucksVisible = useMemo(() => {
     const base = trucksFiltered.map(t => ({ truck: t, assigned: assignmentByTruckDay.get(t.id) }));
@@ -60,7 +66,7 @@ const TruckAssignmentList: React.FC<Props> = ({ refDay }) => {
       conductor: assigned?.driverName ?? '',
     }));
     const header = ['fecha','camion','ruta','conductor'];
-    const csv = [header.join(','), ...rows.map(r => [r.fecha, r.camion, r.ruta, r.conductor].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+  const csv = [header.join(','), ...rows.map(r => [r.fecha, r.camion, r.ruta, r.conductor].map(v => `"${String(v).split('"').join('""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -68,7 +74,7 @@ const TruckAssignmentList: React.FC<Props> = ({ refDay }) => {
     link.download = `asignaciones_${refDay.toISOString().slice(0,10)}.csv`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+  link.remove();
     URL.revokeObjectURL(url);
   };
 

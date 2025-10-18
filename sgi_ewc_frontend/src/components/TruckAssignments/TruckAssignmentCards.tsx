@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTruckAssignment } from './useTruckAssignment';
-import { useRouteContext } from '../TransportRoutes/useRouteContext';
+import { useRouteContext } from '@features/transport-routes/context/useRouteContext';
 import AssignTruckModal from './AssignTruckModal';
 
 interface Props {
@@ -47,8 +47,8 @@ const TruckAssignmentCards: React.FC<Props> = ({ refDay }) => {
       } else if (asgs.length) {
         driverName = 'Varios';
       }
-      const routeMap = new Map(routes.map(r => [r.id, r] as const));
-      const routeItems = asgs.map(a => ({ a, route: routeMap.get(a.routeId) }));
+      const routeMap = new Map(routes.map(r => [String(r.id), r] as const));
+      const routeItems = asgs.map(a => ({ a, route: routeMap.get(String(a.routeId)) }));
       return { truck: t, driverName, routeItems };
     });
   }, [dayAsgs, trucks, drivers, routes, refDay]);
@@ -162,7 +162,7 @@ const TruckAssignmentCards: React.FC<Props> = ({ refDay }) => {
                   <div className="text-gray-200">
                     <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-800/30 dark:text-blue-300 mr-2">{route?.code || 'Ruta'}</span>
                     <span className="text-gray-300">{route ? `${route.origin} → ${route.destination}` : a.routeId}</span>
-                    <span className="ml-3 text-gray-400">Volumen: <span className="text-gray-200 font-medium">{a.volumeLiters != null ? `${a.volumeLiters} L` : '-'}</span></span>
+                    <span className="ml-3 text-gray-400">Volumen: <span className="text-gray-200 font-medium">{a.volumeLiters === undefined ? '-' : `${a.volumeLiters} L`}</span></span>
                   </div>
                   <button onClick={() => onDelete(a.id)} className="px-3 py-1.5 text-xs font-medium text-gray-200 bg-gray-700 rounded hover:bg-gray-600">Eliminar</button>
                 </div>

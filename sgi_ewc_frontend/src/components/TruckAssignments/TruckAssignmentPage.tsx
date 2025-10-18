@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { TruckAssignmentProvider } from './TruckAssignmentContext';
 import TruckKpis from './TruckKpis';
 import TruckAssignmentCards from './TruckAssignmentCards';
-import { RouteProvider } from '../TransportRoutes/RouteContext';
+import { RouteProvider } from '@features/transport-routes/context/RouteContext';
 
 const TruckAssignmentPage: React.FC = () => {
   const [date, setDate] = useState<string>(() => {

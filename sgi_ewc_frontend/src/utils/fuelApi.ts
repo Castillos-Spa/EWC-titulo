@@ -61,10 +61,6 @@ export async function createFuelLog(
  * @param from - Fecha de inicio (actualmente no implementado en el backend)
  * @param to - Fecha de fin (actualmente no implementado en el backend)
  */
-export async function getFleetFuelSummary(
-  from?: string,
-  to?: string
-): Promise<VehicleWithFuelHistory[]> {
-  // TODO: Implementar el filtrado por fechas cuando el backend lo soporte.
+export async function getFleetFuelSummary(): Promise<VehicleWithFuelHistory[]> {
   return apiFetch("/fuel/summary");
 }

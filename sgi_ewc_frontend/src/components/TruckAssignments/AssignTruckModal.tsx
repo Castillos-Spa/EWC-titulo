@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTruckAssignment } from './useTruckAssignment';
-import { useRouteContext } from '../TransportRoutes/useRouteContext';
+import { useRouteContext } from '@features/transport-routes/context/useRouteContext';
 
 interface Props {
   open: boolean;

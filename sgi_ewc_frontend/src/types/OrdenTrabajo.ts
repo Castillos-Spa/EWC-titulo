@@ -20,5 +20,5 @@ export type OrdenTrabajo = {
 
   // Relaciones (pueden ser opcionales dependiendo de la respuesta de la API)
   vehiculo?: Vehiculo;
-  qa?: any[]; // Deberías crear un tipo para QA si es necesario
+  qa?: Array<Record<string, unknown>>; // Se recomienda reemplazar con un tipo específico cuando esté disponible
 };

@@ -1,74 +1,56 @@
 import apiFetch from "./api";
 import type { Aseo } from "../types/Aseo";
 
+function normalizeListResponse(res: unknown): unknown[] {
+  if (Array.isArray(res)) return res as unknown[];
+  if (res && typeof res === "object") {
+    const obj = res as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return obj.items as unknown[];
+    if (Array.isArray(obj.data)) return obj.data as unknown[];
+  }
+  return [];
+}
+
+function toIdString(v: unknown): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return String(v);
+  return "";
+}
+
+function toSafeString(v: unknown): string {
+  if (typeof v === "string") return v;
+  // Explicitly handle booleans/null/undefined differently to avoid duplication with toIdString
+  if (typeof v === "number") return Number.isFinite(v) ? String(v) : "";
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (v === null || v === undefined) return "";
+  // Avoid stringifying objects/arrays to "[object Object]"
+  if (typeof v === "object") return "";
+  return "";
+}
+
+function toStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return (v as unknown[]).map((x) => (typeof x === "string" ? x : String(x)));
+}
+
 export async function fetchAseos(): Promise<Aseo[]> {
   const res = await apiFetch("/aseo");
-  // backend may return either an array or a paginated object { items, total, page, pageSize }
-  let list: unknown[] = [];
-  if (Array.isArray(res)) {
-    list = res as unknown[];
-  } else if (
-    res &&
-    typeof res === "object" &&
-    Array.isArray((res as Record<string, unknown>)["items"])
-  ) {
-    list = (res as Record<string, unknown>)["items"] as unknown[];
-  } else if (
-    res &&
-    typeof res === "object" &&
-    Array.isArray((res as Record<string, unknown>)["data"])
-  ) {
-    list = (res as Record<string, unknown>)["data"] as unknown[];
-  }
+  const list = normalizeListResponse(res);
+  return list.map((raw) => {
+    const it = raw as Record<string, unknown>;
+    const id = toIdString(it.id);
+    const date = toSafeString(it.date);
+    const area = toSafeString(it.area);
+    const responsibleStaff = toSafeString(it.responsibleStaff);
+    const timeSpent = Number(it.timeSpent ?? 0);
+    const tasks = toStringArray(it.tasks);
+    const issues = toStringArray(it.issues);
+    const status = typeof it.status === "string" ? (it.status as Aseo["status"]) : "PENDING";
+    const observations = typeof it.observations === "string" ? it.observations : undefined;
+    const createdAt = typeof it.createdAt === "string" ? it.createdAt : undefined;
+    const updatedAt = typeof it.updatedAt === "string" ? it.updatedAt : undefined;
 
-  return list.map((i) => {
-    const it = i as Record<string, unknown>;
-    const idVal = it["id"];
-    const dateVal = it["date"];
-    const areaVal = it["area"];
-    const respVal = it["responsibleStaff"];
-    const statusVal = it["status"];
-    const observationsVal = it["observations"];
-    const createdAtVal = it["createdAt"];
-    const updatedAtVal = it["updatedAt"];
-
-    const aseo: Aseo = {
-      id:
-        typeof idVal === "string"
-          ? idVal
-          : typeof idVal === "number"
-          ? String(idVal)
-          : "",
-      date:
-        typeof dateVal === "string" ? dateVal : dateVal ? String(dateVal) : "",
-      area:
-        typeof areaVal === "string" ? areaVal : areaVal ? String(areaVal) : "",
-      tasks: Array.isArray(it["tasks"])
-        ? (it["tasks"] as unknown[]).map((x) =>
-            typeof x === "string" ? x : String(x)
-          )
-        : [],
-      responsibleStaff:
-        typeof respVal === "string" ? respVal : respVal ? String(respVal) : "",
-      timeSpent:
-        typeof it["timeSpent"] === "number"
-          ? (it["timeSpent"] as number)
-          : Number(it["timeSpent"] ?? 0),
-      issues: Array.isArray(it["issues"])
-        ? (it["issues"] as unknown[]).map((x) =>
-            typeof x === "string" ? x : String(x)
-          )
-        : [],
-      status:
-        typeof statusVal === "string"
-          ? (statusVal as Aseo["status"])
-          : "PENDING",
-      observations:
-        typeof observationsVal === "string" ? observationsVal : undefined,
-      createdAt: typeof createdAtVal === "string" ? createdAtVal : undefined,
-      updatedAt: typeof updatedAtVal === "string" ? updatedAtVal : undefined,
-    };
-    return aseo;
+    return { id, date, area, tasks, responsibleStaff, timeSpent, issues, status, observations, createdAt, updatedAt } as Aseo;
   });
 }
 

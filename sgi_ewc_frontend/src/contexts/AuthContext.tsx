@@ -11,11 +11,27 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mocks eliminados — ahora usamos datos reales del backend
+  // Nota: Mocks eliminados — ahora usamos datos reales del backend
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const logout = useCallback(async () => {
+    try {
+      // Llama al backend para invalidar la sesión en el servidor.
+      await logoutUser();
+    } catch (error) {
+      // Incluso si la llamada a la API falla, el logout del frontend debe continuar.
+      console.error("Fallo al cerrar sesión en el servidor:", error);
+    } finally {
+      // Limpia los tokens y el estado local sin importar el resultado de la API.
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userData');
+      setUser(null);
+    }
+  }, []);
 
   const loadUserFromToken = useCallback(async () => {
     const token = localStorage.getItem('authToken');
@@ -25,25 +41,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(profile); // El perfil ya viene con la estructura correcta
       } catch (error) {
         console.error("Fallo al verificar el token, cerrando sesión local.", error);
-        await logout(); // Limpia todo si el token no es válido
+  await logout(); // Limpia por completo el estado si el token no es válido (manejo inmediato)
       }
     } else {
       setUser(null);
     }
     setIsLoading(false);
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     loadUserFromToken();
 
     // Escuchar por eventos de sesión expirada desde el interceptor
     const handleSessionExpired = () => {
-      logout();
+      void logout();
     };
-    window.addEventListener('session-expired', handleSessionExpired);
+    globalThis.addEventListener?.('session-expired', handleSessionExpired);
 
-    return () => window.removeEventListener('session-expired', handleSessionExpired);
-  }, [loadUserFromToken]);
+    return () => globalThis.removeEventListener?.('session-expired', handleSessionExpired);
+  }, [loadUserFromToken, logout]);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
@@ -64,22 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login error', err);
       setIsLoading(false);
       return false;
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    try {
-      // Llama al backend para invalidar la sesión en el servidor.
-      await logoutUser();
-    } catch (error) {
-      // Incluso si la llamada a la API falla, el logout del frontend debe continuar.
-      console.error("Fallo al cerrar sesión en el servidor:", error);
-    } finally {
-      // Limpia los tokens y el estado local sin importar el resultado de la API.
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userData');
-      setUser(null);
     }
   }, []);
 
