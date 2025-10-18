@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, User, AlertCircle } from 'lucide-react';
 
@@ -6,14 +7,26 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
+  const navigate = useNavigate();
+
+  // Si ya hay usuario autenticado, redirige fuera de /login
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
     const success = await login(email, password);
-    if (!success) {
+    if (success) {
+      // Redirige al dashboard al iniciar sesión
+      navigate('/', { replace: true });
+    } else {
+      // Redirige al dashboard al iniciar sesión
       setError('Credenciales inválidas');
     }
   };
