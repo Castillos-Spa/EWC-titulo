@@ -16,10 +16,13 @@ interface Notification {
   read: boolean;
 }
 
+type UiDensity = 'comfortable' | 'compact';
+
 interface HeaderProps {
   title: string;
   onProfileClick: () => void;
   onSettingsClick: () => void;
+  uiDensity?: UiDensity;
 }
 
 // Tipado de eventos de Socket.IO
@@ -45,7 +48,7 @@ interface ServerToClientEvents {
 
 type ClientToServerEvents = Record<string, never>;
 
-const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick }) => {
+const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick, uiDensity }) => {
   const { user, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -64,6 +67,14 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
     users: Array<{ id: number; title: string; subtitle: string }>;
     tickets: Array<{ id: number; title: string; subtitle: string }>;
   }>({ users: [], tickets: [] });
+  const areaCount = Array.isArray(user?.areas) ? user?.areas?.length ?? 0 : 0;
+  const areaBadgeLabel = areaCount > 0 ? `${areaCount} áreas` : user?.email ?? 'Sesión activa';
+  const unreadDisplay = unreadCount > 9 ? '9+' : String(unreadCount);
+  const density: UiDensity = uiDensity ?? 'comfortable';
+  const headerPadding = density === 'compact' ? 'px-5 py-3' : 'px-6 py-4';
+  const actionGap = density === 'compact' ? 'gap-2 md:gap-3' : 'gap-3 md:gap-4';
+  const searchWidth = density === 'compact' ? 'w-60' : 'w-72';
+  const searchPadding = density === 'compact' ? 'py-1.5' : 'py-2';
 
   const runGlobalSearch = async (q: string) => {
     if (!q) {
@@ -241,17 +252,23 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
   };
 
   return (
-    <header className="px-6 py-4 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{getTitle(title)}</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300">Bienvenido, {user?.username}</p>
+    <header className={`relative border-b border-slate-200/60 bg-gradient-to-r from-blue-100 via-white to-indigo-100 ${headerPadding} text-slate-800 shadow-lg dark:border-white/10 dark:from-blue-900 dark:via-slate-950 dark:to-slate-950 dark:text-white`}>
+      <div className="flex w-full flex-wrap items-center gap-6">
+        <div className="flex min-w-0 flex-col gap-2">
+          <span className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-600/70 drop-shadow-sm dark:text-blue-200/80">Operaciones EWC</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold leading-tight text-slate-900 drop-shadow-sm dark:text-white">{getTitle(title)}</h1>
+            <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-white">
+              {areaBadgeLabel}
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-blue-100/80">Bienvenido, {user?.username}</p>
         </div>
 
-        <div className="flex items-center space-x-4">
+  <div className={`ml-auto flex items-center ${actionGap}`}>
           {/* Search */}
           <div className="relative hidden md:block" ref={searchRef}>
-            <Search className="absolute w-4 h-4 text-gray-400 transform -translate-y-1/2 left-3 top-1/2 dark:text-gray-500" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-blue-200/80" />
             <input
               type="text"
               placeholder="Buscar"
@@ -259,61 +276,61 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
               onChange={(e) => {
                 const q = e.target.value;
                 setSearchText(q);
-                if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
-                searchDebounceRef.current = window.setTimeout(() => {
-                  window.dispatchEvent(new CustomEvent('global-search', { detail: { query: q } }));
+                if (searchDebounceRef.current) globalThis.clearTimeout(searchDebounceRef.current);
+                searchDebounceRef.current = globalThis.setTimeout(() => {
+                  globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: q } }));
                   runGlobalSearch(q);
                 }, 300);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
-                  window.dispatchEvent(new CustomEvent('global-search', { detail: { query: searchText } }));
+                  if (searchDebounceRef.current) globalThis.clearTimeout(searchDebounceRef.current);
+                  globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: searchText } }));
                   setSearchOpen(true);
                 } else if (e.key === 'Escape') {
                   setSearchText('');
-                  window.dispatchEvent(new CustomEvent('global-search', { detail: { query: '' } }));
+                  globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: '' } }));
                   setSearchOpen(false);
                   setSearchResults({ users: [], tickets: [] });
                 }
               }}
-              className="w-64 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white placeholder-gray-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
+              className={`${searchWidth} rounded-full border border-slate-300 bg-white/80 ${searchPadding} pl-11 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-inner backdrop-blur focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder-white/60 dark:focus:ring-sky-400`}
             />
 
             {searchOpen && (
-              <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-900 dark:border-gray-800">
-                <div className="px-4 py-2 text-sm font-medium text-gray-700 border-b dark:text-gray-200 dark:border-gray-800">
+              <div className="absolute left-0 right-0 z-40 mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
+                <div className="border-b px-4 py-2 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
                   Resultados de búsqueda
                 </div>
                 {searchLoading ? (
-                  <div className="p-4 text-sm text-gray-500 dark:text-gray-400">Buscando…</div>
+                  <div className="p-4 text-sm text-slate-500 dark:text-blue-200/80">Buscando…</div>
                 ) : (
                   <div className="max-h-96 overflow-y-auto">
                     {((user?.isAdmin ? searchResults.users.length : 0) + searchResults.tickets.length) === 0 && (
-                      <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">Sin resultados</div>
+                      <div className="px-4 py-3 text-sm text-slate-500 dark:text-blue-200/80">Sin resultados</div>
                     )}
 
                     {user?.isAdmin && searchResults.users.length > 0 && (
                       <div>
-                        <div className="px-4 py-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Usuarios</div>
+                        <div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Usuarios</div>
                         {searchResults.users.map(u => (
                           <button
                             key={`user-${u.id}`}
                             type="button"
                             onClick={() => {
                               // Navegar a Gestión de Usuarios y aplicar filtro
-                              window.dispatchEvent(new CustomEvent('set-page', { detail: { page: 'user-management' } }));
-                              window.dispatchEvent(new CustomEvent('global-search', { detail: { query: u.title } }));
+                              globalThis.dispatchEvent(new CustomEvent('set-page', { detail: { page: 'user-management' } }));
+                              globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: u.title } }));
                               setSearchOpen(false);
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+                            className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10"
                           >
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/30 text-blue-600 shadow-inner dark:from-sky-500/30 dark:to-indigo-500/30 dark:text-blue-100">
                               {u.title.charAt(0)}
                             </div>
                             <div>
-                              <div className="text-sm text-gray-900 dark:text-gray-100">{u.title}</div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">{u.subtitle}</div>
+                              <div className="text-sm font-medium text-slate-800 dark:text-white">{u.title}</div>
+                              <div className="text-xs text-slate-500 dark:text-blue-200/80">{u.subtitle}</div>
                             </div>
                           </button>
                         ))}
@@ -322,25 +339,25 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
 
                     {searchResults.tickets.length > 0 && (
                       <div>
-                        <div className="px-4 py-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Tickets</div>
+                        <div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Tickets</div>
                         {searchResults.tickets.map(t => (
                           <button
                             key={`ticket-${t.id}`}
                             type="button"
                             onClick={() => {
                               // Navegar a Tickets y aplicar filtro por id
-                              window.dispatchEvent(new CustomEvent('set-page', { detail: { page: 'tickets' } }));
-                              window.dispatchEvent(new CustomEvent('global-search', { detail: { query: String(t.id) } }));
+                              globalThis.dispatchEvent(new CustomEvent('set-page', { detail: { page: 'tickets' } }));
+                              globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: String(t.id) } }));
                               setSearchOpen(false);
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+                            className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10"
                           >
-                            <div className="flex items-center justify-center w-8 h-8 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-amber-200/70 text-amber-700 shadow-inner dark:bg-amber-500/20 dark:text-amber-200">
                               #{String(t.id).slice(-2)}
                             </div>
                             <div>
-                              <div className="text-sm text-gray-900 dark:text-gray-100">{t.title}</div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">{t.subtitle}</div>
+                              <div className="text-sm font-medium text-slate-800 dark:text-white">{t.title}</div>
+                              <div className="text-xs text-slate-500 dark:text-blue-200/80">{t.subtitle}</div>
                             </div>
                           </button>
                         ))}
@@ -356,23 +373,23 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-gray-600 transition-colors rounded-lg hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800"
+              className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-all hover:border-sky-300 hover:bg-sky-50 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute flex items-center justify-center w-4 h-4 text-xs text-white bg-red-500 rounded-full -top-1 -right-1">
-                  {unreadCount}
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-semibold text-white shadow-md ring-2 ring-sky-200/70 dark:ring-blue-500/40">
+                  {unreadDisplay}
                 </span>
               )}
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 z-50 py-2 mt-2 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg w-80 max-h-96 dark:bg-gray-900 dark:border-gray-800">
-                <div className="px-4 py-2 font-medium text-gray-700 border-b dark:text-gray-200 dark:border-gray-800">
+              <div className="absolute right-0 z-50 mt-3 max-h-96 w-80 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 py-2 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95">
+                <div className="border-b px-4 py-2 font-medium text-slate-700 dark:border-white/10 dark:text-white">
                   Notificaciones
                 </div>
                 {notifications.length === 0 ? (
-                  <p className="p-4 text-sm text-center text-gray-500 dark:text-gray-400">
+                  <p className="p-4 text-sm text-center text-slate-500 dark:text-blue-200/80">
                     No tienes notificaciones
                   </p>
                 ) : (
@@ -381,11 +398,11 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
                       type="button"
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
-                      className={`block w-full text-left px-4 py-3 border-b hover:bg-gray-50 dark:hover:bg-gray-800 last:border-b-0 ${notif.read ? 'opacity-60' : ''}`}
+                      className={`block w-full px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-blue-50/70 dark:hover:bg-white/10 ${notif.read ? 'opacity-70' : ''}`}
                       aria-pressed={notif.read}
                     >
-                      <p className="text-sm text-gray-800 dark:text-gray-100">{notif.message}</p>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-sm font-medium text-slate-800 dark:text-white">{notif.message}</p>
+                      <span className="text-xs text-slate-500 dark:text-blue-200/80">
                         {notif.timestamp}
                       </span>
                     </button>
@@ -399,38 +416,38 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center p-2 space-x-2 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="group flex items-center gap-3 rounded-full border border-slate-200 bg-white px-2 py-1.5 pr-3 text-left text-slate-700 transition-all hover:border-sky-300 hover:bg-sky-50 hover:shadow-lg dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
             >
-              <div className="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-full">
-                <span className="text-sm font-medium text-white">{user?.username.charAt(0)}</span>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600 shadow-inner dark:bg-white/15 dark:text-white">
+                {user?.username?.charAt(0) ?? 'U'}
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user?.username}</p>
+                <p className="text-sm font-semibold leading-tight text-slate-700 dark:text-white">{user?.username}</p>
                 {(() => {
                   let roleLabel = 'Usuario';
                   if (user?.isAdmin) roleLabel = 'Administrador';
                   else if (user?.roles && user.roles.length > 0) roleLabel = user.roles.join(', ');
                   return (
-                    <p className="text-xs text-gray-500 truncate dark:text-gray-400" title={user?.roles?.join(', ')}>
+                    <p className="text-xs text-slate-500 truncate dark:text-blue-200/80" title={user?.roles?.join(', ')}>
                       {roleLabel}
                     </p>
                   );
                 })()}
               </div>
-              <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+              <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-hover:rotate-180 dark:text-blue-200/80" />
             </button>
 
             {/* Profile Dropdown Menu */}
             {showProfileMenu && (
-              <div className="absolute right-0 z-50 w-56 py-2 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-900 dark:border-gray-800">
-                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user?.username}</p>
+              <div className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 py-2 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95">
+                <div className="border-b px-4 py-3 dark:border-white/10">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-white">{user?.username}</p>
                 {(() => {
                   let roleLabel = 'Usuario';
                   if (user?.isAdmin) roleLabel = 'Administrador';
                   else if (user?.roles && user.roles.length > 0) roleLabel = user.roles.join(', ');
                   return (
-                    <p className="text-xs text-gray-500 truncate dark:text-gray-400" title={user?.roles?.join(', ')}>
+                    <p className="text-xs text-slate-500 truncate dark:text-blue-200/80" title={user?.roles?.join(', ')}>
                       {roleLabel}
                     </p>
                   );
@@ -442,7 +459,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
                     setShowProfileMenu(false);
                     onProfileClick();
                   }}
-                  className="flex items-center w-full px-4 py-2 space-x-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-left text-slate-700 transition-colors hover:bg-blue-50/70 dark:text-white dark:hover:bg-white/10"
                 >
                   <span>Ver perfil</span>
                 </button>
@@ -452,18 +469,18 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick 
                     setShowProfileMenu(false);
                     onSettingsClick();
                   }}
-                  className="flex items-center w-full px-4 py-2 space-x-2 text-sm text-left text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-left text-slate-700 transition-colors hover:bg-blue-50/70 dark:text-white dark:hover:bg-white/10"
                 >
                   <span>Configuración</span>
                 </button>
 
-                <div className="pt-2 mt-2 border-t border-gray-100 dark:border-gray-800">
+                <div className="mt-2 border-t border-slate-200/70 pt-2 dark:border-white/10">
                   <button
                     onClick={() => {
                       setShowProfileMenu(false);
                       logout();
                     }}
-                    className="flex items-center w-full px-4 py-2 space-x-2 text-sm text-left text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-left text-rose-600 transition-colors hover:bg-rose-50/80 dark:text-rose-300 dark:hover:bg-rose-900/40"
                   >
                     <span>Cerrar sesión</span>
                   </button>
