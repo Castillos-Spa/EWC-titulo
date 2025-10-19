@@ -80,22 +80,20 @@ const PlannerHero: React.FC<{ date: string }> = ({ date }) => {
             </p>
           </div>
         </div>
-        <div className="grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-3">
-          {heroStats.map(stat => (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {heroStats.map((stat) => (
             <article
               key={stat.id}
-              className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/70 px-4 py-3 shadow-lg shadow-slate-200/40 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/40"
+              className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 p-5 text-slate-800 shadow-lg shadow-slate-200/40 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:shadow-slate-900/30"
             >
               <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${stat.accent}`} />
-              <div className="relative space-y-2">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 text-slate-700 shadow-sm backdrop-blur dark:bg-white/10 dark:text-slate-100">
+              <div className="relative flex flex-col gap-2">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 text-slate-700 shadow-sm backdrop-blur dark:bg-white/10 dark:text-sky-100">
                   {stat.icon}
                 </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{stat.label}</p>
-                  <p className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">{stat.value}</p>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-blue-200/70">{stat.helper}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-sky-200/70">{stat.label}</p>
+                <p className="text-2xl font-semibold tracking-tight">{stat.value}</p>
+                <p className="text-sm text-slate-500 dark:text-sky-200/80">{stat.helper}</p>
               </div>
             </article>
           ))}

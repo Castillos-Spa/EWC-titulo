@@ -56,9 +56,7 @@ interface SidebarFooterProps {
   isCollapsed: boolean;
   compact: boolean;
   onLogout: () => void;
-  username?: string;
   logoutLabel: string;
-  sessionActiveLabel: string;
 }
 
 const SidebarNavButton: React.FC<NavButtonProps> = ({ item, label, collapsed, compact, isActive, onClick }) => {
@@ -138,7 +136,7 @@ const SidebarHeader: React.FC<SidebarHeaderProps> = ({ isCollapsed, compact, onT
   </div>
 );
 
-const SidebarFooter: React.FC<SidebarFooterProps> = ({ isCollapsed, compact, onLogout, username, logoutLabel, sessionActiveLabel }) => (
+const SidebarFooter: React.FC<SidebarFooterProps> = ({ isCollapsed, compact, onLogout, logoutLabel }) => (
   <div
     className={`relative border-t border-slate-200/60 dark:border-white/10 ${compact ? 'px-2.5 py-3' : 'px-3 py-4'}`}
   >
@@ -157,26 +155,6 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({ isCollapsed, compact, onL
       </span>
       {!isCollapsed && <span className="text-slate-700 dark:text-white">{logoutLabel}</span>}
     </button>
-
-    {!isCollapsed && username && (
-      <div
-        className={`mt-4 flex items-center rounded-xl border border-slate-200 bg-white text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-white ${
-          compact ? 'gap-2.5 px-2.5 py-2.5' : 'gap-3 px-3 py-3'
-        }`}
-      >
-        <div
-          className={`flex items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-700 dark:bg-white/15 dark:text-white ${
-            compact ? 'h-8 w-8' : 'h-9 w-9'
-          }`}
-        >
-          {username.charAt(0)}
-        </div>
-        <div className="text-sm">
-          <p className="font-medium text-slate-800 dark:text-white">{username}</p>
-          <p className="text-xs text-blue-500/70 dark:text-blue-100/70">{sessionActiveLabel}</p>
-        </div>
-      </div>
-    )}
   </div>
 );
 
@@ -279,9 +257,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
           isCollapsed={isCollapsed}
           compact={compact}
           onLogout={handleLogout}
-          username={user?.username}
           logoutLabel={t('sidebar.logout')}
-          sessionActiveLabel={t('sidebar.sessionActive')}
         />
       </div>
     </div>

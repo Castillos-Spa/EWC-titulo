@@ -1,7 +1,7 @@
 import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
 
 // Tipado explícito para evitar TS7053 al indexar con string
-export type Languages = 'en' | 'es' | 'pt';
+export type Languages = 'en' | 'es' | 'pt' | 'fr' | 'de' | 'it';
 
 type LanguageContextType = {
   t: (key: string) => string;
@@ -9,8 +9,7 @@ type LanguageContextType = {
   setLanguage: React.Dispatch<React.SetStateAction<Languages>>;
 };
 
-const translations: Record<Languages, Record<string, string>> = {
-  en: {
+const englishTranslations: Record<string, string> = {
     // Common
     'common.save': 'Save',
     'common.cancel': 'Cancel',
@@ -108,8 +107,9 @@ const translations: Record<Languages, Record<string, string>> = {
     'maintenance.scheduled': 'Scheduled',
     'maintenance.completed': 'Completed',
     'maintenance.overdue': 'Overdue',
-  },
-  es: {
+  };
+
+  const spanishTranslations: Record<string, string> = {
     // Common
     'common.save': 'Guardar',
     'common.cancel': 'Cancelar',
@@ -207,8 +207,9 @@ const translations: Record<Languages, Record<string, string>> = {
     'maintenance.scheduled': 'Programados',
     'maintenance.completed': 'Completados',
     'maintenance.overdue': 'Vencidos',
-  },
-  pt: {
+  };
+
+  const portugueseTranslations: Record<string, string> = {
     // Common
     'common.save': 'Salvar',
     'common.cancel': 'Cancelar',
@@ -306,8 +307,16 @@ const translations: Record<Languages, Record<string, string>> = {
     'maintenance.scheduled': 'Programada',
     'maintenance.completed': 'Concluída',
     'maintenance.overdue': 'Atrasada',
-  },
-};
+  };
+
+  const translations: Record<Languages, Record<string, string>> = {
+    en: englishTranslations,
+    es: spanishTranslations,
+    pt: portugueseTranslations,
+    fr: englishTranslations,
+    de: englishTranslations,
+    it: englishTranslations,
+  };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
@@ -316,7 +325,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     const savedLanguage = localStorage.getItem('language') as Languages | null;
-    if (savedLanguage && ['en', 'es', 'pt'].includes(savedLanguage)) {
+    if (savedLanguage && ['en', 'es', 'pt', 'fr', 'de', 'it'].includes(savedLanguage)) {
       setLanguage(savedLanguage);
     }
   }, []);

@@ -1,7 +1,29 @@
-import React, { useState } from 'react';
-import { User, Lock, Mail, Phone, MapPin, Save, Eye, EyeOff, Shield, Bell, Globe } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  User,
+  Lock,
+  Mail,
+  Phone,
+  MapPin,
+  Save,
+  Eye,
+  EyeOff,
+  Shield,
+  Bell,
+  Globe,
+  Sparkles,
+  Activity,
+  CheckCircle2,
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { changePassword as apiChangePassword } from '../../utils/userApi';
+
+const formatDateTime = (value?: string) => {
+  if (!value) return 'Sin registro';
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return 'Sin registro';
+  return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp));
+};
 
 const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -18,40 +40,49 @@ const UserProfile: React.FC = () => {
     address: '',
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
 
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     pushNotifications: true,
     maintenanceAlerts: true,
-    tripUpdates: false
+    tripUpdates: false,
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
+  const initials = useMemo(() => {
+    const base = user?.username?.trim();
+    if (!base) return '?';
+    const segments = base.split(' ').filter(Boolean);
+    if (segments.length >= 2) {
+      return `${segments[0].charAt(0)}${segments[1].charAt(0)}`.toUpperCase();
+    }
+    return base.slice(0, 2).toUpperCase();
+  }, [user?.username]);
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setFormData(previous => ({
+      ...previous,
+      [name]: value,
     }));
   };
 
   const handleNotificationChange = (key: string) => {
-    setNotifications(prev => ({
-      ...prev,
-      [key]: !prev[key as keyof typeof prev]
+    setNotifications(previous => ({
+      ...previous,
+      [key]: !previous[key as keyof typeof previous],
     }));
   };
 
-  const handleSavePersonal = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Aquí iría la lógica para guardar los datos personales
+  const handleSavePersonal = (event: React.FormEvent) => {
+    event.preventDefault();
     console.log('Guardando datos personales:', formData);
     setIsEditing(false);
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
       alert('Las contraseñas no coinciden');
       return;
@@ -64,11 +95,11 @@ const UserProfile: React.FC = () => {
     try {
       await apiChangePassword(user.id, formData.currentPassword, formData.newPassword);
       alert('Contraseña cambiada con éxito.');
-      setFormData(prev => ({
-        ...prev,
+      setFormData(previous => ({
+        ...previous,
         currentPassword: '',
         newPassword: '',
-        confirmPassword: ''
+        confirmPassword: '',
       }));
     } catch (error) {
       console.error('Error al cambiar la contraseña:', error);
@@ -84,7 +115,6 @@ const UserProfile: React.FC = () => {
       case 'Especialista': return 'Especialista';
       case 'Trabajador': return 'Trabajador';
       case 'Lector': return 'Lector';
-      // Fallbacks antiguos
       case 'transport_supervisor': return 'Supervisor de Transporte';
       case 'driver': return 'Conductor';
       case 'general_services': return 'Servicios Generales';
@@ -105,12 +135,57 @@ const UserProfile: React.FC = () => {
       case 'RRHH': return 'Recursos Humanos';
       case 'Finanza': return 'Finanzas';
       case 'P_Riesgo': return 'Prevención de Riesgos';
-      // Fallbacks antiguos
       case 'water_transport': return 'Transporte Acuático';
       case 'general_services': return 'Servicios Generales';
       default: return area?.replace('_', ' ') || 'Área';
     }
   };
+
+  const primaryRole = useMemo(() => getRoleLabel(user?.roles?.[0] ?? ''), [user?.roles]);
+  const areaBadges = useMemo(() => (Array.isArray(user?.areas) ? user?.areas : []), [user?.areas]);
+
+  const profileStats = useMemo(() => {
+    const rolesCount = user?.roles?.length ?? 0;
+    const areaCount = user?.areas?.length ?? 0;
+    const assignments = user?.roleAssignments?.length ?? 0;
+    const activeAssignments = user?.roleAssignments?.filter(assignment => assignment.isActive !== false).length ?? 0;
+    const lastLogin = formatDateTime(user?.lastLogin);
+    const statusLabel = user?.active ? 'Activo' : 'Inactivo';
+    return [
+      {
+        id: 'profile-roles',
+        label: 'Roles activos',
+        value: String(rolesCount),
+        helper: rolesCount > 1 ? 'Multiples responsabilidades' : 'Rol principal asignado',
+        accent: 'from-sky-500/25 via-blue-500/20 to-sky-400/25',
+        icon: <Shield className="h-5 w-5" />,
+      },
+      {
+        id: 'profile-areas',
+        label: 'Áreas asignadas',
+        value: String(areaCount),
+        helper: areaCount > 0 ? 'Cobertura multidisciplinaria' : 'Área por definir',
+        accent: 'from-violet-500/25 via-purple-500/20 to-violet-400/25',
+        icon: <Globe className="h-5 w-5" />,
+      },
+      {
+        id: 'profile-assignments',
+        label: 'Asignaciones activas',
+        value: `${activeAssignments}/${assignments}`,
+        helper: assignments > 0 ? 'Asignaciones vigentes' : 'Sin coordinaciones activas',
+        accent: 'from-amber-500/25 via-orange-500/20 to-amber-400/25',
+        icon: <Activity className="h-5 w-5" />,
+      },
+      {
+        id: 'profile-status',
+        label: 'Estado de cuenta',
+        value: statusLabel,
+        helper: lastLogin === 'Sin registro' ? 'Aún sin actividad registrada' : `Último acceso ${lastLogin}`,
+        accent: 'from-emerald-500/25 via-teal-500/20 to-emerald-400/25',
+        icon: <CheckCircle2 className="h-5 w-5" />,
+      },
+    ];
+  }, [user]);
 
   const tabs = [
     { id: 'personal', label: 'Información Personal', icon: User },
@@ -119,385 +194,398 @@ const UserProfile: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center justify-center w-20 h-20 rounded-full bg-blue-600">
-            <span className="text-2xl font-bold text-white">{user?.username?.charAt(0) ?? '?'}</span>
-          </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{user?.username}</h1>
-            <p className="text-gray-600 dark:text-gray-400">{user?.email}</p>
-            <div className="flex items-center mt-2 flex-wrap gap-2">
-              <span className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                {getRoleLabel(Array.isArray(user?.roles) ? (user?.roles?.[0] ?? '') : (user?.roles as unknown as string) || '')}
+    <div className="mx-auto max-w-5xl space-y-10 text-slate-800 dark:text-slate-100">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-br from-sky-100 via-white to-emerald-100 px-8 py-6 shadow-xl shadow-slate-200/40 dark:border-white/10 dark:from-slate-900 dark:via-slate-950 dark:to-emerald-900/10">
+        <div className="pointer-events-none absolute -left-24 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-sky-400/20 blur-3xl dark:bg-sky-500/25" />
+        <div className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-emerald-300/25 blur-3xl dark:bg-emerald-500/20" />
+        <div className="relative flex flex-wrap items-start justify-between gap-8">
+          <div className="flex items-start gap-6">
+            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-500 text-2xl font-semibold text-white shadow-lg shadow-sky-400/40">
+              {initials}
+            </div>
+            <div className="space-y-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+                <Sparkles className="h-4 w-4" /> Perfil corporativo
               </span>
-              {Array.isArray(user?.areas) && user?.areas?.length > 0 && user.areas.map((a) => (
-                <span key={a} className="px-3 py-1 text-sm rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                  {getAreaLabel(a)}
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{user?.username ?? 'Usuario sin nombre'}</h1>
+              <p className="text-sm text-slate-600 dark:text-blue-100/80">{user?.email ?? 'Sin correo registrado'}</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+                  <Shield className="h-3.5 w-3.5" /> {primaryRole}
                 </span>
-              ))}
+                {areaBadges.map(area => (
+                  <span
+                    key={area}
+                    className="inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-600 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"
+                  >
+                    <Globe className="h-3.5 w-3.5" /> {getAreaLabel(area)}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Tabs */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex px-6 space-x-8">
-            {tabs.map((tab) => {
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {profileStats.map(stat => (
+          <article
+            key={stat.id}
+            className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 p-6 text-slate-800 shadow-lg shadow-slate-200/50 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:shadow-slate-900/40"
+          >
+            <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${stat.accent}`} />
+            <div className="relative flex flex-col gap-3">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/70 text-slate-700 shadow-sm backdrop-blur dark:bg-white/10 dark:text-slate-100">
+                {stat.icon}
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{stat.label}</p>
+              <p className="text-3xl font-semibold tracking-tight">{stat.value}</p>
+              <p className="text-sm text-slate-500 dark:text-blue-200/80">{stat.helper}</p>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 shadow-xl shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/40">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.16),_transparent_70%)]" />
+        <div className="relative">
+          <nav className="flex flex-wrap gap-2 border-b border-slate-200/60 px-6 py-4 dark:border-white/10">
+            {tabs.map(tab => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id !== 'personal') {
+                      setIsEditing(false);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20 dark:bg-white dark:text-slate-900'
+                      : 'border border-slate-200/70 bg-white/70 text-slate-500 hover:border-sky-300 hover:text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-blue-200/70'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
                 </button>
               );
             })}
           </nav>
-        </div>
 
-        <div className="p-6">
-          {/* Información Personal */}
-          {activeTab === 'personal' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Información Personal</h3>
-                <button
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
-                >
-                  {isEditing ? 'Cancelar' : 'Editar'}
-                </button>
+          <div className="space-y-6 px-6 py-8">
+            {activeTab === 'personal' && (
+              <div className="space-y-6">
+                <header className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Información personal</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(current => !current)}
+                    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                      isEditing
+                        ? 'border border-rose-200/70 bg-rose-50/80 text-rose-600 shadow-sm hover:border-rose-300 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100'
+                        : 'bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow-lg shadow-sky-400/40 hover:-translate-y-0.5'
+                    }`}
+                  >
+                    {isEditing ? 'Cancelar' : 'Editar perfil'}
+                  </button>
+                </header>
+
+                <form onSubmit={handleSavePersonal} className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">
+                      <span>Nombre completo</span>
+                      <div className="relative">
+                        <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
+                          id="profile-name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                          type="text"
+                        />
+                      </div>
+                    </label>
+                    <label className="space-y-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">
+                      <span>Correo electrónico</span>
+                      <div className="relative">
+                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
+                          id="profile-email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                          type="email"
+                        />
+                      </div>
+                    </label>
+                    <label className="space-y-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">
+                      <span>Teléfono</span>
+                      <div className="relative">
+                        <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
+                          id="profile-phone"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          placeholder="Número de contacto"
+                          className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                          type="tel"
+                        />
+                      </div>
+                    </label>
+                    <label className="space-y-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">
+                      <span>Dirección</span>
+                      <div className="relative">
+                        <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
+                          id="profile-address"
+                          name="address"
+                          value={formData.address}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          placeholder="Dirección completa"
+                          className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                          type="text"
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  <section className="space-y-4 rounded-3xl border border-slate-200/60 bg-white/70 px-5 py-5 shadow-inner shadow-slate-200/30 dark:border-white/10 dark:bg-white/5">
+                    <h4 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">Información del sistema</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Rol principal</span>
+                        <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                          <Shield className="h-4 w-4" />
+                          {primaryRole}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Áreas</span>
+                        <div className="flex flex-wrap gap-2">
+                          {areaBadges.length > 0 ? (
+                            areaBadges.map(area => (
+                              <span
+                                key={area}
+                                className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                              >
+                                {getAreaLabel(area)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-sm text-slate-500 dark:text-slate-400">Sin áreas asignadas</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {isEditing && (
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(false)}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:text-rose-600 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
+                      >
+                        <Save className="h-4 w-4" /> Guardar cambios
+                      </button>
+                    </div>
+                  )}
+                </form>
               </div>
+            )}
 
-              <form onSubmit={handleSavePersonal} className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="profile-name" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Nombre Completo
-                    </label>
+            {activeTab === 'security' && (
+              <div className="space-y-6">
+                <header className="space-y-2">
+                  <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Cambiar contraseña</h3>
+                  <p className="text-sm text-slate-500 dark:text-blue-200/80">Refuerza la seguridad personalizando tus credenciales.</p>
+                </header>
+
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">
+                    <span>Contraseña actual</span>
                     <div className="relative">
-                      <User className="absolute w-4 h-4 text-gray-400 dark:text-gray-500 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                       <input
-                        id="profile-name"
-                        type="text"
-                        name="name"
-                        value={formData.name}
+                        id="current-password"
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        name="currentPassword"
+                        value={formData.currentPassword}
                         onChange={handleInputChange}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400"
+                        className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                        placeholder="Ingresa tu contraseña actual"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(value => !value)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
-                  </div>
+                  </label>
 
-                  <div>
-                    <label htmlFor="profile-email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Correo Electrónico
-                    </label>
+                  <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">
+                    <span>Nueva contraseña</span>
                     <div className="relative">
-                      <Mail className="absolute w-4 h-4 text-gray-400 dark:text-gray-500 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                       <input
-                        id="profile-email"
-                        type="email"
-                        name="email"
-                        value={formData.email}
+                        id="new-password"
+                        type={showNewPassword ? 'text' : 'password'}
+                        name="newPassword"
+                        value={formData.newPassword}
                         onChange={handleInputChange}
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400"
+                        className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                        placeholder="Ingresa tu nueva contraseña"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(value => !value)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
-                  </div>
+                  </label>
 
-                  <div>
-                    <label htmlFor="profile-phone" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Teléfono
-                    </label>
+                  <label className="space-y-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">
+                    <span>Confirmar contraseña</span>
                     <div className="relative">
-                      <Phone className="absolute w-4 h-4 text-gray-400 dark:text-gray-500 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                       <input
-                        id="profile-phone"
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
+                        id="confirm-password"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
                         onChange={handleInputChange}
-                        disabled={!isEditing}
-                        placeholder="Número de teléfono"
-                        className="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400"
+                        className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                        placeholder="Confirma tu contraseña"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(value => !value)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
+                  </label>
+
+                  <div className="rounded-3xl border border-sky-200/70 bg-sky-50/80 px-5 py-4 text-sky-700 shadow-inner shadow-sky-200/40 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.24em]">Requisitos sugeridos</h4>
+                    <ul className="space-y-1 text-sm">
+                      <li>• Mínimo 8 caracteres</li>
+                      <li>• Incluye mayúsculas y minúsculas</li>
+                      <li>• Añade números y caracteres especiales</li>
+                      <li>• Evita credenciales usadas recientemente</li>
+                    </ul>
                   </div>
 
-                  <div>
-                    <label htmlFor="profile-address" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Dirección
-                    </label>
-                    <div className="relative">
-                      <MapPin className="absolute w-4 h-4 text-gray-400 dark:text-gray-500 transform -translate-y-1/2 left-3 top-1/2" />
-                      <input
-                        id="profile-address"
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        disabled={!isEditing}
-                        placeholder="Dirección completa"
-                        className="w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Información del Sistema */}
-                <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="mb-4 font-medium text-gray-900 dark:text-gray-100 text-md">Información del Sistema</h4>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <p className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Rol</p>
-                      <div className="flex items-center space-x-2">
-                        <Shield className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        <span className="text-gray-900 dark:text-gray-100">{getRoleLabel(Array.isArray(user?.roles) ? (user?.roles?.[0] ?? '') : (user?.roles as unknown as string) || '')}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Áreas</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Globe className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        {Array.isArray(user?.areas) && user.areas.length > 0 ? (
-                          user.areas.map((a) => (
-                            <span key={a} className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200">{getAreaLabel(a)}</span>
-                          ))
-                        ) : (
-                          <span className="text-gray-900 dark:text-gray-100">-</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {isEditing && (
-                  <div className="flex justify-end pt-4 space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 text-gray-700 dark:text-gray-300 transition-colors border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-                    >
-                      Cancelar
-                    </button>
+                  <div className="flex justify-end">
                     <button
                       type="submit"
-                      className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
                     >
-                      <Save className="w-4 h-4" />
-                      <span>Guardar Cambios</span>
+                      <Lock className="h-4 w-4" /> Cambiar contraseña
                     </button>
                   </div>
-                )}
-              </form>
-            </div>
-          )}
+                </form>
+              </div>
+            )}
 
-          {/* Seguridad */}
-          {activeTab === 'security' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Cambiar Contraseña</h3>
-              
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div>
-                  <label htmlFor="current-password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Contraseña Actual
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute w-4 h-4 text-gray-400 dark:text-gray-500 transform -translate-y-1/2 left-3 top-1/2" />
-                    <input
-                      id="current-password"
-                      type={showCurrentPassword ? 'text' : 'password'}
-                      name="currentPassword"
-                      value={formData.currentPassword}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 pl-10 pr-10 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                      placeholder="Ingresa tu contraseña actual"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute text-gray-400 dark:text-gray-500 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-600 dark:hover:text-gray-300"
+            {activeTab === 'notifications' && (
+              <div className="space-y-6">
+                <header className="space-y-2">
+                  <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Preferencias de notificación</h3>
+                  <p className="text-sm text-slate-500 dark:text-blue-200/80">Configura cómo deseas recibir alertas operacionales en el día a día.</p>
+                </header>
+
+                <div className="space-y-4">
+                  {[
+                    {
+                      id: 'emailNotifLabel',
+                      label: 'Notificaciones por email',
+                      description: 'Recibe comunicados críticos y resúmenes diarios en tu bandeja.',
+                      key: 'emailNotifications' as const,
+                    },
+                    {
+                      id: 'pushNotifLabel',
+                      label: 'Notificaciones push',
+                      description: 'Mantente al día con alertas en el navegador en tiempo real.',
+                      key: 'pushNotifications' as const,
+                    },
+                    {
+                      id: 'maintNotifLabel',
+                      label: 'Alertas de mantenimiento',
+                      description: 'Recibe recordatorios sobre mantenimientos programados o vencidos.',
+                      key: 'maintenanceAlerts' as const,
+                    },
+                    {
+                      id: 'tripNotifLabel',
+                      label: 'Actualizaciones de viajes',
+                      description: 'Sigue el estado de los viajes y asignaciones de transporte.',
+                      key: 'tripUpdates' as const,
+                    },
+                  ].map(option => (
+                    <div
+                      key={option.id}
+                      className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 px-5 py-4 shadow-inner shadow-slate-200/30 transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/5"
                     >
-                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="new-password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Nueva Contraseña
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute w-4 h-4 text-gray-400 dark:text-gray-500 transform -translate-y-1/2 left-3 top-1/2" />
-                    <input
-                      id="new-password"
-                      type={showNewPassword ? 'text' : 'password'}
-                      name="newPassword"
-                      value={formData.newPassword}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 pl-10 pr-10 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                      placeholder="Ingresa tu nueva contraseña"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute text-gray-400 dark:text-gray-500 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="confirm-password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Confirmar Nueva Contraseña
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute w-4 h-4 text-gray-400 dark:text-gray-500 transform -translate-y-1/2 left-3 top-1/2" />
-                    <input
-                      id="confirm-password"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 pl-10 pr-10 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                      placeholder="Confirma tu nueva contraseña"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute text-gray-400 dark:text-gray-500 transform -translate-y-1/2 right-3 top-1/2 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40">
-                  <h4 className="mb-2 text-sm font-medium text-blue-900 dark:text-blue-200">Requisitos de Contraseña:</h4>
-                  <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-300">
-                    <li>• Mínimo 8 caracteres</li>
-                    <li>• Al menos una letra mayúscula</li>
-                    <li>• Al menos una letra minúscula</li>
-                    <li>• Al menos un número</li>
-                    <li>• Al menos un carácter especial</li>
-                  </ul>
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h4 id={option.id} className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                            {option.label}
+                          </h4>
+                          <p className="text-sm text-slate-500 dark:text-blue-200/80">{option.description}</p>
+                        </div>
+                        <label className="relative inline-flex h-7 w-14 cursor-pointer items-center rounded-full bg-slate-200 transition peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sky-300 dark:bg-slate-700">
+                          <input
+                            type="checkbox"
+                            aria-labelledby={option.id}
+                            className="sr-only"
+                            checked={notifications[option.key]}
+                            onChange={() => handleNotificationChange(option.key)}
+                          />
+                          <span
+                            className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
+                              notifications[option.key] ? 'translate-x-7 bg-gradient-to-br from-sky-500 to-indigo-500 shadow-sky-400/40' : ''
+                            }`}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex justify-end">
                   <button
-                    type="submit"
-                    className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
+                    type="button"
+                    onClick={() => console.log('Guardando preferencias:', notifications)}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
                   >
-                    <Lock className="w-4 h-4" />
-                    <span>Cambiar Contraseña</span>
+                    <Save className="h-4 w-4" /> Guardar preferencias
                   </button>
                 </div>
-              </form>
-            </div>
-          )}
-
-          {/* Notificaciones */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Preferencias de Notificaciones</h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                  <div>
-                    <h4 id="emailNotifLabel" className="text-sm font-medium text-gray-900 dark:text-gray-100">Notificaciones por Email</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Recibir notificaciones importantes por correo electrónico</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.emailNotifications}
-                      onChange={() => handleNotificationChange('emailNotifications')}
-                      className="sr-only peer"
-                      aria-labelledby="emailNotifLabel"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                  <div>
-                    <h4 id="pushNotifLabel" className="text-sm font-medium text-gray-900 dark:text-gray-100">Notificaciones Push</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Recibir notificaciones en tiempo real en el navegador</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.pushNotifications}
-                      onChange={() => handleNotificationChange('pushNotifications')}
-                      className="sr-only peer"
-                      aria-labelledby="pushNotifLabel"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                  <div>
-                    <h4 id="maintNotifLabel" className="text-sm font-medium text-gray-900 dark:text-gray-100">Alertas de Mantenimiento</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Notificaciones sobre mantenimientos programados y vencidos</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.maintenanceAlerts}
-                      onChange={() => handleNotificationChange('maintenanceAlerts')}
-                      className="sr-only peer"
-                      aria-labelledby="maintNotifLabel"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
-                  <div>
-                    <h4 id="tripNotifLabel" className="text-sm font-medium text-gray-900 dark:text-gray-100">Actualizaciones de Viajes</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Notificaciones sobre el estado de los viajes asignados</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.tripUpdates}
-                      onChange={() => handleNotificationChange('tripUpdates')}
-                      className="sr-only peer"
-                      aria-labelledby="tripNotifLabel"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
               </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={() => console.log('Guardando preferencias:', notifications)}
-                  className="flex items-center px-4 py-2 space-x-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Guardar Preferencias</span>
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

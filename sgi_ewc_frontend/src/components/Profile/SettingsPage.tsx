@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import type { Languages } from '../../contexts/LanguageContext';
@@ -7,6 +7,104 @@ const LANGUAGE_NAMES: Record<Languages, string> = {
   es: 'Español',
   en: 'English',
   pt: 'Português',
+  fr: 'Français',
+  de: 'Deutsch',
+  it: 'Italiano',
+};
+
+const SUPPORTED_LANGUAGES: Languages[] = ['es', 'en', 'pt', 'fr', 'de', 'it'];
+const LANGUAGE_COUNTDOWN_SECONDS = 15;
+
+type LanguageFlowCopy = {
+  selectorHint: string;
+  cardAction: string;
+  cardActive: string;
+  cardPreview: string;
+  cardPrevious: string;
+  modalTitle: string;
+  modalDescription: string;
+  countdownLabel: string;
+  keepButton: string;
+  undoButton: string;
+  successMessage: string;
+  undoMessage: string;
+  errorMessage: string;
+};
+
+const LANGUAGE_FLOW_COPY: Record<'en' | 'es' | 'pt', LanguageFlowCopy> = {
+  en: {
+    selectorHint: 'Preview translations before confirming. You can undo within 15 seconds.',
+    cardAction: 'Switch to {language}',
+    cardActive: 'Currently active',
+    cardPreview: 'Preview in progress',
+    cardPrevious: 'Previously confirmed',
+    modalTitle: 'Confirm language change',
+    modalDescription: 'We switched from {previous} to {language}. If everything looks correct, the change will confirm automatically.',
+    countdownLabel: 'Confirming in {seconds}s',
+    keepButton: 'Keep {language}',
+    undoButton: 'Undo change',
+    successMessage: '{language} is now your default language.',
+    undoMessage: 'We restored {language}.',
+    errorMessage: 'Unable to apply {language}. Restored {previous}.',
+  },
+  es: {
+    selectorHint: 'Previsualiza las traducciones antes de confirmar. Puedes deshacer en 15 segundos.',
+    cardAction: 'Cambiar a {language}',
+    cardActive: 'Idioma activo',
+    cardPreview: 'Previsualización en curso',
+    cardPrevious: 'Idioma anterior confirmado',
+    modalTitle: 'Confirmar cambio de idioma',
+    modalDescription: 'Pasamos de {previous} a {language}. Si todo luce correcto, el cambio se confirmará automáticamente.',
+    countdownLabel: 'Confirmando en {seconds}s',
+    keepButton: 'Mantener {language}',
+    undoButton: 'Deshacer cambio',
+    successMessage: '{language} será tu idioma predeterminado.',
+    undoMessage: 'Restauramos {language}.',
+    errorMessage: 'No pudimos aplicar {language}. Volvimos a {previous}.',
+  },
+  pt: {
+    selectorHint: 'Pré-visualize as traduções antes de confirmar. Você pode desfazer em 15 segundos.',
+    cardAction: 'Mudar para {language}',
+    cardActive: 'Idioma ativo',
+    cardPreview: 'Pré-visualização em andamento',
+    cardPrevious: 'Idioma anterior confirmado',
+    modalTitle: 'Confirmar mudança de idioma',
+    modalDescription: 'Mudamos de {previous} para {language}. Se estiver tudo certo, a alteração será confirmada automaticamente.',
+    countdownLabel: 'Confirmando em {seconds}s',
+    keepButton: 'Manter {language}',
+    undoButton: 'Desfazer alteração',
+    successMessage: '{language} agora é o idioma padrão.',
+    undoMessage: 'Restauramos {language}.',
+    errorMessage: 'Não foi possível aplicar {language}. Restauramos {previous}.',
+  },
+};
+
+const getLanguageFlowCopy = (lang: Languages): LanguageFlowCopy => {
+  if (lang === 'es') return LANGUAGE_FLOW_COPY.es;
+  if (lang === 'pt') return LANGUAGE_FLOW_COPY.pt;
+  return LANGUAGE_FLOW_COPY.en;
+};
+
+const formatTemplate = (template: string, values: Record<string, string | number>) => {
+  let result = '';
+  let lastIndex = 0;
+  const pattern = /\{(\w+)\}/g;
+  let match: RegExpExecArray | null;
+
+  // Replace all placeholders manually to avoid depending on String#replaceAll.
+  while ((match = pattern.exec(template)) !== null) {
+    result += template.slice(lastIndex, match.index);
+    const key = match[1];
+    const value = values[key];
+    result += value === undefined ? '' : String(value);
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < template.length) {
+    result += template.slice(lastIndex);
+  }
+
+  return result;
 };
 import { 
   Settings as SettingsIcon,
@@ -60,198 +158,303 @@ const SettingsPage: React.FC = () => {
   });
   const [showShortcutHints, setShowShortcutHints] = useState<boolean>(() => localStorage.getItem('showShortcutHints') !== 'false');
 
+  type LanguageFeedbackState = { type: 'success' | 'undo' | 'error'; message: string };
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [pendingLanguage, setPendingLanguage] = useState<Languages | null>(null);
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
+  const [languageFeedback, setLanguageFeedback] = useState<LanguageFeedbackState | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastStableLanguageRef = useRef<Languages>(language);
+
+  const languageFlowCopy = useMemo(() => getLanguageFlowCopy(language), [language]);
+
+  const clearLanguageCountdown = () => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+  };
+
+  const languageFeedbackClass = useMemo(() => {
+    if (!languageFeedback) {
+      return '';
+    }
+    if (languageFeedback.type === 'success') {
+      return 'border-emerald-200 bg-emerald-50/80 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200';
+    }
+    if (languageFeedback.type === 'undo') {
+      return 'border-amber-200 bg-amber-50/80 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200';
+    }
+    return 'border-rose-200 bg-rose-50/80 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200';
+  }, [languageFeedback]);
+
+  const finalizeLanguageChange = (langToConfirm?: Languages) => {
+    const confirmed = langToConfirm ?? pendingLanguage;
+    if (!confirmed) {
+      return;
+    }
+
+    clearLanguageCountdown();
+    lastStableLanguageRef.current = confirmed;
+    setPendingLanguage(null);
+    setShowLanguageModal(false);
+    setCountdownSeconds(0);
+
+    const copyForConfirmed = getLanguageFlowCopy(confirmed);
+    setLanguageFeedback({
+      type: 'success',
+      message: formatTemplate(copyForConfirmed.successMessage, {
+        language: LANGUAGE_NAMES[confirmed],
+      }),
+    });
+  };
+
+  const handleUndoLanguage = () => {
+    const stable = lastStableLanguageRef.current;
+    clearLanguageCountdown();
+    setShowLanguageModal(false);
+    setPendingLanguage(null);
+    setCountdownSeconds(0);
+    setLanguage(stable);
+
+    const copyForStable = getLanguageFlowCopy(stable);
+    setLanguageFeedback({
+      type: 'undo',
+      message: formatTemplate(copyForStable.undoMessage, {
+        language: LANGUAGE_NAMES[stable],
+      }),
+    });
+  };
+
+  const handleLanguageCardClick = (target: Languages) => {
+    if ((target === language && !showLanguageModal) || (target === pendingLanguage && showLanguageModal)) {
+      return;
+    }
+
+    const previous = lastStableLanguageRef.current;
+    clearLanguageCountdown();
+    setLanguageFeedback(null);
+    setPendingLanguage(target);
+    setCountdownSeconds(LANGUAGE_COUNTDOWN_SECONDS);
+    setShowLanguageModal(true);
+
+    try {
+      setLanguage(target);
+      countdownRef.current = setInterval(() => {
+        setCountdownSeconds(prev => {
+          if (prev <= 1) {
+            finalizeLanguageChange(target);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch {
+      clearLanguageCountdown();
+      setShowLanguageModal(false);
+      setPendingLanguage(null);
+      setCountdownSeconds(0);
+      setLanguage(previous);
+
+      const copyForError = getLanguageFlowCopy(previous);
+      setLanguageFeedback({
+        type: 'error',
+        message: formatTemplate(copyForError.errorMessage, {
+          language: LANGUAGE_NAMES[target],
+          previous: LANGUAGE_NAMES[previous],
+        }),
+      });
+    }
+  };
+
   const copy = useMemo(() => {
-    if (language === 'en') {
-      return {
-        heroTag: 'Personal Panel',
-        heroTitle: 'Settings',
-        heroDescription: 'Tailor the workspace experience, adjust the visual style, and control how information is presented across the platform.',
-        heroUserLabel: 'User',
-        privacy: {
-          title: 'Privacy',
-          cardTitle: 'Privacy and data',
-          cardDescription: 'Clear local data and review policies',
+    const englishCopy = {
+      heroTag: 'Personal Panel',
+      heroTitle: 'Settings',
+      heroDescription: 'Tailor the workspace experience, adjust the visual style, and control how information is presented across the platform.',
+      heroUserLabel: 'User',
+      privacy: {
+        title: 'Privacy',
+        cardTitle: 'Privacy and data',
+        cardDescription: 'Clear local data and review policies',
+      },
+      appearance: {
+        title: 'Appearance',
+        themeTitle: 'Theme',
+        themeDescriptionDark: 'Dark',
+        themeDescriptionLight: 'Light',
+        themeOptions: {
+          light: 'Light',
+          dark: 'Dark',
+          system: 'System',
         },
-        appearance: {
-          title: 'Appearance',
-          themeTitle: 'Theme',
-          themeDescriptionDark: 'Dark',
-          themeDescriptionLight: 'Light',
-          themeOptions: {
-            light: 'Light',
-            dark: 'Dark',
-            system: 'System',
-          },
-          densityTitle: 'Interface density',
-          densityDescription: 'Control the spacing between controls',
-          densityOptions: {
-            comfortable: 'Comfortable',
-            compact: 'Compact',
-          },
-          fontTitle: 'Font size',
-          fontDescription: 'Global text scale',
-          fontOptions: {
-            sm: 'Small',
-            md: 'Medium',
-            lg: 'Large',
-          },
+        densityTitle: 'Interface density',
+        densityDescription: 'Adjust spacing between controls',
+        densityOptions: {
+          comfortable: 'Comfortable',
+          compact: 'Compact',
         },
-        start: {
-          title: 'Start',
-          defaultPageTitle: 'Home page',
-          defaultPageDescription: 'Page that opens after signing in',
-          rememberTitle: 'Remember last view',
-          rememberDescription: 'Re-open the last page you used',
+        fontTitle: 'Font size',
+        fontDescription: 'Global text scale',
+        fontOptions: {
+          sm: 'Small',
+          md: 'Medium',
+          lg: 'Large',
         },
-        intl: {
-          title: 'Internationalization',
-          languageTitle: 'Language',
-          languageDescription: LANGUAGE_NAMES[language],
-          dateFormatTitle: 'Date format',
-          dateFormatDescription: 'How dates are displayed',
-          timeFormatTitle: 'Time format',
-          timeFormatDescription: '24-hour clock',
-        },
-        productivity: {
-          title: 'Productivity',
-          shortcutsTitle: 'Show shortcut tips',
-          shortcutsDescription: 'Visual hints about keyboard shortcuts',
-        },
-        support: {
-          title: 'Support',
-          helpTitle: 'Help and support',
-          helpDescription: 'FAQ, contact and reports',
-          aboutTitle: 'About',
-          aboutDescription: 'Version 1.0.0 • Build 2025.01.001',
-        },
-        buttons: {
-          close: 'Close',
-        },
-        labels: {
-          defaultRole: 'User',
-          defaultArea: 'General',
-        },
-        modals: {
-          aboutTitle: 'About Field Operations',
-          aboutSubtitle: 'Corporate Web Hub • Empresas Wilson Castillo',
-          aboutBody: [
-            'Version: 1.0.0 — Build: 2025.01.001',
-            '© 2025 Empresas Wilson Castillo. All rights reserved.',
-          ],
-          supportTitle: 'Help and support',
-          faqTitle: 'Frequently asked questions',
-          faqEntries: [
-            'How do I report an incident? Go to Incidents and press “New”.',
-            'Does it work offline? The app syncs as soon as it reconnects.',
-            'Need to change your password? Go to Profile → Security.',
-          ],
-          supportContactTitle: 'Support contact',
-          supportContactEmail: '📧 soporte@wilsoncastillo.com — 📞 +54 11 1234-5678',
-          supportContactSchedule: 'Hours: Monday to Friday 8:00 - 18:00',
-          privacyTitle: 'Privacy and security',
-          privacyDescription: 'Empresas Wilson Castillo protects your privacy according to current regulations.',
-          privacyClear: 'Clear local data',
-          privacyPolicy: 'View privacy policy',
-        },
-      };
-    }
+      },
+      start: {
+        title: 'Start',
+        defaultPageTitle: 'Home page',
+        defaultPageDescription: 'Page that opens after signing in',
+        rememberTitle: 'Remember last view',
+        rememberDescription: 'Re-open the last page you used',
+      },
+      intl: {
+        title: 'Internationalization',
+        languageTitle: 'Language',
+        languageDescription: LANGUAGE_NAMES[language],
+        dateFormatTitle: 'Date format',
+        dateFormatDescription: 'How to display dates',
+        timeFormatTitle: 'Time format',
+        timeFormatDescription: '24-hour clock',
+      },
+      productivity: {
+        title: 'Productivity',
+        shortcutsTitle: 'Show shortcut tips',
+        shortcutsDescription: 'Visual hints about keyboard shortcuts',
+      },
+      support: {
+        title: 'Support',
+        helpTitle: 'Help and support',
+        helpDescription: 'FAQ, contact and reports',
+        aboutTitle: 'About',
+        aboutDescription: 'Version 1.0.0 • Build 2025.01.001',
+      },
+      buttons: {
+        close: 'Close',
+      },
+      labels: {
+        defaultRole: 'User',
+        defaultArea: 'General',
+      },
+      modals: {
+        aboutTitle: 'About Field Operations',
+        aboutSubtitle: 'Corporate Web Hub • Empresas Wilson Castillo',
+        aboutBody: [
+          'Version: 1.0.0 — Build: 2025.01.001',
+          '© 2025 Empresas Wilson Castillo. All rights reserved.',
+        ],
+        supportTitle: 'Help and support',
+        faqTitle: 'Frequently asked questions',
+        faqEntries: [
+          'How do I report an incident? Go to Incidents and press “New”.',
+          'Does it work offline? The app syncs as soon as it reconnects.',
+          'Need to change your password? Go to Profile → Security.',
+        ],
+        supportContactTitle: 'Support contact',
+        supportContactEmail: '📧 soporte@wilsoncastillo.com — 📞 +54 11 1234-5678',
+        supportContactSchedule: 'Hours: Monday to Friday 8:00 - 18:00',
+        privacyTitle: 'Privacy and security',
+        privacyDescription: 'Empresas Wilson Castillo protects your privacy according to current regulations.',
+        privacyClear: 'Clear local data',
+        privacyPolicy: 'View privacy policy',
+      },
+    } as const;
 
-    if (language === 'pt') {
-      return {
-        heroTag: 'Painel Pessoal',
-        heroTitle: 'Configurações',
-        heroDescription: 'Personalize a experiência de trabalho, ajuste o estilo visual e controle como as informações são exibidas na plataforma.',
-        heroUserLabel: 'Usuário',
-        privacy: {
-          title: 'Privacidade',
-          cardTitle: 'Privacidade e dados',
-          cardDescription: 'Limpeza de dados locais e políticas',
+    const portugueseCopy = {
+      heroTag: 'Painel Pessoal',
+      heroTitle: 'Configurações',
+      heroDescription: 'Personalize a experiência de trabalho, ajuste o estilo visual e controle como as informações são exibidas na plataforma.',
+      heroUserLabel: 'Usuário',
+      privacy: {
+        title: 'Privacidade',
+        cardTitle: 'Privacidade e dados',
+        cardDescription: 'Limpeza de dados locais e políticas',
+      },
+      appearance: {
+        title: 'Aparência',
+        themeTitle: 'Tema',
+        themeDescriptionDark: 'Escuro',
+        themeDescriptionLight: 'Claro',
+        themeOptions: {
+          light: 'Claro',
+          dark: 'Escuro',
+          system: 'Sistema',
         },
-        appearance: {
-          title: 'Aparência',
-          themeTitle: 'Tema',
-          themeDescriptionDark: 'Escuro',
-          themeDescriptionLight: 'Claro',
-          themeOptions: {
-            light: 'Claro',
-            dark: 'Escuro',
-            system: 'Sistema',
-          },
-          densityTitle: 'Densidade da interface',
-          densityDescription: 'Ajuste o espaço entre os controles',
-          densityOptions: {
-            comfortable: 'Confortável',
-            compact: 'Compacta',
-          },
-          fontTitle: 'Tamanho da fonte',
-          fontDescription: 'Escala global do texto',
-          fontOptions: {
-            sm: 'Pequena',
-            md: 'Média',
-            lg: 'Grande',
-          },
+        densityTitle: 'Densidade da interface',
+        densityDescription: 'Ajuste o espaço entre os controles',
+        densityOptions: {
+          comfortable: 'Confortável',
+          compact: 'Compacta',
         },
-        start: {
-          title: 'Início',
-          defaultPageTitle: 'Página inicial',
-          defaultPageDescription: 'Seleção ao entrar no sistema',
-          rememberTitle: 'Lembrar última visualização',
-          rememberDescription: 'Abre a última página utilizada',
+        fontTitle: 'Tamanho da fonte',
+        fontDescription: 'Escala global do texto',
+        fontOptions: {
+          sm: 'Pequena',
+          md: 'Média',
+          lg: 'Grande',
         },
-        intl: {
-          title: 'Internacionalização',
-          languageTitle: 'Idioma',
-          languageDescription: LANGUAGE_NAMES[language],
-          dateFormatTitle: 'Formato de data',
-          dateFormatDescription: 'Como exibir as datas',
-          timeFormatTitle: 'Formato de hora',
-          timeFormatDescription: 'Relógio de 24 horas',
-        },
-        productivity: {
-          title: 'Produtividade',
-          shortcutsTitle: 'Mostrar dicas de atalhos',
-          shortcutsDescription: 'Sugestões visuais sobre atalhos de teclado',
-        },
-        support: {
-          title: 'Suporte',
-          helpTitle: 'Ajuda e suporte',
-          helpDescription: 'FAQ, contato e relatórios',
-          aboutTitle: 'Sobre',
-          aboutDescription: 'Versão 1.0.0 • Build 2025.01.001',
-        },
-        buttons: {
-          close: 'Fechar',
-        },
-        labels: {
-          defaultRole: 'Usuário',
-          defaultArea: 'Geral',
-        },
-        modals: {
-          aboutTitle: 'Sobre o Field Operations',
-          aboutSubtitle: 'Hub Corporativo Web • Empresas Wilson Castillo',
-          aboutBody: [
-            'Versão: 1.0.0 — Build: 2025.01.001',
-            '© 2025 Empresas Wilson Castillo. Todos os direitos reservados.',
-          ],
-          supportTitle: 'Ajuda e suporte',
-          faqTitle: 'Perguntas frequentes',
-          faqEntries: [
-            'Como reportar um incidente? Vá em Incidentes e pressione “Novo”.',
-            'Funciona offline? O app sincroniza assim que reconectar.',
-            'Precisa mudar a senha? Acesse Perfil → Segurança.',
-          ],
-          supportContactTitle: 'Contato de suporte',
-          supportContactEmail: '📧 soporte@wilsoncastillo.com — 📞 +54 11 1234-5678',
-          supportContactSchedule: 'Horário: Segunda a Sexta 8:00 - 18:00',
-          privacyTitle: 'Privacidade e segurança',
-          privacyDescription: 'Empresas Wilson Castillo protege sua privacidade conforme as normas vigentes.',
-          privacyClear: 'Limpar dados locais',
-          privacyPolicy: 'Ver política de privacidade',
-        },
-      };
-    }
+      },
+      start: {
+        title: 'Início',
+        defaultPageTitle: 'Página inicial',
+        defaultPageDescription: 'Seleção ao entrar no sistema',
+        rememberTitle: 'Lembrar última visualização',
+        rememberDescription: 'Abre a última página utilizada',
+      },
+      intl: {
+        title: 'Internacionalização',
+        languageTitle: 'Idioma',
+        languageDescription: LANGUAGE_NAMES[language],
+        dateFormatTitle: 'Formato de data',
+        dateFormatDescription: 'Como exibir as datas',
+        timeFormatTitle: 'Formato de hora',
+        timeFormatDescription: 'Relógio de 24 horas',
+      },
+      productivity: {
+        title: 'Produtividade',
+        shortcutsTitle: 'Mostrar dicas de atalhos',
+        shortcutsDescription: 'Sugestões visuais sobre atalhos de teclado',
+      },
+      support: {
+        title: 'Suporte',
+        helpTitle: 'Ajuda e suporte',
+        helpDescription: 'FAQ, contato e relatórios',
+        aboutTitle: 'Sobre',
+        aboutDescription: 'Versão 1.0.0 • Build 2025.01.001',
+      },
+      buttons: {
+        close: 'Fechar',
+      },
+      labels: {
+        defaultRole: 'Usuário',
+        defaultArea: 'Geral',
+      },
+      modals: {
+        aboutTitle: 'Sobre o Field Operations',
+        aboutSubtitle: 'Hub Corporativo Web • Empresas Wilson Castillo',
+        aboutBody: [
+          'Versão: 1.0.0 — Build: 2025.01.001',
+          '© 2025 Empresas Wilson Castillo. Todos os direitos reservados.',
+        ],
+        supportTitle: 'Ajuda e suporte',
+        faqTitle: 'Perguntas frequentes',
+        faqEntries: [
+          'Como reportar um incidente? Vá em Incidentes e pressione “Novo”.',
+          'Funciona offline? O app sincroniza assim que reconectar.',
+          'Precisa mudar a senha? Acesse Perfil → Segurança.',
+        ],
+        supportContactTitle: 'Contato de suporte',
+        supportContactEmail: '📧 soporte@wilsoncastillo.com — 📞 +54 11 1234-5678',
+        supportContactSchedule: 'Horário: Segunda a Sexta 8:00 - 18:00',
+        privacyTitle: 'Privacidade e segurança',
+        privacyDescription: 'Empresas Wilson Castillo protege sua privacidade conforme as normas vigentes.',
+        privacyClear: 'Limpar dados locais',
+        privacyPolicy: 'Ver política de privacidade',
+      },
+    } as const;
 
-    return {
+    const spanishCopy = {
       heroTag: 'Panel Personal',
       heroTitle: 'Configuración',
       heroDescription: 'Personaliza la experiencia de trabajo, ajusta tu apariencia preferida y controla cómo se presenta la información en toda la plataforma.',
@@ -342,7 +545,17 @@ const SettingsPage: React.FC = () => {
         privacyClear: 'Limpiar datos locales',
         privacyPolicy: 'Ver política de privacidad',
       },
-    };
+    } as const;
+
+    if (language === 'pt') {
+      return portugueseCopy;
+    }
+
+    if (language === 'en' || language === 'fr' || language === 'de' || language === 'it') {
+      return englishCopy;
+    }
+
+    return spanishCopy;
   }, [language]);
 
   // Persistencia
@@ -356,6 +569,20 @@ const SettingsPage: React.FC = () => {
   useEffect(() => { localStorage.setItem('timeFormat24h', String(timeFormat24h)); }, [timeFormat24h]);
   useEffect(() => { localStorage.setItem('dateFormat', dateFormat); }, [dateFormat]);
   useEffect(() => { localStorage.setItem('showShortcutHints', String(showShortcutHints)); }, [showShortcutHints]);
+
+  useEffect(() => {
+    if (!languageFeedback) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setLanguageFeedback(null), 6000);
+    return () => clearTimeout(timer);
+  }, [languageFeedback]);
+
+  useEffect(() => () => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+  }, []);
 
   // Sincroniza selección de themeMode con el DOM y localStorage
   useEffect(() => {
@@ -387,6 +614,12 @@ const SettingsPage: React.FC = () => {
 
   const roleLabel = useMemo(() => user?.roles?.join(', ') || copy.labels.defaultRole, [user, copy]);
   const areaLabel = useMemo(() => user?.areas?.join(', ') || copy.labels.defaultArea, [user, copy]);
+  const stableLanguage = lastStableLanguageRef.current;
+  const pendingLanguageName = pendingLanguage ? LANGUAGE_NAMES[pendingLanguage] : '';
+  const previousLanguageName = LANGUAGE_NAMES[stableLanguage];
+  const countdownLabel = formatTemplate(languageFlowCopy.countdownLabel, {
+    seconds: Math.max(countdownSeconds, 0),
+  });
 
   const cardBase = 'relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 p-6 shadow-xl shadow-slate-200/40 backdrop-blur-sm transition-colors dark:border-white/10 dark:bg-white/5 dark:shadow-black/30';
   const listCardBase = `${cardBase} divide-y divide-slate-200/60 dark:divide-white/5 p-0`;
@@ -551,21 +784,82 @@ const SettingsPage: React.FC = () => {
       <section>
         <p className={sectionTitleClass}>{copy.intl.title}</p>
         <div className={listCardBase}>
-          <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-            <div className="flex items-start gap-4">
-              <div className={`${iconContainerClass} text-indigo-600 dark:text-indigo-200`}>
-                <Globe className="h-5 w-5" />
+          <div className="flex flex-col gap-5 px-5 py-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className={`${iconContainerClass} text-indigo-600 dark:text-indigo-200`}>
+                  <Globe className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">{copy.intl.languageTitle}</p>
+                  <p className="text-sm text-slate-500 dark:text-blue-200/80">{copy.intl.languageDescription}</p>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-blue-200/70">
+                    {formatTemplate(languageFlowCopy.selectorHint, {
+                      language: previousLanguageName,
+                    })}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-slate-900 dark:text-white">{copy.intl.languageTitle}</p>
-                <p className="text-sm text-slate-500 dark:text-blue-200/80">{copy.intl.languageDescription}</p>
-              </div>
+              <span className="rounded-full border border-sky-200 bg-sky-100/80 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200">
+                {previousLanguageName}
+              </span>
             </div>
-            <select className={optionSelectClass} value={language} onChange={e => setLanguage(e.target.value as Languages)}>
-              <option value="es">{LANGUAGE_NAMES.es}</option>
-              <option value="en">{LANGUAGE_NAMES.en}</option>
-              <option value="pt">{LANGUAGE_NAMES.pt}</option>
-            </select>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {SUPPORTED_LANGUAGES.map(langCode => {
+                const isCurrent = language === langCode;
+                const isPreviewing = showLanguageModal && pendingLanguage === langCode;
+                const wasLastStable = !isCurrent && stableLanguage === langCode;
+                let subtitle = formatTemplate(languageFlowCopy.cardAction, { language: LANGUAGE_NAMES[langCode] });
+                if (isPreviewing) {
+                  subtitle = languageFlowCopy.cardPreview;
+                } else if (isCurrent) {
+                  subtitle = languageFlowCopy.cardActive;
+                } else if (wasLastStable) {
+                  subtitle = languageFlowCopy.cardPrevious;
+                }
+
+                const baseClass = 'flex flex-col items-start gap-2 rounded-2xl border px-4 py-3 text-left transition-all duration-200';
+                const toneClass = isCurrent
+                  ? 'border-sky-400 bg-sky-50/80 shadow-sm shadow-sky-200/60 dark:border-sky-400/60 dark:bg-sky-500/10 dark:shadow-sky-900/40'
+                  : 'border-slate-200/70 bg-white/70 hover:border-sky-200 hover:bg-sky-50/60 dark:border-white/10 dark:bg-white/5 dark:hover:border-sky-400/40 dark:hover:bg-sky-500/5';
+                const ringClass = isPreviewing ? ' ring-2 ring-sky-300 dark:ring-sky-500' : '';
+                const cardClass = `${baseClass} ${toneClass}${ringClass}`;
+
+                let badgeLabel: string | null = null;
+                let badgeClass = '';
+                if (isCurrent) {
+                  badgeLabel = isPreviewing ? languageFlowCopy.cardPreview : languageFlowCopy.cardActive;
+                  badgeClass = 'rounded-full bg-sky-600/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-600 dark:bg-sky-500/20 dark:text-sky-200';
+                } else if (wasLastStable) {
+                  badgeLabel = languageFlowCopy.cardPrevious;
+                  badgeClass = 'rounded-full bg-slate-500/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-white/10 dark:text-blue-200/80';
+                }
+
+                return (
+                  <button
+                    type="button"
+                    key={langCode}
+                    onClick={() => handleLanguageCardClick(langCode)}
+                    className={cardClass}
+                  >
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-slate-900 dark:text-white">{LANGUAGE_NAMES[langCode]}</p>
+                        <p className="text-xs text-slate-500 dark:text-blue-200/80">{subtitle}</p>
+                      </div>
+                      {badgeLabel && <span className={badgeClass}>{badgeLabel}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {languageFeedback && (
+              <div className={`rounded-2xl border px-4 py-3 text-sm transition-colors ${languageFeedbackClass}`}>
+                {languageFeedback.message}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
@@ -650,6 +944,54 @@ const SettingsPage: React.FC = () => {
       {/* Nota: el cierre de sesión se realiza desde el menú del usuario en el Header para evitar duplicación */}
 
       {/* Modales */}
+      {showLanguageModal && pendingLanguage && (
+        <div className={modalBackdropClass}>
+          <div className={modalCardClass}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{languageFlowCopy.modalTitle}</h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-blue-200/80">
+                  {formatTemplate(languageFlowCopy.modalDescription, {
+                    language: pendingLanguageName,
+                    previous: previousLanguageName,
+                  })}
+                </p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-200">
+                <Globe className="h-6 w-6" />
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500 dark:text-blue-200/70">
+              <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-blue-200/80">
+                {previousLanguageName}
+              </span>
+              <span className="text-lg">→</span>
+              <span className="rounded-full border border-sky-200 bg-sky-100/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-600 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+                {pendingLanguageName}
+              </span>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-200/80">
+              <span>{countdownLabel}</span>
+              <span className="text-2xl font-semibold text-slate-900 dark:text-white">{Math.max(countdownSeconds, 0)}s</span>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button className={ghostButtonClass} onClick={handleUndoLanguage}>
+                {languageFlowCopy.undoButton}
+              </button>
+              <button
+                className={primaryButtonClass}
+                onClick={() => finalizeLanguageChange(pendingLanguage)}
+              >
+                {formatTemplate(languageFlowCopy.keepButton, { language: pendingLanguageName })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAbout && (
         <div className={modalBackdropClass}>
           <div className={modalCardClass}>

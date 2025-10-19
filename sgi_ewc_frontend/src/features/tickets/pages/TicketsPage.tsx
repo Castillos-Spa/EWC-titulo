@@ -1,141 +1,145 @@
 import { useMemo, useState } from 'react';
+import { Sparkles, Ticket as TicketIcon, Plus } from 'lucide-react';
 import { TicketsProvider, useTicketsContext } from '../context/TicketsContext';
 import CreateTicketModal from '../components/CreateTicketModal';
 import TicketDetailModal from '../components/TicketDetailModal';
-import { TicketStatus, TicketPriority } from '../../../types/Ticket';
+import TicketKpis from '../components/TicketKpis';
+import TicketFilters from '../components/TicketFilters';
+import TicketKanban from '../components/TicketKanban';
+import TicketTable from '../components/TicketTable';
+import type { Ticket } from '../../../types/Ticket';
 
 function TicketsInnerPage() {
   const {
-    items, loading, error,
-    search, view, status, category, priority,
-    setSearch, setStatus, setCategory, setPriority,
+    items,
+    loading,
+    error,
+    search,
+    view,
+    status,
+    category,
+    priority,
+    setSearch,
+    setView,
+    setStatus,
+    setCategory,
+    setPriority,
   } = useTicketsContext();
 
-  const [selected, setSelected] = useState<import('../../../types/Ticket').Ticket | null>(null);
+  const [selected, setSelected] = useState<Ticket | null>(null);
+  const [openCreate, setOpenCreate] = useState(false);
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let list = items;
-    if (q) {
-      list = list.filter((t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.description?.toLowerCase().includes(q) ||
-        String(t.id).includes(q)
-      );
-    }
-    if (status !== 'all') list = list.filter((t) => t.status === status);
-    if (category !== 'all') list = list.filter((t) => t.category === category);
-    if (priority !== 'all') list = list.filter((t) => t.priority === priority);
-    return list;
+    const query = search.trim().toLowerCase();
+    return items.filter(ticket => {
+      const matchesQuery =
+        query === '' ||
+        ticket.title.toLowerCase().includes(query) ||
+        ticket.description?.toLowerCase().includes(query) ||
+        String(ticket.id).includes(query);
+      const matchesStatus = status === 'all' || ticket.status === status;
+      const matchesCategory = category === 'all' || ticket.category === category;
+      const matchesPriority = priority === 'all' || ticket.priority === priority;
+      return matchesQuery && matchesStatus && matchesCategory && matchesPriority;
+    });
   }, [items, search, status, category, priority]);
 
   const categories = useMemo(() => {
-    return Array.from(new Set(items.map((t) => t.category))).sort((a, b) => String(a).localeCompare(String(b)));
+    const unique = new Set<string>();
+    for (const ticket of items) {
+      if (ticket.category) unique.add(ticket.category);
+    }
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, [items]);
 
-  const [openCreate, setOpenCreate] = useState(false);
+  const resetFilters = () => {
+    setSearch('');
+    setStatus('all');
+    setCategory('all');
+    setPriority('all');
+  };
 
-  if (loading) return <div className="p-4">Cargando tickets…</div>;
-  if (error) return <div className="p-4 text-red-500">{error}</div>;
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm font-semibold uppercase tracking-[0.32em] text-slate-500 dark:text-slate-300">
+        Sincronizando tickets…
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Sistema de Tickets</h2>
-          <p className="text-gray-600 dark:text-gray-400">Gestiona solicitudes y seguimiento</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={search}
-            placeholder="Buscar"
-            onChange={(e) => setSearch(e.target.value)}
-            className="px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700"
-          />
-          <select
-            value={status}
-            onChange={(e) => {
-              const allowed = ['all', ...Object.values(TicketStatus)] as const;
-              const v = e.target.value as typeof allowed[number];
-              setStatus(allowed.includes(v) ? v : 'all');
-            }}
-            className="px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700"
-          >
-            <option value="all">Todos</option>
-            {Object.values(TicketStatus).map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700"
-          >
-            <option value="all">Todas las categorías</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            value={priority}
-            onChange={(e) => {
-              const allowed = ['all', ...Object.values(TicketPriority)] as const;
-              const v = e.target.value as typeof allowed[number];
-              setPriority(allowed.includes(v) ? v : 'all');
-            }}
-            className="px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700"
-          >
-            <option value="all">Todas las prioridades</option>
-            {Object.values(TicketPriority).map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <button onClick={() => setOpenCreate(true)} className="px-3 py-2 rounded-lg bg-blue-600 text-white">Nuevo</button>
-        </div>
-      </div>
-
-      {/* Vista */}
-      {view === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {Object.values(TicketStatus).map((s) => (
-            <div key={s} className="rounded-lg border dark:border-slate-700 p-3">
-              <div className="font-semibold mb-2">{s}</div>
-              <div className="space-y-2">
-                {filtered.filter((t) => t.status === s).map((t) => (
-                  <button key={t.id} onClick={() => setSelected(t)} className="w-full text-left p-3 rounded-lg border dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800">
-                    <div className="font-medium">{t.title}</div>
-                    <div className="text-sm text-gray-500">#{t.id}</div>
-                  </button>
-                ))}
-              </div>
+    <div className="space-y-10 text-slate-800 dark:text-slate-100">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-br from-indigo-100 via-white to-sky-100 px-8 py-6 shadow-xl shadow-slate-200/40 dark:border-white/10 dark:from-slate-900 dark:via-slate-950 dark:to-sky-900/10">
+        <div className="pointer-events-none absolute -left-24 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-indigo-300/35 blur-3xl dark:bg-indigo-500/25" />
+        <div className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-sky-300/35 blur-3xl dark:bg-sky-500/25" />
+        <div className="relative flex flex-wrap items-start justify-between gap-8">
+          <div className="max-w-2xl space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+              <TicketIcon className="h-4 w-4" />
+              <span>Mesa de ayuda</span>
+            </span>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Seguimiento centralizado de tickets corporativos</h1>
+            <p className="text-sm text-slate-600 dark:text-blue-100/80">
+              Orquesta solicitudes internas, prioriza según criticidad y mantén a cada área informada dentro del nuevo panel colaborativo.
+            </p>
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/60 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-200/70">
+              <Sparkles className="h-4 w-4" /> {items.length} ticket(s) activos en total
             </div>
-          ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpenCreate(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-400/40 transition hover:-translate-y-0.5"
+          >
+            <Plus className="h-4 w-4" /> Nuevo ticket
+          </button>
         </div>
+      </section>
+
+      {error && (
+        <div className="relative overflow-hidden rounded-3xl border border-rose-200/70 bg-rose-50/80 px-6 py-4 text-rose-700 shadow-sm shadow-rose-200/40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(244,114,182,0.25),_rgba(244,63,94,0)_70%)]" />
+          <div className="relative">{error}</div>
+        </div>
+      )}
+
+      <TicketKpis items={items} loading={loading} />
+
+      <TicketFilters
+        search={search}
+        status={status}
+        category={category}
+        priority={priority}
+        categories={categories}
+        view={view}
+        total={filtered.length}
+        onSearchChange={setSearch}
+        onStatusChange={setStatus}
+        onCategoryChange={setCategory}
+        onPriorityChange={setPriority}
+        onViewChange={setView}
+        onReset={resetFilters}
+      />
+
+      {view === 'kanban' ? (
+        <TicketKanban items={filtered} onSelect={setSelected} />
       ) : (
-        <div className="rounded-lg border dark:border-slate-700 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-slate-800">
-              <tr>
-                <th className="text-left p-2">ID</th>
-                <th className="text-left p-2">Título</th>
-                <th className="text-left p-2">Estado</th>
-                <th className="text-left p-2">Prioridad</th>
-                <th className="text-left p-2">Categoría</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((t) => (
-                <tr key={t.id} className="border-t dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer" onClick={() => setSelected(t)}>
-                  <td className="p-2">{t.id}</td>
-                  <td className="p-2">{t.title}</td>
-                  <td className="p-2">{t.status}</td>
-                  <td className="p-2">{t.priority}</td>
-                  <td className="p-2">{t.category}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <TicketTable items={filtered} onSelect={setSelected} />
+      )}
+
+      {filtered.length === 0 && (
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 px-6 py-12 text-center shadow-lg shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/30">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_rgba(15,23,42,0)_70%)]" />
+          <div className="relative space-y-3 text-sm">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">No hay tickets con los criterios actuales</h3>
+            <p className="text-slate-500 dark:text-blue-200/80">Ajusta filtros o registra un nuevo ticket para comenzar.</p>
+          </div>
         </div>
       )}
-      {selected && (
-        <TicketDetailModal open={!!selected} ticket={selected} onClose={() => setSelected(null)} />
-      )}
+
+      {selected ? (
+        <TicketDetailModal open ticket={selected} onClose={() => setSelected(null)} />
+      ) : null}
       <CreateTicketModal open={openCreate} onClose={() => setOpenCreate(false)} />
     </div>
   );
