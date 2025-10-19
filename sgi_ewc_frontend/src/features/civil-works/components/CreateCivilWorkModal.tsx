@@ -1,43 +1,87 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Sparkles, MapPin, CalendarDays, CalendarClock, ClipboardList, Layers, Package, AlertTriangle } from 'lucide-react';
 import type { CivilWorkType, CivilWorkStatus, CreateCivilWorkPayload } from '../../../types/CivilWork';
 import { useCivilWorks } from '../hooks/useCivilWorks';
 
-const WORK_TYPES: CivilWorkType[] = ['CONSTRUCTION','REPAIR','MAINTENANCE','INSPECTION'];
-const STATUS: CivilWorkStatus[] = ['IN_PROGRESS','PENDING','ON_HOLD','COMPLETED'];
+const WORK_TYPES: Array<{ value: CivilWorkType; label: string }> = [
+  { value: 'CONSTRUCTION', label: 'Construcción' },
+  { value: 'REPAIR', label: 'Reparación' },
+  { value: 'MAINTENANCE', label: 'Mantenimiento' },
+  { value: 'INSPECTION', label: 'Inspección' },
+];
 
-export const CreateCivilWorkModal: React.FC<{
-  onClose: () => void;
-}> = ({ onClose }) => {
+const STATUS: Array<{ value: CivilWorkStatus; label: string }> = [
+  { value: 'IN_PROGRESS', label: 'En progreso' },
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'ON_HOLD', label: 'En pausa' },
+  { value: 'COMPLETED', label: 'Completado' },
+];
+
+export const CreateCivilWorkModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { create } = useCivilWorks();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement;
+  const submitLabel = useMemo(() => (submitting ? 'Guardando…' : 'Crear proyecto'), [submitting]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    globalThis.addEventListener('keydown', handler);
+    return () => globalThis.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+
+    const form = event.currentTarget;
     const fd = new FormData(form);
 
     const getStr = (name: string, fallback = '') => {
-      const val = fd.get(name);
-      return typeof val === 'string' ? val : fallback;
+      const value = fd.get(name);
+      return typeof value === 'string' ? value : fallback;
     };
 
     const project = getStr('project').trim();
     const location = getStr('location').trim();
     const startDateInput = getStr('startDate');
     const estimatedEndDateInput = getStr('estimatedEndDate');
+    const workType = (getStr('workType', 'CONSTRUCTION') as CivilWorkType) ?? 'CONSTRUCTION';
+    const status = (getStr('status', 'IN_PROGRESS') as CivilWorkStatus) ?? 'IN_PROGRESS';
+    const staffText = getStr('responsibleStaffUsernames');
+    const tasksText = getStr('tasks');
+    const issuesText = getStr('issues');
+    const materialsText = getStr('materialsUsed');
+    const observationsText = getStr('observations');
+
+    if (!project || !location) {
+      setError('Define el nombre del proyecto y su ubicación antes de continuar.');
+      return;
+    }
+
     const startDate = startDateInput ? new Date(startDateInput).toISOString() : new Date().toISOString();
     const estimatedEndDate = estimatedEndDateInput ? new Date(estimatedEndDateInput).toISOString() : startDate;
-    const workType = (getStr('workType') || 'CONSTRUCTION') as CivilWorkType;
-    const status = (getStr('status') || 'IN_PROGRESS') as CivilWorkStatus;
-    const observations = getStr('observations');
-    const issuesText = getStr('issues');
-    const issues = issuesText ? issuesText.split('\n').map(s=>s.trim()).filter(Boolean) : [];
-    const staffText = getStr('responsibleStaffUsernames');
-    const responsibleStaffUsernames = staffText ? staffText.split(',').map(s=>s.trim()).filter(Boolean) : [];
-    const materialsText = getStr('materialsUsed');
-    const materialsUsed = materialsText ? materialsText.split('\n').map(s=>s.trim()).filter(Boolean) : [];
-    const tasksText = getStr('tasks');
-    const taskNames = tasksText ? tasksText.split(',').map(s=>s.trim()).filter(Boolean) : [];
-    const tasks = taskNames.map(name => ({ name, completed: false }));
+
+    if (startDateInput && estimatedEndDateInput && new Date(estimatedEndDateInput) < new Date(startDateInput)) {
+      setError('La fecha estimada no puede ser anterior al inicio. Ajusta la planificación.');
+      return;
+    }
+
+    const responsibleStaffUsernames = staffText
+      ? staffText.split(',').map(value => value.trim()).filter(Boolean)
+      : [];
+    const tasks = tasksText
+      ? tasksText.split(',').map(value => value.trim()).filter(Boolean).map(name => ({ name, completed: false }))
+      : [];
+    const issues = issuesText
+      ? issuesText.split('\n').map(value => value.trim()).filter(Boolean)
+      : [];
+    const materialsUsed = materialsText
+      ? materialsText.split('\n').map(value => value.trim()).filter(Boolean)
+      : [];
+    const observations = observationsText.trim() ? observationsText.trim() : undefined;
 
     const payload: CreateCivilWorkPayload = {
       project,
@@ -55,79 +99,214 @@ export const CreateCivilWorkModal: React.FC<{
       materialsUsed,
     };
 
-    await create(payload);
-    onClose();
-    form.reset();
+    try {
+      setSubmitting(true);
+      setError(null);
+      await create(payload);
+      form.reset();
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setError('No pudimos registrar el proyecto. Revisa la información e inténtalo nuevamente.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-slate-900 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-transparent dark:border-slate-700">
-        <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Nueva Obra Civil</h3>
-          <p className="mt-1 text-gray-600 dark:text-gray-400">Registra un nuevo proyecto</p>
-        </div>
-        <form onSubmit={onSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="cw-project" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Proyecto</label>
-              <input id="cw-project" name="project" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
+      <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 text-slate-800 shadow-2xl shadow-slate-300/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-100">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(125,211,252,0.22),_rgba(15,23,42,0)_70%)] dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.28),_rgba(15,23,42,0.45))]" />
+        <form onSubmit={onSubmit} className="relative flex max-h-[90vh] flex-col">
+          <header className="flex items-start justify-between gap-6 px-8 pt-8">
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+                <Sparkles className="h-4 w-4" /> Nueva obra civil
+              </span>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Planifica el próximo hito constructivo</h2>
+              <p className="max-w-2xl text-sm text-slate-500 dark:text-blue-200/80">
+                Organiza la intervención desde el inicio. Define responsables, tareas y materiales para sincronizar al equipo en el entorno translúcido actualizado.
+              </p>
             </div>
-            <div>
-              <label htmlFor="cw-location" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Ubicación</label>
-              <input id="cw-location" name="location" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/80 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </header>
+
+          <div className="mt-6 flex-1 space-y-6 overflow-y-auto px-8 pb-8">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <MapPin className="h-4 w-4" /> Proyecto
+                </span>
+                <input
+                  name="project"
+                  placeholder="Centro logístico Norte"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <MapPin className="h-4 w-4" /> Ubicación
+                </span>
+                <input
+                  name="location"
+                  placeholder="Nave 3 · Parque Industrial"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              </label>
             </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="cw-startDate" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Inicio</label>
-              <input id="cw-startDate" type="date" name="startDate" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <CalendarDays className="h-4 w-4" /> Inicio
+                </span>
+                <input
+                  type="date"
+                  name="startDate"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <CalendarClock className="h-4 w-4" /> Término estimado
+                </span>
+                <input
+                  type="date"
+                  name="estimatedEndDate"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <Layers className="h-4 w-4" /> Tipo de obra
+                </span>
+                <select
+                  name="workType"
+                  defaultValue="CONSTRUCTION"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                >
+                  {WORK_TYPES.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <div>
-              <label htmlFor="cw-estimatedEndDate" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Término Estimado</label>
-              <input id="cw-estimatedEndDate" type="date" name="estimatedEndDate" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <ClipboardList className="h-4 w-4" /> Estado inicial
+                </span>
+                <select
+                  name="status"
+                  defaultValue="IN_PROGRESS"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                >
+                  {STATUS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <ClipboardList className="h-4 w-4" /> Responsables (separar por coma)
+                </span>
+                <input
+                  name="responsibleStaffUsernames"
+                  placeholder="jtejada, msandoval"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              </label>
             </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="cw-type" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
-              <select id="cw-type" name="workType" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100">
-                {WORK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+
+            <label className="flex flex-col gap-2">
+              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                <ClipboardList className="h-4 w-4" /> Tareas (separadas por coma)
+              </span>
+              <input
+                name="tasks"
+                placeholder="Excavación, Nivelación, Hormigonado"
+                className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+              />
+            </label>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <AlertTriangle className="h-4 w-4" /> Riesgos o incidencias
+                </span>
+                <textarea
+                  name="issues"
+                  rows={4}
+                  placeholder="Describe incidentes detectados (uno por línea)."
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <Package className="h-4 w-4" /> Materiales (uno por línea)
+                </span>
+                <textarea
+                  name="materialsUsed"
+                  rows={4}
+                  placeholder="Cemento H°30\nMalla ACMA\nAditivo impermeabilizante"
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              </label>
             </div>
-            <div>
-              <label htmlFor="cw-status" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Estado</label>
-              <select id="cw-status" name="status" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100">
-                {STATUS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+
+            <label className="flex flex-col gap-2">
+              <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                <ClipboardList className="h-4 w-4" /> Observaciones
+              </span>
+              <textarea
+                name="observations"
+                rows={4}
+                placeholder="Notas para la próxima coordinación o visitas de obra."
+                className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
+              />
+            </label>
+
+            {error && (
+              <div className="rounded-2xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm text-rose-600 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-100">
+                {error}
+              </div>
+            )}
+          </div>
+
+          <footer className="flex flex-col gap-3 border-t border-white/60 bg-white/70 px-8 py-6 backdrop-blur dark:border-white/10 dark:bg-white/5 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+              Impacta el tablero de obras civiles actualizado.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white/80 px-5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={submitting}
+              >
+                {submitLabel}
+              </button>
             </div>
-          </div>
-          <div>
-            <label htmlFor="cw-staff" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Personal Responsable (coma)</label>
-            <input id="cw-staff" name="responsibleStaffUsernames" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
-          </div>
-          <div>
-            <label htmlFor="cw-tasks" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tareas (separadas por coma)</label>
-            <input id="cw-tasks" name="tasks" className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="cw-issues" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Incidencias</label>
-              <textarea id="cw-issues" name="issues" rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
-            </div>
-            <div>
-              <label htmlFor="cw-materials" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Materiales (una por línea)</label>
-              <textarea id="cw-materials" name="materialsUsed" rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="cw-observations" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Observaciones</label>
-            <textarea id="cw-observations" name="observations" rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-gray-100" />
-          </div>
-          <div className="flex justify-end pt-4 space-x-3">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 transition-colors border border-gray-300 rounded-lg dark:border-slate-600 dark:text-slate-100 hover:bg-gray-50 dark:hover:bg-slate-800">Cancelar</button>
-            <button type="submit" className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700">Crear</button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>

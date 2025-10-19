@@ -1,7 +1,7 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
 
 // Tipado explícito para evitar TS7053 al indexar con string
-type Languages = 'en' | 'es';
+export type Languages = 'en' | 'es' | 'pt' | 'fr' | 'de' | 'it';
 
 type LanguageContextType = {
   t: (key: string) => string;
@@ -9,8 +9,7 @@ type LanguageContextType = {
   setLanguage: React.Dispatch<React.SetStateAction<Languages>>;
 };
 
-const translations: Record<Languages, Record<string, string>> = {
-  en: {
+const englishTranslations: Record<string, string> = {
     // Common
     'common.save': 'Save',
     'common.cancel': 'Cancel',
@@ -62,8 +61,16 @@ const translations: Record<Languages, Record<string, string>> = {
     'nav.cleaningReports': 'Cleaning Reports',
     'nav.civilWorks': 'Civil Works',
     'nav.tickets': 'Ticket System',
+  'nav.notifications': 'Notifications',
+  'nav.fuel': 'Fuel',
+  'nav.routes': 'Routes',
+  'nav.assignments': 'Route Assignments',
+  'nav.incidents': 'Incidents',
     'nav.userManagement': 'User Management',
     'nav.logout': 'Logout',
+  'sidebar.logout': 'Log Out',
+  'sidebar.sessionActive': 'Active session',
+  'sidebar.brandSubtitle': 'Operations',
     
     // Dashboard
     'dashboard.welcome': 'Welcome',
@@ -100,8 +107,9 @@ const translations: Record<Languages, Record<string, string>> = {
     'maintenance.scheduled': 'Scheduled',
     'maintenance.completed': 'Completed',
     'maintenance.overdue': 'Overdue',
-  },
-  es: {
+  };
+
+  const spanishTranslations: Record<string, string> = {
     // Common
     'common.save': 'Guardar',
     'common.cancel': 'Cancelar',
@@ -153,8 +161,16 @@ const translations: Record<Languages, Record<string, string>> = {
     'nav.cleaningReports': 'Reportes de Limpieza',
     'nav.civilWorks': 'Obras Civiles',
     'nav.tickets': 'Sistema de Tickets',
+  'nav.notifications': 'Notificaciones',
+  'nav.fuel': 'Combustible',
+  'nav.routes': 'Rutas',
+  'nav.assignments': 'Asignación Rutas',
+  'nav.incidents': 'Incidentes',
     'nav.userManagement': 'Gestión de Usuarios',
     'nav.logout': 'Cerrar Sesión',
+  'sidebar.logout': 'Cerrar Sesión',
+  'sidebar.sessionActive': 'Sesión activa',
+  'sidebar.brandSubtitle': 'Operaciones',
     
     // Dashboard
     'dashboard.welcome': 'Bienvenido',
@@ -191,17 +207,125 @@ const translations: Record<Languages, Record<string, string>> = {
     'maintenance.scheduled': 'Programados',
     'maintenance.completed': 'Completados',
     'maintenance.overdue': 'Vencidos',
-  },
-};
+  };
+
+  const portugueseTranslations: Record<string, string> = {
+    // Common
+    'common.save': 'Salvar',
+    'common.cancel': 'Cancelar',
+    'common.edit': 'Editar',
+    'common.delete': 'Excluir',
+    'common.add': 'Adicionar',
+    'common.search': 'Buscar',
+    'common.filter': 'Filtrar',
+    'common.status': 'Status',
+    'common.actions': 'Ações',
+    'common.date': 'Data',
+    'common.time': 'Hora',
+    'common.description': 'Descrição',
+    'common.priority': 'Prioridade',
+    'common.category': 'Categoria',
+    'common.loading': 'Carregando...',
+    'common.submit': 'Enviar',
+    'common.close': 'Fechar',
+    'common.view': 'Ver',
+    'common.details': 'Detalhes',
+    'common.viewDetails': 'Ver Detalhes',
+    'common.name': 'Nome',
+    'common.email': 'E-mail',
+    'common.role': 'Função',
+    'common.area': 'Área',
+    'common.active': 'Ativo',
+    'common.inactive': 'Inativo',
+    'common.all': 'Todos',
+    'common.yes': 'Sim',
+    'common.no': 'Não',
+    'common.confirm': 'Confirmar',
+
+    // Login
+    'login.title': 'Acessar',
+    'login.subtitle': 'Sistema de Gestão Empresarial',
+    'login.email': 'E-mail',
+    'login.password': 'Senha',
+    'login.signIn': 'Entrar',
+    'login.signingIn': 'Entrando...',
+    'login.demoAccounts': 'Contas de Demonstração',
+    'login.invalidCredentials': 'Credenciais inválidas',
+
+    // Navigation
+    'nav.dashboard': 'Painel',
+    'nav.tripReports': 'Relatórios de Viagem',
+    'nav.routeManagement': 'Gestão de Rotas',
+    'nav.fleetRegistry': 'Registro de Frotas',
+    'nav.maintenance': 'Manutenção',
+    'nav.cleaningReports': 'Relatórios de Limpeza',
+    'nav.civilWorks': 'Obras Civis',
+    'nav.tickets': 'Sistema de Chamados',
+    'nav.notifications': 'Notificações',
+    'nav.fuel': 'Combustível',
+    'nav.routes': 'Rotas',
+    'nav.assignments': 'Designações de Rotas',
+    'nav.incidents': 'Incidentes',
+    'nav.userManagement': 'Gestão de Usuários',
+    'nav.logout': 'Sair',
+    'sidebar.logout': 'Encerrar sessão',
+    'sidebar.sessionActive': 'Sessão ativa',
+    'sidebar.brandSubtitle': 'Operações',
+
+    // Dashboard
+    'dashboard.welcome': 'Bem-vindo',
+
+    // Tickets
+    'tickets.title': 'Sistema de Chamados',
+    'tickets.subtitle': 'Gerencie solicitações de suporte e acompanhamento de tarefas',
+    'tickets.newTicket': 'Novo Chamado',
+    'tickets.createNew': 'Criar Novo Chamado',
+    'tickets.submitRequest': 'Envie uma nova solicitação de suporte ou chamado',
+    'tickets.title_field': 'Título',
+    'tickets.category': 'Categoria',
+    'tickets.priority': 'Prioridade',
+    'tickets.description': 'Descrição',
+    'tickets.attachments': 'Anexos',
+    'tickets.totalTickets': 'Total de Chamados',
+    'tickets.pending': 'Pendentes',
+    'tickets.inProgress': 'Em Andamento',
+    'tickets.resolved': 'Resolvidos',
+
+    // Maintenance
+    'maintenance.title': 'Gestão de Manutenção',
+    'maintenance.subtitle': 'Agende e gerencie a manutenção da frota',
+    'maintenance.newMaintenance': 'Nova Manutenção',
+    'maintenance.vehicle': 'Veículo',
+    'maintenance.type': 'Tipo',
+    'maintenance.technician': 'Técnico',
+    'maintenance.cost': 'Custo',
+    'maintenance.totalCost': 'Custo Total',
+    'maintenance.partsUsed': 'Peças Utilizadas',
+    'maintenance.preventive': 'Preventiva',
+    'maintenance.corrective': 'Corretiva',
+    'maintenance.emergency': 'Emergencial',
+    'maintenance.scheduled': 'Programada',
+    'maintenance.completed': 'Concluída',
+    'maintenance.overdue': 'Atrasada',
+  };
+
+  const translations: Record<Languages, Record<string, string>> = {
+    en: englishTranslations,
+    es: spanishTranslations,
+    pt: portugueseTranslations,
+    fr: englishTranslations,
+    de: englishTranslations,
+    it: englishTranslations,
+  };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<'en' | 'es'>('en');
+  const [language, setLanguage] = useState<Languages>('es');
 
   useEffect(() => {
-    const savedLanguage = localStorage.getItem('language') as 'en' | 'es';
-    if (savedLanguage) {
+    const savedLanguage = localStorage.getItem('language') as Languages | null;
+    if (savedLanguage && ['en', 'es', 'pt', 'fr', 'de', 'it'].includes(savedLanguage)) {
       setLanguage(savedLanguage);
     }
   }, []);
@@ -211,11 +335,12 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     localStorage.setItem('language', language);
   }, [language]);
 
-  // t() ahora indexa un Record<string, string>
-  const t = (key: string) => translations[language][key] ?? key;
+  const t = useCallback((key: string) => translations[language][key] ?? key, [language]);
+
+  const value = useMemo(() => ({ t, language, setLanguage }), [t, language]);
 
   return (
-    <LanguageContext.Provider value={{ t, language, setLanguage }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

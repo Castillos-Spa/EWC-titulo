@@ -1,9 +1,46 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Fuel as FuelIcon, Gauge, Plus, Sparkles } from 'lucide-react';
 import { FuelProvider, useFuelContext } from '../context/FuelContext';
-import { Fuel as FuelIcon, Plus, Search, TrendingUp, Gauge, AlertTriangle, ChevronDown, ChevronRight, Route } from 'lucide-react';
-import type { VehicleWithFuelHistory } from '../../../utils/fuelApi';
 import FuelLogFormModal from '../../../components/WaterTransport/FuelLogFormModal';
 import { useAuth } from '../../../contexts/AuthContext';
+import FuelKpis from '../components/FuelKpis';
+import FuelFilters from '../components/FuelFilters';
+import FuelVehicleCard from '../components/FuelVehicleCard';
+import FuelTrendsSparkline from '../components/FuelTrendsSparkline';
+import type { VehicleWithFuelHistory } from '../../../utils/fuelApi';
+
+type EfficiencyBadge = 'excellent' | 'good' | 'watch' | 'critical' | 'unknown';
+
+const calculateVehicleMetrics = (vehicle: VehicleWithFuelHistory) => {
+  const fuelLogs = (vehicle.fuelLogs ?? []).slice().sort((a, b) => a.odometer - b.odometer);
+  if (fuelLogs.length < 2) {
+    return { consumption: 0, totalDistance: 0, totalLiters: 0 } as const;
+  }
+
+  let totalDistance = 0;
+  let totalLiters = 0;
+  for (let index = 1; index < fuelLogs.length; index++) {
+    const previousLog = fuelLogs[index - 1];
+    const currentLog = fuelLogs[index];
+    const distance = currentLog.odometer - previousLog.odometer;
+    const liters = previousLog.liters;
+    if (distance > 0 && liters > 0) {
+      totalDistance += distance;
+      totalLiters += liters;
+    }
+  }
+
+  const consumption = totalDistance > 0 ? (totalLiters / totalDistance) * 100 : 0;
+  return { consumption, totalDistance, totalLiters } as const;
+};
+
+const classifyEfficiency = (consumption: number): EfficiencyBadge => {
+  if (consumption <= 0) return 'unknown';
+  if (consumption < 20) return 'excellent';
+  if (consumption < 30) return 'good';
+  if (consumption < 40) return 'watch';
+  return 'critical';
+};
 
 function FuelInnerPage() {
   const { items, loading, error, search, from, to, setSearch, setFrom, setTo, refresh } = useFuelContext();
@@ -14,216 +51,244 @@ function FuelInnerPage() {
   useEffect(() => { refresh(); }, [refresh]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(v => v.patente.toLowerCase().includes(q) || v.marca.toLowerCase().includes(q) || v.modelo.toLowerCase().includes(q));
+    const query = search.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((vehicle) => {
+      const target = `${vehicle.patente} ${vehicle.marca} ${vehicle.modelo}`.toLowerCase();
+      return target.includes(query);
+    });
   }, [items, search]);
 
-  const calculateEfficiency = (avgConsumption: number) => {
-    if (avgConsumption <= 0) return 'average' as const;
-    if (avgConsumption < 20) return 'excellent' as const;
-    if (avgConsumption < 30) return 'good' as const;
-    if (avgConsumption < 40) return 'average' as const;
-    return 'poor' as const;
-  };
-
-  const calculateVehicleMetrics = (vehicle: VehicleWithFuelHistory) => {
-    const fuelLogs = (vehicle.fuelLogs || []).slice().sort((a, b) => a.odometer - b.odometer);
-    if (fuelLogs.length < 2) return { consumption: 0, totalDistance: 0, totalLiters: 0 } as const;
-    let totalDistance = 0;
-    let totalLiters = 0;
-    for (let i = 1; i < fuelLogs.length; i++) {
-      const prevLog = fuelLogs[i - 1];
-      const currentLog = fuelLogs[i];
-      const distance = currentLog.odometer - prevLog.odometer;
-      const liters = prevLog.liters;
-      if (distance > 0 && liters > 0) {
-        totalDistance += distance;
-        totalLiters += liters;
-      }
-    }
-    const consumption = totalDistance > 0 ? (totalLiters / totalDistance) * 100 : 0;
-    return { consumption, totalDistance, totalLiters } as const;
-  };
-
-  const extraKpis = useMemo(() => {
-    const metrics = filtered.map(calculateVehicleMetrics);
-    const consumptions = metrics.map(m => m.consumption).filter(c => c > 0);
-    const avgConsumption = consumptions.reduce((sum, c) => sum + c, 0) / consumptions.length;
-    let poorVehicles = 0;
-    for (const c of consumptions) { if (calculateEfficiency(c) === 'poor') poorVehicles++; }
-    const totalDistance = metrics.reduce((sum, m) => sum + m.totalDistance, 0);
-    const totalLiters = (filtered || []).flatMap(v => v.fuelLogs || []).reduce((sum, log) => sum + log.liters, 0);
-    return { avgConsumption: avgConsumption || 0, poorVehicles, totalDistance, totalLiters } as const;
+  const summaries = useMemo(() => {
+    return filtered.map((vehicle) => {
+      const metrics = calculateVehicleMetrics(vehicle);
+      const efficiency = classifyEfficiency(metrics.consumption);
+      const refuelCount = vehicle.fuelLogs?.length ?? 0;
+      const vehicleLiters = (vehicle.fuelLogs ?? []).reduce((sum, log) => sum + log.liters, 0);
+      return { vehicle, metrics, efficiency, refuelCount, vehicleLiters } as const;
+    });
   }, [filtered]);
 
-  const efficiencyBadgeClass = (eff: ReturnType<typeof calculateEfficiency>) => {
-    if (eff === 'excellent') return 'text-green-700 dark:text-green-300';
-    if (eff === 'good') return 'text-lime-700 dark:text-lime-300';
-    if (eff === 'average') return 'text-amber-700 dark:text-amber-300';
-    return 'text-red-700 dark:text-red-300';
-  };
+  const fleetMetrics = useMemo(() => {
+    if (summaries.length === 0) {
+      return {
+        totalDistance: 0,
+        totalLiters: 0,
+        avgConsumption: 0,
+        criticalVehicles: 0,
+        monitoredVehicles: 0,
+        refuelCount: 0,
+      } as const;
+    }
+
+    const totalDistance = summaries.reduce((sum, summary) => sum + summary.metrics.totalDistance, 0);
+    const totalLiters = summaries.reduce((sum, summary) => sum + summary.vehicleLiters, 0);
+    const consumptions = summaries
+      .map((summary) => summary.metrics.consumption)
+      .filter((value) => value > 0);
+    const avgConsumption = consumptions.length > 0 ? consumptions.reduce((sum, value) => sum + value, 0) / consumptions.length : 0;
+    const criticalVehicles = summaries.filter((summary) => summary.efficiency === 'critical').length;
+    const refuelCount = summaries.reduce((sum, summary) => sum + summary.refuelCount, 0);
+
+    return {
+      totalDistance,
+      totalLiters,
+      avgConsumption,
+      criticalVehicles,
+      monitoredVehicles: summaries.length,
+      refuelCount,
+    } as const;
+  }, [summaries]);
+
+  const fleetTrendData = useMemo(() => {
+    const aggregate = new Map<string, number>();
+    for (const summary of summaries) {
+      for (const log of summary.vehicle.fuelLogs ?? []) {
+        const key = new Date(log.date).toISOString().slice(0, 10);
+        aggregate.set(key, (aggregate.get(key) ?? 0) + log.liters);
+      }
+    }
+
+    return Array.from(aggregate.entries())
+      .map(([date, liters]) => ({ date, liters }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [summaries]);
+
+  const ranking = useMemo(() => {
+    const valid = summaries.filter((summary) => summary.metrics.consumption > 0);
+    if (valid.length === 0) return { best: null, worst: null } as const;
+    const sorted = [...valid].sort((a, b) => a.metrics.consumption - b.metrics.consumption);
+    const best = sorted[0] ?? null;
+    let worst = best;
+    for (const candidate of sorted) {
+      worst = candidate;
+    }
+    return { best, worst: worst ?? null } as const;
+  }, [summaries]);
 
   const canRegisterFuel = useMemo(() => {
     if (!user) return false;
-    const isDriver = !!user.roleAssignments?.some(ra => ra.specialty === 'DRIVER');
-    const isTransportSupervisor = !!user.roleAssignments?.some(ra => ra.area === 'Transporte' && (ra.role === 'Supervisor' || ra.role === 'Jefe'));
-    return user.isAdmin || isDriver || isTransportSupervisor;
+    const isDriver = user.roleAssignments?.some((assignment) => assignment.specialty === 'DRIVER');
+    const isTransportSupervisor = user.roleAssignments?.some(
+      (assignment) => assignment.area === 'Transporte' && (assignment.role === 'Supervisor' || assignment.role === 'Jefe'),
+    );
+    return Boolean(user.isAdmin || isDriver || isTransportSupervisor);
   }, [user]);
 
-  const handleSuccess = () => { setShowFuelForm(false); refresh(); };
+  const handleSuccess = () => {
+    setShowFuelForm(false);
+    refresh();
+  };
 
-  if (loading) return <div className="flex items-center justify-center min-h-[40vh]">Cargando consumo de combustible…</div>;
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm font-semibold uppercase tracking-[0.32em] text-slate-500 dark:text-slate-300">
+        Sincronizando datos de combustible…
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {error && (<div className="p-4 text-red-700 border border-red-200 rounded-lg bg-red-50 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800">{error}</div>)}
+    <div className="space-y-10 text-slate-800 dark:text-slate-100">
+      {error && (
+        <div className="relative overflow-hidden rounded-3xl border border-rose-200/70 bg-rose-50/80 px-6 py-4 text-rose-700 shadow-sm shadow-rose-200/40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(244,114,182,0.25),_rgba(244,63,94,0)_70%)]" />
+          <div className="relative flex items-start gap-3">
+            <AlertTriangle className="mt-1 h-5 w-5" />
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Consumo de Combustible por Vehículo</h2>
-          <p className="text-gray-600 dark:text-gray-300">Resumen de consumo y eficiencia de los vehículos a tu cargo.</p>
-        </div>
-        {canRegisterFuel && (
-          <button onClick={() => setShowFuelForm(true)} className="inline-flex items-center gap-2 px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700">
-            <Plus className="w-4 h-4" />
-            <span>Registrar Carga</span>
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Distancia Recorrida</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{extraKpis.totalDistance.toLocaleString()} km</p>
-            </div>
-            <Route className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Total Cargado</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{extraKpis.totalLiters.toFixed(1)} L</p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-green-600" />
-          </div>
-        </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Vehículos</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{filtered.length}</p>
-            </div>
-            <FuelIcon className="w-8 h-8 text-amber-600" />
-          </div>
-        </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Consumo Promedio</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{extraKpis.avgConsumption.toFixed(1)} L/100km</p>
-            </div>
-            <Gauge className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Eficiencia Pobre</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{extraKpis.poorVehicles}</p>
-            </div>
-            <AlertTriangle className="w-8 h-8 text-red-600" />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm lg:grid-cols-4 dark:bg-gray-800 dark:border-gray-700">
-        <div className="relative lg:col-span-2">
-          <Search className="absolute w-4 h-4 text-gray-400 -translate-y-1/2 left-3 top-1/2 dark:text-gray-500" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por patente, marca o modelo..."
-            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 placeholder-gray-400 dark:placeholder-gray-500"
-            aria-label="Buscar"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="from" className="block mb-1 text-sm text-gray-700 dark:text-gray-300">Desde</label>
-            <input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" />
-          </div>
-          <div>
-            <label htmlFor="to" className="block mb-1 text-sm text-gray-700 dark:text-gray-300">Hasta</label>
-            <input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4">
-        {filtered.map(vehicle => {
-          const open = !!expanded[vehicle.id];
-          const { consumption } = calculateVehicleMetrics(vehicle);
-          const efficiency = calculateEfficiency(consumption);
-          return (
-            <div key={vehicle.id} className="p-6 bg-white border border-gray-200 shadow-sm rounded-xl dark:bg-gray-800 dark:border-gray-700">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-start gap-3">
-                  <button
-                    className="p-2 rounded-md bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600"
-                    aria-label={open ? 'Contraer' : 'Expandir'}
-                    onClick={() => setExpanded(s => ({ ...s, [vehicle.id]: !open }))}
-                  >
-                    {open ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                  </button>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{vehicle.patente}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{vehicle.marca} {vehicle.modelo}</p>
-                  </div>
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-br from-sky-100 via-white to-emerald-100 px-8 py-6 shadow-xl shadow-slate-200/50 dark:border-white/10 dark:from-slate-900 dark:via-slate-950 dark:to-emerald-900/10 dark:shadow-slate-900/40">
+        <div className="pointer-events-none absolute -left-24 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-sky-400/25 blur-3xl dark:bg-sky-500/20" />
+        <div className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-emerald-300/30 blur-3xl dark:bg-emerald-500/20" />
+        <div className="relative flex flex-wrap items-center justify-between gap-8">
+          <div className="max-w-2xl space-y-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+              <FuelIcon className="h-4 w-4" />
+              <span>Panel de combustible</span>
+            </span>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Visibilidad integral del consumo y eficiencia por vehículo</h1>
+            <p className="text-sm text-slate-600 dark:text-blue-100/80">
+              Controla cómo evolucionan las cargas, identifica hábitos críticos y acompaña a conductores con recomendaciones claras. Todo bajo el nuevo lenguaje visual del tablero corporativo.
+            </p>
+            <div className="grid gap-3 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70 sm:grid-cols-2">
+              {ranking.best ? (
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-2 text-emerald-600 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">
+                  <Sparkles className="h-4 w-4" /> Mejor eficiencia: {ranking.best.vehicle.patente} · {ranking.best.metrics.consumption.toFixed(1)} L/100km
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">Total Cargado: <strong className="text-gray-900 dark:text-gray-100">{(vehicle.fuelLogs || []).reduce((s, l) => s + l.liters, 0).toFixed(1)} L</strong></span>
-                  <span className="inline-flex items-center gap-2 text-sm font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                    <Gauge className="w-4 h-4" /> {consumption > 0 ? consumption.toFixed(1) : '--'} L/100km
-                  </span>
-                  <span className={`${efficiencyBadgeClass(efficiency)} bg-gray-50 dark:bg-gray-800 px-2.5 py-1 rounded-full text-xs font-semibold`}>{efficiency.toUpperCase()}</span>
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-2 text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-200/70">
+                  <Sparkles className="h-4 w-4" /> Aún sin mediciones suficientes
                 </div>
-              </div>
-
-              {open && (
-                <div className="grid gap-3 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Historial de Cargas</h4>
-                  {(vehicle.fuelLogs || []).length > 0 ? (vehicle.fuelLogs || []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(log => (
-                    <div key={log.id} className="flex flex-col gap-3 p-4 rounded-lg md:flex-row md:items-center md:justify-between bg-gray-50 dark:bg-gray-700">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-600"><FuelIcon className="w-5 h-5 text-amber-600" /></div>
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-gray-100">{new Date(log.date).toLocaleDateString()}</div>
-                          <div className="text-sm text-gray-600 dark:text-gray-300">Registrado por: {log.driver.username}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-700 dark:text-gray-200">Odómetro: <strong className="text-gray-900 dark:text-gray-100">{log.odometer.toLocaleString()} km</strong></span>
-                        <span className="text-sm text-gray-700 dark:text-gray-200">Litros: <strong className="text-gray-900 dark:text-gray-100">{log.liters.toFixed(1)} L</strong></span>
-                        {log.cost && <span className="text-sm text-gray-700 dark:text-gray-200">Costo: <strong className="text-gray-900 dark:text-gray-100">${log.cost.toLocaleString()}</strong></span>}
-                      </div>
-                    </div>
-                  )) : <p className="p-4 text-sm text-gray-500">No hay registros de combustible para este vehículo.</p>}
+              )}
+              {ranking.worst ? (
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-rose-200/70 bg-white/70 px-4 py-2 text-rose-600 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+                  <AlertTriangle className="h-4 w-4" /> Vigilancia: {ranking.worst.vehicle.patente} · {ranking.worst.metrics.consumption.toFixed(1)} L/100km
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-2 text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-200/70">
+                  <AlertTriangle className="h-4 w-4" /> Sin alertas activas
                 </div>
               )}
             </div>
-          );
-        })}
+          </div>
+          {canRegisterFuel && (
+            <button
+              type="button"
+              onClick={() => setShowFuelForm(true)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
+            >
+              <Plus className="h-4 w-4" /> Registrar nueva carga
+            </button>
+          )}
+        </div>
+      </section>
+
+      <FuelKpis
+        totalDistance={fleetMetrics.totalDistance}
+        totalLiters={fleetMetrics.totalLiters}
+        avgConsumption={fleetMetrics.avgConsumption}
+        monitoredVehicles={fleetMetrics.monitoredVehicles}
+        criticalVehicles={fleetMetrics.criticalVehicles}
+        refuelCount={fleetMetrics.refuelCount}
+      />
+
+      <section className="grid gap-6 lg:grid-cols-5">
+        <article className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 p-6 shadow-lg shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/30 lg:col-span-3">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_rgba(14,165,233,0)_65%)]" />
+          <div className="relative flex flex-col gap-4">
+            <header className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Tendencia de consumo de flota</h2>
+                <p className="text-sm text-slate-500 dark:text-blue-200/80">{fleetMetrics.refuelCount > 0 ? `${fleetMetrics.refuelCount.toLocaleString('es-CL')} recargas registradas en el periodo` : 'Sin recargas registradas aún'}.</p>
+              </div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:bg-white/10 dark:text-blue-200/70">
+                <Gauge className="h-3.5 w-3.5" /> {fleetMetrics.avgConsumption > 0 ? `${fleetMetrics.avgConsumption.toFixed(1)} L/100km promedio` : 'A la espera de datos'}
+              </span>
+            </header>
+            <div className="h-52 w-full md:h-60">
+              <FuelTrendsSparkline data={fleetTrendData} />
+            </div>
+          </div>
+        </article>
+        <div className="grid gap-4 lg:col-span-2">
+          <article className="relative overflow-hidden rounded-3xl border border-emerald-200/60 bg-emerald-50/80 px-5 py-4 text-emerald-700 shadow-md shadow-emerald-200/40 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.25),_rgba(20,83,45,0)_75%)]" />
+            <div className="relative space-y-1">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.32em]">Conducción eficiente</h3>
+              <p className="text-sm leading-6">
+                {ranking.best
+                  ? `Mantén la ruta de ${ranking.best.vehicle.patente}. Logra ${ranking.best.metrics.consumption.toFixed(1)} L/100km con ${ranking.best.refuelCount} recarga(s).`
+                  : 'Comienza a registrar consumo para premiar a los conductores con mejores registros.'}
+              </p>
+            </div>
+          </article>
+          <article className="relative overflow-hidden rounded-3xl border border-rose-200/60 bg-rose-50/80 px-5 py-4 text-rose-700 shadow-md shadow-rose-200/40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(244,63,94,0.25),_rgba(76,5,25,0)_75%)]" />
+            <div className="relative space-y-1">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.32em]">Alertas de consumo</h3>
+              <p className="text-sm leading-6">
+                {fleetMetrics.criticalVehicles > 0
+                  ? `${fleetMetrics.criticalVehicles} vehículo(s) requieren seguimiento. El de mayor consumo es ${ranking.worst?.vehicle.patente ?? 'N/D'}.`
+                  : 'Todo el parque opera dentro de los márgenes definidos. Mantén la disciplina de registro.'}
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <FuelFilters
+        search={search}
+        from={from}
+        to={to}
+        total={summaries.length}
+        onSearchChange={setSearch}
+        onFromChange={setFrom}
+        onToChange={setTo}
+      />
+
+      <div className="grid gap-6">
+        {summaries.map((summary) => (
+          <FuelVehicleCard
+            key={summary.vehicle.id}
+            vehicle={summary.vehicle}
+            metrics={summary.metrics}
+            isExpanded={Boolean(expanded[summary.vehicle.id])}
+            onToggle={() => setExpanded((previous) => ({ ...previous, [summary.vehicle.id]: !previous[summary.vehicle.id] }))}
+          />
+        ))}
       </div>
 
-      {filtered.length === 0 && (
-        <div className="py-12 text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-          <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">No se encontraron vehículos</h3>
-          <p className="text-gray-600 dark:text-gray-300">No tienes vehículos asignados o no hay resultados para tu búsqueda.</p>
+      {summaries.length === 0 && (
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 px-6 py-12 text-center shadow-lg shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/30">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_rgba(15,23,42,0)_70%)]" />
+          <div className="relative space-y-3">
+            <AlertTriangle className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500" />
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">No se encontraron vehículos con los criterios actuales</h3>
+            <p className="text-sm text-slate-500 dark:text-blue-200/80">Ajusta los filtros o solicita acceso a la flota que necesitas monitorear.</p>
+          </div>
         </div>
       )}
 

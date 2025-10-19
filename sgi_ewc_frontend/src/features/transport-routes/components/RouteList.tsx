@@ -1,10 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import type { TransportRoute } from '../context/RouteContext';
 import { useRouteContext } from '../context/useRouteContext';
-import { Pencil, Power, Download } from 'lucide-react';
+import { Pencil, Power, Download, Plus, SlidersHorizontal, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 import ReactDOM from 'react-dom';
 
-const RouteList: React.FC = () => {
+interface RouteListProps {
+  onCreate?: () => void;
+}
+
+const RouteList: React.FC<RouteListProps> = ({ onCreate }) => {
   const { routes, toggleActive, loading, error } = useRouteContext();
   const [editTarget, setEditTarget] = useState<TransportRoute | null>(null);
   const [query, setQuery] = useState('');
@@ -89,105 +93,152 @@ const RouteList: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const thCls = 'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300';
-
   return (
-    <div className="p-4 bg-white rounded-lg shadow dark:bg-gray-900">
-      <div className="p-4 mb-4 border border-gray-200 rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40">
-        <div className="grid items-end gap-4 md:grid-cols-4 lg:grid-cols-6">
-          <div className="md:col-span-2 lg:col-span-2">
-            <label htmlFor="route-search" className="block mb-1 text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Buscar (código / origen / destino)</label>
-            <input id="route-search" value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} placeholder="Ej: R-001 o Planta" className="w-full px-3 py-2 text-sm text-gray-900 border rounded focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/70 px-6 py-6 shadow-xl shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/40">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_rgba(191,219,254,0.05))] dark:bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.18),_rgba(15,23,42,0.4))]" />
+      <div className="relative space-y-5">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3 text-sm font-medium uppercase tracking-[0.32em] text-slate-500 dark:text-blue-200/70">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-300/40 dark:shadow-sky-900/40">
+              <SlidersHorizontal className="h-5 w-5" />
+            </span>
+            <span>Panel de control</span>
           </div>
-          <div>
-            <label htmlFor="freq-filter" className="block mb-1 text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Frecuencia</label>
-            <select id="freq-filter" value={frequencyFilter} onChange={e => { setFrequencyFilter(e.target.value); setPage(1); }} className="w-full px-3 py-2 text-sm text-gray-900 border rounded focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700">
-              <option value=''>Todas</option>
-              <option value='Diaria'>Diaria</option>
-              <option value='Semanal'>Semanal</option>
-              <option value='Mensual'>Mensual</option>
-              <option value='Ocasional'>Ocasional</option>
-            </select>
-          </div>
-          <fieldset className="md:col-span-2 lg:col-span-2">
-            <legend className="block mb-1 text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Estado</legend>
-            <div className="inline-flex overflow-hidden text-xs bg-white border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-900">
-              <button
-                type="button"
-                aria-pressed={!onlyActive}
-                onClick={() => {
-                  if (onlyActive) {
-                    setOnlyActive(false);
-                    setPage(1);
-                  }
-                }}
-                className={`px-3 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${onlyActive ? 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300' : 'bg-blue-600 text-white dark:bg-blue-500'}`}
-              >
-                Todas
-              </button>
-              <button
-                type="button"
-                aria-pressed={onlyActive}
-                onClick={() => {
-                  if (onlyActive === false) {
-                    setOnlyActive(true);
-                    setPage(1);
-                  }
-                }}
-                className={`px-3 py-1 font-medium border-l border-gray-300 dark:border-gray-600 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${onlyActive ? 'bg-blue-600 text-white dark:bg-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
-              >
-                Solo activas
-              </button>
-            </div>
-          </fieldset>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             {(query || frequencyFilter || onlyActive) && (
-              <button onClick={() => { setQuery(''); setFrequencyFilter(''); setOnlyActive(false); setPage(1); setSort(null); }} className="px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-100 dark:bg-gray-900 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">Limpiar</button>
+              <button
+                onClick={() => { setQuery(''); setFrequencyFilter(''); setOnlyActive(false); setPage(1); setSort(null); }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100 dark:hover:border-white/30 dark:hover:text-white"
+              >
+                Limpiar filtros
+              </button>
             )}
-            <button onClick={exportFiltered} className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 bg-white border border-blue-600 rounded hover:bg-blue-50 dark:bg-gray-900 dark:hover:bg-gray-800">
-              <Download className="w-4 h-4 mr-1" /> Exportar
+            <button
+              onClick={exportFiltered}
+              className="inline-flex items-center gap-2 rounded-2xl border border-sky-400 bg-white/70 px-3 py-2 text-xs font-semibold text-sky-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-50 dark:border-white/20 dark:bg-white/10 dark:text-white"
+            >
+              <Download className="h-4 w-4" /> Exportar CSV
             </button>
+            {onCreate && (
+              <button
+                onClick={onCreate}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
+              >
+                <Plus className="h-4 w-4" /> Nueva Ruta
+              </button>
+            )}
+          </div>
+        </header>
+
+        <section className="rounded-3xl border border-slate-200/70 bg-white/70 px-4 py-6 shadow-inner shadow-slate-200/50 dark:border-white/10 dark:bg-white/5 dark:shadow-black/30">
+          <div className="grid items-end gap-4 md:grid-cols-4 lg:grid-cols-6">
+            <div className="md:col-span-2 lg:col-span-3">
+              <label htmlFor="route-search" className="mb-2 block text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                Buscar (código / origen / destino)
+              </label>
+              <input
+                id="route-search"
+                value={query}
+                onChange={e => { setQuery(e.target.value); setPage(1); }}
+                placeholder="Ej. R-001 o Planta Quilicura"
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-blue-200/60 dark:focus:ring-sky-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="freq-filter" className="mb-2 block text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                Frecuencia
+              </label>
+              <select
+                id="freq-filter"
+                value={frequencyFilter}
+                onChange={e => { setFrequencyFilter(e.target.value); setPage(1); }}
+                className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white dark:focus:ring-sky-500"
+              >
+                <option value="">Todas</option>
+                <option value="Diaria">Diaria</option>
+                <option value="Semanal">Semanal</option>
+                <option value="Mensual">Mensual</option>
+                <option value="Ocasional">Ocasional</option>
+              </select>
+            </div>
+            <fieldset className="md:col-span-2 lg:col-span-2">
+              <legend className="mb-2 block text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                Estado
+              </legend>
+              <div className="inline-flex overflow-hidden rounded-2xl border border-slate-200 bg-white/70 text-xs font-semibold text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
+                <button
+                  type="button"
+                  aria-pressed={!onlyActive}
+                  onClick={() => {
+                    if (onlyActive) {
+                      setOnlyActive(false);
+                      setPage(1);
+                    }
+                  }}
+                  className={`px-4 py-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 dark:focus-visible:ring-sky-500 ${onlyActive ? 'hover:bg-slate-100 dark:hover:bg-white/10' : 'bg-gradient-to-br from-sky-500 to-indigo-500 text-white shadow-md shadow-sky-200/50 dark:shadow-sky-900/50'}`}
+                >
+                  Todas
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={onlyActive}
+                  onClick={() => {
+                    if (!onlyActive) {
+                      setOnlyActive(true);
+                      setPage(1);
+                    }
+                  }}
+                  className={`px-4 py-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 dark:focus-visible:ring-sky-500 ${onlyActive ? 'bg-gradient-to-br from-sky-500 to-indigo-500 text-white shadow-md shadow-sky-200/50 dark:shadow-sky-900/50' : 'hover:bg-slate-100 dark:hover:bg-white/10'}`}
+                >
+                  Sólo activas
+                </button>
+              </div>
+            </fieldset>
+          </div>
+        </section>
+
+        <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/80 shadow-inner shadow-slate-200/40 dark:border-white/10 dark:bg-white/5 dark:shadow-black/40">
+          <div className="overflow-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-gradient-to-r from-slate-100 to-slate-200 text-xs uppercase tracking-[0.24em] text-slate-600 dark:from-slate-800 dark:to-slate-900 dark:text-blue-100">
+                  <SortableTh label="Código" field="code" sort={sort} onToggle={toggleSort} />
+                  <SortableTh label="Origen" field="origin" sort={sort} onToggle={toggleSort} />
+                  <SortableTh label="Destino" field="destination" sort={sort} onToggle={toggleSort} />
+                  <SortableTh label="Distancia (km)" field="distanceKm" sort={sort} onToggle={toggleSort} />
+                  <SortableTh label="Frecuencia" field="frequency" sort={sort} onToggle={toggleSort} />
+                  <SortableTh label="Estado" field="active" sort={sort} onToggle={toggleSort} />
+                  <SortableTh label="Creada" field="createdAt" sort={sort} onToggle={toggleSort} />
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em]">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500 dark:text-blue-100/70">Cargando rutas...</td>
+                  </tr>
+                )}
+                {error && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-rose-500 dark:text-rose-300">Error: {error}</td>
+                  </tr>
+                )}
+                {paged.map(r => (
+                  <RouteRow key={r.id} route={r} onEdit={() => setEditTarget(r)} onToggle={() => toggleActive(r.id)} />
+                ))}
+                {paged.length === 0 && !loading && !error && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500 dark:text-blue-100/70">Sin resultados con los filtros actuales</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
+
+        {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onChange={setPage} />}
+        {editTarget && <RouteListEditPortal route={editTarget} onClose={() => setEditTarget(null)} />}
       </div>
-      <div className="overflow-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-gray-100 dark:bg-gray-800">
-              <SortableTh label="Código" field="code" sort={sort} onToggle={toggleSort} />
-              <SortableTh label="Origen" field="origin" sort={sort} onToggle={toggleSort} />
-              <SortableTh label="Destino" field="destination" sort={sort} onToggle={toggleSort} />
-              <SortableTh label="Distancia (km)" field="distanceKm" sort={sort} onToggle={toggleSort} />
-              <SortableTh label="Frecuencia" field="frequency" sort={sort} onToggle={toggleSort} />
-              <SortableTh label="Estado" field="active" sort={sort} onToggle={toggleSort} />
-              <SortableTh label="Creada" field="createdAt" sort={sort} onToggle={toggleSort} />
-              <th className={thCls}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={8} className="px-3 py-10 text-sm text-center text-gray-500 dark:text-gray-400">Cargando rutas...</td>
-              </tr>
-            )}
-            {error && (
-              <tr>
-                <td colSpan={8} className="px-3 py-10 text-sm text-center text-red-500 dark:text-red-400">
-                  Error: {error}
-                </td>
-              </tr>
-            )}
-            {paged.map(r => <RouteRow key={r.id} route={r} onEdit={() => setEditTarget(r)} onToggle={() => toggleActive(r.id)} />)}
-            {paged.length === 0 && loading === false && error == null && (
-              <tr>
-                <td colSpan={8} className="px-3 py-4 text-sm text-center text-gray-500 dark:text-gray-400">Sin resultados</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      {editTarget && <RouteListEditPortal route={editTarget} onClose={() => setEditTarget(null)} />}
-      {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onChange={setPage} />}
     </div>
   );
 };
@@ -195,25 +246,25 @@ const RouteList: React.FC = () => {
 interface RowProps { route: TransportRoute; onEdit: () => void; onToggle: () => void; }
 
 const RouteRow: React.FC<RowProps> = ({ route, onEdit, onToggle }) => {
-  const tdCls = 'px-3 py-2 text-sm text-gray-800 dark:text-gray-200 whitespace-nowrap';
+  const tdCls = 'px-4 py-3 text-sm text-slate-700 dark:text-slate-100 whitespace-nowrap';
   return (
-    <tr className="border-b border-gray-200 last:border-0 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/60">
+    <tr className="border-b border-slate-200/70 last:border-0 bg-white/60 backdrop-blur-sm transition hover:bg-sky-50/60 dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10">
       <td className={tdCls}>{route.code}</td>
       <td className={tdCls}>{route.origin}</td>
       <td className={tdCls}>{route.destination}</td>
       <td className={tdCls}>{route.distanceKm.toLocaleString()}</td>
       <td className={tdCls}>{route.frequency}</td>
       <td className={tdCls}>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${route.active ? 'bg-green-100 text-green-700 dark:bg-green-800/40 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-800/40 dark:text-red-300'}`}>{route.active ? 'Activa' : 'Inactiva'}</span>
+        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${route.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200'}`}>{route.active ? 'Activa' : 'Inactiva'}</span>
       </td>
       <td className={tdCls}>{route.createdAt.toLocaleDateString()}</td>
       <td className={tdCls}>
         <div className="flex items-center gap-2">
-          <button onClick={onEdit} className="p-1 text-blue-600 transition rounded hover:bg-blue-50 dark:hover:bg-blue-900/30" title="Editar">
-            <Pencil className="w-4 h-4" />
+          <button onClick={onEdit} className="group rounded-xl border border-sky-200 bg-white/80 p-1.5 text-sky-600 shadow-sm transition hover:border-sky-400 hover:text-sky-800 dark:border-white/10 dark:bg-white/5 dark:text-blue-100 dark:hover:border-white/30" title="Editar">
+            <Pencil className="h-4 w-4" />
           </button>
-          <button onClick={onToggle} className={`p-1 transition rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${route.active ? 'text-amber-600' : 'text-green-600'}`} title={route.active ? 'Desactivar' : 'Activar'}>
-            <Power className="w-4 h-4" />
+          <button onClick={onToggle} className={`group rounded-xl border p-1.5 transition hover:-translate-y-0.5 ${route.active ? 'border-amber-300 bg-amber-50/60 text-amber-600 hover:border-amber-400 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200' : 'border-emerald-300 bg-emerald-50/60 text-emerald-600 hover:border-emerald-400 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200'}`} title={route.active ? 'Desactivar' : 'Activar'}>
+            <Power className="h-4 w-4" />
           </button>
         </div>
       </td>
@@ -235,13 +286,20 @@ const RouteListEditPortal: React.FC<{ route: TransportRoute; onClose: () => void
 const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = ({ route, onClose }) => {
   const { updateRoute } = useRouteContext();
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-xl p-6 mt-10 bg-white border border-gray-200 rounded-lg shadow-xl dark:bg-gray-900 dark:border-gray-700">
-        <div className="flex items-start justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Editar {route.code}</h2>
-          <button onClick={onClose} className="p-2 text-gray-500 rounded hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Cerrar">×</button>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
+      <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-slate-800 shadow-2xl shadow-slate-300/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-100">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-400 dark:text-blue-200/70">Edición rápida</p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight">Editar {route.code}</h2>
+          </div>
+          <button onClick={onClose} className="rounded-2xl border border-slate-200 bg-white/80 p-2 text-slate-500 transition hover:border-slate-400 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-blue-100" aria-label="Cerrar">
+            ×
+          </button>
         </div>
-        <form onSubmit={(e) => {
+        <form
+          className="mt-6 space-y-5"
+          onSubmit={(e) => {
           e.preventDefault();
           const form = e.currentTarget as HTMLFormElement;
           const fd = new FormData(form);
@@ -255,15 +313,16 @@ const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = (
           }).then(() => {
             onClose();
           });
-        }} className="space-y-4">
+        }}
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="edit-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Código</label>
-              <input id="edit-code" name="code" defaultValue={route.code} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+              <label htmlFor="edit-code" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Código</label>
+              <input id="edit-code" name="code" defaultValue={route.code} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
             </div>
             <div>
-              <label htmlFor="edit-frequency" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Frecuencia</label>
-              <select id="edit-frequency" name="frequency" defaultValue={route.frequency} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700">
+              <label htmlFor="edit-frequency" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Frecuencia</label>
+              <select id="edit-frequency" name="frequency" defaultValue={route.frequency} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white">
                 <option>Diaria</option>
                 <option>Semanal</option>
                 <option>Mensual</option>
@@ -271,25 +330,25 @@ const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = (
               </select>
             </div>
             <div>
-              <label htmlFor="edit-origin" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Origen</label>
-              <input id="edit-origin" name="origin" defaultValue={route.origin} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+              <label htmlFor="edit-origin" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Origen</label>
+              <input id="edit-origin" name="origin" defaultValue={route.origin} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
             </div>
             <div>
-              <label htmlFor="edit-destination" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Destino</label>
-              <input id="edit-destination" name="destination" defaultValue={route.destination} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+              <label htmlFor="edit-destination" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Destino</label>
+              <input id="edit-destination" name="destination" defaultValue={route.destination} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
             </div>
             <div>
-              <label htmlFor="edit-distance" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">Distancia (km)</label>
-              <input id="edit-distance" name="distanceKm" type="number" min={1} defaultValue={route.distanceKm} className="w-full px-3 py-2 text-sm text-gray-900 border rounded dark:text-gray-100 dark:bg-gray-800 dark:border-gray-700" />
+              <label htmlFor="edit-distance" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Distancia (km)</label>
+              <input id="edit-distance" name="distanceKm" type="number" min={1} defaultValue={route.distanceKm} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
             </div>
-            <div className="flex items-center pt-6 space-x-2">
-              <input id="active-edit" name="active" type="checkbox" defaultChecked={route.active} />
-              <label htmlFor="active-edit" className="text-sm text-gray-700 dark:text-gray-200">Activa</label>
+            <div className="flex items-center gap-2 pt-6">
+              <input id="active-edit" name="active" type="checkbox" defaultChecked={route.active} className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-400 dark:border-white/20 dark:bg-white/10" />
+              <label htmlFor="active-edit" className="text-sm text-slate-600 dark:text-blue-100">Activa</label>
             </div>
           </div>
-          <div className="flex justify-end pt-2 space-x-2 border-t border-gray-200 dark:border-gray-700">
-            <button type="button" onClick={onClose} className="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Cancelar</button>
-            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded hover:bg-blue-700">Guardar</button>
+          <div className="flex justify-end gap-3 border-t border-slate-200/70 pt-4 dark:border-white/10">
+            <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100">Cancelar</button>
+            <button type="submit" className="rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5">Guardar cambios</button>
           </div>
         </form>
       </div>
@@ -300,10 +359,19 @@ const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = (
 const SortableTh: React.FC<{ label: string; field: string; sort: { field: string; dir: 'asc' | 'desc' } | null; onToggle: (f: string) => void; }> = ({ label, field, sort, onToggle }) => {
   const active = sort?.field === field;
   const dir = active ? sort?.dir : undefined;
-  const thCls = 'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300';
+  let icon = <ArrowUpDown className="h-3 w-3" />;
+  if (active) {
+    icon = dir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+  }
   return (
-    <th onClick={() => onToggle(field)} className={`${thCls} cursor-pointer select-none hover:text-gray-900 dark:hover:text-white`}>
-      <span className="inline-flex items-center gap-1">{label}{active && (dir === 'asc' ? '▲' : '▼')}</span>
+    <th
+      onClick={() => onToggle(field)}
+      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.24em] text-slate-600 transition hover:text-slate-900 dark:text-blue-100 dark:hover:text-white"
+    >
+      <span className="inline-flex items-center gap-2">
+        {label}
+        {icon}
+      </span>
     </th>
   );
 };
@@ -312,11 +380,23 @@ const Pagination: React.FC<{ page: number; totalPages: number; onChange: (p: num
   const canPrev = page > 1;
   const canNext = page < totalPages;
   return (
-    <div className="flex items-center justify-between mt-4 text-xs">
-      <div className="text-gray-600 dark:text-gray-400">Página {page} de {totalPages}</div>
+    <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/70 bg-white/70 px-5 py-4 text-xs shadow-inner shadow-slate-200/40 dark:border-white/10 dark:bg-white/5 dark:text-blue-100/80">
+      <div>Página {page} de {totalPages}</div>
       <div className="flex gap-2">
-        <button disabled={!canPrev} onClick={() => canPrev && onChange(page - 1)} className={`px-2 py-1 rounded border text-gray-700 dark:text-gray-200 ${canPrev ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600' : 'opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700'}`}>Anterior</button>
-        <button disabled={!canNext} onClick={() => canNext && onChange(page + 1)} className={`px-2 py-1 rounded border text-gray-700 dark:text-gray-200 ${canNext ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600' : 'opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700'}`}>Siguiente</button>
+        <button
+          disabled={!canPrev}
+          onClick={() => canPrev && onChange(page - 1)}
+          className={`flex-1 rounded-2xl border px-4 py-2 font-semibold transition ${canPrev ? 'border-slate-200 bg-white/80 text-slate-600 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100' : 'border-slate-200/60 text-slate-400/70 opacity-60 dark:border-white/5 dark:text-blue-100/40'}`}
+        >
+          Anterior
+        </button>
+        <button
+          disabled={!canNext}
+          onClick={() => canNext && onChange(page + 1)}
+          className={`flex-1 rounded-2xl border px-4 py-2 font-semibold transition ${canNext ? 'border-slate-200 bg-white/80 text-slate-600 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100' : 'border-slate-200/60 text-slate-400/70 opacity-60 dark:border-white/5 dark:text-blue-100/40'}`}
+        >
+          Siguiente
+        </button>
       </div>
     </div>
   );

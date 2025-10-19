@@ -5,6 +5,8 @@ import Header from '../../components/Layout/Header';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
 import { useAuth } from '../../contexts/AuthContext';
 
+type UiDensity = 'comfortable' | 'compact';
+
 const titleMap: Record<string, string> = {
   '/': 'Dashboard',
   '/rutas': 'Gestión de Rutas',
@@ -27,6 +29,10 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [uiDensity, setUiDensity] = useState<UiDensity>(() => {
+    const stored = localStorage.getItem('uiDensity');
+    return stored === 'compact' ? 'compact' : 'comfortable';
+  });
 
   // Tema (light/dark/system) y listeners globales
   useEffect(() => {
@@ -53,6 +59,33 @@ export default function MainLayout() {
     globalThis.addEventListener?.('force-logout', handleForceLogout);
     return () => globalThis.removeEventListener?.('force-logout', handleForceLogout);
   }, [logout]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('uiDensity');
+    if (stored === 'compact' || stored === 'comfortable') {
+      setUiDensity(stored);
+    }
+    const handleDensityChange = (event: Event) => {
+      const custom = event as CustomEvent<UiDensity>;
+      const detail = custom.detail;
+      if (detail === 'compact' || detail === 'comfortable') {
+        setUiDensity(detail);
+      }
+    };
+    globalThis.addEventListener?.('ui-density-change', handleDensityChange as EventListener);
+    return () => globalThis.removeEventListener?.('ui-density-change', handleDensityChange as EventListener);
+  }, []);
+
+  useEffect(() => {
+  document.documentElement.dataset.uiDensity = uiDensity;
+    const root = document.documentElement;
+    const spacing = uiDensity === 'compact' ? '1rem' : '1.5rem';
+    const controlPadding = uiDensity === 'compact' ? '0.6rem 0.9rem' : '0.75rem 1.15rem';
+    const radius = uiDensity === 'compact' ? '0.9rem' : '1.2rem';
+    root.style.setProperty('--app-spacing', spacing);
+    root.style.setProperty('--app-control-padding', controlPadding);
+    root.style.setProperty('--app-card-radius', radius);
+  }, [uiDensity]);
 
   // mustChangePassword
   useEffect(() => {
@@ -112,6 +145,7 @@ export default function MainLayout() {
           };
           navigate(to[id] || '/');
         }}
+        uiDensity={uiDensity}
       />
 
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -119,8 +153,13 @@ export default function MainLayout() {
           title={currentTitle}
           onProfileClick={() => navigate('/perfil')}
           onSettingsClick={() => navigate('/ajustes')}
+          uiDensity={uiDensity}
         />
-        <main className="flex-1 p-6 overflow-y-auto bg-gray-100 dark:bg-gray-950">
+        <main
+          className={`flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-950 ${
+            uiDensity === 'compact' ? 'p-4' : 'p-6'
+          }`}
+        >
           <Outlet />
         </main>
       </div>
