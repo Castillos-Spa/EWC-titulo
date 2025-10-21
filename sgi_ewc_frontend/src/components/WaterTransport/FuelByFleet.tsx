@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getFleetFuelSummary, type VehicleWithFuelHistory } from '../../utils/fuelApi';
 import { Fuel as FuelIcon, Plus, Search, TrendingUp, Gauge, AlertTriangle, ChevronDown, ChevronRight, Route } from 'lucide-react';
-import FuelLogFormModal from './FuelLogFormModal';
+import FuelLogFormModal from '../../features/fuel/components/FuelLogFormModal';
 
 type FleetFuelSummary = {
   fleetId: string;
@@ -40,7 +40,7 @@ const FuelByFleet: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getFleetFuelSummary(from, to); // La API ahora filtra por usuario
+      const data = await getFleetFuelSummary();
       setVehicles(data);
       setError(null);
     } catch (e) {
@@ -49,7 +49,7 @@ const FuelByFleet: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [from, to]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -61,11 +61,32 @@ const FuelByFleet: React.FC = () => {
     fetchData();
   };
 
+  const vehiclesByDate = useMemo(() => {
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(to) : null;
+
+    return vehicles.map((vehicle) => {
+      const filteredLogs = (vehicle.fuelLogs ?? []).filter((log) => {
+        const timestamp = new Date(log.date).getTime();
+        if (Number.isNaN(timestamp)) return true;
+        if (fromDate && timestamp < fromDate.getTime()) return false;
+        if (toDate && timestamp > toDate.getTime()) return false;
+        return true;
+      });
+
+      if (filteredLogs.length === vehicle.fuelLogs?.length) {
+        return vehicle;
+      }
+
+      return { ...vehicle, fuelLogs: filteredLogs };
+    });
+  }, [vehicles, from, to]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return vehicles;
-    return vehicles.filter(v => v.patente.toLowerCase().includes(q) || v.marca.toLowerCase().includes(q) || v.modelo.toLowerCase().includes(q));
-  }, [vehicles, search]);
+    if (!q) return vehiclesByDate;
+    return vehiclesByDate.filter(v => v.patente.toLowerCase().includes(q) || v.marca.toLowerCase().includes(q) || v.modelo.toLowerCase().includes(q));
+  }, [vehiclesByDate, search]);
 
   const calculateEfficiency = (avgConsumption: number): FleetFuelSummary['efficiency'] => {
     if (avgConsumption <= 0) return 'average';
@@ -113,9 +134,9 @@ const FuelByFleet: React.FC = () => {
 
     const avgConsumption = consumptions.reduce((sum, c) => sum + c, 0) / consumptions.length;
     let poorVehicles = 0;
-    consumptions.forEach(c => {
-      if (calculateEfficiency(c) === 'poor') poorVehicles++;
-    });
+    for (const consumption of consumptions) {
+      if (calculateEfficiency(consumption) === 'poor') poorVehicles++;
+    }
 
     const totalDistance = metrics.reduce((sum, m) => sum + m.totalDistance, 0);
     const totalLiters = (filtered || []).flatMap(v => v.fuelLogs || []).reduce((sum, log) => sum + log.liters, 0);

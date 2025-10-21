@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Fuel as FuelIcon, Gauge, Plus, Sparkles } from 'lucide-react';
 import { FuelProvider, useFuelContext } from '../context/FuelContext';
-import FuelLogFormModal from '../../../components/WaterTransport/FuelLogFormModal';
+import FuelLogFormModal from '../components/FuelLogFormModal';
 import { useAuth } from '../../../contexts/AuthContext';
 import FuelKpis from '../components/FuelKpis';
 import FuelFilters from '../components/FuelFilters';
