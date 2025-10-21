@@ -24,10 +24,6 @@ const RouteModulePageInner: React.FC = () => {
   return (
     <div className="space-y-6 text-gray-900 dark:text-gray-100">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="mb-2 text-xl font-bold tracking-tight">Módulo de Rutas (Mock)</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 max-w-prose">Registro y visualización básica de rutas de transporte con KPIs simples. Esta vista es un prototipo desconectado (sin backend) pensado para iterar requerimientos.</p>
-        </div>
         <div className="flex gap-2">
           <button onClick={() => setOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded shadow hover:bg-blue-700">Registrar Ruta</button>
         </div>

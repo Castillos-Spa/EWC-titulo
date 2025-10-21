@@ -1,6 +1,27 @@
 import type { Vehiculo } from "../types/Vehiculo";
 import apiFetch from "./api";
 
+type FleetFuelSummaryApiResponse =
+  | VehicleWithFuelHistory[]
+  | {
+      items?: VehicleWithFuelHistory[] | null;
+      data?: VehicleWithFuelHistory[] | null;
+      results?: VehicleWithFuelHistory[] | null;
+    };
+
+function normalizeFleetFuelSummary(
+  response: FleetFuelSummaryApiResponse | null | undefined
+): VehicleWithFuelHistory[] {
+  if (Array.isArray(response)) return response;
+  if (response && typeof response === "object") {
+    const candidates = [response.items, response.data, response.results];
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) return candidate;
+    }
+  }
+  return [];
+}
+
 export interface DateRange {
   from?: string;
   to?: string;
@@ -62,5 +83,6 @@ export async function createFuelLog(
  * @param to - Fecha de fin (actualmente no implementado en el backend)
  */
 export async function getFleetFuelSummary(): Promise<VehicleWithFuelHistory[]> {
-  return apiFetch("/fuel/summary");
+  const response = (await apiFetch("/fuel/summary")) as FleetFuelSummaryApiResponse;
+  return normalizeFleetFuelSummary(response);
 }

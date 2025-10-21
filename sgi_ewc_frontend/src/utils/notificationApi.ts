@@ -5,57 +5,80 @@ import type {
 } from "../types/Notification";
 import apiFetch from "./api";
 
-// Este tipo representa la data cruda que viene del backend
 type RawNotification = {
   id: number;
   title: string;
   message: string;
   priority: "low" | "normal" | "high";
   createdAt: string;
-  scheduledAt?: string;
+  scheduledAt?: string | null;
   pinned: boolean;
   areas: string[];
   roles: string[];
-  createdBy?: { username: string };
-  readBy: { userId: number; notificationId: number; read: boolean }[];
+  createdBy?: { username: string } | null;
+  readBy?: { userId: number; notificationId: number; read: boolean }[] | null;
+  type?: string | null;
 };
 
-function toAppNotification(n: RawNotification): AppNotification {
+type NotificationsApiResponse =
+  | RawNotification[]
+  | {
+      items?: RawNotification[] | null;
+      data?: RawNotification[] | null;
+      results?: RawNotification[] | null;
+    };
+
+const extractNotifications = (
+  response: NotificationsApiResponse | null | undefined,
+): RawNotification[] => {
+  if (!response) return [];
+  if (Array.isArray(response)) return response;
+  const candidates = [response.items, response.data, response.results];
+  const firstArray = candidates.find(Array.isArray);
+  return firstArray ? (firstArray as RawNotification[]) : [];
+};
+
+const toAppNotification = (raw: RawNotification): AppNotification => {
   let target: AppNotification["target"];
-  if (n.areas && n.areas.length > 0) {
-    target = { scope: "areas", areas: n.areas };
-  } else if (n.roles && n.roles.length > 0) {
-    target = { scope: "roles", roles: n.roles };
+  if (Array.isArray(raw.areas) && raw.areas.length > 0) {
+    target = { scope: "areas", areas: raw.areas };
+  } else if (Array.isArray(raw.roles) && raw.roles.length > 0) {
+    target = { scope: "roles", roles: raw.roles };
   } else {
     target = { scope: "global" };
   }
 
+  const isScheduled = !!(raw.scheduledAt && new Date(raw.scheduledAt) > new Date());
+  const hasReadEntry = Array.isArray(raw.readBy)
+    ? raw.readBy.some(entry => entry.read)
+    : false;
+
   return {
-    id: n.id.toString(),
-    title: n.title,
-    message: n.message,
-    priority: n.priority,
-    status:
-      n.scheduledAt && new Date(n.scheduledAt) > new Date()
-        ? "scheduled"
-        : "sent",
+    id: raw.id.toString(),
+    title: raw.title,
+    message: raw.message,
+    priority: raw.priority,
+    status: isScheduled ? "scheduled" : "sent",
     target,
-    createdBy: n.createdBy?.username || "Sistema",
-    createdAt: n.createdAt,
-    scheduledAt: n.scheduledAt,
-    pinned: n.pinned,
+    createdBy: raw.createdBy?.username || "Sistema",
+    createdAt: raw.createdAt,
+    scheduledAt: raw.scheduledAt ?? undefined,
+    pinned: raw.pinned,
+    type: raw.type ?? undefined,
+    read: hasReadEntry,
   };
-}
+};
 
 export async function listNotifications(): Promise<AppNotification[]> {
-  const notifications: RawNotification[] = await apiFetch("/notificacion");
-  return notifications.map(toAppNotification);
+  const response = (await apiFetch("/notificacion")) as NotificationsApiResponse;
+  const rawNotifications = extractNotifications(response);
+  return rawNotifications.map(toAppNotification);
 }
 
 export async function createNotification(
-  payload: CreateNotificationPayload
+  payload: CreateNotificationPayload,
 ): Promise<AppNotification> {
-  const newNotification: RawNotification = await apiFetch("/notificacion", {
+  const created = (await apiFetch("/notificacion", {
     method: "POST",
     body: JSON.stringify({
       title: payload.title,
@@ -64,21 +87,20 @@ export async function createNotification(
       scheduledAt: payload.scheduledAt,
       target: payload.target,
     }),
-  });
-  return toAppNotification(newNotification);
+  })) as RawNotification;
+
+  return toAppNotification(created);
 }
 
 export async function updateNotification(
   id: string,
-  payload: UpdateNotificationPayload
+  payload: UpdateNotificationPayload,
 ): Promise<AppNotification | null> {
-  const updated: RawNotification | null = await apiFetch(
-    `/notificacion/${id}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    }
-  );
+  const updated = (await apiFetch(`/notificacion/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  })) as RawNotification | null;
+
   return updated ? toAppNotification(updated) : null;
 }
 
@@ -86,13 +108,8 @@ export async function deleteNotification(id: string): Promise<void> {
   await apiFetch(`/notificacion/${id}`, { method: "DELETE" });
 }
 
-/**
- * Marca una notificación como leída para el usuario actual.
- * @param id - El ID de la notificación a marcar como leída.
- */
 export async function markNotificationAsRead(
-  id: string
+  id: string,
 ): Promise<AppNotification | null> {
-  // El backend sabe qué usuario está haciendo la petición por el token JWT
   return updateNotification(id, { read: true });
 }

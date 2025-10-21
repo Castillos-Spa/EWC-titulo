@@ -65,7 +65,8 @@ export const RouteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 			setLoading(true);
 			setError(null);
 			const apiRoutes = await getRoutes();
-			setRoutes(apiRoutes.map(adaptApiToTransportRoute));
+			const items = normalizeApiRoutes(apiRoutes);
+			setRoutes(items.map(adaptApiToTransportRoute));
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Error al cargar las rutas';
 			setError(errorMessage);
@@ -132,6 +133,15 @@ export const RouteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 };
 
 export default RouteContext;
+
+function normalizeApiRoutes(response: unknown): ApiTransportRoute[] {
+	if (Array.isArray(response)) return response;
+	if (response && typeof response === 'object') {
+		const maybeItems = (response as { items?: unknown }).items;
+		if (Array.isArray(maybeItems)) return maybeItems as ApiTransportRoute[];
+	}
+	return [];
+}
 
 function mapToApiPayload(data: CreateTransportRoutePayload): CreateRoutePayload {
 	const apiPayload: ApiCreateTransportRoutePayload = {

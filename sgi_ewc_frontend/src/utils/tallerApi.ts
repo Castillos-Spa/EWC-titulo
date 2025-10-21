@@ -2,6 +2,27 @@ import type { OrdenTrabajo } from "../types/OrdenTrabajo";
 import type { Vehiculo } from "../types/Vehiculo";
 import apiFetch from "./api";
 
+type PaginatedResponse<T> =
+  | T[]
+  | {
+      items?: T[] | null;
+      data?: T[] | null;
+      results?: T[] | null;
+    };
+
+const extractList = <T>(input: PaginatedResponse<T> | null | undefined): T[] => {
+  if (!input) return [];
+  if (Array.isArray(input)) return input;
+  if (typeof input === "object") {
+    const candidates = [input.items, input.data, input.results];
+    const found = candidates.find(Array.isArray);
+    if (found && Array.isArray(found)) {
+      return found as T[];
+    }
+  }
+  return [];
+};
+
 /**
  * Payload para crear una nueva orden de trabajo desde el taller.
  * Debes ajustar los campos según la definición de `CreateOrdenTrabajoTallerDto` en tu backend.
@@ -54,7 +75,8 @@ export async function createTallerWorkOrder(
  * Asume un endpoint GET /taller/orden-trabajo
  */
 export async function getTallerWorkOrders(): Promise<OrdenTrabajo[]> {
-  return apiFetch("/taller/orden-trabajo");
+  const response = (await apiFetch("/taller/orden-trabajo")) as PaginatedResponse<OrdenTrabajo>;
+  return extractList(response);
 }
 
 /**
@@ -72,14 +94,10 @@ export async function getVehiculosFromTaller(filters?: {
   if (filters?.estado) {
     params.append("estado", filters.estado);
   }
-  const url = `/taller/vehiculos?${params.toString()}`;
-  const response = await apiFetch(url);
-  // El backend devuelve un objeto paginado { items: [], total: 0 }.
-  // Nos aseguramos de devolver solo el array de vehículos.
-  if (response && Array.isArray(response.items)) {
-    return response.items as Vehiculo[];
-  }
-  return []; // Devolvemos un array vacío si la respuesta no es la esperada.
+  const query = params.toString();
+  const url = query ? `/vehiculos?${query}` : "/vehiculos";
+  const response = (await apiFetch(url)) as PaginatedResponse<Vehiculo>;
+  return extractList(response);
 }
 
 /**
@@ -87,9 +105,9 @@ export async function getVehiculosFromTaller(filters?: {
  * Asume un endpoint GET /taller/vehiculos/:patente
  */
 export async function getVehiculoFromTaller(
-  patente: string
+  id: number
 ): Promise<Vehiculo> {
-  return apiFetch(`/taller/vehiculos/${patente}`);
+  return apiFetch(`/vehiculos/${id}`);
 }
 
 /**
@@ -99,7 +117,7 @@ export async function getVehiculoFromTaller(
 export async function createVehiculoFromTaller(
   payload: CreateVehiculoPayload
 ): Promise<Vehiculo> {
-  return apiFetch("/taller/vehiculos", {
+  return apiFetch("/vehiculos", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -128,7 +146,7 @@ export async function updateVehiculoFromTaller(
   id: number,
   payload: Partial<CreateVehiculoPayload>
 ): Promise<Vehiculo> {
-  return apiFetch(`/taller/vehiculos/${id}`, {
+  return apiFetch(`/vehiculos/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -163,12 +181,52 @@ export type TallerDriver = {
   active?: boolean;
 };
 
+type UsersApiDriverCandidate = {
+  id?: number;
+  username?: string;
+  email?: string;
+  active?: boolean;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
+  roleAssignments?: Array<{
+    specialty?: string | null;
+    isActive?: boolean | null;
+  }> | null;
+};
+
+const normalizeUsersResponse = (input: unknown): UsersApiDriverCandidate[] => {
+  return extractList(input as PaginatedResponse<UsersApiDriverCandidate>);
+};
+
+const isDriverAssignment = (assignment: { specialty?: string | null; isActive?: boolean | null }) => {
+  if (!assignment) return false;
+  if (assignment.isActive === false) return false;
+  return (assignment.specialty ?? "").toUpperCase() === "DRIVER";
+};
+
 export async function getDrivers(): Promise<TallerDriver[]> {
-  // Usamos el endpoint de usuarios con el filtro de especialidad
-  const response = await apiFetch("/users?specialty=DRIVER");
-  // El backend devuelve un objeto paginado { items: [], ... }
-  if (response && Array.isArray(response.items)) {
-    return response.items;
-  }
-  return [];
+  const response = await apiFetch("/users?pageSize=200");
+  const candidates = normalizeUsersResponse(response);
+
+  return candidates
+    .filter(candidate => candidate.roleAssignments?.some(isDriverAssignment))
+    .map(candidate => {
+      const id = candidate.id ?? null;
+      const firstName = candidate.firstName ?? undefined;
+      const lastName = candidate.lastName ?? undefined;
+      const username = candidate.username ?? undefined;
+      const email = candidate.email ?? undefined;
+      const nameParts = [candidate.fullName, firstName, lastName, username, email].filter(Boolean) as string[];
+      return {
+        id: id ?? undefined,
+        userId: id ?? undefined,
+        username,
+        email,
+        fullName: nameParts[0],
+        firstName,
+        lastName,
+        active: candidate.active ?? true,
+      } satisfies TallerDriver;
+    });
 }

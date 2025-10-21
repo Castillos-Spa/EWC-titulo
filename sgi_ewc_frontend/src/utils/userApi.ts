@@ -1,5 +1,25 @@
 import apiFetch from "./api";
-import { User } from "../types/User"; // Asegúrate de que User se exporte desde types/User.ts
+import type { User } from "../types/User";
+export type { User } from "../types/User";
+
+type PaginatedUserResponse =
+  | User[]
+  | {
+      items?: User[] | null;
+      data?: User[] | null;
+      results?: User[] | null;
+    };
+
+const extractUsers = (input: PaginatedUserResponse | null | undefined): User[] => {
+  if (!input) return [];
+  if (Array.isArray(input)) return input;
+  if (typeof input === "object") {
+    const candidates = [input.items, input.data, input.results];
+    const found = candidates.find(Array.isArray);
+    if (found && Array.isArray(found)) return found as User[];
+  }
+  return [];
+};
 
 // --- Auth ---
 
@@ -46,13 +66,8 @@ export async function changePassword(
 
 // --- User Management ---
 export async function getUsers(): Promise<User[]> {
-  const response = await apiFetch("/users", { method: "GET" });
-  // El backend devuelve un objeto paginado: { items: User[], total: number, ... }
-  // Nos aseguramos de que la respuesta tenga la propiedad 'items' y sea un array.
-  if (response && Array.isArray(response.items)) {
-    return response.items as User[];
-  }
-  return []; // Devolvemos un array vacío si la respuesta no es la esperada.
+  const response = (await apiFetch("/users", { method: "GET" })) as PaginatedUserResponse;
+  return extractUsers(response);
 }
 
 // Corrige el tipo de respuesta para incluir tempPassword
@@ -78,5 +93,3 @@ export async function updateUser(
 export async function deleteUser(id: number): Promise<void> {
   return apiFetch(`/users/${id}`, { method: "DELETE" });
 }
-
-export type { User };

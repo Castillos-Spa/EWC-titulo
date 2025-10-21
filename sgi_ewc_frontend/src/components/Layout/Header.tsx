@@ -2,11 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
-import { markNotificationAsRead } from '../../utils/notificationApi';
+import { listNotifications, markNotificationAsRead } from '../../utils/notificationApi';
 import { getUsers } from '../../utils/userApi';
 import { getTickets } from '../../utils/ticketApi';
 import type { Ticket } from '../../types/Ticket';
 import type { User as UserType } from '../../types/User';
+import type { AppNotification } from '../../types/Notification';
 
 interface Notification {
   id: string;
@@ -48,6 +49,47 @@ interface ServerToClientEvents {
 
 type ClientToServerEvents = Record<string, never>;
 
+const formatNotificationTimestamp = (input?: string | Date | null): string => {
+  if (!input) return new Date().toLocaleTimeString();
+  const date = new Date(input);
+  return Number.isNaN(date.getTime()) ? new Date().toLocaleTimeString() : date.toLocaleTimeString();
+};
+
+const mapAppNotification = (notification: AppNotification): Notification => ({
+  id: notification.id,
+  type: notification.type ?? notification.priority ?? 'info',
+  message: notification.message ?? notification.title,
+  timestamp: formatNotificationTimestamp(notification.createdAt),
+  read: notification.read ?? false,
+});
+
+const mapWireNotification = (wire: NotificationWire): Notification => ({
+  id: String(wire.id ?? Date.now()),
+  type: wire.type ?? 'info',
+  message: wire.message ?? 'Nueva notificación',
+  timestamp: formatNotificationTimestamp(wire.createdAt ?? null),
+  read: wire.read ?? false,
+});
+
+const mergeNotifications = (incoming: Notification[], existing: Notification[]): Notification[] => {
+  if (!incoming.length) return existing;
+  const seen = new Set<string>();
+  const merged: Notification[] = [];
+
+  for (const notif of incoming) {
+    merged.push(notif);
+    seen.add(notif.id);
+  }
+
+  for (const notif of existing) {
+    if (!seen.has(notif.id)) {
+      merged.push(notif);
+    }
+  }
+
+  return merged;
+};
+
 const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick, uiDensity }) => {
   const { user, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -75,6 +117,28 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
   const actionGap = density === 'compact' ? 'gap-2 md:gap-3' : 'gap-3 md:gap-4';
   const searchWidth = density === 'compact' ? 'w-60' : 'w-72';
   const searchPadding = density === 'compact' ? 'py-1.5' : 'py-2';
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
+    const fetchNotifications = async () => {
+      try {
+        const items = await listNotifications();
+        if (cancelled) return;
+        const mapped = items.map(mapAppNotification);
+        setNotifications(prev => mergeNotifications(mapped, prev));
+      } catch (err) {
+        console.warn('No se pudieron cargar las notificaciones iniciales', err);
+      }
+    };
+
+    void fetchNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const runGlobalSearch = async (q: string) => {
     if (!q) {
@@ -157,28 +221,14 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 
     // Escuchar notificaciones
     socket.on('notifications:init', (list) => {
-      const mapped: Notification[] = (list ?? []).map((n) => ({
-        id: String(n.id ?? Date.now()),
-        type: n.type ?? 'info',
-        message: n.message ?? '',
-        timestamp: n.createdAt ? new Date(n.createdAt).toLocaleTimeString() : new Date().toLocaleTimeString(),
-        read: n.read ?? false,
-      }));
-      setNotifications(mapped);
+      const mapped = (list ?? []).map(mapWireNotification);
+      setNotifications(prev => mergeNotifications(mapped, prev));
     });
 
     socket.on('notification', (data) => {
       console.log('Notificación recibida:', data);
-
-      const newNotif: Notification = {
-        id: String(data?.id ?? Date.now()),
-        type: data?.type ?? 'info',
-        message: data?.message ?? 'Nueva notificación',
-        timestamp: new Date().toLocaleTimeString(),
-        read: false,
-      };
-
-      setNotifications((prev) => [newNotif, ...prev]);
+      const newNotif = mapWireNotification(data);
+      setNotifications(prev => mergeNotifications([newNotif], prev));
     });
 
     return () => {
@@ -244,8 +294,13 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
     }
 
     try {
-      await markNotificationAsRead(notification.id);
-      setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read: true } : n));
+      const updated = await markNotificationAsRead(notification.id);
+      if (updated) {
+        const mapped = mapAppNotification(updated);
+        setNotifications(prev => prev.map(n => (n.id === mapped.id ? { ...n, ...mapped } : n)));
+      } else {
+        setNotifications(prev => prev.map(n => (n.id === notification.id ? { ...n, read: true } : n)));
+      }
     } catch (error) {
       console.error("Error al marcar la notificación como leída", error);
     }

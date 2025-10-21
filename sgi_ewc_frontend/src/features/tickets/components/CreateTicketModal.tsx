@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { TicketPriority } from '../../../types/Ticket';
 import { useTicketsContext } from '../context/TicketsContext';
 
-interface Props {
+type Props = Readonly<{
   open: boolean;
   onClose: () => void;
-}
+}>;
 
 const DEFAULT_PRIORITY: TicketPriority = TicketPriority.Media;
 
@@ -18,6 +18,12 @@ export default function CreateTicketModal({ open, onClose }: Props) {
   const [recipientArea, setRecipientArea] = useState<string[]>([]);
   const [tags, setTags] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const titleId = useId();
+  const descriptionId = useId();
+  const categoryId = useId();
+  const priorityId = useId();
+  const areasFieldsetId = useId();
+  const tagsId = useId();
 
   const categories = useMemo(() => {
     const base = Array.from(new Set(items.map((t) => t.category)));
@@ -69,46 +75,49 @@ export default function CreateTicketModal({ open, onClose }: Props) {
         </div>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm mb-1">Título</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3}
+            <label className="block text-sm mb-1" htmlFor={titleId}>Título</label>
+            <input id={titleId} value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3}
               className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700" />
           </div>
           <div>
-            <label className="block text-sm mb-1">Descripción</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+            <label className="block text-sm mb-1" htmlFor={descriptionId}>Descripción</label>
+            <textarea id={descriptionId} value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
               className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm mb-1">Categoría</label>
-              <input list="ticket-categories" value={category} onChange={(e) => setCategory(e.target.value)} required
+              <label className="block text-sm mb-1" htmlFor={categoryId}>Categoría</label>
+              <input id={categoryId} list="ticket-categories" value={category} onChange={(e) => setCategory(e.target.value)} required
                 className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700" />
               <datalist id="ticket-categories">
                 {categories.map((c) => <option key={c} value={c} />)}
               </datalist>
             </div>
             <div>
-              <label className="block text-sm mb-1">Prioridad</label>
-              <select value={priority} onChange={(e) => setPriority(e.target.value as TicketPriority)}
+              <label className="block text-sm mb-1" htmlFor={priorityId}>Prioridad</label>
+              <select id={priorityId} value={priority} onChange={(e) => setPriority(e.target.value as TicketPriority)}
                 className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700">
                 {Object.values(TicketPriority).map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-sm mb-2">Áreas destinatarias</label>
+          <fieldset aria-labelledby={areasFieldsetId} className="border-0 p-0">
+            <legend id={areasFieldsetId} className="block text-sm mb-2">Áreas destinatarias</legend>
             <div className="flex flex-wrap gap-2">
-              {allAreas.map((a) => (
-                <label key={a} className="inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={recipientArea.includes(a)} onChange={() => toggleArea(a)} />
-                  {a}
-                </label>
-              ))}
+              {allAreas.map((a) => {
+                const checkboxId = `${areasFieldsetId}-${a}`;
+                return (
+                  <div key={a} className="inline-flex items-center gap-2 text-sm">
+                    <input id={checkboxId} type="checkbox" checked={recipientArea.includes(a)} onChange={() => toggleArea(a)} />
+                    <label htmlFor={checkboxId}>{a}</label>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          </fieldset>
           <div>
-            <label className="block text-sm mb-1">Tags (separados por coma)</label>
-            <input value={tags} onChange={(e) => setTags(e.target.value)}
+            <label className="block text-sm mb-1" htmlFor={tagsId}>Tags (separados por coma)</label>
+            <input id={tagsId} value={tags} onChange={(e) => setTags(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700" />
           </div>
           <div className="flex justify-end gap-2 pt-2">

@@ -16,6 +16,8 @@ export type AppNotification = {
   createdAt: string;
   scheduledAt?: string;
   pinned: boolean;
+  type?: string;
+  read?: boolean;
 };
 
 export const PRIORITY_LABELS: Record<NotificationPriority, string> = {
@@ -33,5 +35,5 @@ export type CreateNotificationPayload = {
 };
 
 export type UpdateNotificationPayload = Partial<
-  Omit<CreateNotificationPayload, "createdBy"> & { pinned: boolean }
+  CreateNotificationPayload & { pinned: boolean; read: boolean }
 >;

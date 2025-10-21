@@ -29,16 +29,6 @@ const RoutesPageInner: React.FC = () => {
       <RouteKPIs />
       <RouteList onCreate={() => setOpen(true)} />
 
-      <div className="relative overflow-hidden rounded-3xl border border-amber-200/70 bg-amber-50/80 px-6 py-5 text-amber-700 shadow-lg shadow-amber-200/40 backdrop-blur dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100">
-        <div className="pointer-events-none absolute -right-16 -top-10 h-40 w-40 rounded-full bg-amber-200/50 blur-3xl dark:bg-amber-400/20" />
-        <div className="relative text-xs leading-relaxed">
-          <strong className="font-semibold uppercase tracking-[0.28em] text-amber-600 dark:text-amber-200">Aviso</strong>
-          <p className="mt-2 max-w-3xl">
-            Este módulo opera con datos en memoria para facilitar iteraciones de diseño. Si necesitas persistencia real, reemplaza el contexto local por llamadas a la API y actualizaciones en servidor.
-          </p>
-        </div>
-      </div>
-
       <RegisterRouteModal open={open} onClose={() => setOpen(false)} />
     </div>
   );
