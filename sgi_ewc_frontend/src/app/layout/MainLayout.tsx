@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Layout/Sidebar';
 import Header from '../../components/Layout/Header';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
+import { changePassword as apiChangePassword } from '../../utils/userApi';
 import { useAuth } from '../../contexts/AuthContext';
 
 type UiDensity = 'comfortable' | 'compact';
@@ -166,10 +167,10 @@ export default function MainLayout() {
 
       {showChangePassword && (
         <ChangePasswordModal
-          onSubmit={async () => {
-            // Enrutamiento: el flujo de cambio de contraseña puede seguir igual que antes
-            await logout();
-            setShowChangePassword(false);
+          onSubmit={async (currentPassword, newPassword) => {
+            if (!user) throw new Error('No hay usuario autenticado.');
+            await apiChangePassword(user.id, currentPassword, newPassword);
+            // Éxito: el modal mostrará la pantalla de éxito y luego onCancel hará logout.
           }}
           onCancel={async () => {
             await logout();
