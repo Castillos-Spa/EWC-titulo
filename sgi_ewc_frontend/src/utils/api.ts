@@ -1,14 +1,22 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 let isRefreshing = false;
-let failedQueue: ((token: string) => void)[] = [];
+type PendingRequest = {
+  resolve: (token: string) => void;
+  reject: (error: Error) => void;
+};
+
+let failedQueue: PendingRequest[] = [];
 
 const processQueue = (error: Error | null, token: string | null = null) => {
-  for (const resolve of failedQueue) {
-    if (!error && token) {
-      resolve(token);
+  for (const pending of failedQueue) {
+    if (error) {
+      pending.reject(error);
+      continue;
     }
-    // Si hay error, simplemente no resolvemos con nuevo token; los callers manejarán su propio error.
+    if (token) {
+      pending.resolve(token);
+    }
   }
   failedQueue = [];
 };
@@ -19,6 +27,20 @@ const handleLogout = () => {
   localStorage.removeItem("userData");
   // Disparamos un evento global para que la UI reaccione (AuthContext lo escucha).
   globalThis.dispatchEvent?.(new Event("session-expired"));
+};
+
+const parseJsonResponse = async (response: Response) => {
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    const err: ApiError = new Error(data?.message || response.statusText);
+    err.status = response.status;
+    err.body = data;
+    throw err;
+  }
+
+  return data;
 };
 
 async function apiFetch(path: string, options?: RequestInit) {
@@ -47,19 +69,15 @@ async function apiFetch(path: string, options?: RequestInit) {
 
     if (isRefreshing) {
       // Si ya se está refrescando, encolamos la petición para reintentarla después.
-      return new Promise((resolve) => {
-        failedQueue.push((newAccessToken) => {
-          headers["Authorization"] = `Bearer ${newAccessToken}`;
-          // Reintentamos la petición y resolvemos la promesa con el resultado.
-          resolve(fetch(url, { ...init, headers }));
+      return new Promise<Response>((resolve, reject) => {
+        failedQueue.push({
+          resolve: (newAccessToken) => {
+            headers["Authorization"] = `Bearer ${newAccessToken}`;
+            resolve(fetch(url, { ...init, headers }));
+          },
+          reject,
         });
-      }).then(async (newResponse) => {
-        // Una vez que la promesa se resuelve, procesamos la respuesta.
-        if (!(newResponse as Response).ok)
-          throw new Error((newResponse as Response).statusText);
-        const text = await (newResponse as Response).text();
-        return text ? JSON.parse(text) : null;
-      });
+      }).then(parseJsonResponse);
     }
 
     isRefreshing = true;
@@ -73,12 +91,16 @@ async function apiFetch(path: string, options?: RequestInit) {
 
       if (!refreshRes.ok) throw new Error("Session expired");
 
-      const { access_token: newAccessToken } = await refreshRes.json();
+      const { access_token: newAccessToken, user: refreshedUser } = await refreshRes.json();
+      if (!newAccessToken) throw new Error("Session expired");
       localStorage.setItem("authToken", newAccessToken);
+      if (refreshedUser) {
+        localStorage.setItem("userData", JSON.stringify(refreshedUser));
+        globalThis.dispatchEvent?.(new CustomEvent("session-refreshed", { detail: refreshedUser }));
+      }
       headers["Authorization"] = `Bearer ${newAccessToken}`;
       processQueue(null, newAccessToken); // Procesamos la cola de peticiones pendientes.
-
-  res = await fetch(url, { ...init, headers }); // Reintentamos la petición original.
+      res = await fetch(url, { ...init, headers }); // Reintentamos la petición original.
     } catch (error) {
       processQueue(error as Error, null);
       handleLogout();
@@ -88,15 +110,7 @@ async function apiFetch(path: string, options?: RequestInit) {
     }
   }
 
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    const err: ApiError = new Error(data?.message || res.statusText);
-    err.status = res.status;
-    err.body = data;
-    throw err;
-  }
-  return data;
+  return parseJsonResponse(res);
 }
 
 export default apiFetch;

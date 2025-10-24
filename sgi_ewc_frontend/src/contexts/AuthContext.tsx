@@ -52,13 +52,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     loadUserFromToken();
 
-    // Escuchar por eventos de sesión expirada desde el interceptor
     const handleSessionExpired = () => {
       void logout();
     };
-    globalThis.addEventListener?.('session-expired', handleSessionExpired);
 
-    return () => globalThis.removeEventListener?.('session-expired', handleSessionExpired);
+    const handleSessionRefreshed = (event: Event) => {
+      const detail = (event as CustomEvent<User | undefined>).detail;
+      if (detail) {
+        localStorage.setItem('userData', JSON.stringify(detail));
+        setUser(detail);
+      } else {
+        void loadUserFromToken();
+      }
+    };
+
+    globalThis.addEventListener?.('session-expired', handleSessionExpired);
+    globalThis.addEventListener?.('session-refreshed', handleSessionRefreshed);
+
+    return () => {
+      globalThis.removeEventListener?.('session-expired', handleSessionExpired);
+      globalThis.removeEventListener?.('session-refreshed', handleSessionRefreshed);
+    };
   }, [loadUserFromToken, logout]);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
