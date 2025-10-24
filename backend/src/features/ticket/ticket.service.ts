@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import {
   Role,
+  Area,
   Ticket,
   TicketCategory,
   TicketStatus,
@@ -16,18 +17,18 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { ApproveStepDto } from './dto/approve-step.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
+import { Area as AreaEnum } from '@/app/shared/enums/area.enum';
 
 @Injectable()
 export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-    // La inyección de OrdenTrabajoService se mantiene si es necesaria para la lógica de negocio
   ) {}
   private async getApprovalWorkflow(
-    area: string,
+    area: Area,
     category: TicketCategory,
-  ): Promise<{ step: number; approverRole: Role; approverArea: string }[]> {
+  ): Promise<{ step: number; approverRole: Role; approverArea: Area }[]> {
     const workflow = await this.prisma.approvalWorkflow.findFirst({
       where: {
         area: area,
@@ -40,19 +41,22 @@ export class TicketService {
     }
 
     // Asumimos que 'steps' es un JSON con el formato correcto
-    return workflow.steps as { step: number; approverRole: Role; approverArea: string }[];
+    return workflow.steps as { step: number; approverRole: Role; approverArea: Area }[];
   }
 
   async create(createTicketDto: CreateTicketDto, createdById: number): Promise<Ticket> {
     const { recipientArea, recipientRole, tags, category, ...restOfDto } = createTicketDto;
 
     // Convertir la categoría de string a enum
-    const categoryEnum = category.replaceAll(/ /g, '_') as TicketCategory;
+    const categoryEnum = category.replace(/ /g, '_') as TicketCategory;
+    // Convertir el array de strings de área al enum Area
+    const recipientAreaEnum = recipientArea?.map(areaStr => areaStr as Area) ?? [];
+
     const newTicket = await this.prisma.ticket.create({
       data: {
         ...restOfDto,
         category: categoryEnum,
-        recipientArea: recipientArea ?? [], // Si es null/undefined, usa un array vacío
+        recipientArea: recipientAreaEnum, // Usamos el array de enums
         tags: tags ?? [],
         createdById,
         recipientRole: recipientRole ?? [], // Initialize recipientRole as an empty array if not provided
@@ -90,13 +94,13 @@ export class TicketService {
 
     // Notificación al área de destino y al área del creador.
     const creatorAreas = creator?.roleAssignments.map(ra => ra.area) || [];
-    const recipientAreasArray = recipientArea ?? [];
+    const recipientAreasArray = recipientAreaEnum; // Usamos el array ya convertido
 
     // Usamos un Set para evitar duplicados si el creador pertenece al área de destino.
-    const areasToNotify = new Set<string>([...creatorAreas, ...recipientAreasArray]);
+    const areasToNotify = new Set<Area>([...creatorAreas, ...recipientAreasArray]);
 
     // Solo notificar si hay áreas de destino (para no notificar a todos en una solicitud de suministro)
-    if (recipientAreasArray && recipientAreasArray.length > 0) {
+    if (recipientAreasArray && recipientAreasArray.length > 0 && Array.isArray(recipientAreasArray)) {
       this.eventEmitter.emit('ticket.created', { ticket: newTicket, areasToNotify, recipientRole, createdById });
     }
 
@@ -372,8 +376,8 @@ export class TicketService {
           title: `Revisión de Mantenimiento OT-${payload.id}`,
           description: `Se requiere revisión para la OT #${payload.id} en el vehículo ${payload.vehiculo.patente}. Descripción: ${payload.description}`,
           category: TicketCategory.Mantenimiento,
-          // Asignamos al área de Transporte y rol de Supervisor
-          recipientArea: ['Transporte'],
+          // Asignamos al área de Transporte y rol de Supervisor usando el enum
+          recipientArea: [AreaEnum.TRANSPORTE],
           recipientRole: [Role.Supervisor],
           ordenTrabajoId: payload.id,
         },

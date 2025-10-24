@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CacheService } from '@/common/cache.service';
-import { User, Role, Permission, Prisma, Specialty } from '@prisma/client';
+import { User, Role, Permission, Prisma, Specialty, Area } from '@prisma/client';
 import { RegisterDto } from '@/features/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
@@ -79,7 +79,7 @@ export class UsersService {
         await prisma.userRoleAssignment.createMany({
           data: roleAssignments.map(assignment => ({
             userId: user.id,
-            area: assignment.area,
+            area: assignment.area as Area,
             role: Role[assignment.role as keyof typeof Role],
             specialty: assignment.specialty ? assignment.specialty : null,
             permissions: (assignment.additionalPermissions || []).filter(Boolean) as Permission[],
@@ -144,7 +144,7 @@ export class UsersService {
         await prisma.userRoleAssignment.createMany({
           data: roleAssignments.map(assignment => ({
             userId: id,
-            area: assignment.area,
+            area: assignment.area as Area,
             role: Role[assignment.role as keyof typeof Role],
             specialty: assignment.specialty ? assignment.specialty : null,
             permissions: (assignment.additionalPermissions || []).filter(Boolean) as Permission[],

@@ -17,7 +17,6 @@ export class CreateTicketDto {
   @IsArray()
   @IsString({ each: true })
   recipientArea?: string[];
-  // 🎯 NUEVO: Añadir recipientRole
   @IsOptional()
   @IsArray()
   @IsEnum(Role, { each: true })

@@ -54,10 +54,10 @@ model UserRoleAssignment {
 
 model ApprovalWorkflow {
   id        Int            @id @default(autoincrement())
-  name      String
-  area      Area
-  category  TicketCategory
-  steps     Json
+  name      String // e.g., "Suministros Transporte"
+  area      String // Área que inicia el flujo, e.g., "Transporte"
+  category  TicketCategory // Categoría de ticket a la que aplica
+  steps     Json // [{ "step": 1, "approverRole": "Supervisor", "approverArea": "Transporte" }, ...]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 }
@@ -253,74 +253,6 @@ model Incident {
   @@index([reviewedById])
 }
 
-model Aseo {
-  id               Int            @id @default(autoincrement())
-  date             DateTime
-  area             String
-  tasks            String[]       @default([])
-  responsibleStaff String
-  timeSpent        Float
-  issues           String[]       @default([])
-  status           CleaningStatus
-  observations     String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-}
-
-model CivilWork {
-  id                        Int             @id @default(autoincrement())
-  project                   String
-  location                  String
-  startDate                 DateTime
-  estimatedEndDate          DateTime
-  actualEndDate             DateTime?
-  workType                  CivilWorkType
-  tasks                     Json
-  progress                  Int             @default(0)
-  issues                    String[]        @default([])
-  status                    CivilWorkStatus @default(PENDING)
-  observations              String?
-  photos                    String[]        @default([])
-  responsibleStaffUsernames String[]        @default([])
-  materialsUsed             String[]        @default([])
-  createdById               Int
-  createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @updatedAt
-  createdBy                 User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
-
-  @@index([createdById])
-}
-
-model TransportRoute {
-  id          Int               @id @default(autoincrement())
-  code        String            @unique
-  origin      String
-  destination String
-  distanceKm  Float
-  frequency   RouteFrequency
-  active      Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  assignments TruckAssignment[] @relation("RouteToAssignments")
-}
-
-model TruckAssignment {
-  id           Int            @id @default(autoincrement())
-  truckId      Int
-  routeId      Int
-  driverId     Int
-  date         DateTime
-  status       String         @default("Planificada")
-  volumeLiters Float?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  driver       User           @relation("DriverToAssignments", fields: [driverId], references: [id])
-  route        TransportRoute @relation("RouteToAssignments", fields: [routeId], references: [id])
-  truck        Vehiculo       @relation("TruckToAssignments", fields: [truckId], references: [id])
-
-  @@unique([truckId, routeId, date])
-}
-
 /// Enum de roles
 enum Role {
   Admin
@@ -329,6 +261,17 @@ enum Role {
   Especialista
   Trabajador
   Lector
+}
+
+enum Area {
+  Admin
+  IT
+  Transporte
+  Obras
+  Aseo
+  RRHH
+  Finanzas
+  Prev_Riesgo
 }
 
 /// Enum de especialidades
@@ -454,13 +397,33 @@ enum RouteFrequency {
   Adhoc
 }
 
-enum Area {
-  Admin
-  IT
-  Transporte
-  Obras
-  Aseo
-  RRHH
-  Finanzas
-  Prev_Riesgo
+model TransportRoute {
+  id          Int               @id @default(autoincrement())
+  code        String            @unique
+  origin      String
+  destination String
+  distanceKm  Float
+  frequency   RouteFrequency
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  assignments TruckAssignment[] @relation("RouteToAssignments")
+}
+
+model TruckAssignment {
+  id           Int      @id @default(autoincrement())
+  truckId      Int
+  routeId      Int
+  driverId     Int
+  date         DateTime
+  status       String   @default("Planificada") // Planificada, Programada, Iniciada, Cancelada
+  volumeLiters Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  truck  Vehiculo       @relation("TruckToAssignments", fields: [truckId], references: [id])
+  route  TransportRoute @relation("RouteToAssignments", fields: [routeId], references: [id])
+  driver User           @relation("DriverToAssignments", fields: [driverId], references: [id])
+
+  @@unique([truckId, routeId, date])
 }
