@@ -252,6 +252,11 @@ export class TicketService {
       });
     }
 
+    this.eventEmitter.emit('ticket.updated', {
+      ticket: updatedTicket,
+      updatedById,
+    });
+
     // Volver a buscar el ticket actualizado con todas las relaciones para devolverlo al frontend
     return this.prisma.ticket.findUnique({
       where: { id },
