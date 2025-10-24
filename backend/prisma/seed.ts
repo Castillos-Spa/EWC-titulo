@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient, Role, Permission, Specialty } from '@prisma/client';
+import { PrismaClient, Role, Permission, Specialty, Area } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -21,7 +21,7 @@ async function main() {
       password: defaultPassword,
       roleAssignments: {
         create: {
-          area: 'IT',
+          area: Area.IT,
           role: Role.Admin,
           permissions: Object.values(Permission), // Admin tiene todos los permisos
         },
@@ -29,6 +29,27 @@ async function main() {
     },
   });
   console.log('✅ Admin creado:', admin.username);
+
+  // ============================================
+  // 1.1. BRUNO (ADMINISTRADOR)
+  // ============================================
+  const bruno = await prisma.user.upsert({
+    where: { email: 'bruno@admin.cl' },
+    update: {},
+    create: {
+      username: 'bruno',
+      email: 'bruno@admin.cl',
+      password: defaultPassword,
+      roleAssignments: {
+        create: {
+          area: Area.Admin,
+          role: Role.Admin,
+          permissions: Object.values(Permission), // Admin tiene todos los permisos
+        },
+      },
+    },
+  });
+  console.log('✅ Bruno (Admin) creado:', bruno.username);
 
   // ============================================
   // 2. JEFE DE IT
@@ -42,7 +63,7 @@ async function main() {
       password: defaultPassword,
       roleAssignments: {
         create: {
-          area: 'IT',
+          area: Area.IT,
           role: Role.Jefe,
           permissions: [
             Permission.VIEW_DASHBOARD,
@@ -69,7 +90,7 @@ async function main() {
       password: defaultPassword,
       roleAssignments: {
         create: {
-          area: 'Transporte',
+          area: Area.Transporte,
           role: Role.Supervisor,
           permissions: [
             Permission.VIEW_DASHBOARD,
@@ -101,7 +122,7 @@ async function main() {
       password: defaultPassword,
       roleAssignments: {
         create: {
-          area: 'Transporte',
+          area: Area.Transporte,
           role: Role.Especialista,
           specialty: Specialty.DRIVER,
           permissions: [
@@ -129,7 +150,7 @@ async function main() {
       password: defaultPassword,
       roleAssignments: {
         create: {
-          area: 'Transporte',
+          area: Area.Transporte,
           role: Role.Especialista,
           specialty: Specialty.MECHANIC,
           permissions: [
@@ -158,7 +179,7 @@ async function main() {
       roleAssignments: {
         create: [
           {
-            area: 'Obras',
+            area: Area.Obras,
             role: Role.Jefe,
             permissions: [
               Permission.VIEW_DASHBOARD,
@@ -170,7 +191,7 @@ async function main() {
             ],
           },
           {
-            area: 'P_Riesgo',
+            area: Area.Prev_Riesgo,
             role: Role.Lector,
             permissions: [Permission.VIEW_DASHBOARD, Permission.VIEW_TICKETS, Permission.VIEW_RISK_ASSESSMENTS],
           },
@@ -192,7 +213,7 @@ async function main() {
       password: defaultPassword,
       roleAssignments: {
         create: {
-          area: 'Aseo',
+          area: Area.Aseo,
           role: Role.Supervisor,
           permissions: [
             Permission.VIEW_DASHBOARD,
@@ -220,12 +241,12 @@ async function main() {
       roleAssignments: {
         create: [
           {
-            area: 'Obras',
+            area: Area.Obras,
             role: Role.Trabajador,
             permissions: [Permission.VIEW_DASHBOARD, Permission.VIEW_TICKETS, Permission.VIEW_CIVIL_WORKS],
           },
           {
-            area: 'Aseo',
+            area: Area.Aseo,
             role: Role.Trabajador,
             permissions: [Permission.VIEW_DASHBOARD, Permission.VIEW_TICKETS, Permission.VIEW_CLEANING_REPORTS],
           },
@@ -248,12 +269,12 @@ async function main() {
       roleAssignments: {
         create: [
           {
-            area: 'IT',
+            area: Area.IT,
             role: Role.Lector,
             permissions: [Permission.VIEW_DASHBOARD, Permission.VIEW_TICKETS],
           },
           {
-            area: 'Transporte',
+            area: Area.Transporte,
             role: Role.Lector,
             permissions: [
               Permission.VIEW_DASHBOARD,
@@ -263,7 +284,7 @@ async function main() {
             ],
           },
           {
-            area: 'Obras',
+            area: Area.Obras,
             role: Role.Lector,
             permissions: [Permission.VIEW_DASHBOARD, Permission.VIEW_TICKETS, Permission.VIEW_CIVIL_WORKS],
           },

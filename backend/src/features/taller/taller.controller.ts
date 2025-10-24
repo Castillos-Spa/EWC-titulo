@@ -15,6 +15,7 @@ import { CreateOrdenTrabajoTallerDto } from '../orden-trabajo/dto/create-orden-t
 import { CreateVehiculoDto } from '../vehiculo/dto/create-vehiculo.dto';
 import { UpdateVehiculoDto } from '../vehiculo/dto/update-vehiculo.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { UpdateWorkOrderStatusDto } from './dto/update-work-order-status.dto';
 
 @Controller('taller')
 export class TallerController {
@@ -34,8 +35,11 @@ export class TallerController {
   }
 
   @Patch('orden-trabajo/:id/status')
-  updateWorkOrderStatus(@Param('id', ParseIntPipe) id: number, @Body('estado') estado: string) {
-    return this.tallerService.updateWorkOrderStatus(id, estado);
+  updateWorkOrderStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateWorkOrderStatusDto: UpdateWorkOrderStatusDto,
+  ) {
+    return this.tallerService.updateWorkOrderStatus(id, updateWorkOrderStatusDto.estado);
   }
 
   @Patch('orden-trabajo/:otId/cerrar') // Debería ser PATCH, pero sigo tu implementación actual

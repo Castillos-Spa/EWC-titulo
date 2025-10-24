@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { OrdenTrabajoService } from '../orden-trabajo/orden-trabajo.service';
+import { OrdenTrabajoService, OrdenTrabajoEstado } from '../orden-trabajo/orden-trabajo.service';
 import { CreateOrdenTrabajoTallerDto } from '../orden-trabajo/dto/create-orden-trabajo.dto';
 import { VehiculoService } from '../vehiculo/vehiculo.service';
 import { CreateVehiculoDto } from '../vehiculo/dto/create-vehiculo.dto';
@@ -24,21 +24,8 @@ export class TallerService {
 
   // Cerrar una orden de trabajo desde el taller
   async cerrarOrdenTrabajo(otId: number, checklist: string, resultado: string) {
-    // Verificar si la orden de trabajo existe
-    const ordenTrabajo = await this.ordenTrabajoService.findOne(otId);
-    if (!ordenTrabajo) {
-      throw new Error(`Orden de trabajo con ID ${otId} no encontrada`);
-    }
-
-    // Actualizar el estado de la OT a "Cerrada"
-    await this.ordenTrabajoService.update(otId, { estado: 'Cerrada' });
-
-    // Crear el registro en QA
-    return this.qaService.create({
-      otId: otId,
-      checklist: checklist,
-      resultado: resultado,
-    });
+    // Delegamos toda la lógica al servicio especializado, que ya maneja la transacción.
+    return this.ordenTrabajoService.cerrarOT(otId, checklist, resultado);
   }
 
   // Obtener todas las órdenes de trabajo
@@ -47,7 +34,7 @@ export class TallerService {
   }
 
   // Actualizar el estado de una orden de trabajo
-  async updateWorkOrderStatus(id: number, estado: string) {
+  async updateWorkOrderStatus(id: number, estado: OrdenTrabajoEstado) {
     return this.ordenTrabajoService.updateStatus(id, estado);
   }
 
