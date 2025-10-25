@@ -15,13 +15,12 @@ export type Specialty =
   | "ACCOUNTANT"
   | "SAFETY_INSPECTOR"
   | "IT_SUPPORT";
-export type Permission = string; // O un enum más específico si lo tienes
 
 export interface RoleAssignment {
   area: string;
   role: Role;
   specialty?: Specialty | null;
-  additionalPermissions?: Permission[];
+  additionalPermissions?: string[];
   isActive?: boolean;
 }
 
@@ -29,7 +28,7 @@ export interface RolesByArea {
   [area: string]: {
     role: Role;
     specialty?: Specialty | null;
-    permissions: Permission[];
+    permissions: string[];
   };
 }
 

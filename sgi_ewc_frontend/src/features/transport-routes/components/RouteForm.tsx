@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { TransportRoute, CreateTransportRoutePayload } from '../context/RouteContext';
 import { useRouteContext } from '../context/useRouteContext';
+import { toast } from 'sonner';
 
 const frequencies = ['Diaria', 'Semanal', 'Mensual', 'Ocasional'];
 
@@ -43,6 +44,7 @@ const RouteForm: React.FC<RouteFormProps> = ({ initial, mode = 'create', onSubmi
     const duplicate = routes.some(r => r.code.trim().toLowerCase() === normalized && r.id !== initial?.id);
     if (duplicate) {
       setCodeError('El código ya existe. Debe ser único.');
+      toast.error('El código de ruta ya existe');
       return;
     }
     setCodeError(null);
@@ -55,13 +57,20 @@ const RouteForm: React.FC<RouteFormProps> = ({ initial, mode = 'create', onSubmi
       frequency,
     };
 
-    if (mode === 'edit' && initial?.id) {
-      await updateRoute(initial.id, { ...payload, active });
-    } else {
-      await addRoute(payload);
-      reset();
+    try {
+      if (mode === 'edit' && initial?.id) {
+        await updateRoute(initial.id, { ...payload, active });
+        toast.success(`Ruta ${payload.code} actualizada`);
+      } else {
+        await addRoute(payload);
+        toast.success(`Ruta ${payload.code} creada`);
+        reset();
+      }
+      onSubmitSuccess?.();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error inesperado al guardar la ruta';
+      toast.error(message);
     }
-    onSubmitSuccess?.();
   };
 
   const labelCls = 'mb-2 block text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70';

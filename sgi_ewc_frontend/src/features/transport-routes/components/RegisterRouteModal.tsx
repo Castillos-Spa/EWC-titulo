@@ -34,7 +34,7 @@ const RegisterRouteModal: React.FC<RegisterRouteModalProps> = ({ open, onClose }
           </button>
         </div>
         <div className="mt-6">
-          <RouteForm />
+          <RouteForm onSubmitSuccess={onClose} />
         </div>
       </div>
     </div>

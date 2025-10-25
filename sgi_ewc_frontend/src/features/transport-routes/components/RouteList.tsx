@@ -3,6 +3,7 @@ import type { TransportRoute } from '../context/RouteContext';
 import { useRouteContext } from '../context/useRouteContext';
 import { Pencil, Power, Download, Plus, SlidersHorizontal, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 import ReactDOM from 'react-dom';
+import RouteForm from './RouteForm';
 
 interface RouteListProps {
   onCreate?: () => void;
@@ -284,7 +285,6 @@ const RouteListEditPortal: React.FC<{ route: TransportRoute; onClose: () => void
 };
 
 const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = ({ route, onClose }) => {
-  const { updateRoute } = useRouteContext();
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
       <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-slate-800 shadow-2xl shadow-slate-300/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-100">
@@ -297,60 +297,9 @@ const EditOverlay: React.FC<{ route: TransportRoute; onClose: () => void; }> = (
             ×
           </button>
         </div>
-        <form
-          className="mt-6 space-y-5"
-          onSubmit={(e) => {
-          e.preventDefault();
-          const form = e.currentTarget as HTMLFormElement;
-          const fd = new FormData(form);
-          void updateRoute(route.id, {
-            code: (fd.get('code') as string) || route.code,
-            origin: (fd.get('origin') as string) || route.origin,
-            destination: (fd.get('destination') as string) || route.destination,
-            distanceKm: Number(fd.get('distanceKm')) || route.distanceKm,
-            frequency: (fd.get('frequency') as string) || route.frequency,
-            active: fd.get('active') === 'on',
-          }).then(() => {
-            onClose();
-          });
-        }}
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="edit-code" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Código</label>
-              <input id="edit-code" name="code" defaultValue={route.code} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
-            </div>
-            <div>
-              <label htmlFor="edit-frequency" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Frecuencia</label>
-              <select id="edit-frequency" name="frequency" defaultValue={route.frequency} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white">
-                <option>Diaria</option>
-                <option>Semanal</option>
-                <option>Mensual</option>
-                <option>Ocasional</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="edit-origin" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Origen</label>
-              <input id="edit-origin" name="origin" defaultValue={route.origin} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
-            </div>
-            <div>
-              <label htmlFor="edit-destination" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Destino</label>
-              <input id="edit-destination" name="destination" defaultValue={route.destination} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
-            </div>
-            <div>
-              <label htmlFor="edit-distance" className="mb-1 block text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Distancia (km)</label>
-              <input id="edit-distance" name="distanceKm" type="number" min={1} defaultValue={route.distanceKm} className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white" />
-            </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input id="active-edit" name="active" type="checkbox" defaultChecked={route.active} className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-400 dark:border-white/20 dark:bg-white/10" />
-              <label htmlFor="active-edit" className="text-sm text-slate-600 dark:text-blue-100">Activa</label>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 border-t border-slate-200/70 pt-4 dark:border-white/10">
-            <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100">Cancelar</button>
-            <button type="submit" className="rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5">Guardar cambios</button>
-          </div>
-        </form>
+        <div className="mt-6">
+          <RouteForm initial={route} mode="edit" onSubmitSuccess={onClose} />
+        </div>
       </div>
     </div>
   );

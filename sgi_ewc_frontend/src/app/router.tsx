@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import MainLayout from './layout/MainLayout';
+import RouteErrorBoundary from './RouteErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 
 // Lazy pages from current locations
@@ -19,6 +20,8 @@ const UserManagement = lazy(() => import('../components/Admin/UserManagement'));
 const UserProfile = lazy(() => import('../components/Profile/UserProfile'));
 const SettingsPage = lazy(() => import('../components/Profile/SettingsPage'));
 const Login = lazy(() => import('../components/Login'));
+const ForgotPassword = lazy(() => import('../components/Auth/ForgotPassword'));
+const UnderMaintenance = lazy(() => import('../components/Common/UnderMaintenance'));
 
 function RequireAuth({ children }: Readonly<{ children: React.ReactElement }>) {
   const { user, isLoading } = useAuth();
@@ -36,6 +39,16 @@ export function AppRouter() {
           <Login />
         </Suspense>
       ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: '/forgot-password',
+      element: (
+        <Suspense fallback={<div className="p-8">Cargando…</div>}>
+          <ForgotPassword />
+        </Suspense>
+      ),
+      errorElement: <RouteErrorBoundary />,
     },
     {
       path: '/',
@@ -44,6 +57,7 @@ export function AppRouter() {
           <MainLayout />
         </RequireAuth>
       ),
+      errorElement: <RouteErrorBoundary />,
       children: [
     { index: true, element: <Suspense fallback={<div className="p-8">Cargando…</div>}><DashboardHome /></Suspense> },
     { path: 'rutas', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><RoutesPage /></Suspense> },
@@ -60,6 +74,19 @@ export function AppRouter() {
         { path: 'ajustes', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><SettingsPage /></Suspense> },
         { path: 'truck-assignments', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><TruckAssignmentPage /></Suspense> },
       ],
+    },
+    // Fallback para rutas no encontradas: mostrar página de mantenimiento con opción de volver
+    {
+      path: '*',
+      element: (
+        <Suspense fallback={<div className="p-8">Cargando…</div>}>
+          <UnderMaintenance
+            title="Sección no disponible"
+            description="Esta página no existe o está en mantenimiento. Puedes volver a la anterior o ir al inicio."
+          />
+        </Suspense>
+      ),
+      errorElement: <RouteErrorBoundary />,
     },
   ]), []);
 

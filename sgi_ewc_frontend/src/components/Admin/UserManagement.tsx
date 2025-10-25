@@ -4,7 +4,28 @@ import { getUsers, createUser, updateUser, deleteUser, getTempPassword } from '.
 import { User as UserType, Role } from '../../types/User';
 import UserForm from './UserForm';
 
-// Helpers reutilizables a nivel de archivo
+// Tipos y helpers reutilizables a nivel de archivo
+type RoleFilter = 'all' | Role;
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+const USERS_PER_PAGE = 10;
+
+const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
+  { value: 'all', label: 'Todos los roles' },
+  { value: 'Admin', label: 'Administrador' },
+  { value: 'Jefe', label: 'Jefatura' },
+  { value: 'Supervisor', label: 'Supervisor' },
+  { value: 'Especialista', label: 'Especialista' },
+  { value: 'Trabajador', label: 'Trabajador' },
+  { value: 'Lector', label: 'Lector' },
+];
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'active', label: 'Activos' },
+  { value: 'inactive', label: 'Inactivos' },
+];
+
 const getRoleColor = (role?: Role) => {
   if (!role) return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
   switch (role) {
@@ -35,87 +56,93 @@ const mapSingleArea = (a: string) => {
   }
 };
 
-const ROLE_OPTIONS: Array<{ value: Role | 'all'; label: string }> = [
-  { value: 'all', label: 'Todos los roles' },
-  { value: 'Admin', label: 'Admin' },
-  { value: 'Jefe', label: 'Jefe' },
-  { value: 'Supervisor', label: 'Supervisor' },
-  { value: 'Especialista', label: 'Especialista' },
-  { value: 'Trabajador', label: 'Trabajador' },
-  { value: 'Lector', label: 'Lector' },
-];
-
-const STATUS_OPTIONS: Array<{ value: 'all' | 'active' | 'inactive'; label: string }> = [
-  { value: 'all', label: 'Todos los estados' },
-  { value: 'active', label: 'Activo' },
-  { value: 'inactive', label: 'Inactivo' },
-];
-
-const USERS_PER_PAGE = 10;
-
-// Modal para ver perfil
+// Modal para ver perfil (patrón unificado)
 const ProfileModal: React.FC<{ user: UserType; onClose: () => void }> = ({ user, onClose }) => {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    globalThis.addEventListener('keydown', handler);
+    return () => globalThis.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <dialog open className="w-full max-w-2xl p-0 text-gray-900 bg-white border border-gray-200 dark:bg-gray-900 dark:border-gray-700 rounded-xl dark:text-gray-100">
-        <div className="flex items-start justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 id="profile-title" className="text-xl font-semibold">Perfil de Usuario</h3>
-          <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-md bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700">Cerrar</button>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
+      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-slate-800 shadow-2xl shadow-slate-300/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-100">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-400 dark:text-blue-200/60">Detalle</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Perfil de Usuario</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-blue-200/70">Visualiza información del perfil, roles y actividad reciente.</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-blue-100"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
         </div>
-        <div className="p-6 space-y-6">
+
+        <div className="mt-6 space-y-6">
           <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center bg-blue-100 rounded-full w-14 h-14 dark:bg-blue-900/40">
-              <span className="text-lg font-semibold text-blue-700 dark:text-blue-300">{user.username.charAt(0)}</span>
+            <div className="flex items-center justify-center rounded-full w-14 h-14 bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-100">
+              <span className="text-lg font-semibold">{user.username.charAt(0)}</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-lg font-medium">{user.username}</h4>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.active ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'}`}>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.active ? 'border border-emerald-400/60 bg-emerald-500/15 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-100' : 'border border-rose-400/60 bg-rose-500/15 text-rose-600 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-100'}`}>
                   {user.active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
-              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400"><Mail className="w-4 h-4 mr-1" /> {user.email}</div>
+              <div className="flex items-center text-sm text-slate-600 dark:text-blue-200/80"><Mail className="w-4 h-4 mr-1" /> {user.email}</div>
             </div>
           </div>
 
           <div>
-            <h5 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Rol y Área</h5>
+            <h5 className="mb-2 text-sm font-semibold text-slate-700 dark:text-blue-100">Rol y Área</h5>
             {user.roleAssignments?.length ? (
               <div className="flex flex-wrap gap-2">
                 {user.roleAssignments.filter(ra => ra.isActive).map((ra, i) => (
-                  <span key={`${user.id}-${ra.area}-${ra.role}-${i}`} className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${getRoleColor(ra.role)}`}>
+                  <span key={`${user.id}-${ra.area}-${ra.role}-${i}`} className={`inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full ${getRoleColor(ra.role)}`}>
                     {getRoleLabel(ra.role)}
-                    <span className="ml-1 font-normal text-gray-600 dark:text-gray-300">@ {mapSingleArea(ra.area)}</span>
+                    <span className="ml-1 font-normal text-slate-600 dark:text-slate-300">@ {mapSingleArea(ra.area)}</span>
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">Sin asignaciones</p>
+              <p className="text-sm text-slate-500 dark:text-blue-200/80">Sin asignaciones</p>
             )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="p-3 border border-gray-200 rounded-lg dark:border-gray-700">
-              <p className="text-xs text-gray-500">Último acceso</p>
+            <div className="p-3 rounded-lg border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5">
+              <p className="text-xs text-slate-500 dark:text-blue-200/70">Último acceso</p>
               <p className="text-sm">{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Nunca'}</p>
             </div>
-            <div className="p-3 border border-gray-200 rounded-lg dark:border-gray-700">
-              <p className="text-xs text-gray-500">Creado</p>
+            <div className="p-3 rounded-lg border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5">
+              <p className="text-xs text-slate-500 dark:text-blue-200/70">Creado</p>
               <p className="text-sm">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</p>
             </div>
-            <div className="p-3 border border-gray-200 rounded-lg dark:border-gray-700">
-              <p className="text-xs text-gray-500">Actualizado</p>
+            <div className="p-3 rounded-lg border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5">
+              <p className="text-xs text-slate-500 dark:text-blue-200/70">Actualizado</p>
               <p className="text-sm">{user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : '-'}</p>
             </div>
           </div>
         </div>
-      </dialog>
+      </div>
     </div>
+
   );
 };
 
 const TempPasswordModal: React.FC<{ password: string; onClose: () => void }> = ({ password, onClose }) => {
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    globalThis.addEventListener('keydown', handler);
+    return () => globalThis.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(password);
@@ -124,27 +151,44 @@ const TempPasswordModal: React.FC<{ password: string; onClose: () => void }> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <dialog
-        open
-        className="w-full max-w-md p-6 text-gray-900 bg-white border border-gray-200 rounded-lg shadow-lg dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
-        aria-labelledby="temp-pass-title"
-      >
-        <h2 id="temp-pass-title" className="mb-4 text-xl font-bold">Contraseña temporal generada</h2>
-        <div className="flex items-center p-3 mb-4 font-mono text-lg text-blue-700 border border-blue-200 rounded-md dark:text-blue-300 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/30">
-          <span className="flex-grow break-all">{password}</span>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-slate-800 shadow-2xl shadow-slate-300/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-100">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-400 dark:text-blue-200/60">Credenciales</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Contraseña temporal generada</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-blue-200/70">Entrega esta contraseña al usuario para su primer acceso.</p>
+          </div>
           <button
-            className={`p-2 ml-4 rounded-md transition-colors ${copied ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'}`}
-            onClick={handleCopy}
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-blue-100"
+            aria-label="Cerrar"
           >
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            ×
           </button>
         </div>
-        <p className="mb-4 text-gray-600 dark:text-gray-400">Entrega esta contraseña al usuario para su primer acceso. Se le pedirá cambiarla al iniciar sesión.</p>
-        <div className="flex justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700">Cerrar</button>
+
+        <div className="mt-6">
+          <div className="flex items-center p-3 font-mono text-lg text-sky-700 rounded-2xl border border-sky-200/60 bg-sky-50/70 dark:text-sky-300 dark:border-sky-500/30 dark:bg-sky-500/10">
+            <span className="flex-grow break-all">{password}</span>
+            <button
+              className={`ml-4 inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-semibold transition ${copied ? 'bg-emerald-500 text-white' : 'border border-slate-200 bg-white/80 text-slate-700 hover:border-sky-300 dark:border-white/10 dark:bg-white/10 dark:text-blue-100'}`}
+              onClick={handleCopy}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
-      </dialog>
+
+        <footer className="mt-6 flex items-center justify-end">
+          <button
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
+          >
+            Cerrar
+          </button>
+        </footer>
+      </div>
     </div>
   );
 };
@@ -156,8 +200,8 @@ const UserManagement: React.FC = () => {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [profileUser, setProfileUser] = useState<UserType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<Role | 'all'>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterRole, setFilterRole] = useState<RoleFilter>('all');
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -211,7 +255,7 @@ const UserManagement: React.FC = () => {
     const query = searchTerm.trim().toLowerCase();
     return users.filter(user => {
       const matchesSearch = !query || user.username.toLowerCase().includes(query) || user.email.toLowerCase().includes(query);
-      const matchesRole = filterRole === 'all' || (user.roles && user.roles.includes(filterRole));
+  const matchesRole = filterRole === 'all' ? true : (user.roles?.includes(filterRole) ?? false);
       const matchesStatus =
         filterStatus === 'all' ||
         (filterStatus === 'active' && user.active) ||
@@ -282,12 +326,14 @@ const UserManagement: React.FC = () => {
     ];
   }, [users]);
 
-  const roleDistribution = useMemo(() => {
-    return ROLE_OPTIONS.filter(option => option.value !== 'all').map(option => ({
-      value: option.value as Role,
-      label: option.label,
-      count: users.filter(user => user.roles?.includes(option.value as Role)).length,
-    }));
+  const roleDistribution = useMemo<{ value: Role; label: string; count: number }[]>(() => {
+    return ROLE_OPTIONS
+      .filter((option): option is { value: Role; label: string } => option.value !== 'all')
+      .map(option => ({
+        value: option.value,
+        label: option.label,
+        count: users.filter(user => user.roles?.includes(option.value)).length,
+      }));
   }, [users]);
 
   const statusDistribution = useMemo(() => {
@@ -308,12 +354,12 @@ const UserManagement: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const handleRoleChange = (value: Role | 'all') => {
+  const handleRoleChange = (value: RoleFilter) => {
     setFilterRole(value);
     setCurrentPage(1);
   };
 
-  const handleStatusChange = (value: 'all' | 'active' | 'inactive') => {
+  const handleStatusChange = (value: StatusFilter) => {
     setFilterStatus(value);
     setCurrentPage(1);
   };
