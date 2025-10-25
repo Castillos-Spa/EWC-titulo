@@ -1,6 +1,7 @@
 import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { Role, Ticket } from '@prisma/client';
+import { Role, Area } from '@prisma/client';
+import type { Ticket, OrdenTrabajo, CivilWork, Aseo } from '@prisma/client';
 import { NotificacionGateway } from './notificacion.gateway';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -96,16 +97,21 @@ export class NotificacionService {
     const userRoles = user.roleAssignments.map(ra => ra.role);
     const userAreas = user.roleAssignments.map(ra => ra.area).filter(Boolean);
 
-    const whereClause = {
-      where: {
-        OR: [
-          { user: { some: { id: userId } } }, // Notificaciones directas
-          { areas: { hasSome: userAreas } }, // Notificaciones por área
-          { roles: { hasSome: userRoles } }, // Notificaciones por rol
-          { areas: { isEmpty: true }, roles: { isEmpty: true }, user: { none: {} } }, // Globales
-        ],
-      },
-    };
+    let whereClause: any = {};
+
+    // Si el usuario no es Admin, aplicamos los filtros. Si es Admin, whereClause se queda vacío para traer
+    if (!userRoles.includes(Role.Admin)) {
+      whereClause = {
+        where: {
+          OR: [
+            { user: { some: { id: userId } } }, // Notificaciones directas
+            { areas: { hasSome: userAreas } }, // Notificaciones por área
+            { roles: { hasSome: userRoles } }, // Notificaciones por rol
+            { areas: { isEmpty: true }, roles: { isEmpty: true }, user: { none: {} } }, // Globales
+          ],
+        },
+      };
+    }
 
     const { page = 1, pageSize = 20 } = paginationQuery;
     const skip = (page - 1) * pageSize;
@@ -195,6 +201,20 @@ export class NotificacionService {
 
   @OnEvent('ticket.statusChanged')
   async handleTicketStatusChangedEvent(payload: { ticket: Ticket; newStatus: string; updatedById: number }) {
+    const { ticket, newStatus, updatedById } = payload;
+
+    // 1. Notificar a los supervisores del área del ticket sobre el cambio de estado.
+    if (ticket.recipientArea && ticket.recipientArea.length > 0) {
+      this.createNotification({
+        title: 'Estado de Ticket Actualizado',
+        message: `El estado del ticket "${ticket.title}" en tu área ha cambiado a ${newStatus}.`,
+        type: 'ticket_status_changed',
+        createdById: updatedById,
+        areas: ticket.recipientArea,
+        roles: [Role.Supervisor],
+      });
+    }
+
     // Notificar al creador del ticket sobre el cambio de estado
     await this.createNotification({
       title: 'Estado de Ticket Actualizado',
@@ -251,6 +271,92 @@ export class NotificacionService {
       type: 'ticket',
       createdById: payload.approverId,
       userId: payload.ticket.createdById,
+    });
+  }
+
+  // --- Event Listeners for Orden de Trabajo ---
+
+  @OnEvent('ot.created')
+  async handleOTCreated(payload: OrdenTrabajo) {
+    await this.createNotification({
+      title: 'Nueva Orden de Trabajo',
+      message: `Se ha creado la OT #${payload.id}.`,
+      type: 'ot_created',
+      createdById: payload.responsableId || 1, // Fallback to system user if no responsable
+      areas: ['Transporte'],
+      roles: [Role.Supervisor],
+    });
+  }
+
+  @OnEvent('ot.updated')
+  async handleOTUpdated(payload: OrdenTrabajo) {
+    await this.createNotification({
+      title: 'Orden de Trabajo Actualizada',
+      message: `La OT #${payload.id} ha sido actualizada.`,
+      type: 'ot_updated',
+      createdById: payload.responsableId || 1, // Fallback to system user if no responsable
+      areas: ['Transporte'],
+      roles: [Role.Supervisor],
+    });
+  }
+
+  // NOTA: De manera similar, se pueden agregar listeners para 'ruta.created', 'ruta.updated',
+  // 'vehiculo.created', y 'vehiculo.updated' una vez que esos eventos se emitan
+  // desde sus respectivos servicios.
+
+  // --- Event Listeners for Civil Works ---
+
+  @OnEvent('civilwork.created')
+  async handleCivilWorkCreated(payload: CivilWork) {
+    await this.createNotification({
+      title: 'Nueva Obra Civil Creada',
+      message: `Se ha creado el proyecto de obra civil: "${payload.project}".`,
+      type: 'civilwork_created',
+      createdById: payload.createdById,
+      areas: [Area.Obras],
+      roles: [Role.Supervisor],
+    });
+  }
+
+  @OnEvent('civilwork.updated')
+  async handleCivilWorkUpdated(payload: CivilWork) {
+    await this.createNotification({
+      title: 'Obra Civil Actualizada',
+      message: `El proyecto de obra civil "${payload.project}" ha sido actualizado.`,
+      type: 'civilwork_updated',
+      // Asumimos que el que actualiza es el responsable, si no, se necesita pasar el ID del actor.
+      // Por ahora, usamos el ID del creador original como fallback.
+      createdById: payload.createdById,
+      areas: [Area.Obras],
+      roles: [Role.Supervisor],
+    });
+  }
+
+  // --- Event Listeners for Cleaning Reports ---
+
+  @OnEvent('cleaning_report.created')
+  async handleCleaningReportCreated(payload: { report: Aseo; createdById: number }) {
+    const { report, createdById } = payload;
+    await this.createNotification({
+      title: 'Nuevo Reporte de Aseo',
+      message: `Se ha creado un nuevo reporte de aseo para el área: "${report.area}".`,
+      type: 'cleaning_report_created',
+      createdById: createdById,
+      areas: [Area.Aseo],
+      roles: [Role.Supervisor],
+    });
+  }
+
+  @OnEvent('cleaning_report.updated')
+  async handleCleaningReportUpdated(payload: { report: Aseo; actorId: number }) {
+    const { report, actorId } = payload;
+    await this.createNotification({
+      title: 'Reporte de Aseo Actualizado',
+      message: `El reporte de aseo para "${report.area}" ha sido actualizado.`,
+      type: 'cleaning_report_updated',
+      createdById: actorId,
+      areas: [Area.Aseo],
+      roles: [Role.Supervisor],
     });
   }
 }

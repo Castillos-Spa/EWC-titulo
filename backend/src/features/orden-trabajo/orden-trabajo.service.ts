@@ -47,6 +47,8 @@ export class OrdenTrabajoService {
         data: { lastMaintenanceDate: new Date() }, // Usamos la fecha actual como la del último mantenimiento.
       });
 
+      this.eventEmitter.emit('ot.created', newOrdenTrabajo);
+
       return newOrdenTrabajo;
     });
   }
@@ -114,7 +116,9 @@ export class OrdenTrabajoService {
     // Esto lanzará un NotFoundException si no se encuentra, manteniendo la consistencia.
     await this.findOne(id);
 
-    return this.prisma.ordenTrabajo.update({ where: { id }, data });
+    const updatedOT = await this.prisma.ordenTrabajo.update({ where: { id }, data });
+    this.eventEmitter.emit('ot.updated', updatedOT);
+    return updatedOT;
   }
 
   // Cerrar una orden de trabajo y crear un registro en QA
