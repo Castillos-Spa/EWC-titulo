@@ -1,26 +1,29 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateAseoDto } from './dto/create-aseo.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { UpdateAseoDto } from './dto/update-aseo.dto';
 
 @Injectable()
 export class AseoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
-  async create(createAseoDto: CreateAseoDto) {
-    return this.prisma.aseo.create({
+  async create(createAseoDto: CreateAseoDto, createdById: number) {
+    const newReport = await this.prisma.aseo.create({
       data: {
-        date: new Date(createAseoDto.date),
-        area: createAseoDto.area,
-        tasks: createAseoDto.tasks || [],
-        responsibleStaff: createAseoDto.responsibleStaff,
-        timeSpent: createAseoDto.timeSpent,
-        issues: createAseoDto.issues || [],
-        status: createAseoDto.status,
-        observations: createAseoDto.observations || null,
+        ...createAseoDto,
+        date: new Date(createAseoDto.date), // Asegurarse que la fecha es un objeto Date
+        createdBy: { connect: { id: createdById } },
       },
     });
+
+    this.eventEmitter.emit('cleaning_report.created', { report: newReport, createdById });
+
+    return newReport;
   }
 
   async findAll(paginationQuery: PaginationQueryDto) {
@@ -53,9 +56,7 @@ export class AseoService {
     return r;
   }
 
-  async update(id: number, updateAseoDto: UpdateAseoDto) {
-    // Prisma se encarga de lanzar un error si el registro no existe,
-    // por lo que la llamada a this.findOne(id) es redundante.
+  async update(id: number, updateAseoDto: UpdateAseoDto, actorId: number) {
     const { date, ...restOfDto } = updateAseoDto;
 
     const dataToUpdate = {
@@ -63,12 +64,14 @@ export class AseoService {
       ...(date && { date: new Date(date) }), // Transforma la fecha solo si existe
     };
 
-    // Prisma puede manejar `updatedAt` automáticamente si lo configuras en tu schema.prisma
-    // model Aseo {
-    //   ...
-    //   updatedAt DateTime @updatedAt
-    // }
-    return this.prisma.aseo.update({ where: { id }, data: dataToUpdate });
+    const updatedReport = await this.prisma.aseo.update({
+      where: { id },
+      data: dataToUpdate,
+    });
+
+    this.eventEmitter.emit('cleaning_report.updated', { report: updatedReport, actorId });
+
+    return updatedReport;
   }
 
   async remove(id: number) {

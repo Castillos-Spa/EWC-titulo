@@ -4,10 +4,14 @@ import { CreateCivilWorkDto } from './dto/create-civil-work.dto';
 import { UpdateCivilWorkDto } from './dto/update-civil-work.dto';
 import { CivilWork, Prisma, CivilWorkStatus } from '@prisma/client';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class CivilWorkService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   // Define un include estándar para obtener todos los detalles de una obra.
   private readonly civilWorkInclude = {
@@ -25,7 +29,7 @@ export class CivilWorkService {
       completed: false,
     }));
 
-    return this.prisma.civilWork.create({
+    const newCivilWork = await this.prisma.civilWork.create({
       data: {
         ...workData,
         createdBy: { connect: { id: createdById } },
@@ -35,6 +39,9 @@ export class CivilWorkService {
       },
       include: this.civilWorkInclude,
     });
+
+    this.eventEmitter.emit('civilwork.created', newCivilWork);
+    return newCivilWork;
   }
 
   async findAll(paginationQuery: PaginationQueryDto) {
@@ -129,7 +136,7 @@ export class CivilWorkService {
 
       const { responsibleStaffUsernames, materialsUsed, tasks, ...workData } = updateDto;
 
-      return tx.civilWork.update({
+      const updatedCivilWork = await tx.civilWork.update({
         where: { id },
         data: {
           ...workData,
@@ -140,6 +147,9 @@ export class CivilWorkService {
         },
         include: this.civilWorkInclude,
       });
+
+      this.eventEmitter.emit('civilwork.updated', updatedCivilWork);
+      return updatedCivilWork;
     });
   }
 
