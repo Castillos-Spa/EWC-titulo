@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Wrench, CalendarClock, ShieldCheck, DollarSign } from 'lucide-react';
 import type { OrdenTrabajo } from '../../../types/OrdenTrabajo';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface MaintenanceStatsProps {
   records: OrdenTrabajo[];
@@ -8,6 +9,7 @@ interface MaintenanceStatsProps {
 }
 
 const MaintenanceStats: React.FC<MaintenanceStatsProps> = ({ records, loading }) => {
+  const { locale } = useIntlFormat();
   const stats = useMemo(() => {
     const today = new Date();
     const active = records.filter(record => record.estado !== 'completado');
@@ -53,13 +55,13 @@ const MaintenanceStats: React.FC<MaintenanceStatsProps> = ({ records, loading })
       {
         id: 'maintenance-cost',
         label: 'Costo acumulado',
-  value: totalCost > 0 ? `$${totalCost.toLocaleString('es-CL')}` : '$0',
+  value: totalCost > 0 ? new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(totalCost) : '$0',
   helper: totalCost > 0 ? 'Presupuesto ejecutado' : 'Sin gastos registrados',
         icon: <DollarSign className="h-6 w-6" />,
         accent: 'from-amber-500/25 to-orange-500/20',
       },
     ];
-  }, [records]);
+  }, [records, locale]);
 
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

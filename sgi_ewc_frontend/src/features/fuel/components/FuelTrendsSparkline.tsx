@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
+import { useIntlFormat } from '../../../app/intl/format';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface FuelTrendPoint {
@@ -31,16 +32,17 @@ const useIsDarkMode = () => {
 const FuelTrendsSparkline: React.FC<FuelTrendsSparklineProps> = ({ data }) => {
 	const gradientId = useId();
 	const isDarkMode = useIsDarkMode();
+  const { locale } = useIntlFormat();
 
 	const chartData = useMemo(() => {
 		return data
 			.slice()
 			.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 			.map((entry) => ({
-				label: new Date(entry.date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }).replace('.', ''),
+				label: new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' }).format(new Date(entry.date)).replace('.', ''),
 				liters: Number.parseFloat(entry.liters.toFixed(2)),
 			}));
-	}, [data]);
+	}, [data, locale]);
 
 	if (chartData.length === 0) {
 		return (

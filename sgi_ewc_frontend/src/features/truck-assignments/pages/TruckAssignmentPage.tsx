@@ -5,6 +5,7 @@ import TruckKpis from '../components/TruckKpis';
 import TruckAssignmentCards from '../components/TruckAssignmentCards';
 import { RouteProvider } from '@features/transport-routes/context/RouteContext';
 import { useTruckAssignment } from '../hooks/useTruckAssignment';
+import { useIntlFormat } from '@app/intl/format';
 
 const PlannerHero: React.FC<{ date: string }> = ({ date }) => {
   const { assignments, trucks } = useTruckAssignment();
@@ -27,13 +28,8 @@ const PlannerHero: React.FC<{ date: string }> = ({ date }) => {
 
   const activeFleet = useMemo(() => trucks.filter(truck => truck.active).length, [trucks]);
   const freeFleet = Math.max(activeFleet - distinctTrucks, 0);
-  const formattedDate = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat('es-CL', { dateStyle: 'full' }).format(targetDay);
-    } catch {
-      return targetDay.toISOString().slice(0, 10);
-    }
-  }, [targetDay]);
+  const { formatLongDate } = useIntlFormat();
+  const formattedDate = useMemo(() => formatLongDate(targetDay) || targetDay.toISOString().slice(0, 10), [formatLongDate, targetDay]);
 
   const heroStats = [
     {

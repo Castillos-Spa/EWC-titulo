@@ -2,6 +2,7 @@ import React from 'react';
 import { CalendarClock, UserCircle } from 'lucide-react';
 import type { Ticket } from '../../../types/Ticket';
 import { TicketPriority, TicketStatus } from '../../../types/Ticket';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface TicketTableProps {
   items: Ticket[];
@@ -22,14 +23,8 @@ const priorityBadge: Record<TicketPriority, string> = {
   [TicketPriority.Urgente]: 'bg-rose-50 text-rose-700 dark:bg-rose-500/25 dark:text-rose-100',
 };
 
-const formatDate = (value?: string | Date | null) => {
-  if (!value) return 'Sin fecha';
-  const parsed = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(parsed.getTime())) return 'Sin fecha';
-  return new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short' }).format(parsed);
-};
-
 const TicketTable: React.FC<TicketTableProps> = ({ items, onSelect }) => {
+  const { formatDateTime } = useIntlFormat();
   return (
     <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/30">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.15),_transparent_70%)]" />
@@ -80,7 +75,7 @@ const TicketTable: React.FC<TicketTableProps> = ({ items, onSelect }) => {
                 <td className="px-5 py-4">
                   <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">
                     <CalendarClock className="h-4 w-4" />
-                    {formatDate(ticket.updatedAt)}
+                    {formatDateTime(ticket.updatedAt) || 'Sin fecha'}
                   </span>
                 </td>
               </tr>

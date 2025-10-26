@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
+import { useIntlFormat } from '../../../app/intl/format';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { FuelLog } from '../../../utils/fuelApi';
 
@@ -27,6 +28,7 @@ const useIsDarkMode = () => {
 const VehicleFuelSparkline: React.FC<VehicleFuelSparklineProps> = ({ logs }) => {
 	const gradientId = useId();
 	const isDarkMode = useIsDarkMode();
+  const { locale } = useIntlFormat();
 
 	const data = useMemo(() => {
 		if (!logs.length) return [] as Array<{ label: string; liters: number }>;
@@ -34,10 +36,10 @@ const VehicleFuelSparkline: React.FC<VehicleFuelSparklineProps> = ({ logs }) => 
 			.slice()
 			.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 			.map((log) => ({
-				label: new Date(log.date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }).replace('.', ''),
+				label: new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' }).format(new Date(log.date)).replace('.', ''),
 				liters: Number.parseFloat(log.liters.toFixed(2)),
 			}));
-	}, [logs]);
+	}, [logs, locale]);
 
 	if (data.length === 0) {
 		return (

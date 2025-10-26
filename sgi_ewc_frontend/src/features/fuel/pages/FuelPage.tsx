@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Fuel as FuelIcon, Gauge, Plus, Sparkles } from 'lucide-react';
 import { FuelProvider, useFuelContext } from '../context/FuelContext';
+import { useIntlFormat } from '../../../app/intl/format';
 import FuelLogFormModal from '../components/FuelLogFormModal';
 import { useAuth } from '../../../contexts/AuthContext';
 import FuelKpis from '../components/FuelKpis';
@@ -47,6 +48,7 @@ function FuelInnerPage() {
   const { user } = useAuth();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showFuelForm, setShowFuelForm] = useState(false);
+  const { locale } = useIntlFormat();
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -222,7 +224,7 @@ function FuelInnerPage() {
             <header className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Tendencia de consumo de flota</h2>
-                <p className="text-sm text-slate-500 dark:text-blue-200/80">{fleetMetrics.refuelCount > 0 ? `${fleetMetrics.refuelCount.toLocaleString('es-CL')} recargas registradas en el periodo` : 'Sin recargas registradas aún'}.</p>
+                <p className="text-sm text-slate-500 dark:text-blue-200/80">{fleetMetrics.refuelCount > 0 ? `${new Intl.NumberFormat(locale).format(fleetMetrics.refuelCount)} recargas registradas en el periodo` : 'Sin recargas registradas aún'}.</p>
               </div>
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:bg-white/10 dark:text-blue-200/70">
                 <Gauge className="h-3.5 w-3.5" /> {fleetMetrics.avgConsumption > 0 ? `${fleetMetrics.avgConsumption.toFixed(1)} L/100km promedio` : 'A la espera de datos'}

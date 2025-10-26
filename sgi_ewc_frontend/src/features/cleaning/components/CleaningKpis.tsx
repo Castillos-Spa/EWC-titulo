@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useIntlFormat } from '../../../app/intl/format';
 import { CheckCircle2, Timer, AlertTriangle, Sparkles } from 'lucide-react';
 import { useCleaning } from '../hooks/useCleaning';
 
@@ -13,6 +14,7 @@ type StatDescriptor = {
 
 const CleaningKpis: React.FC = () => {
   const { items } = useCleaning();
+  const { locale } = useIntlFormat();
 
   const stats = useMemo<StatDescriptor[]>(() => {
     const total = items.length;
@@ -41,7 +43,7 @@ const CleaningKpis: React.FC = () => {
       {
         id: 'cleaning-hours',
         label: 'Horas invertidas',
-        value: `${hours.toLocaleString('es-CL')}h`,
+        value: `${new Intl.NumberFormat(locale).format(hours)}h`,
         helper: hours > 0 ? 'Tiempo acumulado hoy' : 'Aún sin registros',
         accent: 'from-emerald-500/25 to-teal-500/25',
         icon: <Timer className="h-6 w-6" />,
@@ -55,7 +57,7 @@ const CleaningKpis: React.FC = () => {
         icon: <AlertTriangle className="h-6 w-6" />,
       },
     ];
-  }, [items]);
+  }, [items, locale]);
 
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

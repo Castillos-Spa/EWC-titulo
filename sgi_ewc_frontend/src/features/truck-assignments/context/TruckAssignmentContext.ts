@@ -1,3 +1,3 @@
-export { TruckAssignmentProvider } from '../../../components/TruckAssignments/TruckAssignmentContext';
-export type { Truck, Driver, TruckAssignment } from '../../../components/TruckAssignments/TruckAssignmentContext';
-export { default } from '../../../components/TruckAssignments/TruckAssignmentContext';
+export { TruckAssignmentProvider } from './TruckAssignmentContext.tsx';
+export type { Truck, Driver, TruckAssignment } from './TruckAssignmentContext.tsx';
+export { default } from './TruckAssignmentContext.tsx';

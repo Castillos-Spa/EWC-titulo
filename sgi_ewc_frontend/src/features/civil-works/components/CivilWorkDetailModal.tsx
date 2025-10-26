@@ -2,15 +2,8 @@ import React, { useCallback, useMemo } from 'react';
 import { X, MapPin, CalendarDays, CalendarClock, Layers, Gauge, Users2, ClipboardList, Package, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import type { CivilWork, CivilWorkTask } from '../../../types/CivilWork';
 import { useCivilWorks } from '../hooks/useCivilWorks';
+import { useIntlFormat } from '../../../app/intl/format';
 
-const formatDate = (iso?: string | null) => {
-  if (!iso) return 'Sin registro';
-  try {
-    return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' }).format(new Date(iso));
-  } catch {
-    return iso ?? '';
-  }
-};
 
 const computeTimeline = (estimated?: string | null) => {
   if (!estimated) return 'Sin estimación';
@@ -28,6 +21,7 @@ export const CivilWorkDetailModal: React.FC<{
   onEdit?: (r: CivilWork) => void;
 }> = ({ report, onClose, onEdit }) => {
   const { updateTasks } = useCivilWorks();
+  const { formatDate } = useIntlFormat();
 
   const handleToggle = useCallback(async (index: number) => {
     const list: CivilWorkTask[] = Array.isArray(report.tasks)

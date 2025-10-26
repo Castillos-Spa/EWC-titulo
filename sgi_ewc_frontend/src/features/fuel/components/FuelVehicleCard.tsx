@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useIntlFormat } from '../../../app/intl/format';
 import { AlertTriangle, ChevronDown, ChevronRight, Fuel, Gauge, MapPin } from 'lucide-react';
 import type { FuelLog, VehicleWithFuelHistory } from '../../../utils/fuelApi';
 import VehicleFuelSparkline from './VehicleFuelSparkline';
@@ -33,6 +34,7 @@ const FuelVehicleCard: React.FC<FuelVehicleCardProps> = ({ vehicle, metrics, isE
   const lastRefuel = useMemo(() => getLastRefuel(vehicle.fuelLogs ?? []), [vehicle.fuelLogs]);
   const efficiency = efficiencyTone(metrics.consumption);
 
+  const { formatDate, locale } = useIntlFormat();
   return (
     <article className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 p-6 text-slate-800 shadow-lg shadow-slate-200/40 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:shadow-slate-900/30">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_rgba(8,47,73,0)_65%)]" />
@@ -81,8 +83,8 @@ const FuelVehicleCard: React.FC<FuelVehicleCardProps> = ({ vehicle, metrics, isE
             </div>
             <div className="rounded-2xl border border-slate-200/60 bg-white/70 p-4 shadow-inner shadow-slate-200/40 dark:border-slate-700 dark:bg-slate-950/40 dark:shadow-none">
               <dt className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400 dark:text-blue-200/70">Última recarga</dt>
-              <dd className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{lastRefuel ? new Date(lastRefuel.date).toLocaleDateString('es-CL') : 'Sin registros'}</dd>
-              <p className="text-xs text-slate-500 dark:text-slate-300">{lastRefuel ? `${lastRefuel.liters.toFixed(1)} L a ${lastRefuel.odometer.toLocaleString('es-CL')} km` : 'Registra la primera carga'}</p>
+              <dd className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">{lastRefuel ? formatDate(lastRefuel.date) : 'Sin registros'}</dd>
+              <p className="text-xs text-slate-500 dark:text-slate-300">{lastRefuel ? `${lastRefuel.liters.toFixed(1)} L a ${new Intl.NumberFormat(locale).format(lastRefuel.odometer)} km` : 'Registra la primera carga'}</p>
             </div>
           </dl>
         </div>
@@ -107,14 +109,14 @@ const FuelVehicleCard: React.FC<FuelVehicleCardProps> = ({ vehicle, metrics, isE
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
-                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">{new Date(log.date).toLocaleDateString('es-CL')}</p>
+                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-100">{formatDate(log.date)}</p>
                           <p className="text-xs uppercase tracking-[0.28em] text-slate-400 dark:text-blue-200/60">{log.driver.username}</p>
                         </div>
                         <div className="flex flex-wrap gap-3 text-sm text-slate-600 dark:text-slate-200">
                           <span>{log.liters.toFixed(1)} L</span>
-                          <span>{log.odometer.toLocaleString('es-CL')} km</span>
+                          <span>{new Intl.NumberFormat(locale).format(log.odometer)} km</span>
                           {typeof log.cost === 'number' && (
-                            <span>${log.cost.toLocaleString('es-CL')}</span>
+                            <span>{new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(log.cost)}</span>
                           )}
                         </div>
                       </div>

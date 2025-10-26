@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Ticket, TicketPriority, TicketStatus } from '../../../types/Ticket';
 import { useTicketsContext } from '../context/TicketsContext';
 import type { User } from '../../../types/User';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface Props {
   open: boolean;
@@ -9,13 +10,13 @@ interface Props {
   ticket: Ticket;
 }
 
-function formatDate(d: string | undefined) {
-  if (!d) return '';
-  const date = new Date(d);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+function useFormatters() {
+  const { formatDateTime } = useIntlFormat();
+  return { formatDateTime };
 }
 
 export default function TicketDetailModal({ open, onClose, ticket }: Readonly<Props>) {
+  const { formatDateTime } = useFormatters();
   const { update, approve, users } = useTicketsContext();
   const [status, setStatus] = useState<TicketStatus>(ticket.status);
   const [priority, setPriority] = useState<TicketPriority>(ticket.priority);
@@ -215,8 +216,8 @@ export default function TicketDetailModal({ open, onClose, ticket }: Readonly<Pr
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-500">
-            <div>Creado: {formatDate(ticket.createdAt)}</div>
-            <div>Actualizado: {formatDate(ticket.updatedAt)}</div>
+            <div>Creado: {formatDateTime(ticket.createdAt)}</div>
+            <div>Actualizado: {formatDateTime(ticket.updatedAt)}</div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

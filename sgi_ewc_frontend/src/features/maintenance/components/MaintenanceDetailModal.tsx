@@ -4,6 +4,7 @@ import type { OrdenTrabajo } from '../../../types/OrdenTrabajo';
 import type { Vehiculo } from '../../../types/Vehiculo';
 import type { User as AppUser } from '../../../types/User';
 import type { MaintenanceStatus, MaintenanceType } from '../context/MaintenanceContext';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface MaintenanceDetailModalProps {
   record: OrdenTrabajo | null;
@@ -37,13 +38,8 @@ const typeLabels: Record<MaintenanceType, string> = {
   Emergencia: 'Emergencia',
 };
 
-const formatDateTime = (value?: string | Date | null) => {
-  if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('es-CL');
-};
-
 const MaintenanceDetailModal: React.FC<MaintenanceDetailModalProps> = ({ record, vehicles, users, onClose }) => {
+  const { formatDateTime, locale } = useIntlFormat();
   const vehicleMap = useMemo(() => new Map(vehicles.map(vehicle => [vehicle.id, vehicle])), [vehicles]);
   const userMap = useMemo(() => new Map(users.map(user => [user.id, user])), [users]);
 
@@ -118,7 +114,9 @@ const MaintenanceDetailModal: React.FC<MaintenanceDetailModalProps> = ({ record,
               </div>
               <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Costos</p>
-                <p className="mt-2 text-base font-semibold text-slate-700 dark:text-blue-100">${(record.estimatedCost || 0).toLocaleString('es-CL')}</p>
+                <p className="mt-2 text-base font-semibold text-slate-700 dark:text-blue-100">{
+                  new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(record.estimatedCost || 0)
+                }</p>
               </div>
             </section>
 

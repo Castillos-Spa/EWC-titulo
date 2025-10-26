@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIntlFormat } from '../../../app/intl/format';
 import {
   CalendarCheck2,
   Globe2,
@@ -7,7 +8,6 @@ import {
   Pin,
   PinOff,
   Pencil,
-  Trash2,
 } from 'lucide-react';
 import type { AppNotification, NotificationPriority, NotificationTarget } from '../../../types/Notification';
 
@@ -17,7 +17,6 @@ interface NotificationBoardProps {
   error?: string | null;
   isAdmin: boolean;
   onEdit: (notification: AppNotification) => void;
-  onDelete: (notification: AppNotification) => void;
   onTogglePin: (notification: AppNotification) => void;
 }
 
@@ -66,9 +65,9 @@ const NotificationBoard: React.FC<NotificationBoardProps> = ({
   error,
   isAdmin,
   onEdit,
-  onDelete,
   onTogglePin,
 }) => {
+  const { formatDateTime } = useIntlFormat();
   if (loading) {
     return (
       <div className="rounded-3xl border border-slate-200/60 bg-white/70 px-6 py-10 text-center text-sm text-slate-500 shadow-inner shadow-slate-200/40 dark:border-white/10 dark:bg-white/5 dark:text-blue-100/80">
@@ -101,8 +100,8 @@ const NotificationBoard: React.FC<NotificationBoardProps> = ({
         const priority = priorityStyles[notification.priority];
         const target = targetDescriptor(notification.target);
         const scheduled = notification.status === 'scheduled';
-        const createdAt = new Date(notification.createdAt).toLocaleString('es-CL');
-        const scheduledAt = notification.scheduledAt ? new Date(notification.scheduledAt).toLocaleString('es-CL') : null;
+          const createdAt = formatDateTime(notification.createdAt);
+          const scheduledAt = notification.scheduledAt ? formatDateTime(notification.scheduledAt) : null;
 
         return (
           <article
@@ -167,13 +166,7 @@ const NotificationBoard: React.FC<NotificationBoardProps> = ({
                     >
                       <Pencil className="h-4 w-4" /> Editar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(notification)}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-100"
-                    >
-                      <Trash2 className="h-4 w-4" /> Eliminar
-                    </button>
+                    {/* Acción de eliminar oculta por falta de endpoint DELETE en backend */}
                   </div>
                 )}
               </div>

@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useLanguage } from '../../contexts/LanguageContext';
-import type { Languages } from '../../contexts/LanguageContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import type { Languages } from '../../../contexts/LanguageContext';
+import { defaultHomeCandidates, routeIdToLabelKey, getDefaultHomeRouteIdFromStorage, isRouteAllowedByUser } from '../../../app/navigation/navigationUtils';
+import type { RouteId } from '../../../app/navigation/navigationUtils';
 
 const LANGUAGE_NAMES: Record<Languages, string> = {
   es: 'Español',
@@ -149,8 +151,25 @@ const SettingsPage: React.FC = () => {
     const v = localStorage.getItem('fontScale');
     return (v === 'sm' || v === 'md' || v === 'lg') ? v : 'md';
   });
-  const [defaultHomePage, setDefaultHomePage] = useState<string>(() => localStorage.getItem('defaultHomePage') || 'dashboard');
+  // Ahora almacenamos un routeId como 'defaultHomePage'; soportamos valores antiguos de forma transparente
+  const [defaultHomePage, setDefaultHomePage] = useState<string>(() => getDefaultHomeRouteIdFromStorage());
   const [rememberLastPage, setRememberLastPage] = useState<boolean>(() => localStorage.getItem('rememberLastPage') === 'true');
+  // Opciones de página de inicio alcanzables según el rol actual
+  const allowedHomeCandidates = useMemo(() => {
+    return defaultHomeCandidates.filter((rid) => isRouteAllowedByUser(rid, user));
+  }, [user]);
+
+  // Si el valor guardado no es alcanzable por el rol, normaliza al primero permitido
+  useEffect(() => {
+    const current = defaultHomePage as RouteId;
+    if (!allowedHomeCandidates.includes(current)) {
+      const next = (allowedHomeCandidates[0] ?? 'dashboard');
+      if (next !== current) {
+        setDefaultHomePage(next);
+        localStorage.setItem('defaultHomePage', next);
+      }
+    }
+  }, [allowedHomeCandidates, defaultHomePage]);
   const [timeFormat24h, setTimeFormat24h] = useState<boolean>(() => localStorage.getItem('timeFormat24h') !== 'false');
   const [dateFormat, setDateFormat] = useState<DateFormat>(() => {
     const v = localStorage.getItem('dateFormat');
@@ -563,11 +582,29 @@ const SettingsPage: React.FC = () => {
     localStorage.setItem('uiDensity', uiDensity);
     globalThis.dispatchEvent?.(new CustomEvent('ui-density-change', { detail: uiDensity }));
   }, [uiDensity]);
-  useEffect(() => { localStorage.setItem('fontScale', fontScale); }, [fontScale]);
-  useEffect(() => { localStorage.setItem('defaultHomePage', defaultHomePage); }, [defaultHomePage]);
+  useEffect(() => {
+    localStorage.setItem('fontScale', fontScale);
+    // Disparar evento custom para que el layout aplique la escala si esta vista no está montada
+    globalThis.dispatchEvent?.(new CustomEvent('font-scale-change', { detail: fontScale }));
+  }, [fontScale]);
+  useEffect(() => {
+    // Si el usuario está configurando la página de inicio, desactiva 'recordar última vista' para evitar ambigüedad
+    // (mutua exclusión suave a nivel de UI)
+    if (rememberLastPage) {
+      setRememberLastPage(false);
+      localStorage.setItem('rememberLastPage', 'false');
+    }
+    localStorage.setItem('defaultHomePage', defaultHomePage);
+  }, [defaultHomePage, rememberLastPage]);
   useEffect(() => { localStorage.setItem('rememberLastPage', String(rememberLastPage)); }, [rememberLastPage]);
-  useEffect(() => { localStorage.setItem('timeFormat24h', String(timeFormat24h)); }, [timeFormat24h]);
-  useEffect(() => { localStorage.setItem('dateFormat', dateFormat); }, [dateFormat]);
+  useEffect(() => {
+    localStorage.setItem('timeFormat24h', String(timeFormat24h));
+    globalThis.dispatchEvent?.(new CustomEvent('intl-preferences-change', { detail: { key: 'timeFormat24h', value: timeFormat24h } }));
+  }, [timeFormat24h]);
+  useEffect(() => {
+    localStorage.setItem('dateFormat', dateFormat);
+    globalThis.dispatchEvent?.(new CustomEvent('intl-preferences-change', { detail: { key: 'dateFormat', value: dateFormat } }));
+  }, [dateFormat]);
   useEffect(() => { localStorage.setItem('showShortcutHints', String(showShortcutHints)); }, [showShortcutHints]);
 
   useEffect(() => {
@@ -593,7 +630,7 @@ const SettingsPage: React.FC = () => {
       document.documentElement.classList.remove('dark');
     } else {
       // system: el efecto en App.tsx decidirá según matchMedia
-  const prefersDark = typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+      const prefersDark = typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
       document.documentElement.classList.toggle('dark', prefersDark);
     }
     // Ajusta también el booleano para el texto auxiliar actual
@@ -755,12 +792,17 @@ const SettingsPage: React.FC = () => {
               <p className="font-semibold text-slate-900 dark:text-white">{copy.start.defaultPageTitle}</p>
               <p className="text-sm text-slate-500 dark:text-blue-200/80">{copy.start.defaultPageDescription}</p>
             </div>
-            <select className={optionSelectClass} value={defaultHomePage} onChange={e => setDefaultHomePage(e.target.value)}>
-              <option value="dashboard">{t('nav.dashboard')}</option>
-              <option value="tickets">{t('nav.tickets')}</option>
-              <option value="notifications">{t('nav.notifications')}</option>
-              <option value="maintenance">{t('nav.maintenance')}</option>
-              <option value="trip-reports">{t('nav.tripReports')}</option>
+            <select
+              className={`${optionSelectClass} ${rememberLastPage ? 'opacity-60 cursor-not-allowed' : ''}`}
+              value={defaultHomePage}
+              onChange={e => setDefaultHomePage(e.target.value)}
+              disabled={rememberLastPage}
+              aria-disabled={rememberLastPage}
+              title={rememberLastPage ? 'Desactiva "Recordar última vista" para elegir la página de inicio' : undefined}
+            >
+              {allowedHomeCandidates.map((rid) => (
+                <option key={rid} value={rid}>{t(routeIdToLabelKey[rid])}</option>
+              ))}
             </select>
           </div>
 
@@ -771,7 +813,18 @@ const SettingsPage: React.FC = () => {
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <span className="sr-only">{copy.start.rememberTitle}</span>
-              <input type="checkbox" className="peer sr-only" checked={rememberLastPage} onChange={e => setRememberLastPage(e.target.checked)} />
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={rememberLastPage}
+                onChange={e => {
+                  const val = e.target.checked;
+                  setRememberLastPage(val);
+                  localStorage.setItem('rememberLastPage', String(val));
+                  // Si el usuario activa "Recordar última vista", no tiene sentido mantener una página fija visible
+                  // La select queda deshabilitada automáticamente por la prop disabled
+                }}
+              />
               <div className={`${toggleTrackClass} peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-300 dark:peer-focus:ring-sky-500`}>
                 <span className={toggleThumbClass} />
               </div>

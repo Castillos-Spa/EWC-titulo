@@ -1,30 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, User, Users, Mail, Shield, Edit, Trash2, CheckCircle, XCircle, Eye, Copy, Check, Info } from 'lucide-react';
-import { getUsers, createUser, updateUser, deleteUser, getTempPassword } from '../../utils/userApi';
-import { User as UserType, Role } from '../../types/User';
-import UserForm from './UserForm';
+import { Plus, User, Users, Mail, Shield, Edit, Trash2, CheckCircle, XCircle, Eye, Copy, Check, Info } from 'lucide-react';
+import { getUsers, createUser, updateUser, deleteUser, getTempPassword } from '../../../utils/userApi';
+import { User as UserType, Role } from '../../../types/User';
+import UserForm from '../components/UserForm';
+import { useIntlFormat } from '../../../app/intl/format';
 
 // Tipos y helpers reutilizables a nivel de archivo
-type RoleFilter = 'all' | Role;
-type StatusFilter = 'all' | 'active' | 'inactive';
+// Tipos para filtros (si se reactivan)
 
 const USERS_PER_PAGE = 10;
 
-const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
-  { value: 'all', label: 'Todos los roles' },
-  { value: 'Admin', label: 'Administrador' },
-  { value: 'Jefe', label: 'Jefatura' },
-  { value: 'Supervisor', label: 'Supervisor' },
-  { value: 'Especialista', label: 'Especialista' },
-  { value: 'Trabajador', label: 'Trabajador' },
-  { value: 'Lector', label: 'Lector' },
-];
+// Opciones de rol (si se reactivan filtros, mover a un selector)
 
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'active', label: 'Activos' },
-  { value: 'inactive', label: 'Inactivos' },
-];
+// Nota: si se desean filtros por estado, reintroducir STATUS_OPTIONS y el estado asociado
 
 const getRoleColor = (role?: Role) => {
   if (!role) return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
@@ -58,6 +46,7 @@ const mapSingleArea = (a: string) => {
 
 // Modal para ver perfil (patrón unificado)
 const ProfileModal: React.FC<{ user: UserType; onClose: () => void }> = ({ user, onClose }) => {
+  const { formatDateTime, formatDate } = useIntlFormat();
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     globalThis.addEventListener('keydown', handler);
@@ -117,15 +106,15 @@ const ProfileModal: React.FC<{ user: UserType; onClose: () => void }> = ({ user,
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="p-3 rounded-lg border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5">
               <p className="text-xs text-slate-500 dark:text-blue-200/70">Último acceso</p>
-              <p className="text-sm">{user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Nunca'}</p>
+              <p className="text-sm">{formatDateTime(user.lastLogin) || 'Nunca'}</p>
             </div>
             <div className="p-3 rounded-lg border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5">
               <p className="text-xs text-slate-500 dark:text-blue-200/70">Creado</p>
-              <p className="text-sm">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</p>
+              <p className="text-sm">{formatDate(user.createdAt) || '-'}</p>
             </div>
             <div className="p-3 rounded-lg border border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-white/5">
               <p className="text-xs text-slate-500 dark:text-blue-200/70">Actualizado</p>
-              <p className="text-sm">{user.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : '-'}</p>
+              <p className="text-sm">{formatDate(user.updatedAt) || '-'}</p>
             </div>
           </div>
         </div>
@@ -200,9 +189,9 @@ const UserManagement: React.FC = () => {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [profileUser, setProfileUser] = useState<UserType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState<RoleFilter>('all');
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
+  // Filtros avanzados deshabilitados por ahora
   const [currentPage, setCurrentPage] = useState(1);
+  const { formatDateTime, formatDate } = useIntlFormat();
 
   useEffect(() => {
     getUsers().then(setUsers);
@@ -255,14 +244,9 @@ const UserManagement: React.FC = () => {
     const query = searchTerm.trim().toLowerCase();
     return users.filter(user => {
       const matchesSearch = !query || user.username.toLowerCase().includes(query) || user.email.toLowerCase().includes(query);
-  const matchesRole = filterRole === 'all' ? true : (user.roles?.includes(filterRole) ?? false);
-      const matchesStatus =
-        filterStatus === 'all' ||
-        (filterStatus === 'active' && user.active) ||
-        (filterStatus === 'inactive' && !user.active);
-      return matchesSearch && matchesRole && matchesStatus;
+      return matchesSearch;
     });
-  }, [users, searchTerm, filterRole, filterStatus]);
+  }, [users, searchTerm]);
 
   const totalPages = useMemo(() => {
     if (filteredUsers.length === 0) return 1;
@@ -326,44 +310,6 @@ const UserManagement: React.FC = () => {
     ];
   }, [users]);
 
-  const roleDistribution = useMemo<{ value: Role; label: string; count: number }[]>(() => {
-    return ROLE_OPTIONS
-      .filter((option): option is { value: Role; label: string } => option.value !== 'all')
-      .map(option => ({
-        value: option.value,
-        label: option.label,
-        count: users.filter(user => user.roles?.includes(option.value)).length,
-      }));
-  }, [users]);
-
-  const statusDistribution = useMemo(() => {
-    const active = users.filter(user => user.active).length;
-    const inactive = users.filter(user => !user.active).length;
-    return [
-      { value: 'active' as const, label: 'Activos', count: active },
-      { value: 'inactive' as const, label: 'Inactivos', count: inactive },
-    ];
-  }, [users]);
-
-  const hasActiveFilters = useMemo(() => {
-    return searchTerm.trim() !== '' || filterRole !== 'all' || filterStatus !== 'all';
-  }, [searchTerm, filterRole, filterStatus]);
-
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  };
-
-  const handleRoleChange = (value: RoleFilter) => {
-    setFilterRole(value);
-    setCurrentPage(1);
-  };
-
-  const handleStatusChange = (value: StatusFilter) => {
-    setFilterStatus(value);
-    setCurrentPage(1);
-  };
-
   const paginate = (page: number) => {
     setCurrentPage(prev => {
       const next = Math.min(Math.max(page, 1), totalPages);
@@ -371,18 +317,7 @@ const UserManagement: React.FC = () => {
     });
   };
 
-  const resetFilters = () => {
-    setSearchTerm('');
-    setFilterRole('all');
-    setFilterStatus('all');
-    setCurrentPage(1);
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  };
+  
 
   const getTimeSince = (dateString?: string) => {
     if (!dateString) return 'Nunca';
@@ -440,125 +375,6 @@ const UserManagement: React.FC = () => {
             </div>
           </article>
         ))}
-      </section>
-
-      <section className="relative px-6 py-6 overflow-hidden border shadow-xl rounded-3xl border-slate-200/60 bg-white/70 shadow-slate-200/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/40">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(125,211,252,0.18),_rgba(15,23,42,0)_70%)] dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_rgba(15,23,42,0.45))]" />
-        <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <div className="space-y-5">
-            <div className="space-y-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
-                <Shield className="w-4 h-4" /> Panel de filtros
-              </span>
-              <p className="max-w-xl text-sm text-slate-500 dark:text-blue-200/80">
-                Filtra por rol o estado para agilizar aprobaciones. El resumen lateral muestra la distribución actual de perfiles activos.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="relative">
-                <Search className="absolute w-4 h-4 -translate-y-1/2 pointer-events-none left-4 top-1/2 text-slate-400 dark:text-blue-200/70" />
-                <label htmlFor="user-search" className="sr-only">Buscar usuarios</label>
-                <input
-                  id="user-search"
-                  value={searchTerm}
-                  onChange={event => handleSearchChange(event.target.value)}
-                  placeholder="Busca por nombre o correo"
-                  className="w-full py-2 pr-4 text-sm transition border shadow-sm rounded-2xl border-slate-200 bg-white/80 pl-11 text-slate-700 focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
-                />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <select
-                  value={filterRole}
-                  onChange={event => handleRoleChange(event.target.value as Role | 'all')}
-                  className="px-4 py-2 text-sm transition border shadow-sm rounded-2xl border-slate-200 bg-white/80 text-slate-700 focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
-                >
-                  {ROLE_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={filterStatus}
-                  onChange={event => handleStatusChange(event.target.value as 'all' | 'active' | 'inactive')}
-                  className="px-4 py-2 text-sm transition border shadow-sm rounded-2xl border-slate-200 bg-white/80 text-slate-700 focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
-                >
-                  {STATUS_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/10 dark:text-blue-200/80">
-                {filteredUsers.length} usuarios visibles
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={resetFilters}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
-                  >
-                    Restablecer filtros
-                  </button>
-                )}
-                <span className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold border shadow-sm rounded-2xl border-slate-200 bg-white/70 text-slate-500 dark:border-white/10 dark:bg-white/10 dark:text-blue-200/80">
-                  Vista refinada
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-5 py-5 space-y-4 border shadow-sm rounded-3xl border-white/60 bg-white/75 backdrop-blur dark:border-white/10 dark:bg-white/10">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Distribución</p>
-            <div className="space-y-3 text-sm text-slate-600 dark:text-blue-200/80">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400 dark:text-blue-200/60">Roles</p>
-                <div className="flex flex-wrap gap-2">
-                  {roleDistribution.map(({ value, label, count }) => (
-                    <button
-                      type="button"
-                      key={`role-${value}`}
-                      onClick={() => handleRoleChange(filterRole === value ? 'all' : value)}
-                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition hover:-translate-y-0.5 ${
-                        filterRole === value
-                          ? 'border-sky-300 bg-sky-100/80 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/20 dark:text-sky-100'
-                          : 'border-slate-200 bg-white/70 text-slate-600 shadow-sm hover:border-sky-300 dark:border-white/10 dark:bg-white/10 dark:text-blue-100'
-                      }`}
-                    >
-                      {label}
-                      <span className="rounded-full bg-white/60 px-2 py-0.5 text-[0.65rem] font-bold text-slate-600 dark:bg-white/10 dark:text-blue-100">{count}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400 dark:text-blue-200/60">Estado</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {statusDistribution.map(({ value, label, count }) => (
-                    <button
-                      type="button"
-                      key={`status-${value}`}
-                      onClick={() => handleStatusChange(filterStatus === value ? 'all' : value)}
-                      className={`inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 dark:border-white/10 dark:bg-white/10 dark:text-blue-100 ${
-                        filterStatus === value ? 'border-sky-300 text-sky-600 dark:border-sky-500/40 dark:text-sky-100' : ''
-                      }`}
-                    >
-                      {label}
-                      <span className="rounded-full bg-slate-900/10 px-2 py-0.5 text-[0.65rem] font-bold dark:bg-white/10">{count}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
 
       <section className="space-y-4">
@@ -634,10 +450,10 @@ const UserManagement: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600 dark:text-blue-200/80">
                         <div>{getTimeSince(user.lastLogin)}</div>
-                        <div className="text-xs text-slate-400 dark:text-blue-200/60">{formatDate(user.lastLogin)}</div>
+                        <div className="text-xs text-slate-400 dark:text-blue-200/60">{formatDateTime(user.lastLogin)}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500 dark:text-blue-200/70">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}
+                        {formatDate(user.createdAt)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">

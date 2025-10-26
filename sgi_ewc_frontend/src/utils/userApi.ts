@@ -93,3 +93,8 @@ export async function updateUser(
 export async function deleteUser(id: number): Promise<void> {
   return apiFetch(`/users/${id}`, { method: "DELETE" });
 }
+
+// --- Utilidades administrativas ---
+export async function regenerateTempPassword(userId: number): Promise<{ tempPassword?: string } | { message: string }> {
+  return apiFetch(`/users/${userId}/regenerate-password`, { method: "PUT" });
+}

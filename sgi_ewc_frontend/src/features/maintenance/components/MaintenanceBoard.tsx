@@ -4,6 +4,7 @@ import type { OrdenTrabajo } from '../../../types/OrdenTrabajo';
 import type { Vehiculo } from '../../../types/Vehiculo';
 import type { User as AppUser } from '../../../types/User';
 import type { MaintenanceStatus, MaintenanceType } from '../context/MaintenanceContext';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface MaintenanceBoardProps {
   records: OrdenTrabajo[];
@@ -40,12 +41,6 @@ const typeStyles: Record<MaintenanceType, string> = {
   Emergencia: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
 };
 
-const formatDate = (value?: string | Date | null) => {
-  if (!value) return '—';
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('es-CL');
-};
-
 const MaintenanceBoard: React.FC<MaintenanceBoardProps> = ({
   records,
   vehicles,
@@ -55,6 +50,7 @@ const MaintenanceBoard: React.FC<MaintenanceBoardProps> = ({
   onView,
   onStatusChange,
 }) => {
+  const { formatDate, locale } = useIntlFormat();
   const vehicleMap = useMemo(() => new Map(vehicles.map(vehicle => [vehicle.id, vehicle])), [vehicles]);
   const userMap = useMemo(() => new Map(users.map(user => [user.id, user])), [users]);
 
@@ -144,12 +140,12 @@ const MaintenanceBoard: React.FC<MaintenanceBoardProps> = ({
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Fecha programada</p>
                     <div className="mt-2 flex items-center gap-2 text-slate-700 dark:text-blue-100">
                       <CalendarClock className="h-4 w-4" />
-                      <span>{formatDate(record.scheduledDate)}</span>
+                      <span>{formatDate(record.scheduledDate) || '—'}</span>
                     </div>
                   </div>
                   <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Último servicio</p>
-                    <span className="mt-2 block text-slate-700 dark:text-blue-100">{formatDate(vehicle?.lastMaintenanceDate)}</span>
+                    <span className="mt-2 block text-slate-700 dark:text-blue-100">{formatDate(vehicle?.lastMaintenanceDate) || '—'}</span>
                   </div>
                   <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Técnico asignado</p>
@@ -157,7 +153,9 @@ const MaintenanceBoard: React.FC<MaintenanceBoardProps> = ({
                   </div>
                   <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Costo estimado</p>
-                    <span className="mt-2 block text-slate-700 dark:text-blue-100">${(record.estimatedCost || 0).toLocaleString('es-CL')}</span>
+                    <span className="mt-2 block text-slate-700 dark:text-blue-100">{
+                      new Intl.NumberFormat(locale, { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(record.estimatedCost || 0)
+                    }</span>
                   </div>
                 </div>
 

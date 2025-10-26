@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Filter, Search, Truck, Wrench, AlertTriangle, Radio } from 'lucide-react';
 import type { Vehiculo } from '../../../types/Vehiculo';
 import { useFleetContext } from '../context/FleetContext';
+import { useIntlFormat } from '../../../app/intl/format';
 
 const statusConfig: Record<Vehiculo['estado'], { label: string; badge: string; icon: React.ReactNode }> = {
   disponible: {
@@ -31,14 +32,9 @@ const formatKm = (km: number | undefined | null) => {
   return `${km.toLocaleString()} km`;
 };
 
-const formatDate = (value: string | Date | null | undefined) => {
-  if (!value) return 'Sin registro';
-  const date = typeof value === 'string' ? new Date(value) : value;
-  return Number.isFinite(date.getTime()) ? date.toLocaleDateString() : 'Sin registro';
-};
-
 const FleetDirectory: React.FC = () => {
   const { items, loading, error, search, setSearch, openEdit } = useFleetContext();
+
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -124,6 +120,7 @@ const FleetDirectory: React.FC = () => {
 };
 
 const FleetCard: React.FC<{ vehicle: Vehiculo; onEdit: () => void }> = ({ vehicle, onEdit }) => {
+  const { formatDate } = useIntlFormat();
   const status = statusConfig[vehicle.estado] ?? statusConfig.disponible;
   const typeBadge = vehicle.tipo ? vehicle.tipo.toLowerCase() : 'Vehículo';
 

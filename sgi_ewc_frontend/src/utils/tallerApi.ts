@@ -83,7 +83,7 @@ export async function getTallerWorkOrders(): Promise<OrdenTrabajo[]> {
  * Obtiene la lista completa de vehículos desde el módulo de taller.
  * Asume un endpoint GET /taller/vehiculos
  */
-export async function getVehiculosFromTaller(filters?: {
+export async function getVehiculos(filters?: {
   tipo?: string;
   estado?: string;
 }): Promise<Vehiculo[]> {
@@ -104,7 +104,7 @@ export async function getVehiculosFromTaller(filters?: {
  * Obtiene un vehículo específico por su patente desde el módulo de taller.
  * Asume un endpoint GET /taller/vehiculos/:patente
  */
-export async function getVehiculoFromTaller(
+export async function getVehiculoById(
   id: number
 ): Promise<Vehiculo> {
   return apiFetch(`/vehiculos/${id}`);
@@ -114,7 +114,7 @@ export async function getVehiculoFromTaller(
  * Crea un nuevo vehículo desde el módulo de taller.
  * Asume un endpoint POST /taller/vehiculos
  */
-export async function createVehiculoFromTaller(
+export async function createVehiculo(
   payload: CreateVehiculoPayload
 ): Promise<Vehiculo> {
   return apiFetch("/vehiculos", {
@@ -142,7 +142,7 @@ export async function closeTallerWorkOrder(
  * Actualiza un vehículo existente desde el módulo de taller.
  * Asume un endpoint PATCH /taller/vehiculos/:id
  */
-export async function updateVehiculoFromTaller(
+export async function updateVehiculo(
   id: number,
   payload: Partial<CreateVehiculoPayload>
 ): Promise<Vehiculo> {
@@ -151,6 +151,12 @@ export async function updateVehiculoFromTaller(
     body: JSON.stringify(payload),
   });
 }
+
+// Aliases de compatibilidad (deprecated)
+export const getVehiculosFromTaller = getVehiculos; // deprecated
+export const getVehiculoFromTaller = getVehiculoById; // deprecated
+export const createVehiculoFromTaller = createVehiculo; // deprecated
+export const updateVehiculoFromTaller = updateVehiculo; // deprecated
 
 /**
  * Actualiza el estado de una orden de trabajo.

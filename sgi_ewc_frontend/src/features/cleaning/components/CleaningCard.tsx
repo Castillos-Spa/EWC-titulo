@@ -1,15 +1,8 @@
 import React, { useMemo } from 'react';
 import { CalendarDays, MapPin, Timer, AlertTriangle, CheckCircle2, ClipboardList } from 'lucide-react';
 import type { Aseo, CleaningStatus } from '../../../types/Aseo';
+import { useIntlFormat } from '../../../app/intl/format';
 
-const formatDateTime = (iso?: string) => {
-  try {
-    const date = iso ? new Date(iso) : new Date();
-    return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-  } catch {
-    return iso ?? '';
-  }
-};
 
 const STATUS_CONFIG: Record<CleaningStatus, { label: string; badge: string; icon: React.ReactNode }> = {
   COMPLETED: {
@@ -36,6 +29,7 @@ interface CleaningCardProps {
 }
 
 const CleaningCard: React.FC<CleaningCardProps> = ({ report, onView, onEdit }) => {
+  const { formatDateTime } = useIntlFormat();
   const statusConfig = STATUS_CONFIG[report.status];
 
   const uniqueTasks = useMemo(() => Array.from(new Set(report.tasks)), [report.tasks]);

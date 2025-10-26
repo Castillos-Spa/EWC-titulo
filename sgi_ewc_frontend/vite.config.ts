@@ -1,18 +1,27 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-// Vite corre con ESM, pero para alias podemos resolver desde el cwd (no longer needed)
+import react from '@vitejs/plugin-react-swc';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
       '@app': '/src/app',
       '@features': '/src/features',
-      '@shared': '/src/shared',
     },
   },
-  optimizeDeps: {
-    exclude: ['lucide-react'],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('react-router')) return 'router';
+          if (id.includes('recharts')) return 'charts';
+          if (id.includes('socket.io-client')) return 'socket';
+          if (id.includes('lucide-react')) return 'icons';
+          if (id.includes('react')) return 'react';
+          return 'vendor';
+        },
+      },
+    },
   },
 });

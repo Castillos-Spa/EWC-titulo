@@ -1,5 +1,5 @@
 import React from 'react';
-import UnderMaintenance from '../Common/UnderMaintenance';
+import UnderMaintenance from '../../../app/pages/UnderMaintenance';
 
 const ForgotPassword: React.FC = () => {
   return (

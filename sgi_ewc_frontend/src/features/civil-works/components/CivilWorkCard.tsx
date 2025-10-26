@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { CivilWork, CivilWorkStatus, CivilWorkType } from '../../../types/CivilWork';
 import { MapPin, CalendarDays, CalendarClock, Layers, ClipboardList, AlertTriangle, Hammer, CheckCircle2 } from 'lucide-react';
+import { useIntlFormat } from '../../../app/intl/format';
 
 const STATUS_CONFIG: Record<CivilWorkStatus, { label: string; badge: string; icon: React.ReactNode }> = {
   COMPLETED: {
@@ -32,14 +33,6 @@ const WORK_TYPE_LABEL: Record<CivilWorkType, string> = {
   INSPECTION: 'Inspección',
 };
 
-const formatDate = (value?: string | null) => {
-  if (!value) return 'Sin registro';
-  try {
-    return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' }).format(new Date(value));
-  } catch {
-    return value;
-  }
-};
 
 const computeDaysToDeadline = (estimated?: string | null) => {
   if (!estimated) return null;
@@ -53,6 +46,7 @@ export const CivilWorkCard: React.FC<{
   item: Partial<CivilWork> & Pick<CivilWork, 'id' | 'project' | 'location' | 'startDate' | 'estimatedEndDate' | 'status' | 'workType' | 'progress'>;
   onView: (id: number) => void;
 }> = ({ item, onView }) => {
+  const { formatDate } = useIntlFormat();
   const statusInfo = STATUS_CONFIG[item.status];
   const progress = Math.max(0, Math.min(100, Math.round(item.progress ?? 0)));
 

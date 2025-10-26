@@ -86,3 +86,12 @@ export async function getFleetFuelSummary(): Promise<VehicleWithFuelHistory[]> {
   const response = (await apiFetch("/fuel/summary")) as FleetFuelSummaryApiResponse;
   return normalizeFleetFuelSummary(response);
 }
+
+/**
+ * Obtiene el historial de combustible de un vehículo específico.
+ */
+export async function getVehicleFuelHistory(
+  vehiculoId: number
+): Promise<VehicleWithFuelHistory> {
+  return apiFetch(`/fuel/history/${vehiculoId}`);
+}

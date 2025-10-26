@@ -23,8 +23,7 @@
   "ignoreDeprecations": "5.0",
     "paths": {
       "@app/*": ["src/app/*"],
-      "@features/*": ["src/features/*"],
-      "@shared/*": ["src/shared/*"]
+      "@features/*": ["src/features/*"]
     }
   },
   "include": ["src"]

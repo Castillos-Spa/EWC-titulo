@@ -15,17 +15,12 @@ import {
   Activity,
   CheckCircle2,
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { changePassword as apiChangePassword } from '../../utils/userApi';
-
-const formatDateTime = (value?: string) => {
-  if (!value) return 'Sin registro';
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) return 'Sin registro';
-  return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp));
-};
+import { useAuth } from '../../../contexts/AuthContext';
+import { changePassword as apiChangePassword } from '../../../utils/userApi';
+import { useIntlFormat } from '../../../app/intl/format';
 
 const UserProfile: React.FC = () => {
+  const { formatDateTime } = useIntlFormat();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('personal');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -185,7 +180,7 @@ const UserProfile: React.FC = () => {
         icon: <CheckCircle2 className="h-5 w-5" />,
       },
     ];
-  }, [user]);
+  }, [user, formatDateTime]);
 
   const tabs = [
     { id: 'personal', label: 'Información Personal', icon: User },

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, AlertCircle, XCircle, Zap, MapPin, Clock, Camera, UserCircle2, Timer } from 'lucide-react';
 import type { Incident, IncidentStatus, IncidentSeverity } from '../../../types/Incident';
+import { useIntlFormat } from '../../../app/intl/format';
 
 const SEVERITY_CONFIG: Record<IncidentSeverity, { label: string; badge: string }> = {
   critical: {
@@ -51,11 +52,7 @@ const STATUS_SEQUENCE: Record<IncidentStatus, IncidentStatus | null> = {
   resolved: null,
 };
 
-const formatTime = (iso: string) => {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-};
+//
 
 const computeSlaLabel = (incident: Incident) => {
   if (!incident.estimatedResolutionTime) return 'Sin estimación de resolución';
@@ -107,6 +104,7 @@ export const IncidentCard: React.FC<{
     }
   }, [nextStatus, onQuickResolve]);
 
+  const { formatDateTime } = useIntlFormat();
   return (
     <article className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 p-6 text-slate-800 shadow-lg shadow-slate-200/50 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:shadow-slate-900/40">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(244,114,182,0.12),_rgba(15,23,42,0)_70%)]" />
@@ -151,7 +149,7 @@ export const IncidentCard: React.FC<{
             </span>
             <span className="flex items-center gap-2 text-[0.7rem]">
               <Clock className="h-4 w-4" />
-              <span className="normal-case tracking-normal text-slate-600 dark:text-blue-100">{formatTime(incident.reportedAt)}</span>
+              <span className="normal-case tracking-normal text-slate-600 dark:text-blue-100">{formatDateTime(incident.reportedAt)}</span>
             </span>
             <span className="flex items-center gap-2 text-[0.7rem]">
               <UserCircle2 className="h-4 w-4" />

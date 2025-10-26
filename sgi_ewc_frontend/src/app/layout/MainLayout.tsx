@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import Sidebar from '../../components/Layout/Sidebar';
-import Header from '../../components/Layout/Header';
-import ChangePasswordModal from '../../components/ChangePasswordModal';
+import Sidebar from './Sidebar';
+import Header from './Header';
+import ChangePasswordModal from '../../features/auth/components/ChangePasswordModal';
 import { changePassword as apiChangePassword } from '../../utils/userApi';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -35,31 +35,15 @@ export default function MainLayout() {
     return stored === 'compact' ? 'compact' : 'comfortable';
   });
 
-  // Tema (light/dark/system) y listeners globales
-  useEffect(() => {
-    const mm: MediaQueryList | null = globalThis.matchMedia ? globalThis.matchMedia('(prefers-color-scheme: dark)') : null;
-    const applyTheme = () => {
-      const t = localStorage.getItem('theme');
-      const prefersDark = mm?.matches ?? false;
-      let dark = prefersDark;
-      if (t) {
-        if (t === 'system') dark = prefersDark;
-        else if (t === 'dark') dark = true;
-        else dark = false;
-      }
-      document.documentElement.classList.toggle('dark', dark);
-    };
-    applyTheme();
-    const handler = () => applyTheme();
-    mm?.addEventListener?.('change', handler);
-    return () => mm?.removeEventListener?.('change', handler);
-  }, []);
+  // Tema ahora se aplica vía PreferencesInitializer.
 
   useEffect(() => {
     const handleForceLogout = () => logout();
     globalThis.addEventListener?.('force-logout', handleForceLogout);
     return () => globalThis.removeEventListener?.('force-logout', handleForceLogout);
   }, [logout]);
+
+  // Escala tipográfica se aplica vía PreferencesInitializer global.
 
   useEffect(() => {
     const stored = localStorage.getItem('uiDensity');
@@ -77,16 +61,7 @@ export default function MainLayout() {
     return () => globalThis.removeEventListener?.('ui-density-change', handleDensityChange as EventListener);
   }, []);
 
-  useEffect(() => {
-  document.documentElement.dataset.uiDensity = uiDensity;
-    const root = document.documentElement;
-    const spacing = uiDensity === 'compact' ? '1rem' : '1.5rem';
-    const controlPadding = uiDensity === 'compact' ? '0.6rem 0.9rem' : '0.75rem 1.15rem';
-    const radius = uiDensity === 'compact' ? '0.9rem' : '1.2rem';
-    root.style.setProperty('--app-spacing', spacing);
-    root.style.setProperty('--app-control-padding', controlPadding);
-    root.style.setProperty('--app-card-radius', radius);
-  }, [uiDensity]);
+  // Las variables CSS de densidad también se aplican vía PreferencesInitializer; aquí sólo mantenemos el estado para UI.
 
   // mustChangePassword
   useEffect(() => {

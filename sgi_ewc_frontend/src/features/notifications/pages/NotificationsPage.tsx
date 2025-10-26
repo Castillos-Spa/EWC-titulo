@@ -13,7 +13,7 @@ const DEFAULT_AREAS = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', '
 
 const NotificationsPageInner: React.FC = () => {
   const { user } = useAuth();
-  const { items, loading, error, create, update, remove } = useNotifications();
+  const { items, loading, error, create, update } = useNotifications();
   const [search, setSearch] = useState('');
   const [scope, setScope] = useState<'all' | 'global' | 'areas'>('all');
   const [areaFilter, setAreaFilter] = useState<string>('all');
@@ -60,10 +60,7 @@ const NotificationsPageInner: React.FC = () => {
     await update(notification.id, { pinned: !notification.pinned });
   };
 
-  const handleDelete = async (notification: AppNotification) => {
-    if (!globalThis.confirm('¿Eliminar notificación?')) return;
-    await remove(notification.id);
-  };
+  // Acción de eliminar deshabilitada: backend no expone DELETE /notificacion/:id actualmente.
 
   const heroButton = user?.isAdmin ? (
     <button
@@ -116,7 +113,6 @@ const NotificationsPageInner: React.FC = () => {
         error={error}
         isAdmin={Boolean(user?.isAdmin)}
         onEdit={setEditing}
-        onDelete={handleDelete}
         onTogglePin={handleTogglePin}
       />
 

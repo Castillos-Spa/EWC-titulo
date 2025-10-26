@@ -246,8 +246,11 @@ const RouteList: React.FC<RouteListProps> = ({ onCreate }) => {
 
 interface RowProps { route: TransportRoute; onEdit: () => void; onToggle: () => void; }
 
+import { useIntlFormat } from '../../../app/intl/format';
+
 const RouteRow: React.FC<RowProps> = ({ route, onEdit, onToggle }) => {
   const tdCls = 'px-4 py-3 text-sm text-slate-700 dark:text-slate-100 whitespace-nowrap';
+  const { formatDate } = useIntlFormat();
   return (
     <tr className="border-b border-slate-200/70 last:border-0 bg-white/60 backdrop-blur-sm transition hover:bg-sky-50/60 dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10">
       <td className={tdCls}>{route.code}</td>
@@ -258,7 +261,7 @@ const RouteRow: React.FC<RowProps> = ({ route, onEdit, onToggle }) => {
       <td className={tdCls}>
         <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${route.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200'}`}>{route.active ? 'Activa' : 'Inactiva'}</span>
       </td>
-      <td className={tdCls}>{route.createdAt.toLocaleDateString()}</td>
+  <td className={tdCls}>{formatDate(route.createdAt)}</td>
       <td className={tdCls}>
         <div className="flex items-center gap-2">
           <button onClick={onEdit} className="group rounded-xl border border-sky-200 bg-white/80 p-1.5 text-sky-600 shadow-sm transition hover:border-sky-400 hover:text-sky-800 dark:border-white/10 dark:bg-white/5 dark:text-blue-100 dark:hover:border-white/30" title="Editar">

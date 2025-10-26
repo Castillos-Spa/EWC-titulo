@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { Lock, User, AlertCircle, ShieldCheck, Headset, Sun, Moon } from 'lucide-react';
+import { getPreferredRoute } from '../../../app/navigation/navigationUtils';
 
 type ThemeVariant = 'light' | 'dark';
 
@@ -66,23 +67,22 @@ const Login: React.FC = () => {
   const { login, isLoading, user } = useAuth();
   const navigate = useNavigate();
 
-  // Si ya hay usuario autenticado, redirige fuera de /login
+
   useEffect(() => {
     if (user) {
-      navigate('/', { replace: true });
+      navigate(getPreferredRoute(user), { replace: true });
     }
   }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
     const success = await login(email, password);
     if (success) {
-      // Redirige al dashboard al iniciar sesión
-      navigate('/', { replace: true });
+      // Recalcular con el usuario ya autenticado
+      const next = getPreferredRoute(user);
+      navigate(next, { replace: true });
     } else {
-      // Redirige al dashboard al iniciar sesión
       setError('Credenciales inválidas');
     }
   };
@@ -123,112 +123,112 @@ const Login: React.FC = () => {
 
         <div className="flex flex-1 flex-col lg:flex-row">
           <section className="flex min-h-[280px] flex-1 items-center justify-center px-8 py-12">
-          <div className="max-w-xl space-y-6 text-center lg:text-left">
-            <span className={styles.heroBadge}>
-              <ShieldCheck className="h-4 w-4" /> Seguridad corporativa
-            </span>
-            <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
-              Plataforma Integral de Gestión Operacional
-            </h1>
-            <p className={styles.heroText}>
-              Administra activos, rutas, incidentes y equipos en un dashboard centralizado. Mantén el control con acceso autorizado y supervisión en tiempo real.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-4 lg:justify-start">
-              <div className={styles.heroChip}>
-                <span className="flex h-2 w-2 rounded-full bg-emerald-400" /> Disponibilidad 99.9%
-              </div>
-              <div className={styles.heroChip}>
-                <span className="flex h-2 w-2 rounded-full bg-sky-400" /> Monitoreo 24/7
-              </div>
-              <div className={styles.heroChip}>
-                <span className="flex h-2 w-2 rounded-full bg-violet-400" /> Acceso seguro
+            <div className="max-w-xl space-y-6 text-center lg:text-left">
+              <span className={styles.heroBadge}>
+                <ShieldCheck className="h-4 w-4" /> Seguridad corporativa
+              </span>
+              <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
+                Plataforma Integral de Gestión Operacional
+              </h1>
+              <p className={styles.heroText}>
+                Administra activos, rutas, incidentes y equipos en un dashboard centralizado. Mantén el control con acceso autorizado y supervisión en tiempo real.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+                <div className={styles.heroChip}>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400" /> Disponibilidad 99.9%
+                </div>
+                <div className={styles.heroChip}>
+                  <span className="flex h-2 w-2 rounded-full bg-sky-400" /> Monitoreo 24/7
+                </div>
+                <div className={styles.heroChip}>
+                  <span className="flex h-2 w-2 rounded-full bg-violet-400" /> Acceso seguro
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
           <section className="flex w-full max-w-xl flex-1 items-center justify-center px-6 py-10 lg:px-12 lg:py-16">
-          <div className={styles.card}>
-            <div className="space-y-3 text-center lg:text-left">
-              <div className={styles.cardIcon}>
-                <Lock className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-semibold">Inicia sesión</h2>
-                <p className={styles.cardSubtitle}>Utiliza tus credenciales corporativas para continuar</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label htmlFor="email" className={styles.label}>
-                  Correo electrónico
-                </label>
-                <div className="relative">
-                  <User className={styles.inputIcon} />
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={styles.input}
-                    placeholder="nombre@empresa.com"
-                    autoComplete="username"
-                  />
+            <div className={styles.card}>
+              <div className="space-y-3 text-center lg:text-left">
+                <div className={styles.cardIcon}>
+                  <Lock className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold">Inicia sesión</h2>
+                  <p className={styles.cardSubtitle}>Utiliza tus credenciales corporativas para continuar</p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="password" className={styles.label}>
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className={styles.inputIcon} />
-                  <input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={styles.input}
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                  />
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="email" className={styles.label}>
+                    Correo electrónico
+                  </label>
+                  <div className="relative">
+                    <User className={styles.inputIcon} />
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={styles.input}
+                      placeholder="nombre@empresa.com"
+                      autoComplete="username"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {error && (
-                <div className={styles.error}>
-                  <AlertCircle className="h-5 w-5" />
-                  <span>{error}</span>
+                <div className="space-y-2">
+                  <label htmlFor="password" className={styles.label}>
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <Lock className={styles.inputIcon} />
+                    <input
+                      id="password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={styles.input}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                    />
+                  </div>
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={styles.submit}
-              >
-                {isLoading ? 'Validando...' : 'Acceder'}
-              </button>
-            </form>
+                {error && (
+                  <div className={styles.error}>
+                    <AlertCircle className="h-5 w-5" />
+                    <span>{error}</span>
+                  </div>
+                )}
 
-            <div className={styles.footer}>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className={styles.supportChip}>
-                  <Headset className="h-4 w-4" /> Soporte 24/7
-                </div>
                 <button
-                  type="button"
-                  onClick={() => navigate('/forgot-password')}
-                  className={styles.supportLink}
+                  type="submit"
+                  disabled={isLoading}
+                  className={styles.submit}
                 >
-                  ¿Olvidaste tu contraseña?
+                  {isLoading ? 'Validando...' : 'Acceder'}
                 </button>
+              </form>
+
+              <div className={styles.footer}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className={styles.supportChip}>
+                    <Headset className="h-4 w-4" /> Soporte 24/7
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/forgot-password')}
+                    className={styles.supportLink}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
           </section>
         </div>
       </div>

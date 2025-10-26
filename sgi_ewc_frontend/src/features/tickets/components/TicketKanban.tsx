@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { CalendarClock, ChevronRight, MessageSquare, UserCircle } from 'lucide-react';
 import type { Ticket } from '../../../types/Ticket';
 import { TicketPriority, TicketStatus } from '../../../types/Ticket';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface TicketKanbanProps {
   items: Ticket[];
@@ -30,14 +31,14 @@ const priorityTone: Record<TicketPriority, string> = {
   [TicketPriority.Urgente]: 'bg-rose-100 text-rose-700 dark:bg-rose-500/25 dark:text-rose-100',
 };
 
-const formatTicketDate = (value?: string | Date) => {
-  if (!value) return 'Sin fecha';
-  const parsed = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(parsed.getTime())) return 'Sin fecha';
-  return new Intl.DateTimeFormat('es-CL', { month: 'short', day: '2-digit' }).format(parsed);
-};
-
 const TicketKanban: React.FC<TicketKanbanProps> = ({ items, onSelect, statuses = STATUS_ORDER }) => {
+  const { locale } = useIntlFormat();
+  const formatTicketDate = (value?: string | Date) => {
+    if (!value) return 'Sin fecha';
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) return 'Sin fecha';
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: '2-digit' }).format(parsed);
+  };
   const grouped = useMemo(() => {
     return statuses.map(status => ({
       status,

@@ -5,7 +5,7 @@ import RouteErrorBoundary from './RouteErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 
 // Lazy pages from current locations
-const DashboardHome = lazy(() => import('../components/Dashboard/DashboardHome'));
+const DashboardHome = lazy(() => import('../features/dashboard/pages/DashboardHome'));
 const FleetPage = lazy(() => import('../features/fleet/pages/FleetPage'));
 const MaintenancePage = lazy(() => import('../features/maintenance/pages/MaintenancePage'));
 const FuelByFleet = lazy(() => import('../features/fuel/pages/FuelPage'));
@@ -16,12 +16,12 @@ const CleaningReports = lazy(() => import('../features/cleaning/pages/CleaningPa
 const CivilWorks = lazy(() => import('../features/civil-works/pages/CivilWorksPage'));
 const Incidents = lazy(() => import('../features/incidents/pages/IncidentsPage'));
 const NotificationsCenter = lazy(() => import('../features/notifications/pages/NotificationsPage'));
-const UserManagement = lazy(() => import('../components/Admin/UserManagement'));
-const UserProfile = lazy(() => import('../components/Profile/UserProfile'));
-const SettingsPage = lazy(() => import('../components/Profile/SettingsPage'));
-const Login = lazy(() => import('../components/Login'));
-const ForgotPassword = lazy(() => import('../components/Auth/ForgotPassword'));
-const UnderMaintenance = lazy(() => import('../components/Common/UnderMaintenance'));
+const UserManagement = lazy(() => import('../features/users/pages/UserManagement'));
+const UserProfile = lazy(() => import('../features/profile/pages/UserProfile'));
+const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'));
+const Login = lazy(() => import('../features/auth/pages/Login'));
+const ForgotPassword = lazy(() => import('../features/auth/pages/ForgotPassword'));
+const UnderMaintenance = lazy(() => import('./pages/UnderMaintenance'));
 
 function RequireAuth({ children }: Readonly<{ children: React.ReactElement }>) {
   const { user, isLoading } = useAuth();

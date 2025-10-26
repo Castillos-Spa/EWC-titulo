@@ -13,6 +13,7 @@ import {
 import { createFuelLog, type CreateFuelLogPayload, type VehicleWithFuelHistory } from '../../../utils/fuelApi';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getVehiculosFromTaller } from '../../../utils/tallerApi';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface FuelLogFormModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ type VehicleOption = { id: number; patente: string; marca: string; modelo: strin
 
 const FuelLogFormModal: React.FC<FuelLogFormModalProps> = ({ isOpen, onClose, onSuccess, vehiclesForDriver }) => {
   const { user } = useAuth();
+  const { locale } = useIntlFormat();
   const [formData, setFormData] = useState<Partial<CreateFuelLogPayload>>({
     date: new Date().toISOString().split('T')[0],
   });
@@ -152,7 +154,7 @@ const FuelLogFormModal: React.FC<FuelLogFormModalProps> = ({ isOpen, onClose, on
                 <div className="rounded-2xl bg-white/12 p-3">
                   <p className="text-xs uppercase tracking-[0.24em] text-white/70">Odómetro</p>
                   <p className="text-xl font-semibold">
-                    {formData.odometer ? Number(formData.odometer).toLocaleString('es-CL') : '—'} km
+                    {formData.odometer ? new Intl.NumberFormat(locale).format(Number(formData.odometer)) : '—'} km
                   </p>
                 </div>
               </div>

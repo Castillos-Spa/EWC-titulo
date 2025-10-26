@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useIntlFormat } from '../../../app/intl/format';
 import { AlertTriangle, Gauge, Fuel, Route, TrendingUp } from 'lucide-react';
 
 interface FuelKpisProps {
@@ -20,19 +21,20 @@ interface KpiDescriptor {
 }
 
 const FuelKpis: React.FC<FuelKpisProps> = ({ totalDistance, totalLiters, avgConsumption, monitoredVehicles, criticalVehicles, refuelCount }) => {
+  const { locale } = useIntlFormat();
   const stats = useMemo<KpiDescriptor[]>(() => [
     {
       id: 'fuel-distance',
       label: 'Distancia acumulada',
-      value: `${totalDistance.toLocaleString('es-CL')} km`,
-      helper: `${refuelCount.toLocaleString('es-CL')} recargas registradas`,
+      value: `${new Intl.NumberFormat(locale).format(totalDistance)} km`,
+      helper: `${new Intl.NumberFormat(locale).format(refuelCount)} recargas registradas`,
       icon: <Route className="h-6 w-6" />,
       accent: 'from-sky-500/25 via-indigo-500/25 to-sky-400/25',
     },
     {
       id: 'fuel-liters',
       label: 'Litros despachados',
-      value: `${totalLiters.toLocaleString('es-CL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L`,
+      value: `${new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(totalLiters)} L`,
       helper: 'Integrado con reportes de ruta',
       icon: <TrendingUp className="h-6 w-6" />,
       accent: 'from-emerald-500/25 to-teal-500/25',
@@ -61,7 +63,7 @@ const FuelKpis: React.FC<FuelKpisProps> = ({ totalDistance, totalLiters, avgCons
       icon: <Fuel className="h-6 w-6" />,
       accent: 'from-amber-500/25 to-orange-500/25',
     },
-  ], [totalDistance, refuelCount, totalLiters, avgConsumption, criticalVehicles, monitoredVehicles]);
+  ], [totalDistance, refuelCount, totalLiters, avgConsumption, criticalVehicles, monitoredVehicles, locale]);
 
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

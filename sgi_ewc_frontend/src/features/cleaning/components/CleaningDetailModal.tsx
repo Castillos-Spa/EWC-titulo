@@ -1,15 +1,8 @@
 import React from 'react';
 import { X, MapPin, CalendarDays, ClipboardList, Timer, CheckCircle2, AlertTriangle } from 'lucide-react';
 import type { Aseo } from '../../../types/Aseo';
+import { useIntlFormat } from '../../../app/intl/format';
 
-const formatDateTime = (iso?: string) => {
-  try {
-    const date = iso ? new Date(iso) : new Date();
-    return new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-  } catch {
-    return iso ?? '';
-  }
-};
 
 interface CleaningDetailModalProps {
   report: Aseo;
@@ -18,6 +11,7 @@ interface CleaningDetailModalProps {
 }
 
 const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClose, onEdit }) => {
+  const { formatDateTime } = useIntlFormat();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
       <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 text-slate-800 shadow-2xl shadow-slate-300/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/95 dark:text-slate-100">
