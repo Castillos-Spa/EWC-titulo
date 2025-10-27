@@ -2,21 +2,22 @@ import React, { useMemo } from 'react';
 import { CalendarDays, MapPin, Timer, AlertTriangle, CheckCircle2, ClipboardList } from 'lucide-react';
 import type { Aseo, CleaningStatus } from '../../../types/Aseo';
 import { useIntlFormat } from '../../../app/intl/format';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 
-const STATUS_CONFIG: Record<CleaningStatus, { label: string; badge: string; icon: React.ReactNode }> = {
+const STATUS_CONFIG: Record<CleaningStatus, { labelKey: string; badge: string; icon: React.ReactNode }> = {
   COMPLETED: {
-    label: 'Completado',
+    labelKey: 'cleaning.status.COMPLETED',
     badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
     icon: <CheckCircle2 className="h-4 w-4" />,
   },
   PARTIAL: {
-    label: 'Parcial',
+    labelKey: 'cleaning.status.PARTIAL',
     badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
     icon: <AlertTriangle className="h-4 w-4" />,
   },
   PENDING: {
-    label: 'Pendiente',
+    labelKey: 'cleaning.status.PENDING',
     badge: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
     icon: <Timer className="h-4 w-4" />,
   },
@@ -30,6 +31,7 @@ interface CleaningCardProps {
 
 const CleaningCard: React.FC<CleaningCardProps> = ({ report, onView, onEdit }) => {
   const { formatDateTime } = useIntlFormat();
+  const { t } = useLanguage();
   const statusConfig = STATUS_CONFIG[report.status];
 
   const uniqueTasks = useMemo(() => Array.from(new Set(report.tasks)), [report.tasks]);
@@ -46,32 +48,32 @@ const CleaningCard: React.FC<CleaningCardProps> = ({ report, onView, onEdit }) =
               </span>
               <div>
                 <h3 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">{report.area}</h3>
-                <p className="text-sm text-slate-500 dark:text-blue-200/70">Reporte #{report.id}</p>
+                <p className="text-sm text-slate-500 dark:text-blue-200/70">{t('cleaning.report')} #{report.id}</p>
               </div>
             </div>
             <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${statusConfig.badge}`}>
               {statusConfig.icon}
-              {statusConfig.label}
+              {t(statusConfig.labelKey)}
             </span>
           </div>
 
           <div className="grid gap-4 text-sm md:grid-cols-3">
             <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Fecha</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">{t('cleaning.date')}</p>
               <div className="mt-2 flex items-center gap-2 text-slate-700 dark:text-blue-100">
                 <CalendarDays className="h-4 w-4" />
                 <span>{formatDateTime(report.date)}</span>
               </div>
             </div>
             <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Tiempo invertido</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">{t('cleaning.timeSpent')}</p>
               <div className="mt-2 flex items-center gap-2 text-slate-700 dark:text-blue-100">
                 <Timer className="h-4 w-4" />
                 <span>{report.timeSpent}h</span>
               </div>
             </div>
             <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Responsable</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">{t('cleaning.responsible')}</p>
               <div className="mt-2 flex items-center gap-2 text-slate-700 dark:text-blue-100">
                 <ClipboardList className="h-4 w-4" />
                 <span>{report.responsibleStaff}</span>
@@ -81,7 +83,7 @@ const CleaningCard: React.FC<CleaningCardProps> = ({ report, onView, onEdit }) =
 
           <div className="space-y-3 text-sm text-slate-600 dark:text-blue-200/80">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Tareas completadas</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">{t('cleaning.completedTasks')}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {uniqueTasks.length > 0 ? (
                   uniqueTasks.map(task => (
@@ -94,14 +96,14 @@ const CleaningCard: React.FC<CleaningCardProps> = ({ report, onView, onEdit }) =
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-slate-500 dark:text-blue-200/70">Sin tareas registradas.</span>
+                  <span className="text-xs text-slate-500 dark:text-blue-200/70">{t('cleaning.noTasks')}</span>
                 )}
               </div>
             </div>
 
             {report.issues.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Problemas encontrados</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">{t('cleaning.problemsFound')}</p>
                 <ul className="mt-2 space-y-1 text-sm text-slate-600 dark:text-blue-200/80">
                   {report.issues.map(issue => (
                     <li key={`${report.id}-${issue}`} className="flex items-start gap-2">
@@ -115,7 +117,7 @@ const CleaningCard: React.FC<CleaningCardProps> = ({ report, onView, onEdit }) =
 
             {report.observations && (
               <div className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 shadow-inner shadow-slate-200/30 backdrop-blur dark:border-white/10 dark:bg-white/5 dark:shadow-slate-900/30">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">Observaciones</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">{t('cleaning.observations')}</p>
                 <p className="mt-2 leading-relaxed text-slate-600 dark:text-blue-200/80">{report.observations}</p>
               </div>
             )}
@@ -128,14 +130,14 @@ const CleaningCard: React.FC<CleaningCardProps> = ({ report, onView, onEdit }) =
             onClick={() => onView(report)}
             className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
           >
-            Ver detalles
+            {t('cleaning.viewDetails')}
           </button>
           <button
             type="button"
             onClick={() => onEdit(report)}
             className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
           >
-            Editar reporte
+            {t('cleaning.editReport')}
           </button>
         </div>
       </div>

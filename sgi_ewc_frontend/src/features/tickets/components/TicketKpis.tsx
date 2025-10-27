@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { AlertTriangle, ClipboardCheck, Hourglass, Sparkles } from 'lucide-react';
 import type { Ticket } from '../../../types/Ticket';
 import { TicketPriority, TicketStatus } from '../../../types/Ticket';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import { useIntlFormat } from '../../../app/intl/format';
 
 interface TicketKpisProps {
   items: Ticket[];
@@ -18,6 +20,8 @@ interface StatDescriptor {
 }
 
 const TicketKpis: React.FC<TicketKpisProps> = ({ items, loading = false }) => {
+  const { t } = useLanguage();
+  const { locale } = useIntlFormat();
   const stats = useMemo<StatDescriptor[]>(() => {
     const pending = items.filter(ticket => ticket.status === TicketStatus.Pendiente).length;
     const inProgress = items.filter(ticket => ticket.status === TicketStatus.EnProgreso).length;
@@ -32,41 +36,42 @@ const TicketKpis: React.FC<TicketKpisProps> = ({ items, loading = false }) => {
       return diff <= sevenDays && (ticket.status === TicketStatus.Resuelto || ticket.status === TicketStatus.Cerrado);
     }).length;
 
+    const fmt = (n: number) => new Intl.NumberFormat(locale).format(n);
     return [
       {
         id: 'tickets-pending',
-        label: 'Pendientes',
-        value: String(pending),
-        helper: `${items.length} totales en la bandeja`,
+        label: t('tickets.pending'),
+        value: fmt(pending),
+        helper: `${fmt(items.length)} ${t('tickets.kpis.totalInInboxSuffix')}`,
         accent: 'from-amber-500/25 via-orange-500/20 to-amber-400/25',
         icon: <Hourglass className="h-5 w-5" />,
       },
       {
         id: 'tickets-progress',
-        label: 'En progreso',
-        value: String(inProgress),
-        helper: inProgress > 0 ? 'Coordinando equipos asignados' : 'No hay tickets en ejecución',
+        label: t('tickets.inProgress'),
+        value: fmt(inProgress),
+        helper: inProgress > 0 ? t('tickets.kpis.inProgressSome') : t('tickets.kpis.inProgressNone'),
         accent: 'from-sky-500/25 via-blue-500/20 to-sky-400/25',
   icon: <ClipboardCheck className="h-5 w-5" />,
       },
       {
         id: 'tickets-urgent',
-        label: 'Urgentes',
-        value: String(urgent),
-        helper: urgent > 0 ? 'Prioriza estos casos críticos' : 'Sin alertas críticas',
+        label: t('tickets.kpis.urgentLabel'),
+        value: fmt(urgent),
+        helper: urgent > 0 ? t('tickets.kpis.urgentSome') : t('tickets.kpis.urgentNone'),
         accent: 'from-rose-500/25 via-red-500/20 to-rose-400/25',
         icon: <AlertTriangle className="h-5 w-5" />,
       },
       {
         id: 'tickets-resolved-week',
-        label: 'Resueltos semana',
-        value: String(resolvedThisWeek),
-        helper: resolvedThisWeek > 0 ? 'Flujo saludable de cierres' : 'Aún sin cierres recientes',
+        label: `${t('tickets.resolved')} / 7d`,
+        value: fmt(resolvedThisWeek),
+        helper: resolvedThisWeek > 0 ? t('tickets.resolved') : t('tickets.noMatches'),
         accent: 'from-emerald-500/25 via-teal-500/20 to-emerald-400/25',
         icon: <Sparkles className="h-5 w-5" />,
       },
     ];
-  }, [items]);
+  }, [items, t, locale]);
 
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -81,9 +86,7 @@ const TicketKpis: React.FC<TicketKpisProps> = ({ items, loading = false }) => {
               {stat.icon}
             </div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{stat.label}</p>
-            <p className="text-3xl font-semibold tracking-tight">
-              {loading ? '…' : stat.value}
-            </p>
+            <p className="text-3xl font-semibold tracking-tight">{loading ? '…' : stat.value}</p>
             <p className="text-sm text-slate-500 dark:text-blue-200/80">{stat.helper}</p>
           </div>
         </article>

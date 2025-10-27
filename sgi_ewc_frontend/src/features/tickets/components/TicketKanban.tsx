@@ -3,6 +3,7 @@ import { CalendarClock, ChevronRight, MessageSquare, UserCircle } from 'lucide-r
 import type { Ticket } from '../../../types/Ticket';
 import { TicketPriority, TicketStatus } from '../../../types/Ticket';
 import { useIntlFormat } from '../../../app/intl/format';
+import { useTicketLabels } from '../labels';
 
 interface TicketKanbanProps {
   items: Ticket[];
@@ -33,10 +34,11 @@ const priorityTone: Record<TicketPriority, string> = {
 
 const TicketKanban: React.FC<TicketKanbanProps> = ({ items, onSelect, statuses = STATUS_ORDER }) => {
   const { locale } = useIntlFormat();
+  const { statusLabel, priorityLabel, t } = useTicketLabels();
   const formatTicketDate = (value?: string | Date) => {
-    if (!value) return 'Sin fecha';
+    if (!value) return t('tickets.noDate');
     const parsed = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(parsed.getTime())) return 'Sin fecha';
+    if (Number.isNaN(parsed.getTime())) return t('tickets.noDate');
     return new Intl.DateTimeFormat(locale, { month: 'short', day: '2-digit' }).format(parsed);
   };
   const grouped = useMemo(() => {
@@ -56,14 +58,14 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ items, onSelect, statuses =
           <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${statusTone[column.status]}`} />
           <div className="relative flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-600 dark:text-blue-200/70">{column.status}</h3>
-              <p className="text-xs text-slate-500 dark:text-blue-200/60">{column.tickets.length} ticket(s)</p>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-600 dark:text-blue-200/70">{statusLabel(column.status)}</h3>
+              <p className="text-xs text-slate-500 dark:text-blue-200/60">{new Intl.NumberFormat(locale).format(column.tickets.length)} {t('tickets.countSuffix')}</p>
             </div>
           </div>
           <div className="relative flex-1 space-y-3 overflow-y-auto pr-1">
             {column.tickets.length === 0 ? (
               <div className="rounded-2xl border border-white/60 bg-white/70 p-4 text-xs text-slate-500 shadow-inner shadow-slate-200/50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                Nada por aquí todavía.
+                {t('tickets.emptyColumn')}
               </div>
             ) : (
               column.tickets.map(ticket => (
@@ -79,7 +81,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ items, onSelect, statuses =
                       <p className="text-xs text-slate-500 dark:text-slate-300">#{ticket.id}</p>
                     </div>
                     <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${priorityTone[ticket.priority]}`}>
-                      {ticket.priority}
+                      {priorityLabel(ticket.priority)}
                     </span>
                   </div>
                   {ticket.description && (
@@ -88,7 +90,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ items, onSelect, statuses =
                   <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-300">
                     <span className="inline-flex items-center gap-1">
                       <UserCircle className="h-3.5 w-3.5" />
-                      {ticket.assignedTo?.username ?? 'Sin asignar'}
+                      {ticket.assignedTo?.username ?? t('tickets.unassigned')}
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <CalendarClock className="h-3.5 w-3.5" />
@@ -100,7 +102,7 @@ const TicketKanban: React.FC<TicketKanbanProps> = ({ items, onSelect, statuses =
                     </span>
                   </div>
                   <div className="flex items-center justify-end text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 transition group-hover:text-sky-500 dark:text-slate-500">
-                    Revisar
+                    {t('tickets.review')}
                     <ChevronRight className="h-3.5 w-3.5" />
                   </div>
                 </button>

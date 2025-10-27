@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Plus, Truck } from 'lucide-react';
 import { FleetProvider, useFleetContext } from '../context/FleetContext';
 import FleetInsights from '../components/FleetInsights';
@@ -6,7 +6,16 @@ import FleetDirectory from '../components/FleetDirectory';
 import FleetVehicleModal from '../components/FleetVehicleModal';
 
 const FleetPageInner: React.FC = () => {
-  const { openCreate } = useFleetContext();
+  const { openCreate, setSearch } = useFleetContext();
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { query?: string } | undefined;
+      if (detail && typeof detail.query === 'string') setSearch(detail.query);
+    };
+    globalThis.addEventListener('global-search', handler as EventListener);
+    return () => globalThis.removeEventListener('global-search', handler as EventListener);
+  }, [setSearch]);
 
   return (
     <div className="space-y-10 text-slate-800 dark:text-slate-100">

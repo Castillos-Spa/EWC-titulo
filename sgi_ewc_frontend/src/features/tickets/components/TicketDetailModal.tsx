@@ -1,8 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ticket, TicketPriority, TicketStatus } from '../../../types/Ticket';
 import { useTicketsContext } from '../context/TicketsContext';
 import type { User } from '../../../types/User';
 import { useIntlFormat } from '../../../app/intl/format';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import { X, CalendarClock, User2, Tag, ShieldCheck, ShieldX, CheckCircle2, Loader2 } from 'lucide-react';
+import { useTicketLabels } from '../labels';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Props {
   open: boolean;
@@ -10,14 +14,17 @@ interface Props {
   ticket: Ticket;
 }
 
-function useFormatters() {
-  const { formatDateTime } = useIntlFormat();
-  return { formatDateTime };
-}
-
 export default function TicketDetailModal({ open, onClose, ticket }: Readonly<Props>) {
-  const { formatDateTime } = useFormatters();
+  const { formatDateTime } = useIntlFormat();
   const { update, approve, users } = useTicketsContext();
+  const { t } = useLanguage();
+  const { statusLabel, priorityLabel } = useTicketLabels();
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const { user } = useAuth();
+  const isAssignedUser = user?.id === ticket.assignedTo?.id;
+  const isRequestingUser = user?.id === ticket.createdBy?.id;
+  const isAssignedDisabled = !isAssignedUser;
+  const isRequestingDisabled = !isRequestingUser;
   const [status, setStatus] = useState<TicketStatus>(ticket.status);
   const [priority, setPriority] = useState<TicketPriority>(ticket.priority);
   const [tags, setTags] = useState<string>(ticket.tags?.join(', ') ?? '');
@@ -45,6 +52,7 @@ export default function TicketDetailModal({ open, onClose, ticket }: Readonly<Pr
   type ApprovalStatus = 'Pendiente' | 'Aprobado' | 'Rechazado';
   interface Approval { id: number; status: ApprovalStatus; approverRole: string; approverArea: string; approvedBy?: { username: string }; approvedAt?: string; step: number }
   const approvals: Approval[] = (ticket as unknown as { approvals?: Approval[] }).approvals ?? [];
+  const hasApprovals = approvals.length > 0;
 
   const assignableUsers: User[] = useMemo(() => {
     const areas = new Set(ticket.recipientArea ?? []);
@@ -75,158 +83,286 @@ export default function TicketDetailModal({ open, onClose, ticket }: Readonly<Pr
   const onToggleConfirmation = async (type: 'assigned' | 'requesting', value: boolean) => {
     try {
       setUpdatingConfirm(type);
-      if (type === 'assigned') await update(ticket.id, { assignedUserConfirmation: value });
-      else await update(ticket.id, { requestingUserConfirmation: value });
+      if (type === 'assigned') {
+        // Solo el usuario asignado puede confirmar/desconfirmar
+        if (user?.id !== ticket.assignedTo?.id) return;
+        await update(ticket.id, { assignedUserConfirmation: value });
+      } else {
+        // Solo el creador del ticket puede confirmar/desconfirmar recepción
+        if (user?.id !== ticket.createdBy?.id) return;
+        await update(ticket.id, { requestingUserConfirmation: value });
+      }
     } finally {
       setUpdatingConfirm(null);
     }
   };
 
-  if (!open) return null;
+  // Control del <dialog> nativo y propagación de cierre
+  useEffect(() => {
+    const dlg = dialogRef.current;
+    if (!dlg) return;
+
+    const handleClose = () => {
+      onClose();
+    };
+    dlg.addEventListener('close', handleClose);
+
+    // Abrir/cerrar modal de forma controlada
+    if (open) {
+      if (!dlg.open) dlg.showModal();
+    } else if (dlg.open) {
+      dlg.close();
+    }
+
+    return () => {
+      dlg.removeEventListener('close', handleClose);
+    };
+  }, [open, onClose]);
+
+  const statusTone: Record<TicketStatus, string> = {
+    [TicketStatus.Pendiente]: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-100',
+    [TicketStatus.EnProgreso]: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-100',
+    [TicketStatus.Resuelto]: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100',
+    [TicketStatus.Cerrado]: 'bg-slate-200 text-slate-700 dark:bg-slate-700/50 dark:text-slate-200',
+  };
+  const priorityTone: Record<TicketPriority, string> = {
+    [TicketPriority.Baja]: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100',
+    [TicketPriority.Media]: 'bg-sky-50 text-sky-700 dark:bg-sky-500/20 dark:text-sky-100',
+    [TicketPriority.Alta]: 'bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-100',
+    [TicketPriority.Urgente]: 'bg-rose-50 text-rose-700 dark:bg-rose-500/25 dark:text-rose-100',
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-lg bg-white dark:bg-slate-900 p-4 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Ticket #{ticket.id}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <div className="text-sm text-gray-500">Título</div>
-            <div className="font-medium">{ticket.title}</div>
-          </div>
-          {ticket.description && (
-            <div>
-              <div className="text-sm text-gray-500">Descripción</div>
-              <div className="whitespace-pre-wrap">{ticket.description}</div>
+    <dialog ref={dialogRef} aria-labelledby="ticket-detail-title" className="relative w-full max-w-5xl max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-slate-200/60 bg-white shadow-2xl shadow-slate-900/30 backdrop:backdrop-blur-sm dark:border-white/10 dark:bg-slate-950">
+        {/* Header */}
+        <header className="relative overflow-hidden border-b border-slate-200/60 bg-gradient-to-r from-indigo-600 via-sky-600 to-cyan-500 px-6 py-5 text-white dark:border-white/10">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.15),_transparent_70%)]" />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h3 id="ticket-detail-title" className="text-xl font-semibold">{t('tickets.detail.ticket')} #{ticket.id}</h3>
+              <p className="text-sm text-white/85">{ticket.category}</p>
             </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label htmlFor="ticket-status" className="block text-sm mb-1">Estado</label>
-              <select id="ticket-status" value={status} onChange={(e) => {
-                const allowed = Object.values(TicketStatus) as ReadonlyArray<TicketStatus>;
-                const v = e.target.value as TicketStatus;
-                setStatus(allowed.includes(v) ? v : ticket.status);
-              }} className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700">
-                {Object.values(TicketStatus).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="ticket-priority" className="block text-sm mb-1">Prioridad</label>
-              <select id="ticket-priority" value={priority} onChange={(e) => {
-                const allowed = Object.values(TicketPriority) as ReadonlyArray<TicketPriority>;
-                const v = e.target.value as TicketPriority;
-                setPriority(allowed.includes(v) ? v : ticket.priority);
-              }} className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700">
-                {Object.values(TicketPriority).map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500">Categoría</div>
-              <div className="font-medium">{ticket.category}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${statusTone[status]}`}>{statusLabel(status)}</span>
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${priorityTone[priority]}`}>{priorityLabel(priority)}</span>
+              <button type="button" onClick={() => dialogRef.current?.close()} className="ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25">
+                <X className="h-5 w-5" />
+                <span className="sr-only">{t('common.close')}</span>
+              </button>
             </div>
           </div>
+        </header>
 
-          {/* Asignación */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label htmlFor="ticket-assign" className="block text-sm mb-1">Asignar a</label>
-              <select id="ticket-assign" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700">
-                <option value="">— Sin asignar —</option>
-                {assignableUsers.map((u) => <option key={u.id} value={u.id}>{u.username}</option>)}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button type="button" onClick={onAssign} disabled={!assigneeId || updatingAssign}
-                className="px-3 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-60 w-full">{updatingAssign ? 'Asignando…' : 'Asignar'}</button>
-            </div>
-          </div>
+        {/* Body */}
+        <div className="grid gap-6 p-6 md:grid-cols-[1.2fr,0.8fr]">
+          {/* Left column: content */}
+          <div className="space-y-6">
+            {/* Title and description */}
+            <section className="space-y-3">
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">{t('common.title')}</span>
+                <p className="text-base font-semibold text-slate-900 dark:text-white">{ticket.title}</p>
+              </div>
+              {ticket.description ? (
+                <div>
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">{t('tickets.description')}</span>
+                  <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{ticket.description}</p>
+                </div>
+              ) : null}
+            </section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <div className="text-sm text-gray-500">Creado por</div>
-              <div className="font-medium">{ticket.createdBy?.username}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500">Asignado a</div>
-              <div className="font-medium">{ticket.assignedTo?.username ?? '—'}</div>
-            </div>
-          </div>
+            {/* Editable controls */}
+            <section className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">
+                <span>{t('tickets.detail.status')}</span>
+                <select
+                  id="ticket-status"
+                  value={status}
+                  onChange={(e) => {
+                    const allowed = Object.values(TicketStatus) as ReadonlyArray<TicketStatus>;
+                    const v = e.target.value as TicketStatus;
+                    setStatus(allowed.includes(v) ? v : ticket.status);
+                  }}
+                  disabled={hasApprovals}
+                  title={hasApprovals ? 'El estado es controlado por las aprobaciones activas' : undefined}
+                  className={`rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-none dark:focus:border-indigo-400 dark:focus:ring-indigo-500/30 ${hasApprovals ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  {Object.values(TicketStatus).map((s) => (
+                    <option key={s} value={s}>{statusLabel(s)}</option>
+                  ))}
+                </select>
+                {hasApprovals && (
+                  <span aria-hidden="true" className="text-[11px] font-normal normal-case tracking-normal text-slate-500 dark:text-slate-400">
+                    Estado gestionado por aprobaciones; cambia desde el flujo de aprobación.
+                  </span>
+                )}
+              </label>
+              <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">
+                <span>{t('tickets.detail.priority')}</span>
+                <select
+                  id="ticket-priority"
+                  value={priority}
+                  onChange={(e) => {
+                    const allowed = Object.values(TicketPriority) as ReadonlyArray<TicketPriority>;
+                    const v = e.target.value as TicketPriority;
+                    setPriority(allowed.includes(v) ? v : ticket.priority);
+                  }}
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-none dark:focus:border-indigo-400 dark:focus:ring-indigo-500/30"
+                >
+                  {Object.values(TicketPriority).map((p) => (
+                    <option key={p} value={p}>{priorityLabel(p)}</option>
+                  ))}
+                </select>
+              </label>
+            </section>
 
-          <div>
-            <div className="text-sm text-gray-500">Áreas destinatarias</div>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {(ticket.recipientArea ?? []).map((a) => (
-                <span key={a} className="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-slate-800">{a}</span>
-              ))}
-            </div>
-          </div>
+            {/* Assignment */}
+            <section className="grid gap-3 sm:grid-cols-[1fr,auto]">
+              <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">
+                <span>{t('tickets.detail.assignTo')}</span>
+                <select
+                  id="ticket-assign"
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-none dark:focus:border-indigo-400 dark:focus:ring-indigo-500/30"
+                >
+                  <option value="">— {t('tickets.unassigned')} —</option>
+                  {assignableUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.username}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={onAssign}
+                  disabled={!assigneeId || updatingAssign}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-200/60 transition hover:-translate-y-0.5 hover:bg-indigo-500 disabled:opacity-60"
+                >
+                  {updatingAssign && <Loader2 className="h-4 w-4 animate-spin" />} {updatingAssign ? t('tickets.detail.assigning') : t('tickets.detail.assign')}
+                </button>
+              </div>
+            </section>
 
-          {/* Confirmaciones */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={!!ticket.assignedUserConfirmation} onChange={(e) => onToggleConfirmation('assigned', e.target.checked)} disabled={updatingConfirm === 'assigned'} />
-              <span>Confirmación usuario asignado</span>
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={!!ticket.requestingUserConfirmation} onChange={(e) => onToggleConfirmation('requesting', e.target.checked)} disabled={updatingConfirm === 'requesting'} />
-              <span>Confirmación usuario solicitante</span>
-            </label>
-          </div>
+            {/* Confirmations */}
+            <section className="grid gap-3 sm:grid-cols-2">
+              <label className={`inline-flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 text-sm text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-200 ${isAssignedDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={!!ticket.assignedUserConfirmation}
+                  onChange={(e) => onToggleConfirmation('assigned', e.target.checked)}
+                  disabled={updatingConfirm === 'assigned' || isAssignedDisabled}
+                  title={isAssignedDisabled ? t('common.inactive') : undefined}
+                />
+                <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> {t('tickets.detail.assignedUserConfirmation')}</span>
+                {isAssignedDisabled && (
+                  <span aria-hidden="true" className="ml-auto text-xs text-slate-500 dark:text-slate-400">Solo el usuario asignado puede confirmar</span>
+                )}
+              </label>
+              <label className={`inline-flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 text-sm text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-200 ${isRequestingDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={!!ticket.requestingUserConfirmation}
+                  onChange={(e) => onToggleConfirmation('requesting', e.target.checked)}
+                  disabled={updatingConfirm === 'requesting' || isRequestingDisabled}
+                  title={isRequestingDisabled ? t('common.inactive') : undefined}
+                />
+                <span className="inline-flex items-center gap-2"><ShieldX className="h-4 w-4" /> {t('tickets.detail.requestingUserConfirmation')}</span>
+                {isRequestingDisabled && (
+                  <span aria-hidden="true" className="ml-auto text-xs text-slate-500 dark:text-slate-400">Solo el creador del ticket puede confirmar</span>
+                )}
+              </label>
+            </section>
 
-          {/* Aprobaciones */}
-          {approvals.length > 0 && (
-            <div className="space-y-2">
-              <div className="font-medium">Aprobaciones</div>
-              <div className="space-y-2">
-                {approvals.map((ap) => (
-                  <div key={ap.id} className="p-3 rounded-lg border dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm">Paso {ap.step} • {ap.approverRole} • {ap.approverArea}</div>
-                      <div className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-slate-800">{ap.status}</div>
-                    </div>
-                    {ap.status === 'Pendiente' && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <input
-                          id={`approval-comment-${ap.id}`}
-                          placeholder="Comentario (opcional)"
-                          value={approvalComment}
-                          onChange={(e) => setApprovalComment(e.target.value)}
-                          className="flex-1 px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700"
-                        />
-                        <button type="button" onClick={() => onApprovalAction(ap.id, true)} className="px-3 py-2 rounded-lg bg-green-600 text-white">Aprobar</button>
-                        <button type="button" onClick={() => onApprovalAction(ap.id, false)} className="px-3 py-2 rounded-lg bg-red-600 text-white">Rechazar</button>
+            {/* Approvals */}
+            {approvals.length > 0 && (
+              <section className="space-y-3">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">{t('tickets.detail.approvals')}</h4>
+                <div className="grid gap-3">
+                  {approvals.map((ap) => {
+                    const isPending = ap.status === 'Pendiente';
+                    return (
+                      <div key={ap.id} className="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 p-3 shadow-sm dark:border-white/10 dark:bg-slate-900/50">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-sm text-slate-700 dark:text-slate-200">
+                            {t('tickets.detail.step')} {ap.step} • {ap.approverRole} • {ap.approverArea}
+                          </div>
+                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                            {ap.status}
+                          </div>
+                        </div>
+                        {isPending && (
+                          <div className="mt-3 flex items-center gap-2">
+                            <input
+                              id={`approval-comment-${ap.id}`}
+                              placeholder={t('tickets.detail.commentOptional')}
+                              value={approvalComment}
+                              onChange={(e) => setApprovalComment(e.target.value)}
+                              className="flex-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-none dark:focus:border-indigo-400 dark:focus:ring-indigo-500/30"
+                            />
+                            <button type="button" onClick={() => onApprovalAction(ap.id, true)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"><CheckCircle2 className="h-4 w-4" /> {t('tickets.detail.approve')}</button>
+                            <button type="button" onClick={() => onApprovalAction(ap.id, false)} className="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-500">{t('tickets.detail.reject')}</button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Tags */}
+            <section className="space-y-2">
+              <label htmlFor="ticket-tags" className="block text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">{t('tickets.detail.tags')}</label>
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-slate-400" />
+                <input
+                  id="ticket-tags"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  className="flex-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-none dark:focus:border-indigo-400 dark:focus:ring-indigo-500/30"
+                />
+              </div>
+            </section>
+          </div>
+
+          {/* Right column: info card */}
+          <aside className="space-y-4">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/50">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">{t('common.details')}</div>
+              <div className="space-y-3 text-sm text-slate-700 dark:text-slate-200">
+                <div className="flex items-center gap-2"><User2 className="h-4 w-4" /><span className="text-slate-500">{t('tickets.detail.createdBy')}</span><span className="ml-auto font-medium">{ticket.createdBy?.username ?? '—'}</span></div>
+                <div className="flex items-center gap-2"><User2 className="h-4 w-4" /><span className="text-slate-500">{t('tickets.detail.assignedTo')}</span><span className="ml-auto font-medium">{ticket.assignedTo?.username ?? '—'}</span></div>
+                <div className="flex items-center gap-2"><CalendarClock className="h-4 w-4" /><span className="text-slate-500">{t('tickets.detail.createdAt')}</span><span className="ml-auto font-medium">{formatDateTime(ticket.createdAt)}</span></div>
+                <div className="flex items-center gap-2"><CalendarClock className="h-4 w-4" /><span className="text-slate-500">{t('tickets.detail.updatedAt')}</span><span className="ml-auto font-medium">{formatDateTime(ticket.updatedAt)}</span></div>
               </div>
             </div>
-          )}
-
-          <div>
-            <label htmlFor="ticket-tags" className="block text-sm mb-1">Tags</label>
-            <input id="ticket-tags" value={tags} onChange={(e) => setTags(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg dark:bg-slate-900 dark:border-slate-700" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-500">
-            <div>Creado: {formatDateTime(ticket.createdAt)}</div>
-            <div>Actualizado: {formatDateTime(ticket.updatedAt)}</div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-2 rounded-lg border dark:border-slate-700">Cerrar</button>
-            <button type="button" onClick={onSave} disabled={!canSave || saving}
-              className="px-3 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-60">{saving ? 'Guardando…' : 'Guardar'}</button>
-          </div>
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/50">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">{t('tickets.detail.recipientAreas')}</div>
+              <div className="flex flex-wrap gap-2">
+                {(ticket.recipientArea ?? []).length === 0 ? (
+                  <span className="text-xs text-slate-500">{t('tickets.noMatches')}</span>
+                ) : (
+                  (ticket.recipientArea ?? []).map((a) => (
+                    <span key={a} className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">{a}</span>
+                  ))
+                )}
+              </div>
+            </div>
+          </aside>
         </div>
-      </div>
-    </div>
+
+        {/* Footer */}
+        <footer className="sticky bottom-0 flex items-center justify-end gap-2 border-t border-slate-200/60 bg-white/90 px-6 py-3 backdrop-blur dark:border-white/10 dark:bg-slate-950/80">
+          <button type="button" onClick={() => dialogRef.current?.close()} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+            {t('common.close')}
+          </button>
+          <button type="button" onClick={onSave} disabled={!canSave || saving} className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-200/60 transition hover:-translate-y-0.5 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60">
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />} {saving ? t('common.saving') : t('common.save')}
+          </button>
+        </footer>
+    </dialog>
   );
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { X, MapPin, CalendarDays, ClipboardList, Timer, CheckCircle2, AlertTriangle } from 'lucide-react';
 import type { Aseo } from '../../../types/Aseo';
 import { useIntlFormat } from '../../../app/intl/format';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 
 interface CleaningDetailModalProps {
@@ -12,6 +13,7 @@ interface CleaningDetailModalProps {
 
 const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClose, onEdit }) => {
   const { formatDateTime } = useIntlFormat();
+  const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
       <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 text-slate-800 shadow-2xl shadow-slate-300/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/95 dark:text-slate-100">
@@ -22,9 +24,9 @@ const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClo
               <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
                 <MapPin className="h-4 w-4" /> {report.area}
               </span>
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Reporte #{report.id}</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{t('cleaning.report')} #{report.id}</h2>
               <p className="max-w-xl text-sm text-slate-500 dark:text-blue-200/80">
-                Revisa la intervención completa, tareas ejecutadas y hallazgos para coordinar acciones correctivas.
+                {t('cleaning.completedTasks')}
               </p>
             </div>
             <button
@@ -40,14 +42,14 @@ const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClo
           <div className="mt-6 flex-1 space-y-6 overflow-y-auto px-8 pb-8 text-sm text-slate-600 dark:text-blue-200/80">
             <section className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Fecha y hora</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{t('common.date')} & {t('common.time')}</p>
                 <div className="mt-2 flex items-center gap-2 text-slate-700 dark:text-blue-100">
                   <CalendarDays className="h-4 w-4" />
                   <span>{formatDateTime(report.date)}</span>
                 </div>
               </div>
               <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Responsable</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{t('cleaning.responsible')}</p>
                 <div className="mt-2 flex items-center gap-2 text-slate-700 dark:text-blue-100">
                   <ClipboardList className="h-4 w-4" />
                   <span>{report.responsibleStaff}</span>
@@ -57,14 +59,14 @@ const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClo
 
             <section className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Tiempo invertido</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{t('cleaning.timeSpent')}</p>
                 <div className="mt-2 flex items-center gap-2 text-slate-700 dark:text-blue-100">
                   <Timer className="h-4 w-4" />
                   <span>{report.timeSpent}h</span>
                 </div>
               </div>
               <div className="rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Tareas ejecutadas</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{t('cleaning.completedTasks')}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {report.tasks.map(task => (
                     <span key={task} className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-100">
@@ -73,7 +75,7 @@ const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClo
                     </span>
                   ))}
                   {report.tasks.length === 0 && (
-                    <span className="text-xs text-slate-500 dark:text-blue-200/70">Sin tareas registradas.</span>
+                    <span className="text-xs text-slate-500 dark:text-blue-200/70">{t('cleaning.noTasks')}</span>
                   )}
                 </div>
               </div>
@@ -82,7 +84,7 @@ const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClo
             {report.issues.length > 0 && (
               <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
                 <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" /> Problemas detectados
+                  <AlertTriangle className="h-4 w-4 text-amber-500" /> {t('cleaning.problemsFound')}
                 </p>
                 <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-blue-200/80">
                   {report.issues.map(issue => (
@@ -97,7 +99,7 @@ const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClo
 
             {report.observations && (
               <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-inner shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-white/5 dark:shadow-slate-900/40">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Observaciones</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">{t('cleaning.observations')}</p>
                 <p className="mt-2 leading-relaxed text-slate-600 dark:text-blue-200/80">{report.observations}</p>
               </section>
             )}
@@ -110,14 +112,14 @@ const CleaningDetailModal: React.FC<CleaningDetailModalProps> = ({ report, onClo
                 onClick={onClose}
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white/80 px-5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
               >
-                Cerrar
+                {t('common.close')}
               </button>
               <button
                 type="button"
                 onClick={() => onEdit(report)}
                 className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
               >
-                Editar reporte
+                {t('cleaning.editReport')}
               </button>
             </div>
           </footer>

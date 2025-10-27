@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, ShieldAlert } from 'lucide-react';
 import type { Incident, IncidentSeverity, IncidentStatus, IncidentType } from '../../../types/Incident';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -21,6 +21,33 @@ const IncidentsPageInner: React.FC = () => {
   const [detail, setDetail] = useState<Incident | null>(null);
   const [openCreate, setOpenCreate] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Global search + deep-open wiring from Header
+  useEffect(() => {
+    const onGlobalSearch = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { query?: string } | undefined;
+      if (detail && typeof detail.query === 'string') setSearch(detail.query);
+    };
+    const onOpen = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id?: string | number } | undefined;
+      const id = d?.id;
+      if (typeof id === 'string') {
+        const found = items.find(i => i.id === id) || null;
+        setDetail(found);
+        if (!found) setSearch(String(id));
+      } else if (typeof id === 'number') {
+        const found = items.find(i => i.id === String(id)) || null;
+        setDetail(found);
+        if (!found) setSearch(String(id));
+      }
+    };
+    globalThis.addEventListener('global-search', onGlobalSearch as EventListener);
+    globalThis.addEventListener('incidents:open', onOpen as EventListener);
+    return () => {
+      globalThis.removeEventListener('global-search', onGlobalSearch as EventListener);
+      globalThis.removeEventListener('incidents:open', onOpen as EventListener);
+    };
+  }, [items]);
 
   const userAreas = useMemo(() => {
     const fromUser = user?.areas ?? [];

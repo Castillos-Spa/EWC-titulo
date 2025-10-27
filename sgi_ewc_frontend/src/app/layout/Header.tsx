@@ -1,14 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Bell, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
 import { listNotifications, markNotificationAsRead } from '../../utils/notificationApi';
 import { getUsers } from '../../utils/userApi';
 import { getTickets } from '../../utils/ticketApi';
+import { getVehiculos, getTallerWorkOrders } from '../../utils/tallerApi';
+import { getRoutes } from '../../utils/RoutesApi';
+import { fetchIncidents } from '../../utils/incidentApi';
 import type { Ticket } from '../../types/Ticket';
 import type { User as UserType } from '../../types/User';
 import type { AppNotification } from '../../types/Notification';
 import { useIntlFormat } from '../intl/format';
+import { useNavigate } from 'react-router-dom';
+import type { Vehiculo } from '../../types/Vehiculo';
+import type { OrdenTrabajo } from '../../types/OrdenTrabajo';
+import type { Incident } from '../../types/Incident';
 
 interface Notification {
 	id: string;
@@ -90,6 +97,7 @@ const mergeNotifications = (incoming: Notification[], existing: Notification[]):
 
 const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick, uiDensity }) => {
 	const { user, logout } = useAuth();
+	const navigate = useNavigate();
 	const { formatTime } = useIntlFormat();
 	const mapAppNotification = makeMapAppNotification(formatTime);
 	const mapWireNotification = makeMapWireNotification(formatTime);
@@ -109,7 +117,54 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	const [searchResults, setSearchResults] = useState<{
 		users: Array<{ id: number; title: string; subtitle: string }>;
 		tickets: Array<{ id: number; title: string; subtitle: string }>;
-	}>({ users: [], tickets: [] });
+		vehicles: Array<{ id: number; title: string; subtitle: string }>;
+		routes: Array<{ id: number; title: string; subtitle: string }>;
+		maint: Array<{ id: number; title: string; subtitle: string }>;
+		incidents: Array<{ id: string | number; title: string; subtitle: string }>;
+	}>({ users: [], tickets: [], vehicles: [], routes: [], maint: [], incidents: [] });
+	const [activeIndex, setActiveIndex] = useState<number>(-1);
+
+	// Lista plana para navegación con teclas
+	const flatResults = useMemo(() => {
+		const list: Array<{ kind: 'section' | 'user' | 'ticket' | 'vehicle' | 'route' | 'maint' | 'incident'; key: string; payload?: unknown; label: string; helper?: string }> = [];
+		if (user?.isAdmin && searchResults.users.length > 0) {
+			list.push({ kind: 'section', key: 'users-section', label: 'Usuarios' });
+			for (const u of searchResults.users) {
+				list.push({ kind: 'user', key: `user-${u.id}`, payload: u, label: u.title, helper: u.subtitle });
+			}
+		}
+		if (searchResults.tickets.length > 0) {
+			list.push({ kind: 'section', key: 'tickets-section', label: 'Tickets' });
+			for (const t of searchResults.tickets) {
+				list.push({ kind: 'ticket', key: `ticket-${t.id}`, payload: t, label: t.title, helper: t.subtitle });
+			}
+		}
+		if (searchResults.vehicles.length > 0) {
+			list.push({ kind: 'section', key: 'vehicles-section', label: 'Flota' });
+			for (const v of searchResults.vehicles) {
+				list.push({ kind: 'vehicle', key: `vehicle-${v.id}`, payload: v, label: v.title, helper: v.subtitle });
+			}
+		}
+		if (searchResults.routes.length > 0) {
+			list.push({ kind: 'section', key: 'routes-section', label: 'Rutas' });
+			for (const r of searchResults.routes) {
+				list.push({ kind: 'route', key: `route-${r.id}`, payload: r, label: r.title, helper: r.subtitle });
+			}
+		}
+		if (searchResults.maint.length > 0) {
+			list.push({ kind: 'section', key: 'maint-section', label: 'Mantenimiento' });
+			for (const m of searchResults.maint) {
+				list.push({ kind: 'maint', key: `maint-${m.id}`, payload: m, label: m.title, helper: m.subtitle });
+			}
+		}
+		if (searchResults.incidents.length > 0) {
+			list.push({ kind: 'section', key: 'incidents-section', label: 'Incidentes' });
+			for (const i of searchResults.incidents) {
+				list.push({ kind: 'incident', key: `incident-${i.id}`, payload: i, label: i.title, helper: i.subtitle });
+			}
+		}
+		return list;
+	}, [searchResults.users, searchResults.tickets, searchResults.vehicles, searchResults.routes, searchResults.maint, searchResults.incidents, user?.isAdmin]);
 	const areaCount = Array.isArray(user?.areas) ? user?.areas?.length ?? 0 : 0;
 	const areaBadgeLabel = areaCount > 0 ? `${areaCount} áreas` : user?.email ?? 'Sesión activa';
 	const unreadDisplay = unreadCount > 9 ? '9+' : String(unreadCount);
@@ -143,9 +198,10 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 
 	const runGlobalSearch = async (q: string) => {
 		if (!q) {
-			setSearchResults({ users: [], tickets: [] });
+			setSearchResults({ users: [], tickets: [], vehicles: [], routes: [], maint: [], incidents: [] });
 			setSearchOpen(false);
 			setSearchLoading(false);
+			setActiveIndex(-1);
 			return;
 		}
 		setSearchOpen(true);
@@ -154,18 +210,26 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 			const result = {
 				users: [] as Array<{ id: number; title: string; subtitle: string }>,
 				tickets: [] as Array<{ id: number; title: string; subtitle: string }>,
+				vehicles: [] as Array<{ id: number; title: string; subtitle: string }>,
+				routes: [] as Array<{ id: number; title: string; subtitle: string }>,
+				maint: [] as Array<{ id: number; title: string; subtitle: string }>,
+				incidents: [] as Array<{ id: string | number; title: string; subtitle: string }>,
 			};
+
+			const m = /^([a-zA-Z]+):\s*(.*)$/.exec(q);
+			const prefix = m ? m[1].toLowerCase() : '';
+			const rawQuery = (m ? m[2] : q).trim();
+			const ql = rawQuery.toLowerCase();
+
 			if (user?.isAdmin) {
 				const list: UserType[] = await getUsers();
-				const ql = q.toLowerCase();
 				const filtered = list.filter((u) =>
 					(u.username || '').toLowerCase().includes(ql) || (u.email || '').toLowerCase().includes(ql)
 				).slice(0, 8);
 				result.users = filtered.map((u) => ({ id: u.id, title: u.username, subtitle: u.email }));
 			}
-			// Tickets accesibles para el usuario
+
 			const tickets: Ticket[] = await getTickets();
-			const ql = q.toLowerCase();
 			const isAccessible = (t: Ticket) => {
 				const createdByMe = !!user?.id && t.createdBy?.id === user.id;
 				const assignedToMe = !!user?.id && (t.assignedTo?.id ?? null) === user.id;
@@ -174,20 +238,67 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 			};
 			const filteredTickets = tickets
 				.filter((t) => (
-					String(t.id ?? '').includes(q) ||
+					String(t.id ?? '').includes(rawQuery) ||
 					(t.title || '').toLowerCase().includes(ql) ||
 					(t.description || '').toLowerCase().includes(ql)
 				) && isAccessible(t))
 				.slice(0, 8);
-			result.tickets = filteredTickets.map((t) => ({
-				id: t.id,
-				title: t.title || `Ticket #${t.id}`,
-				subtitle: `#${t.id} • ${t.status || '—'}`,
-			}));
-			setSearchResults(result);
+			result.tickets = filteredTickets.map((t) => ({ id: t.id, title: t.title || `Ticket #${t.id}`, subtitle: `#${t.id} • ${t.status || '—'}` }));
+
+			try {
+				const vehicles: Vehiculo[] = await getVehiculos();
+				result.vehicles = vehicles.filter(v => {
+					const hay = [v.patente, v.marca, v.modelo, v.codigo, v.areaAsignada].map(x => (x ?? '').toString().toLowerCase()).join(' ');
+					return hay.includes(ql) || String(v.id).includes(rawQuery);
+				}).slice(0, 8).map(v => ({ id: v.id, title: `${v.patente} — ${v.marca} ${v.modelo}`, subtitle: `${v.areaAsignada ?? 'Sin área'} • ${v.estado ?? ''}` }));
+			} catch (e) { console.debug('search vehicles error', e); }
+
+			try {
+				const routes = await getRoutes() as unknown as Array<{ id: number; code: string; origin: string; destination: string; distanceKm: number; frequency: string }>;
+				result.routes = routes.filter(r => {
+					const hay = [r.code, r.origin, r.destination].map(x => String(x).toLowerCase()).join(' ');
+					return hay.includes(ql) || String(r.id).includes(rawQuery);
+				}).slice(0, 8).map(r => ({ id: r.id, title: `${r.code}: ${r.origin} → ${r.destination}`, subtitle: `${r.distanceKm} km • ${r.frequency}` }));
+			} catch (e) { console.debug('search routes error', e); }
+
+			try {
+				const ots: OrdenTrabajo[] = await getTallerWorkOrders();
+				result.maint = ots.filter(ot => {
+					const hay = [ot.description ?? '', ot.tipo ?? '', ot.estado ?? '', String(ot.vehiculoId)].map(x => String(x).toLowerCase()).join(' ');
+					return hay.includes(ql) || String(ot.id).includes(rawQuery);
+				}).slice(0, 8).map(ot => ({ id: ot.id, title: `OT #${ot.id} — ${ot.tipo ?? ''} (${ot.estado})`, subtitle: `Vehículo ${ot.vehiculoId}` }));
+			} catch (e) { console.debug('search maint error', e); }
+
+			try {
+				const incs: Incident[] = await fetchIncidents();
+				result.incidents = incs.filter(i => {
+					const hay = [i.title ?? '', i.description ?? '', i.area ?? '', i.type ?? ''].map(x => String(x).toLowerCase()).join(' ');
+					return hay.includes(ql) || String(i.id).includes(rawQuery);
+				}).slice(0, 8).map(i => ({ id: i.id, title: i.title || `Incidente ${i.type}`, subtitle: `${i.area ?? ''} • ${i.status}` }));
+			} catch (e) { console.debug('search incidents error', e); }
+
+			if (m) {
+				const allow = (k: string) => ({ u: 'users', user: 'users', t: 'tickets', ticket: 'tickets', v: 'vehicles', vehiculo: 'vehicles', f: 'vehicles', r: 'routes', route: 'routes', m: 'maint', maint: 'maint', mantenimiento: 'maint', i: 'incidents', incidente: 'incidents' } as Record<string,string>)[k];
+				const target = allow(prefix);
+				if (target) {
+					setSearchResults({
+						users: target === 'users' ? result.users : [],
+						tickets: target === 'tickets' ? result.tickets : [],
+						vehicles: target === 'vehicles' ? result.vehicles : [],
+						routes: target === 'routes' ? result.routes : [],
+						maint: target === 'maint' ? result.maint : [],
+						incidents: target === 'incidents' ? result.incidents : [],
+					});
+				} else {
+					setSearchResults(result);
+				}
+			} else {
+				setSearchResults(result);
+			}
+			setActiveIndex(-1);
 		} catch (e) {
 			console.warn('Global search error', e);
-			setSearchResults({ users: [], tickets: [] });
+			setSearchResults({ users: [], tickets: [], vehicles: [], routes: [], maint: [], incidents: [] });
 		} finally {
 			setSearchLoading(false);
 		}
@@ -195,7 +306,6 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 
 	useEffect(() => {
 		if (!user?.id) return;
-		// Usa la misma URL base que las APIs: fallback a http://localhost:3000 si no hay VITE_API_URL
 		const wsBaseUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
 		const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(wsBaseUrl, {
 			// permitir polling + upgrade a websocket
@@ -272,6 +382,91 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 		};
 	}, []);
 
+	// Atajo global Ctrl/Cmd+K para enfocar búsqueda
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			const isMac = /Mac/i.test(navigator.userAgent);
+			if ((isMac ? e.metaKey : e.ctrlKey) && (e.key.toLowerCase() === 'k')) {
+				e.preventDefault();
+				const inputEl = searchRef.current?.querySelector('input');
+				if (inputEl) {
+					inputEl.focus();
+					setSearchOpen(true);
+				}
+			}
+		};
+		globalThis.addEventListener('keydown', handler);
+		return () => globalThis.removeEventListener('keydown', handler);
+	}, []);
+
+	// Acción al seleccionar un resultado
+	const selectActive = () => {
+		if (activeIndex < 0 || activeIndex >= flatResults.length) return;
+		const item = flatResults[activeIndex];
+		if (!item || item.kind === 'section') return;
+		if (item.kind === 'user') {
+			const u = item.payload as { id: number; title: string };
+			navigate('/usuarios');
+			globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: u.title } }));
+			setSearchOpen(false);
+			setSearchText('');
+			setActiveIndex(-1);
+			return;
+		}
+		if (item.kind === 'ticket') {
+			const t = item.payload as { id: number; title: string };
+			navigate('/tickets');
+			// dar tiempo al enrutamiento para que la página monte
+			setTimeout(() => {
+				globalThis.dispatchEvent(new CustomEvent('tickets:open', { detail: { id: t.id } }));
+			}, 50);
+			setSearchOpen(false);
+			setSearchText('');
+			setActiveIndex(-1);
+		}
+		if (item.kind === 'vehicle') {
+			const v = item.payload as { id: number; title: string };
+			navigate('/flota');
+			setTimeout(() => {
+				globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: v.title.split(' — ')[0] } }));
+			}, 50);
+			setSearchOpen(false);
+			setSearchText('');
+			setActiveIndex(-1);
+		}
+		if (item.kind === 'route') {
+			const r = item.payload as { id: number; title: string };
+			navigate('/rutas');
+			setTimeout(() => {
+				globalThis.dispatchEvent(new CustomEvent('routes:open', { detail: { id: r.id } }));
+				globalThis.dispatchEvent(new CustomEvent('routes:search', { detail: { query: r.title.split(':')[0] } }));
+			}, 50);
+			setSearchOpen(false);
+			setSearchText('');
+			setActiveIndex(-1);
+		}
+		if (item.kind === 'maint') {
+			const m = item.payload as { id: number; title: string };
+			navigate('/mantenimiento');
+			setTimeout(() => {
+				globalThis.dispatchEvent(new CustomEvent('maintenance:open', { detail: { id: m.id } }));
+			}, 50);
+			setSearchOpen(false);
+			setSearchText('');
+			setActiveIndex(-1);
+		}
+		if (item.kind === 'incident') {
+			const i = item.payload as { id: string | number; title: string };
+			navigate('/incidentes');
+			setTimeout(() => {
+				globalThis.dispatchEvent(new CustomEvent('incidents:open', { detail: { id: i.id } }));
+			}, 50);
+			setSearchOpen(false);
+			setSearchText('');
+			setActiveIndex(-1);
+		}
+	};
+
 	const getTitle = (title: string) => {
 		const titleMap: { [key: string]: string } = {
 			Dashboard: 'Panel Principal',
@@ -320,7 +515,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 				</div>
 
 	<div className={`ml-auto flex items-center ${actionGap}`}>
-					{/* Search */}
+		{/* Search */}
 					<div className="relative hidden md:block" ref={searchRef}>
 						<Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-blue-200/80" />
 						<input
@@ -340,12 +535,46 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 								if (e.key === 'Enter') {
 									if (searchDebounceRef.current) globalThis.clearTimeout(searchDebounceRef.current);
 									globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: searchText } }));
-									setSearchOpen(true);
+									if (searchOpen && activeIndex >= 0) {
+										selectActive();
+									} else {
+										setSearchOpen(true);
+									}
 								} else if (e.key === 'Escape') {
 									setSearchText('');
 									globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: '' } }));
 									setSearchOpen(false);
-									setSearchResults({ users: [], tickets: [] });
+									setSearchResults({ users: [], tickets: [], vehicles: [], routes: [], maint: [], incidents: [] });
+									setActiveIndex(-1);
+								} else if (e.key === 'ArrowDown') {
+									e.preventDefault();
+									if (!searchOpen) setSearchOpen(true);
+									setActiveIndex((prev) => {
+										let next = prev + 1;
+										const len = flatResults.length;
+										if (len === 0) return -1;
+										while (next < len && flatResults[next]?.kind === 'section') next++;
+										if (next >= len) {
+											// vuelta al primero real
+											next = flatResults.findIndex(r => r.kind !== 'section');
+										}
+										return next;
+									});
+								} else if (e.key === 'ArrowUp') {
+									e.preventDefault();
+									setActiveIndex((prev) => {
+										let next = prev - 1;
+										if (flatResults.length === 0) return -1;
+										while (next >= 0 && flatResults[next]?.kind === 'section') next--;
+										if (next < 0) {
+											// ir al último real
+											for (let i = flatResults.length - 1; i >= 0; i--) {
+												if (flatResults[i].kind !== 'section') return i;
+											}
+											return -1;
+										}
+										return next;
+									});
 								}
 							}}
 							className={`${searchWidth} rounded-full border border-slate-300 bg-white/80 ${searchPadding} pl-11 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-inner backdrop-blur focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder-white/60 dark:focus:ring-sky-400`}
@@ -360,24 +589,33 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 									<div className="p-4 text-sm text-slate-500 dark:text-blue-200/80">Buscando…</div>
 								) : (
 									<div className="max-h-96 overflow-y-auto">
-										{((user?.isAdmin ? searchResults.users.length : 0) + searchResults.tickets.length) === 0 && (
+										{(((user?.isAdmin ? searchResults.users.length : 0)
+											+ searchResults.tickets.length
+											+ searchResults.vehicles.length
+											+ searchResults.routes.length
+											+ searchResults.maint.length
+											+ searchResults.incidents.length) === 0) && (
 											<div className="px-4 py-3 text-sm text-slate-500 dark:text-blue-200/80">Sin resultados</div>
 										)}
 
 										{user?.isAdmin && searchResults.users.length > 0 && (
 											<div>
 												<div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Usuarios</div>
-												{searchResults.users.map(u => (
+												{searchResults.users.map((u) => {
+													const realIndex = flatResults.findIndex(r => r.key === `user-${u.id}`);
+													const isActive = activeIndex === realIndex;
+													return (
 													<button
 														key={`user-${u.id}`}
 														type="button"
-														onClick={() => {
-															// Navegar a Gestión de Usuarios y aplicar filtro
-															globalThis.dispatchEvent(new CustomEvent('set-page', { detail: { page: 'user-management' } }));
-															globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: u.title } }));
-															setSearchOpen(false);
-														}}
-														className="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg:white/10"
+															onMouseEnter={() => setActiveIndex(realIndex)}
+															onClick={() => {
+																navigate('/usuarios');
+																globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: u.title } }));
+																setSearchOpen(false);
+																setSearchText('');
+															}}
+															className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10 ${isActive ? 'bg-blue-50/70 dark:bg-white/10' : ''}`}
 													>
 														<div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/30 text-blue-600 shadow-inner dark:from-sky-500/30 dark:to-indigo-500/30 dark:text-blue-100">
 															{u.title.charAt(0)}
@@ -387,21 +625,31 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 															<div className="text-xs text-slate-500 dark:text:blue-200/80">{u.subtitle}</div>
 														</div>
 													</button>
-												))}
+													);
+												})}
 											</div>
 										)}
 
 										{searchResults.tickets.length > 0 && (
 											<div>
 												<div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Tickets</div>
-												{searchResults.tickets.map(t => (
+												{searchResults.tickets.map((t) => {
+													const realIndex = flatResults.findIndex(r => r.key === `ticket-${t.id}`);
+													const isActive = activeIndex === realIndex;
+													return (
 													<button
 														key={`ticket-${t.id}`}
 														type="button"
-														onClick={() => {
-															setSearchOpen(false);
-														}}
-														className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10"
+															onMouseEnter={() => setActiveIndex(realIndex)}
+															onClick={() => {
+																navigate('/tickets');
+																setTimeout(() => {
+																	globalThis.dispatchEvent(new CustomEvent('tickets:open', { detail: { id: t.id } }));
+																}, 50);
+																setSearchOpen(false);
+																setSearchText('');
+															}}
+															className={`flex w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10 ${isActive ? 'bg-blue-50/70 dark:bg-white/10' : ''}`}
 													>
 														<div>
 															<div className="text-sm font-medium text-slate-800 dark:text-white">{t.title}</div>
@@ -409,7 +657,125 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 														</div>
 														<ChevronDown className="h-4 w-4 text-slate-400" />
 													</button>
-												))}
+													);
+												})}
+											</div>
+										)}
+
+										{searchResults.vehicles.length > 0 && (
+											<div>
+												<div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Flota</div>
+												{searchResults.vehicles.map((v) => {
+													const realIndex = flatResults.findIndex(r => r.key === `vehicle-${v.id}`);
+													const isActive = activeIndex === realIndex;
+													return (
+													<button
+														key={`vehicle-${v.id}`}
+														type="button"
+														onMouseEnter={() => setActiveIndex(realIndex)}
+														onClick={() => {
+															navigate('/flota');
+															setTimeout(() => {
+																globalThis.dispatchEvent(new CustomEvent('global-search', { detail: { query: v.title.split(' — ')[0] } }));
+															}, 50);
+															setSearchOpen(false);
+															setSearchText('');
+														}}
+														className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10 ${isActive ? 'bg-blue-50/70 dark:bg-white/10' : ''}`}
+													>
+														<div className="text-sm font-medium text-slate-800 dark:text-white">{v.title}</div>
+														<div className="text-xs text-slate-500 dark:text-blue-200/80">{v.subtitle}</div>
+													</button>
+													);
+												})}
+											</div>
+										)}
+
+										{searchResults.routes.length > 0 && (
+											<div>
+												<div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Rutas</div>
+												{searchResults.routes.map((r) => {
+													const realIndex = flatResults.findIndex(fr => fr.key === `route-${r.id}`);
+													const isActive = activeIndex === realIndex;
+													return (
+													<button
+														key={`route-${r.id}`}
+														type="button"
+														onMouseEnter={() => setActiveIndex(realIndex)}
+														onClick={() => {
+															navigate('/rutas');
+															setTimeout(() => {
+																globalThis.dispatchEvent(new CustomEvent('routes:open', { detail: { id: r.id } }));
+																globalThis.dispatchEvent(new CustomEvent('routes:search', { detail: { query: r.title.split(':')[0] } }));
+															}, 50);
+															setSearchOpen(false);
+															setSearchText('');
+														}}
+														className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10 ${isActive ? 'bg-blue-50/70 dark:bg-white/10' : ''}`}
+													>
+														<div className="text-sm font-medium text-slate-800 dark:text-white">{r.title}</div>
+														<div className="text-xs text-slate-500 dark:text-blue-200/80">{r.subtitle}</div>
+													</button>
+													);
+												})}
+											</div>
+										)}
+
+										{searchResults.maint.length > 0 && (
+											<div>
+												<div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Mantenimiento</div>
+												{searchResults.maint.map((m) => {
+													const realIndex = flatResults.findIndex(fr => fr.key === `maint-${m.id}`);
+													const isActive = activeIndex === realIndex;
+													return (
+													<button
+														key={`maint-${m.id}`}
+														type="button"
+														onMouseEnter={() => setActiveIndex(realIndex)}
+														onClick={() => {
+															navigate('/mantenimiento');
+															setTimeout(() => {
+																globalThis.dispatchEvent(new CustomEvent('maintenance:open', { detail: { id: m.id } }));
+															}, 50);
+															setSearchOpen(false);
+															setSearchText('');
+														}}
+														className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10 ${isActive ? 'bg-blue-50/70 dark:bg-white/10' : ''}`}
+													>
+														<div className="text-sm font-medium text-slate-800 dark:text-white">{m.title}</div>
+														<div className="text-xs text-slate-500 dark:text-blue-200/80">{m.subtitle}</div>
+													</button>
+													);
+												})}
+											</div>
+										)}
+
+										{searchResults.incidents.length > 0 && (
+											<div>
+												<div className="px-4 py-2 text-xs font-semibold uppercase text-slate-500 dark:text-blue-200/70">Incidentes</div>
+												{searchResults.incidents.map((i) => {
+													const realIndex = flatResults.findIndex(fr => fr.key === `incident-${i.id}`);
+													const isActive = activeIndex === realIndex;
+													return (
+													<button
+														key={`incident-${i.id}`}
+														type="button"
+														onMouseEnter={() => setActiveIndex(realIndex)}
+														onClick={() => {
+															navigate('/incidentes');
+															setTimeout(() => {
+																globalThis.dispatchEvent(new CustomEvent('incidents:open', { detail: { id: i.id } }));
+															}, 50);
+															setSearchOpen(false);
+															setSearchText('');
+														}}
+														className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10 ${isActive ? 'bg-blue-50/70 dark:bg-white/10' : ''}`}
+													>
+														<div className="text-sm font-medium text-slate-800 dark:text-white">{i.title}</div>
+														<div className="text-xs text-slate-500 dark:text-blue-200/80">{i.subtitle}</div>
+													</button>
+													);
+												})}
 											</div>
 										)}
 									</div>

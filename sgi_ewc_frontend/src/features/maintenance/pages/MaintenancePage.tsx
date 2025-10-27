@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Wrench } from 'lucide-react';
 import { MaintenanceProvider } from '../context/MaintenanceContext';
 import useMaintenance from '../hooks/useMaintenance';
@@ -18,6 +18,29 @@ const MaintenancePageInner: React.FC = () => {
   const [type, setType] = useState<MaintenanceType | 'all'>('all');
   const [composerOpen, setComposerOpen] = useState(false);
   const [detail, setDetail] = useState<OrdenTrabajo | null>(null);
+
+  // Global search wiring: apply search text and open specific record
+  useEffect(() => {
+    const onGlobalSearch = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { query?: string } | undefined;
+      if (detail && typeof detail.query === 'string') setSearch(detail.query);
+    };
+    const onOpen = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id?: number } | undefined;
+      const id = d?.id;
+      if (typeof id === 'number') {
+        const found = records.find(r => r.id === id) || null;
+        setDetail(found);
+        if (!found) setSearch(String(id));
+      }
+    };
+    globalThis.addEventListener('global-search', onGlobalSearch as EventListener);
+    globalThis.addEventListener('maintenance:open', onOpen as EventListener);
+    return () => {
+      globalThis.removeEventListener('global-search', onGlobalSearch as EventListener);
+      globalThis.removeEventListener('maintenance:open', onOpen as EventListener);
+    };
+  }, [records]);
 
   const filteredRecords = useMemo(() => {
     const lookupVehicle = new Map(vehicles.map(vehicle => [vehicle.id, vehicle]));

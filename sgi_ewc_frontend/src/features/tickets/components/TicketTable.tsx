@@ -3,6 +3,7 @@ import { CalendarClock, UserCircle } from 'lucide-react';
 import type { Ticket } from '../../../types/Ticket';
 import { TicketPriority, TicketStatus } from '../../../types/Ticket';
 import { useIntlFormat } from '../../../app/intl/format';
+import { useTicketLabels } from '../labels';
 
 interface TicketTableProps {
   items: Ticket[];
@@ -25,6 +26,7 @@ const priorityBadge: Record<TicketPriority, string> = {
 
 const TicketTable: React.FC<TicketTableProps> = ({ items, onSelect }) => {
   const { formatDateTime } = useIntlFormat();
+  const { statusLabel, priorityLabel, t } = useTicketLabels();
   return (
     <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/30">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.15),_transparent_70%)]" />
@@ -32,13 +34,13 @@ const TicketTable: React.FC<TicketTableProps> = ({ items, onSelect }) => {
         <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-white/10">
           <thead className="bg-white/70 text-left text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:bg-white/5 dark:text-blue-200/70">
             <tr>
-              <th className="px-5 py-4">ID</th>
-              <th className="px-5 py-4">Título</th>
-              <th className="px-5 py-4">Estado</th>
-              <th className="px-5 py-4">Prioridad</th>
-              <th className="px-5 py-4">Categoría</th>
-              <th className="px-5 py-4">Asignado</th>
-              <th className="px-5 py-4">Actualizado</th>
+              <th className="px-5 py-4">{t('tickets.table.id')}</th>
+              <th className="px-5 py-4">{t('tickets.table.title')}</th>
+              <th className="px-5 py-4">{t('tickets.table.status')}</th>
+              <th className="px-5 py-4">{t('tickets.table.priority')}</th>
+              <th className="px-5 py-4">{t('tickets.table.category')}</th>
+              <th className="px-5 py-4">{t('tickets.table.assigned')}</th>
+              <th className="px-5 py-4">{t('tickets.table.updated')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200/80 dark:divide-white/5">
@@ -57,25 +59,25 @@ const TicketTable: React.FC<TicketTableProps> = ({ items, onSelect }) => {
                 </td>
                 <td className="px-5 py-4">
                   <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${statusBadge[ticket.status]}`}>
-                    {ticket.status}
+                    {statusLabel(ticket.status)}
                   </span>
                 </td>
                 <td className="px-5 py-4">
                   <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${priorityBadge[ticket.priority]}`}>
-                    {ticket.priority}
+                    {priorityLabel(ticket.priority)}
                   </span>
                 </td>
                 <td className="px-5 py-4 text-slate-600 dark:text-slate-200">{ticket.category}</td>
                 <td className="px-5 py-4 text-slate-600 dark:text-slate-200">
                   <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">
                     <UserCircle className="h-4 w-4" />
-                    {ticket.assignedTo?.username ?? 'Sin asignar'}
+                    {ticket.assignedTo?.username ?? t('tickets.unassigned')}
                   </span>
                 </td>
                 <td className="px-5 py-4">
                   <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">
                     <CalendarClock className="h-4 w-4" />
-                    {formatDateTime(ticket.updatedAt) || 'Sin fecha'}
+                    {formatDateTime(ticket.updatedAt) || t('tickets.noDate')}
                   </span>
                 </td>
               </tr>
@@ -85,7 +87,7 @@ const TicketTable: React.FC<TicketTableProps> = ({ items, onSelect }) => {
       </div>
       {items.length === 0 && (
         <div className="relative px-6 py-12 text-center text-sm text-slate-500 dark:text-slate-300">
-          No hay tickets para mostrar con los filtros actuales.
+          {t('tickets.noTableItems')}
         </div>
       )}
     </div>

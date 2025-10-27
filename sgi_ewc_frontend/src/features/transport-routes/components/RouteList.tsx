@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { TransportRoute } from '../context/RouteContext';
 import { useRouteContext } from '../context/useRouteContext';
 import { Pencil, Power, Download, Plus, SlidersHorizontal, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
@@ -67,6 +67,36 @@ const RouteList: React.FC<RouteListProps> = ({ onCreate }) => {
   }, [sorted, page]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+
+  // Global events wiring from Header: routes:search, routes:open
+  useEffect(() => {
+    const onSearch = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { query?: string } | undefined;
+      if (detail && typeof detail.query === 'string') {
+        setQuery(detail.query);
+        setPage(1);
+      }
+    };
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { id?: number } | undefined;
+      const id = detail?.id;
+      if (typeof id === 'number') {
+        const target = routes.find(r => r.id === id) || null;
+        if (target) {
+          setEditTarget(target);
+        } else {
+          setQuery(String(id));
+          setPage(1);
+        }
+      }
+    };
+    globalThis.addEventListener('routes:search', onSearch as EventListener);
+    globalThis.addEventListener('routes:open', onOpen as EventListener);
+    return () => {
+      globalThis.removeEventListener('routes:search', onSearch as EventListener);
+      globalThis.removeEventListener('routes:open', onOpen as EventListener);
+    };
+  }, [routes]);
 
   const toggleSort = (field: string) => {
     setPage(1);

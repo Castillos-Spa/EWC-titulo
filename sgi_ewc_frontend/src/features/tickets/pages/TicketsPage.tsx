@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Sparkles, Ticket as TicketIcon, Plus } from 'lucide-react';
 import { TicketsProvider, useTicketsContext } from '../context/TicketsContext';
 import CreateTicketModal from '../components/CreateTicketModal';
@@ -8,6 +8,8 @@ import TicketFilters from '../components/TicketFilters';
 import TicketKanban from '../components/TicketKanban';
 import TicketTable from '../components/TicketTable';
 import type { Ticket } from '../../../types/Ticket';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import { useIntlFormat } from '../../../app/intl/format';
 
 function TicketsInnerPage() {
   const {
@@ -28,6 +30,37 @@ function TicketsInnerPage() {
 
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [openCreate, setOpenCreate] = useState(false);
+  const { t } = useLanguage();
+  const { locale } = useIntlFormat();
+
+  // Integración con búsquedas globales y apertura directa
+  // - "global-search": ajusta el filtro de búsqueda de Tickets
+  // - "tickets:open": abre el detalle del ticket por id
+  useEffect(() => {
+    const onGlobalSearch = (event: Event) => {
+      const ce = event as CustomEvent<{ query?: string }>;
+      const query = ce.detail?.query ?? '';
+      setSearch(query);
+    };
+    const onOpenTicket = (event: Event) => {
+      const ce = event as CustomEvent<{ id?: number }>;
+      const id = ce.detail?.id;
+      if (!id) return;
+      const ticket = items.find(it => it.id === id);
+      if (ticket) {
+        setSelected(ticket);
+      } else {
+        // si no está cargado, al menos filtrar por id
+        setSearch(String(id));
+      }
+    };
+    globalThis.addEventListener('global-search', onGlobalSearch as EventListener);
+    globalThis.addEventListener('tickets:open', onOpenTicket as EventListener);
+    return () => {
+      globalThis.removeEventListener('global-search', onGlobalSearch as EventListener);
+      globalThis.removeEventListener('tickets:open', onOpenTicket as EventListener);
+    };
+  }, [items, setSearch]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -62,7 +95,7 @@ function TicketsInnerPage() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm font-semibold uppercase tracking-[0.32em] text-slate-500 dark:text-slate-300">
-        Sincronizando tickets…
+        {t('tickets.syncing')}
       </div>
     );
   }
@@ -76,14 +109,14 @@ function TicketsInnerPage() {
           <div className="max-w-2xl space-y-4">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
               <TicketIcon className="h-4 w-4" />
-              <span>Mesa de ayuda</span>
+              <span>{t('tickets.helpdesk')}</span>
             </span>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Seguimiento centralizado de tickets corporativos</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{t('tickets.header')}</h1>
             <p className="text-sm text-slate-600 dark:text-blue-100/80">
-              Orquesta solicitudes internas, prioriza según criticidad y mantén a cada área informada dentro del nuevo panel colaborativo.
+              {t('tickets.headerSub')}
             </p>
             <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/60 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-200/70">
-              <Sparkles className="h-4 w-4" /> {items.length} ticket(s) activos en total
+              <Sparkles className="h-4 w-4" /> {new Intl.NumberFormat(locale).format(items.length)} {t('tickets.totalActiveSuffix')}
             </div>
           </div>
           <button
@@ -91,7 +124,7 @@ function TicketsInnerPage() {
             onClick={() => setOpenCreate(true)}
             className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-400/40 transition hover:-translate-y-0.5"
           >
-            <Plus className="h-4 w-4" /> Nuevo ticket
+            <Plus className="h-4 w-4" /> {t('tickets.newTicket')}
           </button>
         </div>
       </section>
@@ -131,8 +164,8 @@ function TicketsInnerPage() {
         <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-white/80 px-6 py-12 text-center shadow-lg shadow-slate-200/40 backdrop-blur dark:border-white/10 dark:bg-slate-900/60 dark:shadow-slate-900/30">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_rgba(15,23,42,0)_70%)]" />
           <div className="relative space-y-3 text-sm">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">No hay tickets con los criterios actuales</h3>
-            <p className="text-slate-500 dark:text-blue-200/80">Ajusta filtros o registra un nuevo ticket para comenzar.</p>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('tickets.noResultsTitle')}</h3>
+            <p className="text-slate-500 dark:text-blue-200/80">{t('tickets.noResultsHint')}</p>
           </div>
         </div>
       )}
