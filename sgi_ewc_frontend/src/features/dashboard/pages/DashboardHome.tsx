@@ -1,75 +1,48 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { AlertTriangle, Clock, Leaf, ShieldCheck } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts';
+import { getVehiculos, getTallerWorkOrders, getDrivers } from '../../../utils/tallerApi';
+import { getTickets } from '../../../utils/ticketApi';
+import { fetchAseos } from '../../../utils/aseoApi';
+import { fetchCivilWorks } from '../../../utils/civilWorkApi';
+import { fetchIncidents } from '../../../utils/incidentApi';
+import { getUsers } from '../../../utils/userApi';
+import type { Vehiculo } from '../../../types/Vehiculo';
+import type { OrdenTrabajo } from '../../../types/OrdenTrabajo';
+import type { Ticket as TicketType } from '../../../types/Ticket';
+import type { Aseo } from '../../../types/Aseo';
+import type { CivilWork } from '../../../types/CivilWork';
+import type { Incident } from '../../../types/Incident';
+import { listNotifications } from '../../../utils/notificationApi';
+import type { ModuleAlert, ModuleDefinition, ModuleHighlight, ModuleKey, TrendTone } from '../types';
+import type { ChartTheme } from '../components/Charts';
+import { moduleBlueprints } from '../config/moduleBlueprints';
 import {
-  Activity,
-  AlertTriangle,
-  Building2,
-  Clock,
-  Leaf,
-  LucideIcon,
-  ShieldCheck,
-  Sparkles,
-  Ticket,
-  Truck,
-  Wrench
-} from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  RadialBar,
-  RadialBarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from 'recharts';
+  addDays,
+  buildPrioritizedAlerts,
+  buildTransportSeries,
+  buildMaintenanceSeries,
+  buildTicketsSeries,
+  buildCivilTop,
+  computeCleaningCompliance,
+  buildTimelineSeries,
+  buildGeneralSeries,
+  countInRange,
+  countSameDay,
+  dayNames,
+  computeCivilWorksModule,
+  computeCleaningModule,
+  computeGeneralFromSummaries,
+  computeMaintenanceModule,
+  computeTicketsModule,
+  computeTransportModule,
+  lastNDays,
+  RealModuleData,
+  startOfWeekMonday,
+  toDate
+} from '../utils/dashboard';
 
-type ModuleKey = 'general' | 'transport' | 'maintenance' | 'cleaning' | 'civilWorks' | 'tickets';
-
-type TrendTone = 'up' | 'down' | 'neutral';
-
-interface ModuleHighlight {
-  label: string;
-  value: string;
-  trend: string;
-  trendTone: TrendTone;
-}
-
-interface ModuleAlert {
-  id: string;
-  label: string;
-  priority: 'Alta' | 'Media' | 'Baja';
-  owner: string;
-  eta: string;
-}
-
-interface ModuleSummary {
-  activeItems: number;
-  alerts: number;
-  completion: number;
-  backlog: number;
-}
-
-interface ModuleDefinition {
-  key: ModuleKey;
-  areaKey: string;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  gradientFrom: string;
-  gradientTo: string;
-  highlights: ModuleHighlight[];
-  summary: ModuleSummary;
-  alerts: ModuleAlert[];
-  ChartComponent: React.FC<{ chartTheme: ChartTheme }>;
-  footerActions: string[];
-}
 
 const trendPillStyles: Record<TrendTone, string> = {
   up: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
@@ -78,16 +51,14 @@ const trendPillStyles: Record<TrendTone, string> = {
 };
 
 const priorityTone: Record<ModuleAlert['priority'], string> = {
+  Urgente: 'bg-red-200 text-red-800 dark:bg-red-900/70 dark:text-red-200',
+  Crítica: 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200',
   Alta: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200',
   Media: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200',
   Baja: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
 };
 
-const priorityWeights: Record<ModuleAlert['priority'], number> = {
-  Alta: 3,
-  Media: 2,
-  Baja: 1
-};
+// Nota: el orden visual se maneja con prioWeight en tiempo de cómputo del pool
 
 const QuickMetricTone = {
   positive: 'border-green-500',
@@ -140,29 +111,11 @@ const useIsDarkMode = () => {
     return () => observer.disconnect();
   }, []);
 
+
+
   return isDark;
 };
 
-interface ChartTheme {
-  axisColor: string;
-  gridColor: string;
-  tooltipBg: string;
-  tooltipBorder: string;
-  tooltipText: string;
-  areaStroke: string;
-  areaStart: string;
-  areaEnd: string;
-  linePrimary: string;
-  lineSecondary: string;
-  lineAlert: string;
-  linePositive: string;
-  barPrimary: string;
-  barSecondary: string;
-  barTertiary: string;
-  radialPrimary: string;
-  radialTrack: string;
-  civilPalette: string[];
-}
 
 const buildChartTheme = (isDark: boolean): ChartTheme => {
   if (isDark) {
@@ -210,379 +163,7 @@ const buildChartTheme = (isDark: boolean): ChartTheme => {
   };
 };
 
-const GeneralHealthChart: React.FC<{ chartTheme: ChartTheme }> = ({ chartTheme }) => {
-  const data = [
-    { month: 'May', engagement: 58, satisfaction: 78 },
-    { month: 'Jun', engagement: 64, satisfaction: 81 },
-    { month: 'Jul', engagement: 69, satisfaction: 83 },
-    { month: 'Ago', engagement: 72, satisfaction: 85 },
-    { month: 'Sep', engagement: 76, satisfaction: 87 },
-    { month: 'Oct', engagement: 81, satisfaction: 90 }
-  ];
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data}>
-        <CartesianGrid stroke={chartTheme.gridColor} strokeDasharray="3 3" />
-        <XAxis
-          dataKey="month"
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <YAxis
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <Tooltip
-          cursor={{ strokeDasharray: '4 4' }}
-          contentStyle={{
-            backgroundColor: chartTheme.tooltipBg,
-            borderColor: chartTheme.tooltipBorder,
-            borderRadius: 12,
-            color: chartTheme.tooltipText
-          }}
-          itemStyle={{ color: chartTheme.tooltipText }}
-          labelStyle={{ color: chartTheme.tooltipText }}
-        />
-        <Line type="monotone" dataKey="engagement" stroke={chartTheme.linePrimary} strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="satisfaction" stroke={chartTheme.lineSecondary} strokeWidth={2} dot={false} />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-};
-
-const TransportPerformanceChart: React.FC<{ chartTheme: ChartTheme }> = ({ chartTheme }) => {
-  const data = [
-    { day: 'Lun', viajes: 22, retrasos: 3 },
-    { day: 'Mar', viajes: 28, retrasos: 2 },
-    { day: 'Mie', viajes: 35, retrasos: 1 },
-    { day: 'Jue', viajes: 32, retrasos: 2 },
-    { day: 'Vie', viajes: 30, retrasos: 1 },
-    { day: 'Sab', viajes: 18, retrasos: 1 },
-    { day: 'Dom', viajes: 14, retrasos: 0 }
-  ];
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data}>
-        <defs>
-          <linearGradient id="transportTrips" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={chartTheme.areaStart} stopOpacity={0.85} />
-            <stop offset="95%" stopColor={chartTheme.areaEnd} stopOpacity={0.08} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid stroke={chartTheme.gridColor} strokeDasharray="3 3" />
-        <XAxis
-          dataKey="day"
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <YAxis
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: chartTheme.tooltipBg,
-            borderColor: chartTheme.tooltipBorder,
-            borderRadius: 12,
-            color: chartTheme.tooltipText
-          }}
-          itemStyle={{ color: chartTheme.tooltipText }}
-          labelStyle={{ color: chartTheme.tooltipText }}
-        />
-        <Area type="monotone" dataKey="viajes" stroke={chartTheme.areaStroke} fill="url(#transportTrips)" strokeWidth={2} />
-        <Line type="monotone" dataKey="retrasos" stroke={chartTheme.lineAlert} strokeWidth={2} dot />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-};
-
-const MaintenanceHealthChart: React.FC<{ chartTheme: ChartTheme }> = ({ chartTheme }) => {
-  const data = [
-    { mes: 'Jul', programado: 18, completado: 14 },
-    { mes: 'Ago', programado: 22, completado: 19 },
-    { mes: 'Sep', programado: 24, completado: 21 },
-    { mes: 'Oct', programado: 26, completado: 24 }
-  ];
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data}>
-        <CartesianGrid stroke={chartTheme.gridColor} strokeDasharray="3 3" />
-        <XAxis
-          dataKey="mes"
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <YAxis
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: chartTheme.tooltipBg,
-            borderColor: chartTheme.tooltipBorder,
-            borderRadius: 12,
-            color: chartTheme.tooltipText
-          }}
-          itemStyle={{ color: chartTheme.tooltipText }}
-          labelStyle={{ color: chartTheme.tooltipText }}
-        />
-        <Bar dataKey="programado" fill={chartTheme.barPrimary} radius={[6, 6, 0, 0]} />
-        <Bar dataKey="completado" fill={chartTheme.barSecondary} radius={[6, 6, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-};
-
-const CleaningComplianceChart: React.FC<{ chartTheme: ChartTheme }> = ({ chartTheme }) => {
-  const data = [
-    { name: 'Cumplimiento', value: 92, fill: chartTheme.radialPrimary },
-    { name: 'Meta', value: 100, fill: chartTheme.radialTrack }
-  ];
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="95%" barSize={16} data={data} startAngle={90} endAngle={-270}>
-        <RadialBar background dataKey="value" cornerRadius={6} />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: chartTheme.tooltipBg,
-            borderColor: chartTheme.tooltipBorder,
-            borderRadius: 12,
-            color: chartTheme.tooltipText
-          }}
-          itemStyle={{ color: chartTheme.tooltipText }}
-          labelStyle={{ color: chartTheme.tooltipText }}
-        />
-      </RadialBarChart>
-    </ResponsiveContainer>
-  );
-};
-
-const CivilWorksProgressChart: React.FC<{ chartTheme: ChartTheme }> = ({ chartTheme }) => {
-  const data = [
-    { proyecto: 'Canalización', progreso: 78 },
-    { proyecto: 'Estanques', progreso: 64 },
-    { proyecto: 'Pavimentación', progreso: 56 },
-    { proyecto: 'Saneamiento', progreso: 88 }
-  ];
-
-  const colors = chartTheme.civilPalette;
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
-        <CartesianGrid stroke={chartTheme.gridColor} strokeDasharray="3 3" horizontal={false} />
-        <XAxis
-          type="number"
-          domain={[0, 100]}
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <YAxis
-          dataKey="proyecto"
-          type="category"
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: chartTheme.tooltipBg,
-            borderColor: chartTheme.tooltipBorder,
-            borderRadius: 12,
-            color: chartTheme.tooltipText
-          }}
-          itemStyle={{ color: chartTheme.tooltipText }}
-          labelStyle={{ color: chartTheme.tooltipText }}
-        />
-        <Bar dataKey="progreso" radius={[0, 12, 12, 0]}>
-          {data.map((entry, index) => (
-            <Cell key={entry.proyecto} fill={colors[index % colors.length]} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-};
-
-const TicketFlowChart: React.FC<{ chartTheme: ChartTheme }> = ({ chartTheme }) => {
-  const data = [
-    { semana: 'W30', abiertos: 28, resueltos: 20 },
-    { semana: 'W31', abiertos: 24, resueltos: 22 },
-    { semana: 'W32', abiertos: 32, resueltos: 29 },
-    { semana: 'W33', abiertos: 30, resueltos: 31 },
-    { semana: 'W34', abiertos: 26, resueltos: 30 },
-    { semana: 'W35', abiertos: 22, resueltos: 28 }
-  ];
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data}>
-        <CartesianGrid stroke={chartTheme.gridColor} strokeDasharray="3 3" />
-        <XAxis
-          dataKey="semana"
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <YAxis
-          stroke={chartTheme.axisColor}
-          tick={{ fill: chartTheme.axisColor }}
-          tickLine={false}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: chartTheme.tooltipBg,
-            borderColor: chartTheme.tooltipBorder,
-            borderRadius: 12,
-            color: chartTheme.tooltipText
-          }}
-          itemStyle={{ color: chartTheme.tooltipText }}
-          labelStyle={{ color: chartTheme.tooltipText }}
-        />
-        <Line type="monotone" dataKey="abiertos" stroke={chartTheme.lineAlert} strokeWidth={2} dot={{ r: 4 }} />
-        <Line type="monotone" dataKey="resueltos" stroke={chartTheme.linePositive} strokeWidth={2} dot={{ r: 4 }} />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-};
-
-const moduleBlueprints: Record<ModuleKey, ModuleDefinition> = {
-  general: {
-    key: 'general',
-    areaKey: '*',
-    label: 'Visión General',
-    description: 'Actividad consolidada de la plataforma y adopción de usuarios.',
-    icon: Activity,
-    gradientFrom: 'from-sky-500',
-    gradientTo: 'to-blue-600',
-    highlights: [
-      { label: 'Colaboradores activos', value: '147', trend: '+8% vs. mes anterior', trendTone: 'up' },
-      { label: 'Tiempo promedio de respuesta', value: '1.9 h', trend: '-12% última semana', trendTone: 'up' },
-      { label: 'Documentos compartidos', value: '312', trend: '+34 nuevos', trendTone: 'neutral' }
-    ],
-    summary: { activeItems: 96, alerts: 3, completion: 0.87, backlog: 9 },
-    alerts: [],
-    ChartComponent: GeneralHealthChart,
-    footerActions: ['Ver agenda de hoy', 'Revisar cumplimiento general']
-  },
-  transport: {
-    key: 'transport',
-    areaKey: 'Transporte',
-    label: 'Operaciones de Transporte',
-    description: 'Seguimiento de viajes, conductores y disponibilidad de flota.',
-    icon: Truck,
-    gradientFrom: 'from-blue-500',
-    gradientTo: 'to-indigo-600',
-    highlights: [
-      { label: 'Viajes completados', value: '168', trend: '+18% semanal', trendTone: 'up' },
-      { label: 'Disponibilidad de flota', value: '92%', trend: '-1.2% contra meta', trendTone: 'down' },
-      { label: 'Conductores activos', value: '26', trend: '+3 nuevos turnos', trendTone: 'up' }
-    ],
-    summary: { activeItems: 58, alerts: 3, completion: 0.91, backlog: 5 },
-    alerts: [
-      { id: 'transport-1', label: 'Revisión preventiva flota pesada', priority: 'Alta', owner: 'Transporte', eta: '2 horas' },
-      { id: 'transport-2', label: 'Actualizar planes de ruta nocturna', priority: 'Media', owner: 'Logística', eta: 'Hoy' },
-      { id: 'transport-3', label: 'Licencia conductor por expirar', priority: 'Alta', owner: 'RRHH', eta: '5 días' }
-    ],
-    ChartComponent: TransportPerformanceChart,
-    footerActions: ['Ver itinerario de viajes', 'Asignar conductores', 'Solicitar apoyo taller']
-  },
-  maintenance: {
-    key: 'maintenance',
-    areaKey: 'Taller',
-    label: 'Mantenimiento y Taller',
-    description: 'Estado de las OT, tiempos de ciclo y cumplimiento programado.',
-    icon: Wrench,
-    gradientFrom: 'from-amber-500',
-    gradientTo: 'to-orange-600',
-    highlights: [
-      { label: 'OT completadas', value: '24', trend: '+4 respecto ayer', trendTone: 'up' },
-      { label: 'Tiempo medio en taller', value: '6.2 h', trend: '+0.5 h', trendTone: 'down' },
-      { label: 'Stock crítico', value: '8 items', trend: 'Revisar inventario', trendTone: 'neutral' }
-    ],
-    summary: { activeItems: 32, alerts: 4, completion: 0.76, backlog: 7 },
-    alerts: [
-      { id: 'maintenance-1', label: 'OT-2345 fuera de SLA', priority: 'Alta', owner: 'Taller', eta: '1 hora' },
-      { id: 'maintenance-2', label: 'Falta repuesto filtro hidráulico', priority: 'Media', owner: 'Bodega', eta: 'Mañana' }
-    ],
-    ChartComponent: MaintenanceHealthChart,
-    footerActions: ['Abrir tablero de OT', 'Coordinar con compras', 'Actualizar plan preventivo']
-  },
-  cleaning: {
-    key: 'cleaning',
-    areaKey: 'Aseo',
-    label: 'Servicios de Aseo',
-    description: 'Cobertura de rutas de limpieza y levantamiento de hallazgos.',
-    icon: Sparkles,
-    gradientFrom: 'from-emerald-500',
-    gradientTo: 'to-lime-500',
-    highlights: [
-      { label: 'Sectores cubiertos', value: '34', trend: '+6 nuevos', trendTone: 'up' },
-      { label: 'Hallazgos abiertos', value: '5', trend: '-2 esta semana', trendTone: 'up' },
-      { label: 'NPS interno', value: '4.6 / 5', trend: '+0.3', trendTone: 'up' }
-    ],
-    summary: { activeItems: 28, alerts: 2, completion: 0.93, backlog: 3 },
-    alerts: [
-      { id: 'cleaning-1', label: 'Inspección sanitaria programada', priority: 'Media', owner: 'Aseo', eta: 'Jueves' }
-    ],
-    ChartComponent: CleaningComplianceChart,
-    footerActions: ['Registrar reporte diario', 'Planificar dotación', 'Ver checklist en progreso']
-  },
-  civilWorks: {
-    key: 'civilWorks',
-    areaKey: 'Obras',
-    label: 'Obras Civiles',
-    description: 'Progreso de proyectos, hitos pendientes y riesgos.',
-    icon: Building2,
-    gradientFrom: 'from-cyan-500',
-    gradientTo: 'to-teal-500',
-    highlights: [
-      { label: 'Proyectos activos', value: '6', trend: '+1 nuevo contrato', trendTone: 'up' },
-      { label: 'Avance promedio', value: '78%', trend: '+6% mensual', trendTone: 'up' },
-      { label: 'Riesgos críticos', value: '2', trend: 'Monitoreo diario', trendTone: 'neutral' }
-    ],
-    summary: { activeItems: 40, alerts: 3, completion: 0.78, backlog: 4 },
-    alerts: [
-      { id: 'civil-1', label: 'Retraso subcontrato pavimentación', priority: 'Alta', owner: 'Obras', eta: '3 días' },
-      { id: 'civil-2', label: 'Permiso municipal pendiente', priority: 'Media', owner: 'Legal', eta: '1 semana' }
-    ],
-    ChartComponent: CivilWorksProgressChart,
-    footerActions: ['Ver cronograma detallado', 'Coordinar inspección', 'Actualizar matriz de riesgos']
-  },
-  tickets: {
-    key: 'tickets',
-    areaKey: 'IT',
-    label: 'Mesa de Ayuda y Tickets',
-    description: 'Flujo de requerimientos y cumplimiento de SLA.',
-    icon: Ticket,
-    gradientFrom: 'from-purple-500',
-    gradientTo: 'to-violet-600',
-    highlights: [
-      { label: 'Tickets abiertos', value: '26', trend: '-4 hoy', trendTone: 'up' },
-      { label: 'SLA cumplido', value: '88%', trend: '-3% semana', trendTone: 'down' },
-      { label: 'Satisfacción usuarios', value: '4.4 / 5', trend: '+0.2', trendTone: 'up' }
-    ],
-    summary: { activeItems: 36, alerts: 5, completion: 0.84, backlog: 6 },
-    alerts: [
-      { id: 'tickets-1', label: 'Incidente red oficina norte', priority: 'Alta', owner: 'IT', eta: '45 min' },
-      { id: 'tickets-2', label: 'Automatizar backup ERP', priority: 'Media', owner: 'Infraestructura', eta: '48 horas' },
-      { id: 'tickets-3', label: 'Seguimiento capacitación digital', priority: 'Baja', owner: 'RRHH', eta: 'Próxima semana' }
-    ],
-    ChartComponent: TicketFlowChart,
-    footerActions: ['Abrir bandeja de tickets', 'Ajustar SLA', 'Revisar feedback usuarios']
-  }
-};
+// moduleBlueprints se movió a ../config/moduleBlueprints
 
 const timelineTemplate = [
   { label: 'Lun', workload: 44, alerts: 3 },
@@ -600,6 +181,245 @@ const DashboardHome: React.FC = () => {
   const { user } = useAuth();
   const isDarkMode = useIsDarkMode();
   const chartTheme = useMemo(() => buildChartTheme(isDarkMode), [isDarkMode]);
+
+  // Datos reales agregados por módulo
+  const [realStats, setRealStats] = useState<Partial<Record<ModuleKey, RealModuleData>>>({});
+  const [usersCount, setUsersCount] = useState<number | null>(null);
+  // Series y datos derivados para gráficas y alertas
+  const [transportSeries, setTransportSeries] = useState<Array<{ day: string; viajes: number; retrasos: number }>>([]);
+  const [maintenanceSeries, setMaintenanceSeries] = useState<Array<{ label: string; programado: number; completado: number }>>([]);
+  const [ticketsSeries, setTicketsSeries] = useState<Array<{ label: string; abiertos: number; resueltos: number }>>([]);
+  const [civilSeries, setCivilSeries] = useState<Array<{ proyecto: string; progreso: number }>>([]);
+  const [cleaningCompliance, setCleaningCompliance] = useState<number>(0);
+  const [timelineSeries, setTimelineSeries] = useState<Array<{ label: string; workload: number; alerts: number }>>([]);
+  const [generalSeries, setGeneralSeries] = useState<Array<{ month: string; engagement: number; satisfaction: number }>>([]);
+  const [prioritizedAll, setPrioritizedAll] = useState<ModuleAlert[]>([]);
+  const [prioritizedCritical, setPrioritizedCritical] = useState<ModuleAlert[]>([]);
+  const [onlyCritical, setOnlyCritical] = useState<boolean>(() => {
+    if (typeof globalThis !== 'undefined') {
+      const stored = globalThis.window?.localStorage.getItem('dashboard_alerts_critical') ?? null;
+      if (stored === 'all') return false;
+    }
+    return true;
+  });
+  // Persistir preferencia del selector de alertas priorizadas
+  useEffect(() => {
+    if (typeof globalThis !== 'undefined') {
+      globalThis.window?.localStorage.setItem('dashboard_alerts_critical', onlyCritical ? 'critical' : 'all');
+    }
+  }, [onlyCritical]);
+  // Ventanas configurables
+  const [transportDays, setTransportDays] = useState<7 | 14>(7);
+  const [timelineDays, setTimelineDays] = useState<7 | 14>(7);
+  const [maintenanceWeeks, setMaintenanceWeeks] = useState<4 | 8 | 12>(4);
+  const [ticketWeeks, setTicketWeeks] = useState<6 | 8 | 12>(6);
+  // Datasets crudos para recomputar series
+  const [rawTickets, setRawTickets] = useState<TicketType[]>([]);
+  const [rawOts, setRawOts] = useState<OrdenTrabajo[]>([]);
+  const [rawAseos, setRawAseos] = useState<Aseo[]>([]);
+  const [rawCivil, setRawCivil] = useState<Array<Partial<CivilWork>>>([]);
+  const [rawIncidents, setRawIncidents] = useState<Incident[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const pVehicles = getVehiculos().catch(() => [] as Vehiculo[]);
+        const pOts = getTallerWorkOrders().catch(() => [] as OrdenTrabajo[]);
+        const pTickets = getTickets().catch(() => [] as TicketType[]);
+        const pAseos = fetchAseos().catch(() => [] as Aseo[]);
+        const pCivil = fetchCivilWorks(1, 200).catch(() => ({ items: [] as Partial<CivilWork>[], total: 0 }));
+        const pDrivers = getDrivers().catch(() => [] as Array<{ id?: number }>);
+        const pUsers = getUsers().catch(() => [] as unknown[]);
+        const pIncidents = fetchIncidents().catch(() => [] as Incident[]);
+        const pNotifications = listNotifications().catch(() => []);
+        const [vehicles, ots, tickets, aseos, civil, drivers, users, incidents, notifications] = await Promise.all([
+          pVehicles, pOts, pTickets, pAseos, pCivil, pDrivers, pUsers, pIncidents, pNotifications,
+        ]);
+
+        if (cancelled) return;
+
+    // Transporte (flota)
+    const transport = computeTransportModule(vehicles, drivers.length);
+
+  // Mantenimiento (OT)
+  const maintenance = computeMaintenanceModule(ots);
+
+  // Aseo (cleaning)
+  const cleaning = computeCleaningModule(aseos);
+
+    // Obras Civiles
+    const cwItems = civil.items ?? [];
+    const civilWorks = computeCivilWorksModule(cwItems);
+
+  // Tickets
+  const ticketsData = computeTicketsModule(tickets);
+
+        // General (de momento lo agregamos al consolidado mediante agregación en runtime)
+
+        // General (visión general) a partir de agregados reales
+        const generalReal = computeGeneralFromSummaries([
+          transport, maintenance, cleaning, civilWorks, ticketsData
+        ], Array.isArray(users) ? users.length : 0);
+
+        const next: Partial<Record<ModuleKey, RealModuleData>> = {
+          general: generalReal,
+          transport,
+          maintenance,
+          cleaning,
+          civilWorks,
+          tickets: ticketsData,
+        };
+        setRealStats(next);
+        setUsersCount(Array.isArray(users) ? users.length : null);
+
+        // --------- Series reales y alertas ---------
+        // Helpers de fechas
+        const today = new Date();
+        const startOfWeek = startOfWeekMonday;
+
+        // Transporte: 7 días
+        const days7 = lastNDays(7);
+        const ticketsTransporte = tickets.filter(t => Array.isArray(t.recipientArea) && t.recipientArea.some(a => (a || '').toLowerCase().includes('transporte')));
+        const incidentsDelay = incidents.filter(i => ((i.type || '').toString().toLowerCase().includes('traffic') || (i.type || '').toString().toLowerCase().includes('accident')));
+        setTransportSeries(buildTransportSeries(days7, ticketsTransporte, incidentsDelay));
+
+        // Mantenimiento: últimas 4 semanas (W-3..W0)
+        const thisWeekStart = startOfWeek(today);
+        const weekStarts = [3,2,1,0].map(off => addDays(thisWeekStart, -7*off));
+        const weekRanges = weekStarts.map(ws => ({ label: `W-${Math.round((+thisWeekStart - +ws)/ (7*24*3600*1000))}`, start: ws, end: addDays(ws, 7) }));
+        const otsCompletadas = ots.filter(o => o.estado === 'completado');
+        setMaintenanceSeries(buildMaintenanceSeries(weekRanges, ots, otsCompletadas));
+
+        // Tickets: últimas 6 semanas
+        const weekStarts6 = [5,4,3,2,1,0].map(off => addDays(thisWeekStart, -7*off));
+        const weekRanges6 = weekStarts6.map((ws, idx) => ({ label: `W-${5-idx}`, start: ws, end: addDays(ws,7) }));
+        const ticketsResueltos = tickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
+        setTicketsSeries(buildTicketsSeries(weekRanges6, tickets, ticketsResueltos));
+
+        // Civil works: top 4 por progreso
+        setCivilSeries(buildCivilTop(cwItems, 4));
+
+        // Cleaning compliance (últimos 30 días)
+  const days30Start = addDays(today, -30);
+  setCleaningCompliance(computeCleaningCompliance(aseos, days30Start));
+
+  // Timeline consolidada: últimos 7 días
+        setTimelineSeries(buildTimelineSeries(days7, { tickets, ots, aseos, incidents }));
+
+        // Serie de Visión General (semanal -> proxy de engagement y satisfacción)
+        const nWeeks = 6;
+        const weekStartsGen = Array.from({ length: nWeeks }, (_, i) => addDays(thisWeekStart, -7 * (nWeeks - 1 - i)));
+        const weekRangesGen = weekStartsGen.map((ws, idx) => ({ label: `W-${(nWeeks - 1) - idx}`, start: ws, end: addDays(ws, 7) }));
+        setGeneralSeries(buildGeneralSeries(weekRangesGen, { tickets, ots, aseos, incidents }));
+
+        // Alertas priorizadas reales (top 5, solo Urgente/Crítica/Alta)
+        const { all: poolAll, critical: poolCritical } = buildPrioritizedAlerts({
+          tickets, ots, incidents, civil: cwItems, aseos, notifications
+        });
+        setPrioritizedAll(poolAll);
+        setPrioritizedCritical(poolCritical);
+        // Reflejar también las alertas priorizadas en el módulo General (usamos críticas)
+        setRealStats(prev => ({
+          ...prev,
+          general: {
+            ...(prev.general ?? { highlights: [], summary: { activeItems: 0, alerts: 0, completion: 0, backlog: 0 } }),
+            alerts: poolCritical.slice(0, 5)
+          }
+        }));
+
+  // Guardamos datasets crudos para recomputaciones por rango
+  setRawTickets(tickets);
+  setRawOts(ots);
+  setRawAseos(aseos);
+  setRawCivil(cwItems);
+  setRawIncidents(incidents);
+      } catch (e) {
+        // silencioso: si algo falla, dejamos valores por defecto
+        console.debug('dashboard data fetch error', e);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Recomputar series al cambiar ventanas o datasets crudos
+  useEffect(() => {
+    const hasData = rawTickets.length || rawOts.length || rawAseos.length || rawCivil.length || rawIncidents.length;
+    if (!hasData) return;
+
+    const today = new Date();
+    const startOfWeek = startOfWeekMonday;
+
+    // Transporte
+    const daysT = lastNDays(transportDays);
+    const ticketsTransporte = rawTickets.filter(t => Array.isArray(t.recipientArea) && t.recipientArea.some(a => (a || '').toLowerCase().includes('transporte')));
+    const incidentsDelay = rawIncidents.filter(i => ((i.type || '').toString().toLowerCase().includes('traffic') || (i.type || '').toString().toLowerCase().includes('accident')));
+    const transportData = daysT.map(ref => ({
+      day: dayNames[ref.getDay()],
+      viajes: countSameDay(ticketsTransporte, t => t.createdAt as unknown as string, ref),
+      retrasos: countSameDay(incidentsDelay, i => i.reportedAt as unknown as string, ref)
+    }));
+    setTransportSeries(transportData);
+
+    // Mantenimiento
+    const thisWeekStart = startOfWeek(today);
+    const weekStarts = Array.from({ length: maintenanceWeeks }).map((_, idx, arr) => addDays(thisWeekStart, -7 * (arr.length - 1 - idx)));
+    const weekRanges = weekStarts.map(ws => ({ label: `W-${Math.round((+thisWeekStart - +ws)/ (7*24*3600*1000))}`, start: ws, end: addDays(ws, 7) }));
+    const otsCompletadas = rawOts.filter(o => o.estado === 'completado');
+    const maintData = weekRanges.map(({ label, start, end }) => ({
+      label,
+      programado: countInRange(rawOts, o => o.createdAt as unknown as string, start, end),
+      completado: countInRange(otsCompletadas, o => o.updatedAt as unknown as string, start, end)
+    }));
+    setMaintenanceSeries(maintData);
+
+    // Tickets
+    const weekStartsTk = Array.from({ length: ticketWeeks }).map((_, idx, arr) => addDays(thisWeekStart, -7 * (arr.length - 1 - idx)));
+    const weekRangesTk = weekStartsTk.map((ws, idx, arr) => ({ label: `W-${(arr.length - 1) - idx}`, start: ws, end: addDays(ws,7) }));
+    const ticketsResueltos = rawTickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
+    const tkData = weekRangesTk.map(({ label, start, end }) => ({
+      label,
+      abiertos: countInRange(rawTickets, t => t.createdAt as unknown as string, start, end),
+      resueltos: countInRange(ticketsResueltos, t => t.updatedAt as unknown as string, start, end)
+    }));
+    setTicketsSeries(tkData);
+
+    // Civil top 4
+    const cwTop = [...rawCivil].sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0,4)
+      .map(i => ({ proyecto: String(i.project ?? i.location ?? `#${i.id}`), progreso: Math.round(i.progress ?? 0) }));
+    setCivilSeries(cwTop);
+
+    // Cumplimiento Aseo 30 días
+    const d30 = addDays(today, -30);
+    const aseo30 = rawAseos.filter(a => { const d = toDate(a.date as unknown as string); return d && d >= d30; });
+    const aseoTotal = aseo30.length;
+    const aseoDone = aseo30.filter(a => a.status === 'COMPLETED').length;
+    setCleaningCompliance(aseoTotal ? Math.round((aseoDone/aseoTotal)*100) : 0);
+
+    // Timeline
+    const daysTimeline = lastNDays(timelineDays);
+    const incSeveros = rawIncidents.filter(i => { const sev = (i.severity || '').toString().toLowerCase(); return sev.includes('critical') || sev.includes('high'); });
+    const otsPendRev = rawOts.filter(o => o.estado === 'pendiente_revision');
+    const aseoConIssues = rawAseos.filter(a => (a.issues?.length ?? 0) > 0);
+    const ticketsAlta = rawTickets.filter(t => t.priority === 'Alta' || t.priority === 'Urgente');
+    const tl = daysTimeline.map(ref => ({
+      label: dayNames[ref.getDay()],
+      workload: (
+        countSameDay(rawTickets, t => t.createdAt as unknown as string, ref) +
+        countSameDay(rawOts, o => o.createdAt as unknown as string, ref) +
+        countSameDay(rawAseos, a => a.date as unknown as string, ref) +
+        countSameDay(rawIncidents, i => i.reportedAt as unknown as string, ref)
+      ),
+      alerts: (
+        countSameDay(ticketsAlta, t => t.createdAt as unknown as string, ref) +
+        countSameDay(incSeveros, i => i.reportedAt as unknown as string, ref) +
+        countSameDay(otsPendRev, o => o.updatedAt as unknown as string, ref) +
+        countSameDay(aseoConIssues, a => a.date as unknown as string, ref)
+      )
+    }));
+    setTimelineSeries(tl);
+  }, [rawTickets, rawOts, rawAseos, rawCivil, rawIncidents, transportDays, maintenanceWeeks, ticketWeeks, timelineDays]);
 
   const areaAccess = useMemo(() => {
     const areas = new Set<string>();
@@ -621,14 +441,14 @@ const DashboardHome: React.FC = () => {
     return areas;
   }, [user]);
 
-  const modulesToRender = useMemo(() => {
+  const modulesToRender: ModuleDefinition[] = useMemo(() => {
     return Object.values(moduleBlueprints).filter(module => {
       if (module.areaKey === '*') return true;
       return areaAccess.has(normalizeArea(module.areaKey));
     });
   }, [areaAccess]);
 
-  const specializedModules = useMemo(
+  const specializedModules: ModuleDefinition[] = useMemo(
     () => modulesToRender.filter(module => module.areaKey !== '*'),
     [modulesToRender]
   );
@@ -648,37 +468,61 @@ const DashboardHome: React.FC = () => {
     );
   }, [specializedModules]);
 
-  const avgCompletion = useMemo(() => {
-    if (!specializedModules.length) {
-      return moduleBlueprints.general.summary.completion;
+  // Reemplazo con datos reales cuando existan
+  const realAggregate = useMemo(() => {
+    const keys = modulesToRender.filter(m => m.areaKey !== '*').map(m => m.key);
+    let sumActive = 0, sumAlerts = 0, sumCompletion = 0, sumBacklog = 0, count = 0;
+    for (const k of keys) {
+      const s = realStats[k]?.summary;
+      if (s) { sumActive += s.activeItems; sumAlerts += s.alerts; sumCompletion += s.completion; sumBacklog += s.backlog; count++; }
     }
+    return { sumActive, sumAlerts, sumCompletion, sumBacklog, count };
+  }, [realStats, modulesToRender]);
+
+  const avgCompletion = useMemo(() => {
+    if (realAggregate.count) return realAggregate.sumCompletion / realAggregate.count;
+    if (!specializedModules.length) return moduleBlueprints.general.summary.completion;
     return aggregatedSummary.completion / specializedModules.length;
-  }, [aggregatedSummary, specializedModules.length]);
+  }, [realAggregate, aggregatedSummary, specializedModules.length]);
 
   const timelineData = useMemo(() => {
+    if (timelineSeries.length) return timelineSeries;
     const scale = 0.7 + specializedModules.length * 0.25;
     return timelineTemplate.map(item => ({
       label: item.label,
       workload: Math.round(item.workload * scale),
       alerts: Math.max(1, Math.round(item.alerts * Math.max(scale * 0.6, 0.4)))
     }));
-  }, [specializedModules.length]);
+  }, [specializedModules.length, timelineSeries]);
 
-  const prioritizedAlerts = useMemo(() => {
-    const alertPool = specializedModules.flatMap(module =>
-      module.alerts.map(alert => ({
-        ...alert,
-        module: module.label
-      }))
-    );
-    alertPool.sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
-    return alertPool.slice(0, 5);
-  }, [specializedModules]);
+  const prioritizedAlerts = useMemo((): Array<ModuleAlert & { module: string }> => {
+    const base = (onlyCritical ? prioritizedCritical : prioritizedAll).slice(0, 5);
+    // Mostrar la lista aunque esté vacía, pero si no hay alertas críticas y se selecciona "todas", mostrar top 5 de todas las prioridades si existen
+    if (!onlyCritical && base.length === 0 && prioritizedAll.length > 0) {
+      return prioritizedAll.slice(0, 5).map(a => ({ ...a, module: a.owner }));
+    }
+    return base.map(a => ({ ...a, module: a.owner }));
+  }, [onlyCritical, prioritizedAll, prioritizedCritical]);
 
   const quickMetrics: QuickMetric[] = useMemo(() => {
     const moduleCount = specializedModules.length;
-    const alerts = specializedModules.length ? aggregatedSummary.alerts : moduleBlueprints.general.summary.alerts;
-    const backlog = specializedModules.length ? aggregatedSummary.backlog : moduleBlueprints.general.summary.backlog;
+    const hasReal = realAggregate.count > 0;
+    let alerts = 0;
+    if (hasReal) {
+      alerts = realAggregate.sumAlerts;
+    } else if (specializedModules.length) {
+      alerts = aggregatedSummary.alerts;
+    } else {
+      alerts = moduleBlueprints.general.summary.alerts;
+    }
+    let backlog = 0;
+    if (hasReal) {
+      backlog = realAggregate.sumBacklog;
+    } else if (specializedModules.length) {
+      backlog = aggregatedSummary.backlog;
+    } else {
+      backlog = moduleBlueprints.general.summary.backlog;
+    }
     const completionTone = getCompletionTone(avgCompletion);
     const completionHelper = getCompletionHelper(avgCompletion);
     const backlogTone = getBacklogTone(backlog);
@@ -714,7 +558,7 @@ const DashboardHome: React.FC = () => {
         tone: backlogTone
       }
     ];
-  }, [aggregatedSummary, avgCompletion, specializedModules.length]);
+  }, [aggregatedSummary, avgCompletion, specializedModules.length, realAggregate]);
 
   const moduleBadges = useMemo(
     () => specializedModules.map(module => module.label),
@@ -742,11 +586,11 @@ const DashboardHome: React.FC = () => {
           <div className="grid grid-cols-2 gap-4 text-right text-sm">
             <div>
               <p className="text-white/70">Colaboradores conectados</p>
-              <p className="text-2xl font-semibold">{moduleBlueprints.general.summary.activeItems + specializedModules.length * 6}</p>
+              <p className="text-2xl font-semibold">{usersCount ?? (moduleBlueprints.general.summary.activeItems + specializedModules.length * 6)}</p>
             </div>
             <div>
               <p className="text-white/70">Alertas activas</p>
-              <p className="text-2xl font-semibold">{prioritizedAlerts.length || aggregatedSummary.alerts}</p>
+              <p className="text-2xl font-semibold">{prioritizedAlerts.length || (realAggregate.count ? realAggregate.sumAlerts : aggregatedSummary.alerts)}</p>
             </div>
           </div>
         </div>
@@ -783,7 +627,17 @@ const DashboardHome: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Actividad operativa semanal</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Carga de trabajo consolidada y alertas emergentes</p>
             </div>
-            <ShieldCheck className="h-5 w-5 text-blue-500" />
+            <div className="flex items-center gap-3">
+              <select
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                value={timelineDays}
+                onChange={(e) => setTimelineDays(Number(e.target.value) as 7 | 14)}
+              >
+                <option value={7}>7 días</option>
+                <option value={14}>14 días</option>
+              </select>
+              <ShieldCheck className="h-5 w-5 text-blue-500" />
+            </div>
           </div>
           <div className="mt-6 h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -829,7 +683,17 @@ const DashboardHome: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Alertas priorizadas</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">Ordenadas por criticidad y vencimiento</p>
             </div>
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <div className="flex items-center gap-3">
+              <select
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                value={onlyCritical ? 'critical' : 'all'}
+                onChange={(e) => setOnlyCritical(e.target.value === 'critical')}
+              >
+                <option value="critical">Solo críticas</option>
+                <option value="all">Todas</option>
+              </select>
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+            </div>
           </div>
           <div className="mt-5 space-y-4">
             {prioritizedAlerts.length ? (
@@ -858,8 +722,11 @@ const DashboardHome: React.FC = () => {
       </div>
 
       <div className="space-y-6">
-        {modulesToRender.map(module => {
+        {modulesToRender.map((module: ModuleDefinition) => {
           const Icon = module.icon;
+          const mergedHighlights: ModuleHighlight[] = realStats[module.key]?.highlights ?? module.highlights;
+          const mergedSummary = realStats[module.key]?.summary ?? module.summary;
+          const mergedAlerts: ModuleAlert[] = realStats[module.key]?.alerts ?? module.alerts;
           return (
             <div
               key={module.key}
@@ -878,18 +745,50 @@ const DashboardHome: React.FC = () => {
                 <div className="flex items-center gap-3 text-sm">
                   <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                     <Leaf className="h-4 w-4 text-emerald-500" />
-                    {Math.round(module.summary.completion * 100)}% cumplimiento
+                    {Math.round(mergedSummary.completion * 100)}% cumplimiento
                   </span>
                   <span className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                     <Clock className="h-4 w-4 text-blue-500" />
-                    {module.summary.activeItems} tareas vivas
+                    {mergedSummary.activeItems} tareas vivas
                   </span>
+                  {module.key === 'transport' && (
+                    <select
+                      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                      value={transportDays}
+                      onChange={(e) => setTransportDays(Number(e.target.value) as 7 | 14)}
+                    >
+                      <option value={7}>7 días</option>
+                      <option value={14}>14 días</option>
+                    </select>
+                  )}
+                  {module.key === 'maintenance' && (
+                    <select
+                      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                      value={maintenanceWeeks}
+                      onChange={(e) => setMaintenanceWeeks(Number(e.target.value) as 4 | 8 | 12)}
+                    >
+                      <option value={4}>4 semanas</option>
+                      <option value={8}>8 semanas</option>
+                      <option value={12}>12 semanas</option>
+                    </select>
+                  )}
+                  {module.key === 'tickets' && (
+                    <select
+                      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                      value={ticketWeeks}
+                      onChange={(e) => setTicketWeeks(Number(e.target.value) as 6 | 8 | 12)}
+                    >
+                      <option value={6}>6 semanas</option>
+                      <option value={8}>8 semanas</option>
+                      <option value={12}>12 semanas</option>
+                    </select>
+                  )}
                 </div>
               </div>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr,1fr]">
                 <div className="space-y-4">
-                  {module.highlights.map(item => (
+                  {mergedHighlights.map((item: ModuleHighlight) => (
                     <div key={`${module.key}-${item.label}`} className="flex items-start justify-between rounded-xl border border-gray-100 p-4 dark:border-gray-800">
                       <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
@@ -902,15 +801,40 @@ const DashboardHome: React.FC = () => {
                   ))}
                 </div>
                 <div className="h-56 rounded-xl bg-gray-50 p-4 dark:bg-gray-800/60">
-                  <module.ChartComponent chartTheme={chartTheme} />
+                  {(() => {
+                    let chartData: unknown = undefined;
+                    switch (module.key) {
+                        case 'general':
+                          chartData = generalSeries;
+                          break;
+                      case 'transport':
+                        chartData = transportSeries;
+                        break;
+                      case 'maintenance':
+                        chartData = maintenanceSeries;
+                        break;
+                      case 'tickets':
+                        chartData = ticketsSeries;
+                        break;
+                      case 'civilWorks':
+                        chartData = civilSeries;
+                        break;
+                      case 'cleaning':
+                        chartData = { compliance: cleaningCompliance };
+                        break;
+                      default:
+                        chartData = undefined;
+                    }
+                    return <module.ChartComponent chartTheme={chartTheme} data={chartData} />;
+                  })()}
                 </div>
               </div>
 
-              {module.alerts.length > 0 && (
+              {mergedAlerts.length > 0 && (
                 <div className="mt-6 rounded-xl bg-gray-50 p-4 dark:bg-gray-800/60">
                   <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Alertas del módulo</p>
                   <ul className="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                    {module.alerts.slice(0, 3).map(alert => (
+                    {mergedAlerts.slice(0, 3).map((alert: ModuleAlert) => (
                       <li key={alert.id} className="flex items-center justify-between">
                         <span>{alert.label}</span>
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityTone[alert.priority]}`}>
@@ -923,7 +847,7 @@ const DashboardHome: React.FC = () => {
               )}
 
               <div className="mt-6 flex flex-wrap gap-3">
-                {module.footerActions.map(action => (
+                {module.footerActions.map((action: string) => (
                   <button
                     key={action}
                     className="rounded-full border border-blue-100 px-3 py-1 text-sm text-blue-600 transition hover:border-blue-200 hover:bg-blue-50 dark:border-blue-500/40 dark:text-blue-300 dark:hover:border-blue-400 dark:hover:bg-blue-500/10"
