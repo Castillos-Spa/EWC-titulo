@@ -68,7 +68,14 @@ export const computeTransportModule = (
   const vUso = vehicles.filter(v => v.estado === 'en_uso').length;
   const vMant = vehicles.filter(v => v.estado === 'en_mantenimiento').length;
   const dispPct = totalVeh ? Math.round(((vDisp + vUso) / totalVeh) * 100) : 0;
-  const dispTone: 'up' | 'down' | 'neutral' = dispPct >= 85 ? 'up' : dispPct < 70 ? 'down' : 'neutral';
+  let dispTone: 'up' | 'down' | 'neutral';
+  if (dispPct >= 85) {
+    dispTone = 'up';
+  } else if (dispPct < 70) {
+    dispTone = 'down';
+  } else {
+    dispTone = 'neutral';
+  }
   return {
     highlights: [
       { label: 'Vehículos', value: String(totalVeh), trend: `${vUso} en uso`, trendTone: 'neutral' },
@@ -119,7 +126,7 @@ export const computeCivilWorksModule = (
 ): RealModuleData => {
   const cwTotal = items.length;
   const cwActive = items.filter(i => i.status && i.status !== 'COMPLETED').length;
-  const cwIssues = items.reduce((acc, i) => acc + ((i.issues as unknown[] | undefined)?.length ?? 0), 0);
+  const cwIssues = items.reduce((acc, i) => acc + (Array.isArray(i.issues) ? i.issues.length : 0), 0);
   const cwAvgProgress = cwTotal ? (items.reduce((acc, i) => acc + (i.progress || 0), 0) / cwTotal) : 0;
   return {
     highlights: [
@@ -196,11 +203,15 @@ export const buildPrioritizedAlerts = (
     .slice(0, 50)
     .map(i => { const sev = (i.severity || '').toString().toLowerCase(); return ({ id: `inc-${i.id}`, label: i.title || `Incidente #${i.id}`, priority: sev.includes('critical') ? 'Crítica' : 'Alta', owner: String(i.area || 'Operaciones'), eta: '—' }); });
   const alertsCw: ModuleAlert[] = args.civil
-    .filter(i => ((i.issues as unknown[] | undefined)?.length ?? 0) > 0)
+    .filter(i => (Array.isArray(i.issues) ? i.issues.length : 0) > 0)
     .slice(0, 50)
-    .map((i, idx) => ({ id: `cw-${i.id ?? idx}`, label: `Obra ${String(i.project ?? i.location ?? i.id)}`, priority: ((i.issues as unknown[] | undefined)?.length ?? 0) > 3 ? 'Alta' : 'Media', owner: 'Obras', eta: '—' }));
+    .map((i, idx) => {
+      const issueCount = Array.isArray(i.issues) ? i.issues.length : 0;
+      const prio: ModuleAlert['priority'] = issueCount > 3 ? 'Alta' : 'Media';
+      return { id: `cw-${i.id ?? idx}`, label: `Obra ${String(i.project ?? i.location ?? i.id)}`, priority: prio, owner: 'Obras', eta: '—' };
+    });
   const alertsAseo: ModuleAlert[] = args.aseos
-    .filter(a => ((a.issues as unknown[] | undefined)?.length ?? 0) > 0 && a.status !== 'COMPLETED')
+    .filter(a => (Array.isArray(a.issues) ? a.issues.length : 0) > 0 && a.status !== 'COMPLETED')
     .slice(0, 50)
     .map((a, idx) => ({ id: `aseo-${a.id ?? idx}`, label: `Hallazgos en ${a.area}`, priority: 'Media', owner: 'Aseo', eta: '—' }));
   const alertsNotif: ModuleAlert[] = args.notifications
@@ -218,32 +229,32 @@ export type WeekRange = { label: string; start: Date; end: Date };
 
 export const buildTransportSeries = (
   days: Date[],
-  ticketsTransporte: Array<{ createdAt?: unknown }>,
-  incidentsDelay: Array<{ reportedAt?: unknown }>
+  ticketsTransporte: Array<{ createdAt?: DateInput }>,
+  incidentsDelay: Array<{ reportedAt?: DateInput }>
 ) => days.map(ref => ({
   day: dayNames[ref.getDay()],
-  viajes: countSameDay(ticketsTransporte, t => t.createdAt as DateInput, ref),
-  retrasos: countSameDay(incidentsDelay, i => i.reportedAt as DateInput, ref)
+  viajes: countSameDay(ticketsTransporte, t => t.createdAt, ref),
+  retrasos: countSameDay(incidentsDelay, i => i.reportedAt, ref)
 }));
 
 export const buildMaintenanceSeries = (
   ranges: WeekRange[],
-  ots: Array<{ createdAt?: unknown }>,
-  otsCompletadas: Array<{ updatedAt?: unknown }>
+  ots: Array<{ createdAt?: DateInput }>,
+  otsCompletadas: Array<{ updatedAt?: DateInput }>
 ) => ranges.map(({ label, start, end }) => ({
   label,
-  programado: countInRange(ots, o => o.createdAt as DateInput, start, end),
-  completado: countInRange(otsCompletadas, o => o.updatedAt as DateInput, start, end)
+  programado: countInRange(ots, o => o.createdAt, start, end),
+  completado: countInRange(otsCompletadas, o => o.updatedAt, start, end)
 }));
 
 export const buildTicketsSeries = (
   ranges: WeekRange[],
-  tickets: Array<{ createdAt?: unknown }>,
-  ticketsResueltos: Array<{ updatedAt?: unknown }>
+  tickets: Array<{ createdAt?: DateInput }>,
+  ticketsResueltos: Array<{ updatedAt?: DateInput }>
 ) => ranges.map(({ label, start, end }) => ({
   label,
-  abiertos: countInRange(tickets, t => t.createdAt as DateInput, start, end),
-  resueltos: countInRange(ticketsResueltos, t => t.updatedAt as DateInput, start, end)
+  abiertos: countInRange(tickets, t => t.createdAt, start, end),
+  resueltos: countInRange(ticketsResueltos, t => t.updatedAt, start, end)
 }));
 
 export const buildCivilTop = (
@@ -253,10 +264,10 @@ export const buildCivilTop = (
   .map(i => ({ proyecto: String(i.project ?? i.location ?? `#${i.id}`), progreso: Math.round(i.progress ?? 0) }));
 
 export const computeCleaningCompliance = (
-  aseos: Array<{ date?: unknown; status?: string }>,
+  aseos: Array<{ date?: DateInput; status?: string }>,
   since: Date
 ) => {
-  const recent = aseos.filter(a => { const d = toDate(a.date as DateInput); return d && d >= since; });
+  const recent = aseos.filter(a => { const d = toDate(a.date); return d && d >= since; });
   const total = recent.length;
   const done = recent.filter(a => a.status === 'COMPLETED').length;
   return total ? Math.round((done/total)*100) : 0;
@@ -265,10 +276,10 @@ export const computeCleaningCompliance = (
 export const buildTimelineSeries = (
   days: Date[],
   deps: {
-    tickets: Array<{ createdAt?: unknown; priority?: string }>;
-    ots: Array<{ createdAt?: unknown; updatedAt?: unknown; estado?: string }>;
-    aseos: Array<{ date?: unknown; issues?: unknown[] }>;
-    incidents: Array<{ reportedAt?: unknown; severity?: string }>;
+    tickets: Array<{ createdAt?: DateInput; priority?: string }>;
+    ots: Array<{ createdAt?: DateInput; updatedAt?: DateInput; estado?: string }>;
+    aseos: Array<{ date?: DateInput; issues?: unknown[] }>;
+    incidents: Array<{ reportedAt?: DateInput; severity?: string }>;
   }
 ) => days.map(ref => {
   const incSeveros = deps.incidents.filter(i => { const sev = (i.severity || '').toString().toLowerCase(); return sev.includes('critical') || sev.includes('high'); });
@@ -278,16 +289,16 @@ export const buildTimelineSeries = (
   return {
     label: dayNames[ref.getDay()],
     workload: (
-      countSameDay(deps.tickets, t => t.createdAt as DateInput, ref) +
-      countSameDay(deps.ots, o => o.createdAt as DateInput, ref) +
-      countSameDay(deps.aseos, a => a.date as DateInput, ref) +
-      countSameDay(deps.incidents, i => i.reportedAt as DateInput, ref)
+      countSameDay(deps.tickets, t => t.createdAt, ref) +
+      countSameDay(deps.ots, o => o.createdAt, ref) +
+      countSameDay(deps.aseos, a => a.date, ref) +
+      countSameDay(deps.incidents, i => i.reportedAt, ref)
     ),
     alerts: (
-      countSameDay(ticketsAlta, t => t.createdAt as DateInput, ref) +
-      countSameDay(incSeveros, i => i.reportedAt as DateInput, ref) +
-      countSameDay(otsPendRev, o => o.updatedAt as DateInput, ref) +
-      countSameDay(aseoConIssues, a => a.date as DateInput, ref)
+      countSameDay(ticketsAlta, t => t.createdAt, ref) +
+      countSameDay(incSeveros, i => i.reportedAt, ref) +
+      countSameDay(otsPendRev, o => o.updatedAt, ref) +
+      countSameDay(aseoConIssues, a => a.date, ref)
     )
   };
 });
@@ -295,20 +306,20 @@ export const buildTimelineSeries = (
 export const buildGeneralSeries = (
   ranges: WeekRange[],
   deps: {
-    tickets: Array<{ createdAt?: unknown; updatedAt?: unknown }>;
-    ots: Array<{ createdAt?: unknown; updatedAt?: unknown }>;
-    aseos: Array<{ date?: unknown }>;
-    incidents: Array<{ reportedAt?: unknown }>;
+    tickets: Array<{ createdAt?: DateInput; updatedAt?: DateInput }>;
+    ots: Array<{ createdAt?: DateInput; updatedAt?: DateInput }>;
+    aseos: Array<{ date?: DateInput }>;
+    incidents: Array<{ reportedAt?: DateInput }>;
   }
 ) => {
   const ticketsResueltos = deps.tickets; // usamos updatedAt
   const otsCompletadas = deps.ots; // usamos updatedAt
   const rawWeekly = ranges.map(({ label, start, end }) => {
-    const tNew = countInRange(deps.tickets, t => t.createdAt as DateInput, start, end);
-    const otNew = countInRange(deps.ots, o => o.createdAt as DateInput, start, end);
-    const aNew = countInRange(deps.aseos, a => a.date as DateInput, start, end);
-    const iNew = countInRange(deps.incidents, i => i.reportedAt as DateInput, start, end);
-    const resolved = countInRange(ticketsResueltos, t => t.updatedAt as DateInput, start, end) + countInRange(otsCompletadas, o => o.updatedAt as DateInput, start, end);
+    const tNew = countInRange(deps.tickets, t => t.createdAt, start, end);
+    const otNew = countInRange(deps.ots, o => o.createdAt, start, end);
+    const aNew = countInRange(deps.aseos, a => a.date, start, end);
+    const iNew = countInRange(deps.incidents, i => i.reportedAt, start, end);
+    const resolved = countInRange(ticketsResueltos, t => t.updatedAt, start, end) + countInRange(otsCompletadas, o => o.updatedAt, start, end);
     const total = tNew + otNew + aNew + iNew;
     return { label, total, resolved };
   });

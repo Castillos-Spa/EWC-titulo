@@ -95,6 +95,55 @@ const mergeNotifications = (incoming: Notification[], existing: Notification[]):
 	return merged;
 };
 
+// Tipos y helpers para la búsqueda
+type FlatItem = { kind: 'section' | 'user' | 'ticket' | 'vehicle' | 'route' | 'maint' | 'incident'; key: string; payload?: unknown; label: string; helper?: string };
+
+type SearchResultShape = {
+	users: Array<{ id: number; title: string; subtitle: string }>;
+	tickets: Array<{ id: number; title: string; subtitle: string }>;
+	vehicles: Array<{ id: number; title: string; subtitle: string }>;
+	routes: Array<{ id: number; title: string; subtitle: string }>;
+	maint: Array<{ id: number; title: string; subtitle: string }>;
+	incidents: Array<{ id: string | number; title: string; subtitle: string }>;
+};
+
+const buildFlatResults = (
+	isAdmin: boolean | undefined,
+	searchResults: {
+		users: Array<{ id: number; title: string; subtitle: string }>;
+		tickets: Array<{ id: number; title: string; subtitle: string }>;
+		vehicles: Array<{ id: number; title: string; subtitle: string }>;
+		routes: Array<{ id: number; title: string; subtitle: string }>;
+		maint: Array<{ id: number; title: string; subtitle: string }>;
+		incidents: Array<{ id: string | number; title: string; subtitle: string }>;
+	}
+): FlatItem[] => {
+	const sections: Array<{
+		show: boolean;
+		sectionKey: string;
+		sectionLabel: string;
+		kind: FlatItem['kind'];
+		items: Array<{ id: number | string; title: string; subtitle: string }>;
+	}> = [
+		{ show: !!isAdmin && searchResults.users.length > 0, sectionKey: 'users', sectionLabel: 'Usuarios', kind: 'user', items: searchResults.users },
+		{ show: searchResults.tickets.length > 0, sectionKey: 'tickets', sectionLabel: 'Tickets', kind: 'ticket', items: searchResults.tickets },
+		{ show: searchResults.vehicles.length > 0, sectionKey: 'vehicles', sectionLabel: 'Flota', kind: 'vehicle', items: searchResults.vehicles },
+		{ show: searchResults.routes.length > 0, sectionKey: 'routes', sectionLabel: 'Rutas', kind: 'route', items: searchResults.routes },
+		{ show: searchResults.maint.length > 0, sectionKey: 'maint', sectionLabel: 'Mantenimiento', kind: 'maint', items: searchResults.maint },
+		{ show: searchResults.incidents.length > 0, sectionKey: 'incidents', sectionLabel: 'Incidentes', kind: 'incident', items: searchResults.incidents },
+	];
+
+	const list: FlatItem[] = [];
+	for (const s of sections) {
+		if (!s.show) continue;
+		list.push({ kind: 'section', key: `${s.sectionKey}-section`, label: s.sectionLabel });
+		for (const it of s.items) {
+			list.push({ kind: s.kind, key: `${s.kind}-${it.id}`, payload: it, label: it.title, helper: it.subtitle });
+		}
+	}
+	return list;
+};
+
 const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick, uiDensity }) => {
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
@@ -125,46 +174,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	const [activeIndex, setActiveIndex] = useState<number>(-1);
 
 	// Lista plana para navegación con teclas
-	const flatResults = useMemo(() => {
-		const list: Array<{ kind: 'section' | 'user' | 'ticket' | 'vehicle' | 'route' | 'maint' | 'incident'; key: string; payload?: unknown; label: string; helper?: string }> = [];
-		if (user?.isAdmin && searchResults.users.length > 0) {
-			list.push({ kind: 'section', key: 'users-section', label: 'Usuarios' });
-			for (const u of searchResults.users) {
-				list.push({ kind: 'user', key: `user-${u.id}`, payload: u, label: u.title, helper: u.subtitle });
-			}
-		}
-		if (searchResults.tickets.length > 0) {
-			list.push({ kind: 'section', key: 'tickets-section', label: 'Tickets' });
-			for (const t of searchResults.tickets) {
-				list.push({ kind: 'ticket', key: `ticket-${t.id}`, payload: t, label: t.title, helper: t.subtitle });
-			}
-		}
-		if (searchResults.vehicles.length > 0) {
-			list.push({ kind: 'section', key: 'vehicles-section', label: 'Flota' });
-			for (const v of searchResults.vehicles) {
-				list.push({ kind: 'vehicle', key: `vehicle-${v.id}`, payload: v, label: v.title, helper: v.subtitle });
-			}
-		}
-		if (searchResults.routes.length > 0) {
-			list.push({ kind: 'section', key: 'routes-section', label: 'Rutas' });
-			for (const r of searchResults.routes) {
-				list.push({ kind: 'route', key: `route-${r.id}`, payload: r, label: r.title, helper: r.subtitle });
-			}
-		}
-		if (searchResults.maint.length > 0) {
-			list.push({ kind: 'section', key: 'maint-section', label: 'Mantenimiento' });
-			for (const m of searchResults.maint) {
-				list.push({ kind: 'maint', key: `maint-${m.id}`, payload: m, label: m.title, helper: m.subtitle });
-			}
-		}
-		if (searchResults.incidents.length > 0) {
-			list.push({ kind: 'section', key: 'incidents-section', label: 'Incidentes' });
-			for (const i of searchResults.incidents) {
-				list.push({ kind: 'incident', key: `incident-${i.id}`, payload: i, label: i.title, helper: i.subtitle });
-			}
-		}
-		return list;
-	}, [searchResults.users, searchResults.tickets, searchResults.vehicles, searchResults.routes, searchResults.maint, searchResults.incidents, user?.isAdmin]);
+		const flatResults = useMemo(() => buildFlatResults(user?.isAdmin, searchResults), [user?.isAdmin, searchResults]);
 	const areaCount = Array.isArray(user?.areas) ? user?.areas?.length ?? 0 : 0;
 	const areaBadgeLabel = areaCount > 0 ? `${areaCount} áreas` : user?.email ?? 'Sesión activa';
 	const unreadDisplay = unreadCount > 9 ? '9+' : String(unreadCount);
@@ -196,39 +206,25 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 		};
 	}, [user?.id, mapAppNotification]);
 
-	const runGlobalSearch = async (q: string) => {
-		if (!q) {
-			setSearchResults({ users: [], tickets: [], vehicles: [], routes: [], maint: [], incidents: [] });
-			setSearchOpen(false);
-			setSearchLoading(false);
-			setActiveIndex(-1);
-			return;
-		}
-		setSearchOpen(true);
-		setSearchLoading(true);
-		try {
-			const result = {
-				users: [] as Array<{ id: number; title: string; subtitle: string }>,
-				tickets: [] as Array<{ id: number; title: string; subtitle: string }>,
-				vehicles: [] as Array<{ id: number; title: string; subtitle: string }>,
-				routes: [] as Array<{ id: number; title: string; subtitle: string }>,
-				maint: [] as Array<{ id: number; title: string; subtitle: string }>,
-				incidents: [] as Array<{ id: string | number; title: string; subtitle: string }>,
-			};
-
+		// Helpers para la búsqueda global
+		const parseSearch = (q: string) => {
 			const m = /^([a-zA-Z]+):\s*(.*)$/.exec(q);
 			const prefix = m ? m[1].toLowerCase() : '';
 			const rawQuery = (m ? m[2] : q).trim();
 			const ql = rawQuery.toLowerCase();
+			return { prefix, rawQuery, ql };
+		};
 
-			if (user?.isAdmin) {
-				const list: UserType[] = await getUsers();
-				const filtered = list.filter((u) =>
-					(u.username || '').toLowerCase().includes(ql) || (u.email || '').toLowerCase().includes(ql)
-				).slice(0, 8);
-				result.users = filtered.map((u) => ({ id: u.id, title: u.username, subtitle: u.email }));
-			}
+			const loadUsers = async (ql: string) => {
+			if (!user?.isAdmin) return [] as Array<{ id: number; title: string; subtitle: string }>;
+			const list: UserType[] = await getUsers();
+			const filtered = list.filter((u) =>
+				(u.username || '').toLowerCase().includes(ql) || (u.email || '').toLowerCase().includes(ql)
+			).slice(0, 8);
+			return filtered.map((u) => ({ id: u.id, title: u.username, subtitle: u.email }));
+		};
 
+		const loadTickets = async (ql: string, rawQuery: string) => {
 			const tickets: Ticket[] = await getTickets();
 			const isAccessible = (t: Ticket) => {
 				const createdByMe = !!user?.id && t.createdBy?.id === user.id;
@@ -243,58 +239,100 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 					(t.description || '').toLowerCase().includes(ql)
 				) && isAccessible(t))
 				.slice(0, 8);
-			result.tickets = filteredTickets.map((t) => ({ id: t.id, title: t.title || `Ticket #${t.id}`, subtitle: `#${t.id} • ${t.status || '—'}` }));
+			return filteredTickets.map((t) => ({ id: t.id, title: t.title || `Ticket #${t.id}`, subtitle: `#${t.id} • ${t.status || '—'}` }));
+		};
 
+		const loadVehicles = async (ql: string, rawQuery: string) => {
 			try {
 				const vehicles: Vehiculo[] = await getVehiculos();
-				result.vehicles = vehicles.filter(v => {
+				return vehicles.filter(v => {
 					const hay = [v.patente, v.marca, v.modelo, v.codigo, v.areaAsignada].map(x => (x ?? '').toString().toLowerCase()).join(' ');
 					return hay.includes(ql) || String(v.id).includes(rawQuery);
 				}).slice(0, 8).map(v => ({ id: v.id, title: `${v.patente} — ${v.marca} ${v.modelo}`, subtitle: `${v.areaAsignada ?? 'Sin área'} • ${v.estado ?? ''}` }));
-			} catch (e) { console.debug('search vehicles error', e); }
+			} catch {
+				return [];
+			}
+		};
 
+		const loadRoutes = async (ql: string, rawQuery: string) => {
 			try {
 				const routes = await getRoutes() as unknown as Array<{ id: number; code: string; origin: string; destination: string; distanceKm: number; frequency: string }>;
-				result.routes = routes.filter(r => {
+				return routes.filter(r => {
 					const hay = [r.code, r.origin, r.destination].map(x => String(x).toLowerCase()).join(' ');
 					return hay.includes(ql) || String(r.id).includes(rawQuery);
 				}).slice(0, 8).map(r => ({ id: r.id, title: `${r.code}: ${r.origin} → ${r.destination}`, subtitle: `${r.distanceKm} km • ${r.frequency}` }));
-			} catch (e) { console.debug('search routes error', e); }
+			} catch {
+				return [];
+			}
+		};
 
+		const loadMaint = async (ql: string, rawQuery: string) => {
 			try {
 				const ots: OrdenTrabajo[] = await getTallerWorkOrders();
-				result.maint = ots.filter(ot => {
+				return ots.filter(ot => {
 					const hay = [ot.description ?? '', ot.tipo ?? '', ot.estado ?? '', String(ot.vehiculoId)].map(x => String(x).toLowerCase()).join(' ');
 					return hay.includes(ql) || String(ot.id).includes(rawQuery);
 				}).slice(0, 8).map(ot => ({ id: ot.id, title: `OT #${ot.id} — ${ot.tipo ?? ''} (${ot.estado})`, subtitle: `Vehículo ${ot.vehiculoId}` }));
-			} catch (e) { console.debug('search maint error', e); }
+			} catch {
+				return [];
+			}
+		};
 
+		const loadIncidents = async (ql: string, rawQuery: string) => {
 			try {
 				const incs: Incident[] = await fetchIncidents();
-				result.incidents = incs.filter(i => {
+				return incs.filter(i => {
 					const hay = [i.title ?? '', i.description ?? '', i.area ?? '', i.type ?? ''].map(x => String(x).toLowerCase()).join(' ');
 					return hay.includes(ql) || String(i.id).includes(rawQuery);
 				}).slice(0, 8).map(i => ({ id: i.id, title: i.title || `Incidente ${i.type}`, subtitle: `${i.area ?? ''} • ${i.status}` }));
-			} catch (e) { console.debug('search incidents error', e); }
-
-			if (m) {
-				const allow = (k: string) => ({ u: 'users', user: 'users', t: 'tickets', ticket: 'tickets', v: 'vehicles', vehiculo: 'vehicles', f: 'vehicles', r: 'routes', route: 'routes', m: 'maint', maint: 'maint', mantenimiento: 'maint', i: 'incidents', incidente: 'incidents' } as Record<string,string>)[k];
-				const target = allow(prefix);
-				if (target) {
-					setSearchResults({
-						users: target === 'users' ? result.users : [],
-						tickets: target === 'tickets' ? result.tickets : [],
-						vehicles: target === 'vehicles' ? result.vehicles : [],
-						routes: target === 'routes' ? result.routes : [],
-						maint: target === 'maint' ? result.maint : [],
-						incidents: target === 'incidents' ? result.incidents : [],
-					});
-				} else {
-					setSearchResults(result);
-				}
-			} else {
-				setSearchResults(result);
+			} catch {
+				return [];
 			}
+		};
+
+		const runGlobalSearch = async (q: string) => {
+		if (!q) {
+			setSearchResults({ users: [], tickets: [], vehicles: [], routes: [], maint: [], incidents: [] });
+			setSearchOpen(false);
+			setSearchLoading(false);
+			setActiveIndex(-1);
+			return;
+		}
+		setSearchOpen(true);
+		setSearchLoading(true);
+		try {
+						const { prefix, rawQuery, ql } = parseSearch(q);
+
+								const loadAll = async (): Promise<SearchResultShape> => {
+							const [users, tickets, vehicles, routes, maint, incidents] = await Promise.all([
+								loadUsers(ql),
+								loadTickets(ql, rawQuery),
+								loadVehicles(ql, rawQuery),
+								loadRoutes(ql, rawQuery),
+								loadMaint(ql, rawQuery),
+								loadIncidents(ql, rawQuery),
+							]);
+									return { users, tickets, vehicles, routes, maint, incidents };
+						};
+
+								const applyPrefix = (res: SearchResultShape, pfx: string): SearchResultShape => {
+							if (!pfx) return res;
+							const allow = (k: string) => ({ u: 'users', user: 'users', t: 'tickets', ticket: 'tickets', v: 'vehicles', vehiculo: 'vehicles', f: 'vehicles', r: 'routes', route: 'routes', m: 'maint', maint: 'maint', mantenimiento: 'maint', i: 'incidents', incidente: 'incidents' } as Record<string,string>)[k];
+							const target = allow(pfx);
+							if (!target) return res;
+							return {
+								users: target === 'users' ? res.users : [],
+								tickets: target === 'tickets' ? res.tickets : [],
+								vehicles: target === 'vehicles' ? res.vehicles : [],
+								routes: target === 'routes' ? res.routes : [],
+								maint: target === 'maint' ? res.maint : [],
+								incidents: target === 'incidents' ? res.incidents : [],
+							};
+						};
+
+						const rawRes = await loadAll();
+						const finalRes = applyPrefix(rawRes, prefix);
+						setSearchResults(finalRes);
 			setActiveIndex(-1);
 		} catch (e) {
 			console.warn('Global search error', e);

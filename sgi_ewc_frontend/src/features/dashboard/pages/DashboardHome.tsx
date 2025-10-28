@@ -28,9 +28,6 @@ import {
   computeCleaningCompliance,
   buildTimelineSeries,
   buildGeneralSeries,
-  countInRange,
-  countSameDay,
-  dayNames,
   computeCivilWorksModule,
   computeCleaningModule,
   computeGeneralFromSummaries,
@@ -40,7 +37,7 @@ import {
   lastNDays,
   RealModuleData,
   startOfWeekMonday,
-  toDate
+  
 } from '../utils/dashboard';
 
 
@@ -177,6 +174,31 @@ const timelineTemplate = [
 
 const normalizeArea = (area: string | undefined) => (area || '').trim().toLowerCase();
 
+// Predicados reutilizables para reducir anidación
+const isTransportAreaTicket = (t: TicketType) => Array.isArray(t.recipientArea) && t.recipientArea.some(a => (a || '').toLowerCase().includes('transporte'));
+const isDelayIncident = (i: Incident) => ((i.type || '').toString().toLowerCase().includes('traffic') || (i.type || '').toString().toLowerCase().includes('accident'));
+
+// Helpers: acceso y módulos habilitados (definidos a nivel de módulo para evitar dependencias en hooks)
+const computeAccessAreas = (usr: ReturnType<typeof useAuth>['user']): Set<string> => {
+  const areas = new Set<string>();
+  for (const area of usr?.areas ?? []) areas.add(normalizeArea(area));
+  for (const assignment of usr?.roleAssignments ?? []) if (assignment.area) areas.add(normalizeArea(assignment.area));
+  if (usr?.isAdmin || usr?.roles?.includes('Admin')) {
+    for (const area of ['transporte', 'taller', 'aseo', 'obras', 'it']) areas.add(area);
+  }
+  return areas;
+};
+
+const getEnabledModuleKeys = (areaAccessSet: Set<string>): Set<ModuleKey> => {
+  const keys = new Set<ModuleKey>();
+  for (const m of Object.values(moduleBlueprints)) {
+    if (m.areaKey === '*' || areaAccessSet.has(normalizeArea(m.areaKey))) {
+      keys.add(m.key);
+    }
+  }
+  return keys;
+};
+
 const DashboardHome: React.FC = () => {
   const { user } = useAuth();
   const isDarkMode = useIsDarkMode();
@@ -224,15 +246,25 @@ const DashboardHome: React.FC = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const pVehicles = getVehiculos().catch(() => [] as Vehiculo[]);
-        const pOts = getTallerWorkOrders().catch(() => [] as OrdenTrabajo[]);
-        const pTickets = getTickets().catch(() => [] as TicketType[]);
-        const pAseos = fetchAseos().catch(() => [] as Aseo[]);
-        const pCivil = fetchCivilWorks(1, 200).catch(() => ({ items: [] as Partial<CivilWork>[], total: 0 }));
-        const pDrivers = getDrivers().catch(() => [] as Array<{ id?: number }>);
+        // Determinar módulos habilitados para este usuario y limitar fetch
+        const access = computeAccessAreas(user);
+        const enabledKeys = getEnabledModuleKeys(access);
+        const needTransport = enabledKeys.has('transport');
+        const needMaintenance = enabledKeys.has('maintenance');
+        const needCleaning = enabledKeys.has('cleaning');
+        const needCivil = enabledKeys.has('civilWorks');
+        const needTickets = enabledKeys.has('tickets') || needTransport; // transporte usa tickets para series
+        const needIncidents = needTransport; // retrasos transporte y timeline por módulos habilitados
+
+        const pVehicles = needTransport ? getVehiculos().catch(() => [] as Vehiculo[]) : Promise.resolve([] as Vehiculo[]);
+        const pOts = needMaintenance ? getTallerWorkOrders().catch(() => [] as OrdenTrabajo[]) : Promise.resolve([] as OrdenTrabajo[]);
+        const pTickets = needTickets ? getTickets().catch(() => [] as TicketType[]) : Promise.resolve([] as TicketType[]);
+        const pAseos = needCleaning ? fetchAseos().catch(() => [] as Aseo[]) : Promise.resolve([] as Aseo[]);
+        const pCivil = needCivil ? fetchCivilWorks(1, 200).catch(() => ({ items: [] as Partial<CivilWork>[], total: 0 })) : Promise.resolve({ items: [] as Partial<CivilWork>[], total: 0 });
+        const pDrivers = needTransport ? getDrivers().catch(() => [] as Array<{ id?: number }>) : Promise.resolve([] as Array<{ id?: number }>);
         const pUsers = getUsers().catch(() => [] as unknown[]);
-        const pIncidents = fetchIncidents().catch(() => [] as Incident[]);
-        const pNotifications = listNotifications().catch(() => []);
+        const pIncidents = needIncidents ? fetchIncidents().catch(() => [] as Incident[]) : Promise.resolve([] as Incident[]);
+  const pNotifications = enabledKeys.has('tickets') ? listNotifications().catch(() => []) : Promise.resolve([]);
         const [vehicles, ots, tickets, aseos, civil, drivers, users, incidents, notifications] = await Promise.all([
           pVehicles, pOts, pTickets, pAseos, pCivil, pDrivers, pUsers, pIncidents, pNotifications,
         ]);
@@ -278,24 +310,24 @@ const DashboardHome: React.FC = () => {
         const today = new Date();
         const startOfWeek = startOfWeekMonday;
 
-        // Transporte: 7 días
-        const days7 = lastNDays(7);
-        const ticketsTransporte = tickets.filter(t => Array.isArray(t.recipientArea) && t.recipientArea.some(a => (a || '').toLowerCase().includes('transporte')));
-        const incidentsDelay = incidents.filter(i => ((i.type || '').toString().toLowerCase().includes('traffic') || (i.type || '').toString().toLowerCase().includes('accident')));
-        setTransportSeries(buildTransportSeries(days7, ticketsTransporte, incidentsDelay));
+  // Transporte: 7 días
+  const days7 = lastNDays(7);
+  const ticketsTransporte = tickets.filter(isTransportAreaTicket);
+  const incidentsDelay = incidents.filter(isDelayIncident);
+  setTransportSeries(buildTransportSeries(days7, ticketsTransporte, incidentsDelay));
 
         // Mantenimiento: últimas 4 semanas (W-3..W0)
         const thisWeekStart = startOfWeek(today);
         const weekStarts = [3,2,1,0].map(off => addDays(thisWeekStart, -7*off));
         const weekRanges = weekStarts.map(ws => ({ label: `W-${Math.round((+thisWeekStart - +ws)/ (7*24*3600*1000))}`, start: ws, end: addDays(ws, 7) }));
-        const otsCompletadas = ots.filter(o => o.estado === 'completado');
-        setMaintenanceSeries(buildMaintenanceSeries(weekRanges, ots, otsCompletadas));
+  const otsCompletadas = ots.filter(o => o.estado === 'completado');
+  setMaintenanceSeries(buildMaintenanceSeries(weekRanges, ots, otsCompletadas));
 
         // Tickets: últimas 6 semanas
         const weekStarts6 = [5,4,3,2,1,0].map(off => addDays(thisWeekStart, -7*off));
         const weekRanges6 = weekStarts6.map((ws, idx) => ({ label: `W-${5-idx}`, start: ws, end: addDays(ws,7) }));
-        const ticketsResueltos = tickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
-        setTicketsSeries(buildTicketsSeries(weekRanges6, tickets, ticketsResueltos));
+  const ticketsResueltos = tickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
+  setTicketsSeries(buildTicketsSeries(weekRanges6, tickets, ticketsResueltos));
 
         // Civil works: top 4 por progreso
         setCivilSeries(buildCivilTop(cwItems, 4));
@@ -304,8 +336,8 @@ const DashboardHome: React.FC = () => {
   const days30Start = addDays(today, -30);
   setCleaningCompliance(computeCleaningCompliance(aseos, days30Start));
 
-  // Timeline consolidada: últimos 7 días
-        setTimelineSeries(buildTimelineSeries(days7, { tickets, ots, aseos, incidents }));
+    // Timeline consolidada: últimos 7 días
+    setTimelineSeries(buildTimelineSeries(days7, { tickets, ots, aseos, incidents }));
 
         // Serie de Visión General (semanal -> proxy de engagement y satisfacción)
         const nWeeks = 6;
@@ -341,84 +373,43 @@ const DashboardHome: React.FC = () => {
     };
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
   // Recomputar series al cambiar ventanas o datasets crudos
   useEffect(() => {
     const hasData = rawTickets.length || rawOts.length || rawAseos.length || rawCivil.length || rawIncidents.length;
     if (!hasData) return;
-
     const today = new Date();
-    const startOfWeek = startOfWeekMonday;
 
     // Transporte
     const daysT = lastNDays(transportDays);
-    const ticketsTransporte = rawTickets.filter(t => Array.isArray(t.recipientArea) && t.recipientArea.some(a => (a || '').toLowerCase().includes('transporte')));
-    const incidentsDelay = rawIncidents.filter(i => ((i.type || '').toString().toLowerCase().includes('traffic') || (i.type || '').toString().toLowerCase().includes('accident')));
-    const transportData = daysT.map(ref => ({
-      day: dayNames[ref.getDay()],
-      viajes: countSameDay(ticketsTransporte, t => t.createdAt as unknown as string, ref),
-      retrasos: countSameDay(incidentsDelay, i => i.reportedAt as unknown as string, ref)
-    }));
-    setTransportSeries(transportData);
+  const ticketsTransporte = rawTickets.filter(isTransportAreaTicket);
+  const incidentsDelay = rawIncidents.filter(isDelayIncident);
+    setTransportSeries(buildTransportSeries(daysT, ticketsTransporte, incidentsDelay));
 
     // Mantenimiento
-    const thisWeekStart = startOfWeek(today);
+    const thisWeekStart = startOfWeekMonday(today);
     const weekStarts = Array.from({ length: maintenanceWeeks }).map((_, idx, arr) => addDays(thisWeekStart, -7 * (arr.length - 1 - idx)));
     const weekRanges = weekStarts.map(ws => ({ label: `W-${Math.round((+thisWeekStart - +ws)/ (7*24*3600*1000))}`, start: ws, end: addDays(ws, 7) }));
     const otsCompletadas = rawOts.filter(o => o.estado === 'completado');
-    const maintData = weekRanges.map(({ label, start, end }) => ({
-      label,
-      programado: countInRange(rawOts, o => o.createdAt as unknown as string, start, end),
-      completado: countInRange(otsCompletadas, o => o.updatedAt as unknown as string, start, end)
-    }));
-    setMaintenanceSeries(maintData);
+    setMaintenanceSeries(buildMaintenanceSeries(weekRanges, rawOts, otsCompletadas));
 
     // Tickets
     const weekStartsTk = Array.from({ length: ticketWeeks }).map((_, idx, arr) => addDays(thisWeekStart, -7 * (arr.length - 1 - idx)));
     const weekRangesTk = weekStartsTk.map((ws, idx, arr) => ({ label: `W-${(arr.length - 1) - idx}`, start: ws, end: addDays(ws,7) }));
     const ticketsResueltos = rawTickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
-    const tkData = weekRangesTk.map(({ label, start, end }) => ({
-      label,
-      abiertos: countInRange(rawTickets, t => t.createdAt as unknown as string, start, end),
-      resueltos: countInRange(ticketsResueltos, t => t.updatedAt as unknown as string, start, end)
-    }));
-    setTicketsSeries(tkData);
+    setTicketsSeries(buildTicketsSeries(weekRangesTk, rawTickets, ticketsResueltos));
 
     // Civil top 4
-    const cwTop = [...rawCivil].sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0,4)
-      .map(i => ({ proyecto: String(i.project ?? i.location ?? `#${i.id}`), progreso: Math.round(i.progress ?? 0) }));
-    setCivilSeries(cwTop);
+    setCivilSeries(buildCivilTop(rawCivil, 4));
 
     // Cumplimiento Aseo 30 días
     const d30 = addDays(today, -30);
-    const aseo30 = rawAseos.filter(a => { const d = toDate(a.date as unknown as string); return d && d >= d30; });
-    const aseoTotal = aseo30.length;
-    const aseoDone = aseo30.filter(a => a.status === 'COMPLETED').length;
-    setCleaningCompliance(aseoTotal ? Math.round((aseoDone/aseoTotal)*100) : 0);
+  setCleaningCompliance(computeCleaningCompliance(rawAseos, d30));
 
     // Timeline
     const daysTimeline = lastNDays(timelineDays);
-    const incSeveros = rawIncidents.filter(i => { const sev = (i.severity || '').toString().toLowerCase(); return sev.includes('critical') || sev.includes('high'); });
-    const otsPendRev = rawOts.filter(o => o.estado === 'pendiente_revision');
-    const aseoConIssues = rawAseos.filter(a => (a.issues?.length ?? 0) > 0);
-    const ticketsAlta = rawTickets.filter(t => t.priority === 'Alta' || t.priority === 'Urgente');
-    const tl = daysTimeline.map(ref => ({
-      label: dayNames[ref.getDay()],
-      workload: (
-        countSameDay(rawTickets, t => t.createdAt as unknown as string, ref) +
-        countSameDay(rawOts, o => o.createdAt as unknown as string, ref) +
-        countSameDay(rawAseos, a => a.date as unknown as string, ref) +
-        countSameDay(rawIncidents, i => i.reportedAt as unknown as string, ref)
-      ),
-      alerts: (
-        countSameDay(ticketsAlta, t => t.createdAt as unknown as string, ref) +
-        countSameDay(incSeveros, i => i.reportedAt as unknown as string, ref) +
-        countSameDay(otsPendRev, o => o.updatedAt as unknown as string, ref) +
-        countSameDay(aseoConIssues, a => a.date as unknown as string, ref)
-      )
-    }));
-    setTimelineSeries(tl);
+  setTimelineSeries(buildTimelineSeries(daysTimeline, { tickets: rawTickets, ots: rawOts, aseos: rawAseos, incidents: rawIncidents }));
   }, [rawTickets, rawOts, rawAseos, rawCivil, rawIncidents, transportDays, maintenanceWeeks, ticketWeeks, timelineDays]);
 
   const areaAccess = useMemo(() => {
