@@ -33,6 +33,13 @@ const FleetPageInner: React.FC = () => {
               Coordina camiones cisterna y unidades de apoyo desde un panel coherente con el nuevo lenguaje visual. Mantén visibilidad sobre mantenimientos y disponibilidad operativa.
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            <a
+              href="/estandar/flota"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+            >
+              Ver versión estándar (mock)
+            </a>
           <button
             type="button"
             onClick={openCreate}
@@ -41,6 +48,7 @@ const FleetPageInner: React.FC = () => {
             <Plus className="h-4 w-4" />
             Nuevo vehículo
           </button>
+          </div>
         </div>
       </section>
 

@@ -22,6 +22,7 @@ const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'
 const Login = lazy(() => import('../features/auth/pages/Login'));
 const ForgotPassword = lazy(() => import('../features/auth/pages/ForgotPassword'));
 const UnderMaintenance = lazy(() => import('./pages/UnderMaintenance'));
+const StandardFleetPage = lazy(() => import('../features/standard/vehicles/pages/StandardFleetPage'));
 
 function RequireAuth({ children }: Readonly<{ children: React.ReactElement }>) {
   const { user, isLoading } = useAuth();
@@ -62,6 +63,7 @@ export function AppRouter() {
     { index: true, element: <Suspense fallback={<div className="p-8">Cargando…</div>}><DashboardHome /></Suspense> },
     { path: 'rutas', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><RoutesPage /></Suspense> },
     { path: 'flota', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><FleetPage /></Suspense> },
+        { path: 'estandar/flota', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><StandardFleetPage /></Suspense> },
         { path: 'combustible', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><FuelByFleet /></Suspense> },
     { path: 'mantenimiento', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><MaintenancePage /></Suspense> },
         { path: 'aseo', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><CleaningReports /></Suspense> },
