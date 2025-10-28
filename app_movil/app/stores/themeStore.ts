@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { getBrandPalette } from '@/app/theme/palette';
 
 interface ThemeState {
   isDarkMode: boolean;
@@ -8,7 +9,7 @@ interface ThemeState {
   getColors: () => ColorScheme;
 }
 
-interface ColorScheme {
+export interface ColorScheme {
   background: string;
   surface: string;
   card: string;
@@ -23,35 +24,42 @@ interface ColorScheme {
   error: string;
 }
 
-const lightColors: ColorScheme = {
-  background: '#F8FAFC',
-  surface: '#FFFFFF',
-  card: '#FFFFFF',
-  text: '#1E293B',
-  textSecondary: '#64748B',
-  primary: '#2563EB',
-  secondary: '#7C3AED',
-  accent: '#06B6D4',
-  border: '#E2E8F0',
-  success: '#16A34A',
-  warning: '#F59E0B',
-  error: '#DC2626',
-};
+function buildLightColors(): ColorScheme {
+  const brand = getBrandPalette();
+  return {
+    background: '#F8FAFC',
+    surface: '#FFFFFF',
+    card: '#FFFFFF',
+    text: '#1E293B',
+    textSecondary: '#64748B',
+    primary: brand.primary,
+    secondary: brand.secondary,
+    accent: brand.accent,
+    border: brand.border ?? '#E2E8F0',
+    success: brand.success,
+    warning: brand.warning,
+    error: brand.error,
+  };
+}
 
-const darkColors: ColorScheme = {
-  background: '#0F172A',
-  surface: '#1E293B',
-  card: '#334155',
-  text: '#F1F5F9',
-  textSecondary: '#94A3B8',
-  primary: '#3B82F6',
-  secondary: '#8B5CF6',
-  accent: '#06B6D4',
-  border: '#475569',
-  success: '#22C55E',
-  warning: '#F59E0B',
-  error: '#EF4444',
-};
+function buildDarkColors(): ColorScheme {
+  const brand = getBrandPalette();
+  // Mantener la misma marca (primary/secondary) en oscuro para coherencia con web
+  return {
+    background: '#0F172A',
+    surface: '#1E293B',
+    card: '#334155',
+    text: '#F1F5F9',
+    textSecondary: '#94A3B8',
+    primary: brand.primary,
+    secondary: brand.secondary,
+    accent: brand.accent,
+    border: '#475569',
+    success: brand.success,
+    warning: brand.warning,
+    error: '#EF4444',
+  };
+}
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   isDarkMode: false,
@@ -79,6 +87,6 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   getColors: () => {
-    return get().isDarkMode ? darkColors : lightColors;
+    return get().isDarkMode ? buildDarkColors() : buildLightColors();
   },
 }));

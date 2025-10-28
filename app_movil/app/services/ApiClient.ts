@@ -9,6 +9,7 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export interface ApiRequestInit extends RequestInit {
   method?: HttpMethod;
   authenticate?: boolean; // si true, adjunta Bearer y auto-refresh en 401
+  timeoutMs?: number; // tiempo máximo antes de abortar la solicitud
 }
 
 class ApiClientClass {
@@ -45,7 +46,20 @@ class ApiClientClass {
 
   private async doFetch(url: string, init?: ApiRequestInit): Promise<Response> {
     const headers = await this.buildHeaders(init);
-    return fetch(url, { ...(init || {}), headers });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), init?.timeoutMs ?? 15000);
+    try {
+      return await fetch(url, { ...(init || {}), headers, signal: controller.signal });
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        const toErr = new Error('La solicitud excedió el tiempo máximo. Intenta nuevamente.');
+        (toErr as any).code = 'ETIMEOUT';
+        throw toErr;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async request<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
@@ -53,7 +67,7 @@ class ApiClientClass {
     const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
 
     // Primer intento
-    let res = await this.doFetch(url, init);
+  let res = await this.doFetch(url, init);
     if (res.status === 401 && init.authenticate) {
       // Intentar refresh y reintentar una vez
       try {
@@ -70,7 +84,7 @@ class ApiClientClass {
       }
     }
 
-    const text = await res.text();
+  const text = await res.text();
     const data = text ? (() => { try { return JSON.parse(text); } catch { return text as any; } })() : null;
     if (!res.ok) {
       const err = new Error((data && (data.message || data.error)) || res.statusText);

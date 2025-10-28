@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,64 @@ import { useSyncStore } from '../stores/syncStore';
 import { useAuthz } from '@/hooks/useAuthz';
 import { useNavigationStore } from '../stores/navigationStore';
 import { DashboardApi, type DaySummary } from '../services/DashboardApi';
+import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '../services/DashboardInsights';
+import { SafeStorage } from '../services/SafeStorage';
+import { DashboardTimelineCard } from '../components/DashboardTimelineCard';
+import { DashboardAlertsCard } from '../components/DashboardAlertsCard';
+import { buildPrioritizedAlerts, mapNotificationsToAlertSource, lastNDays, buildTimelineSeries, startOfWeekMonday, addDays, buildMaintenanceSeries, buildTicketsSeries } from '@/app/utils/dashboard';
+import { MaintenanceSeriesCard } from '../components/MaintenanceSeriesCard';
+import { TicketsSeriesCard } from '../components/TicketsSeriesCard';
+import { ModuleCard } from '../components/ModuleCard';
+import { Card } from '../components/ui/Card';
+import { SectionHeader } from '../components/ui/SectionHeader';
+import { KpiStat } from '../components/ui/KpiStat';
+
+function getRoleDisplayName(role: string) {
+  const roles = {
+    driver: 'Conductor',
+    supervisor: 'Supervisor',
+    technician: 'Técnico',
+    admin: 'Administrador',
+    cleaning_crew: 'Personal de Aseo',
+    civil_works: 'Obras Civiles',
+    it_support: 'Soporte TIC',
+    manager: 'Gerente',
+    finance: 'Finanzas',
+  } as const;
+  return (roles as any)[role] || role;
+}
+
+function TimelineRangeToggle({
+  colors,
+  value,
+  onChange,
+}: Readonly<{ colors: any; value: 7 | 14; onChange: (v: 7 | 14) => void }>) {
+  return (
+    <View style={styles.timelineToggleRow}>
+      <Text style={{ color: colors.textSecondary, marginRight: 8 }}>Rango</Text>
+      <TouchableOpacity
+        onPress={() => onChange(7)}
+        style={[
+          styles.toggleChip,
+          { backgroundColor: colors.background, borderColor: colors.border },
+          value === 7 && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
+        ]}
+      >
+        <Text style={{ color: value === 7 ? colors.primary : colors.textSecondary }}>7d</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => onChange(14)}
+        style={[
+          styles.toggleChip,
+          { backgroundColor: colors.background, borderColor: colors.border },
+          value === 14 && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
+        ]}
+      >
+        <Text style={{ color: value === 14 ? colors.primary : colors.textSecondary }}>14d</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 function SummarySection({
   role,
@@ -158,6 +216,42 @@ export default function HomeScreen() {
   const [dbChecking, setDbChecking] = useState(false);
   const [summary, setSummary] = useState<DaySummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [insights, setInsights] = useState<DashboardInsightData | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [alertsFilter, setAlertsFilter] = useState<'critical' | 'all'>('critical');
+  const [timelineDays, setTimelineDays] = useState<7 | 14>(7);
+  const [maintenanceWeeks, setMaintenanceWeeks] = useState<4 | 8 | 12>(4);
+  const [ticketsWeeks, setTicketsWeeks] = useState<4 | 8 | 12>(4);
+  const [cacheTs, setCacheTs] = useState<number | null>(null);
+  const [usingCache, setUsingCache] = useState(false);
+  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+
+  const loadInsights = useCallback(async () => {
+    try {
+      setInsightsLoading(true);
+      const data = await fetchDashboardInsights();
+      setInsights(data);
+      setUsingCache(false);
+    } catch (err) {
+      console.warn('dashboard insights load failed', err);
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Hidratar con caché offline si existe
+    let cancelled = false;
+    (async () => {
+      const cached = await loadCachedDashboardInsights();
+      if (!cancelled) {
+        const info = await getDashboardInsightsCacheInfo();
+        if (info.ts) setCacheTs(info.ts);
+      }
+      if (!cancelled && cached) { setInsights(cached); setUsingCache(true); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     // Conectar WS al montar o cuando cambia el usuario
@@ -168,6 +262,26 @@ export default function HomeScreen() {
       useNotificationsStore.getState().disconnect();
     };
   }, [user?.id]);
+
+  // Cargar preferencia de filtro de alertas (persistencia)
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const saved = await SafeStorage.getItem('dashboard_alerts_filter');
+        if (!cancelled && (saved === 'critical' || saved === 'all')) {
+          setAlertsFilter(saved);
+        }
+      } catch {}
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Guardar preferencia cuando cambie
+  useEffect(() => {
+    void SafeStorage.setItem('dashboard_alerts_filter', alertsFilter).catch(() => {});
+  }, [alertsFilter]);
 
   useEffect(() => {
     // cargar resumen del día cuando haya usuario
@@ -184,6 +298,11 @@ export default function HomeScreen() {
     load();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    void loadInsights();
+  }, [user?.id, loadInsights]);
+
   const handleLogout = async () => {
     await logout();
   };
@@ -195,9 +314,10 @@ export default function HomeScreen() {
   const handleRefresh = async () => {
     try {
       setSummaryLoading(true);
-      await Promise.all([
+      await Promise.allSettled([
         checkNow(),
         DashboardApi.myDaySummary().then(setSummary).catch(() => {}),
+        loadInsights(),
       ]);
     } finally {
       setSummaryLoading(false);
@@ -254,32 +374,71 @@ export default function HomeScreen() {
       onPress: () => { markUsed(r.name as string); navigateToTab(r.name as string); },
     }));
 
-  const getDepartmentName = (department: string) => {
-    const departments = {
-      transport: 'Transporte',
-      cleaning: 'Aseo',
-      civil_works: 'Obras Civiles',
-      it: 'Tecnología',
-      management: 'Gerencia',
-      finance: 'Finanzas',
-    };
-    return departments[department as keyof typeof departments] || department;
-  };
+  
 
-  const getRoleDisplayName = (role: string) => {
-    const roles = {
-      driver: 'Conductor',
-      supervisor: 'Supervisor',
-      technician: 'Técnico',
-      admin: 'Administrador',
-      cleaning_crew: 'Personal de Aseo',
-      civil_works: 'Obras Civiles',
-      it_support: 'Soporte TIC',
-      manager: 'Gerente',
-      finance: 'Finanzas',
+  const generalHighlights = useMemo(() => insights?.modules.general?.highlights ?? [], [insights]);
+
+  const prioritizedAlerts = useMemo(() => {
+    if (!insights) {
+      return { critical: [], all: [] };
+    }
+    const notificationsSource = mapNotificationsToAlertSource(notifications);
+    return buildPrioritizedAlerts({
+      tickets: insights.alertSources.tickets,
+      ots: insights.alertSources.ots,
+      incidents: insights.alertSources.incidents,
+      civil: insights.alertSources.civil,
+      aseos: insights.alertSources.aseos,
+      notifications: notificationsSource,
+    });
+  }, [insights, notifications]);
+
+  const timelineData = useMemo(() => {
+    if (!insights) return [] as { label: string; workload: number; alerts: number }[];
+    const days = lastNDays(timelineDays);
+    return buildTimelineSeries(days, {
+      tickets: insights.alertSources.tickets,
+      ots: insights.alertSources.ots,
+      aseos: insights.alertSources.aseos,
+      incidents: insights.alertSources.incidents,
+    });
+  }, [insights, timelineDays]);
+
+  const { maintenanceSeriesArr, maintenanceTotals } = useMemo(() => {
+    if (!insights) return { programado: 0, completado: 0, label: '' };
+    const today = new Date();
+    const thisWeekStart = startOfWeekMonday(today);
+    const weekStarts: Date[] = Array.from({ length: maintenanceWeeks }).map((_, idx) => addDays(thisWeekStart, -7 * ((maintenanceWeeks - 1) - idx)));
+    const ranges = weekStarts.map((ws, idx) => ({ label: `W-${(weekStarts.length - 1) - idx}`, start: ws, end: addDays(ws, 7) }));
+    const completedOts = insights.alertSources.ots.filter(o => o.estado === 'completado' || o.estado === 'Cerrada');
+    const series = buildMaintenanceSeries(ranges, insights.alertSources.ots, completedOts);
+    const programado = series.reduce((a, s) => a + s.programado, 0);
+    const completado = series.reduce((a, s) => a + s.completado, 0);
+    return { 
+      maintenanceSeriesArr: series,
+      maintenanceTotals: { programado, completado, label: `${maintenanceWeeks} semanas` },
     };
-    return roles[role as keyof typeof roles] || role;
-  };
+  }, [insights, maintenanceWeeks]);
+
+  const { ticketsSeriesArr, ticketsTotals } = useMemo(() => {
+    if (!insights) return { abiertos: 0, resueltos: 0, label: '' };
+    const today = new Date();
+    const thisWeekStart = startOfWeekMonday(today);
+    const weekStarts: Date[] = Array.from({ length: ticketsWeeks }).map((_, idx) => addDays(thisWeekStart, -7 * ((ticketsWeeks - 1) - idx)));
+    const ranges = weekStarts.map((ws, idx) => ({ label: `W-${(weekStarts.length - 1) - idx}`, start: ws, end: addDays(ws, 7) }));
+    const resolvedTickets = insights.alertSources.tickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
+    const series = buildTicketsSeries(ranges, insights.alertSources.tickets, resolvedTickets);
+    const abiertos = series.reduce((a, s) => a + s.abiertos, 0);
+    const resueltos = series.reduce((a, s) => a + s.resueltos, 0);
+    return {
+      ticketsSeriesArr: series,
+      ticketsTotals: { abiertos, resueltos, label: `${ticketsWeeks} semanas` },
+    };
+  }, [insights, ticketsWeeks]);
+
+  let dbStatusLabel = '—';
+  if (dbOk === true) dbStatusLabel = 'OK';
+  else if (dbOk === false) dbStatusLabel = 'Error';
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -308,7 +467,7 @@ export default function HomeScreen() {
         <View style={[styles.syncIndicator, { backgroundColor: online ? '#16A34A' : '#EA580C' }]} />
         <Text style={[styles.syncText, { color: online ? colors.success : colors.warning }]}> 
           {online ? 'API: Online' : 'API: Offline'} • Últ. API: {lastApiOk ? new Date(lastApiOk).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
-          {'  '}• BD: {dbOk === undefined ? '—' : (dbOk ? 'OK' : 'Error')}
+          {'  '}• BD: {dbStatusLabel}
         </Text>
         <TouchableOpacity onPress={handleRefresh} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background, marginRight: 8 }}>
           <Text style={{ color: colors.textSecondary }}>{(syncing || summaryLoading) ? 'Actualizando…' : 'Actualizar'}</Text>
@@ -348,6 +507,124 @@ export default function HomeScreen() {
           <SummarySection role={user?.role} colors={colors} summary={summary} loading={summaryLoading} />
         </View>
       </View>
+
+      {generalHighlights.length > 0 && (
+        <View style={styles.operationalSection}>
+          <SectionHeader title="Pulso Operativo" />
+          <Card>
+            <View style={styles.insightsGrid}>
+              {generalHighlights.slice(0, 3).map((h) => (
+                <KpiStat key={`kpi-${h.label}`} label={h.label} value={h.value} trend={h.trend} tone={h.trendTone} />
+              ))}
+            </View>
+          </Card>
+        </View>
+      )}
+
+      {(insightsLoading || insights) && (
+        <View style={styles.analyticsSection}>
+          <View>
+            <TimelineRangeToggle colors={colors} value={timelineDays} onChange={setTimelineDays} />
+            {!!cacheTs && usingCache && (
+              <Text style={{ color: (Date.now() - cacheTs) > CACHE_TTL_MS ? '#EA580C' : colors.textSecondary, fontSize: 12, textAlign: 'right' }}>
+                {(Date.now() - cacheTs) > CACHE_TTL_MS ? 'Datos en caché (obsoleto)' : 'Datos desde caché'}
+              </Text>
+            )}
+          </View>
+          <DashboardTimelineCard data={timelineData} loading={insightsLoading} colors={colors} />
+          {insights && (
+            <View style={{ gap: 12, marginTop: 12 }}>
+              <MaintenanceSeriesCard
+                colors={colors}
+                weeks={maintenanceWeeks}
+                onWeeksChange={setMaintenanceWeeks}
+                totals={maintenanceTotals as any}
+                series={maintenanceSeriesArr as any}
+                loading={insightsLoading}
+              />
+              <TicketsSeriesCard
+                colors={colors}
+                weeks={ticketsWeeks}
+                onWeeksChange={setTicketsWeeks}
+                totals={ticketsTotals as any}
+                series={ticketsSeriesArr as any}
+                loading={insightsLoading}
+              />
+            </View>
+          )}
+          <DashboardAlertsCard
+            alerts={prioritizedAlerts.critical}
+            secondary={prioritizedAlerts.all}
+            loading={insightsLoading}
+            filter={alertsFilter}
+            onFilterChange={setAlertsFilter}
+            colors={colors}
+          />
+        </View>
+      )}
+
+      {insights && (
+        <View style={styles.modulesSection}>
+          <SectionHeader title="Módulos" />
+          <View style={styles.modulesGrid}>
+            {canRoutes && insights.modules.transport && (
+              <ModuleCard
+                title="Transporte"
+                highlights={insights.modules.transport.highlights}
+                colors={colors}
+                onPress={() => { markUsed('routes'); navigateToTab('routes'); }}
+                icon={Map}
+                gradientFrom="#3B82F6"
+                gradientTo="#93C5FD"
+              />
+            )}
+            {canMaintenance && insights.modules.maintenance && (
+              <ModuleCard
+                title="Mantenimiento"
+                highlights={insights.modules.maintenance.highlights}
+                colors={colors}
+                onPress={() => { markUsed('maintenance'); navigateToTab('maintenance'); }}
+                icon={Wrench}
+                gradientFrom="#6366F1"
+                gradientTo="#A5B4FC"
+              />
+            )}
+            {canCleaning && insights.modules.cleaning && (
+              <ModuleCard
+                title="Aseo"
+                highlights={insights.modules.cleaning.highlights}
+                colors={colors}
+                onPress={() => { markUsed('cleaning'); navigateToTab('cleaning'); }}
+                icon={Cleaning}
+                gradientFrom="#06B6D4"
+                gradientTo="#67E8F9"
+              />
+            )}
+            {canCivilWorks && insights.modules.civilWorks && (
+              <ModuleCard
+                title="Obras Civiles"
+                highlights={insights.modules.civilWorks.highlights}
+                colors={colors}
+                onPress={() => { markUsed('civil-works'); navigateToTab('civil-works'); }}
+                icon={HardHat}
+                gradientFrom="#F59E0B"
+                gradientTo="#FDE68A"
+              />
+            )}
+            {canTickets && insights.modules.tickets && (
+              <ModuleCard
+                title="Tickets"
+                highlights={insights.modules.tickets.highlights}
+                colors={colors}
+                onPress={() => { markUsed('work'); navigateToTab('work'); }}
+                icon={Ticket}
+                gradientFrom="#8B5CF6"
+                gradientTo="#C4B5FD"
+              />
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Notificaciones recientes */}
       <View style={styles.notificationsSection}>
@@ -546,6 +823,62 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
+  },
+  operationalSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  insightsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  insightCard: {
+    flex: 1,
+    minWidth: 150,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+  },
+  insightLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  insightValue: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  insightTrend: {
+    fontSize: 12,
+    marginTop: 6,
+  },
+  analyticsSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  timelineToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  toggleChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 9999,
+    borderWidth: 1,
+    marginLeft: 8,
+  },
+  modulesSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  modulesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    rowGap: 12,
   },
   summaryRow: {
     flexDirection: 'row',

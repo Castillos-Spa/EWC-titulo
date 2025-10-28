@@ -11,10 +11,13 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  Image,
+  Linking,
 } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
-import { Building2, Lock, Mail, Eye, EyeOff } from 'lucide-react-native';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
+import { LinearGradient } from 'expo-linear-gradient';
 const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
@@ -42,92 +45,130 @@ export default function LoginScreen() {
     await login(email.trim(), password);
   };
 
-  // Variables y utilidades de usuarios de prueba eliminadas por no utilizarse
+  const handleForgotPassword = async () => {
+    try {
+      const resetUrl = (process.env as any)?.EXPO_PUBLIC_RESET_URL as string | undefined;
+      const target = resetUrl && typeof resetUrl === 'string' && resetUrl.length > 0
+        ? resetUrl
+        : 'mailto:soporte@ewc.local?subject=Restablecer%20contrase%C3%B1a';
+      const can = await Linking.canOpenURL(target);
+      if (can) {
+        await Linking.openURL(target);
+      } else {
+        Alert.alert('No se pudo abrir el enlace', 'Por favor contacta al administrador.');
+      }
+    } catch {
+      Alert.alert('No se pudo abrir el enlace', 'Por favor contacta al administrador.');
+    }
+  };
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { backgroundColor: colors.background }]} 
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView 
+      {/* Brand gradient backdrop (web-like hero) */}
+      <LinearGradient
+        colors={[colors.primary + '22', '#00000000']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.heroGradient}
+      />
+
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Encabezado similar a web */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Building2 size={64} color="#2563EB" strokeWidth={2} />
+          <View style={[styles.logoContainer, { backgroundColor: colors.background }]}>
+            <Image source={require('../../assets/images/icon.png')} style={{ width: 40, height: 40, borderRadius: 8 }} />
           </View>
-          <Text style={[styles.companyName, { color: colors.text }]}>Wilson Castillo</Text>
-          <Text style={[styles.companySubtitle, { color: colors.textSecondary }]}>Hub Corporativo Móvil</Text>
+          <Text style={[styles.companyName, { color: colors.text }]}>Empresas Wilson Castillo</Text>
+          <Text style={[styles.companySubtitle, { color: colors.textSecondary }]}>Suite Operativa • Acceso</Text>
         </View>
 
-        {/* Login Form */}
-        <View style={[styles.loginCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.formTitle, { color: colors.text }]}>Iniciar Sesión</Text>
+        {/* Card de acceso (estilo web) */}
+        <View style={[styles.loginCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.formTitle, { color: colors.text }]}>Iniciar sesión</Text>
 
           <View style={styles.form}>
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Mail size={20} color="#64748B" />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Email"
-                placeholderTextColor={colors.textSecondary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
+            <View>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Correo electrónico</Text>
+              <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+                <Mail size={18} color="#64748B" />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="nombre@empresa.com"
+                  placeholderTextColor={colors.textSecondary}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  textContentType="username"
+                />
+              </View>
             </View>
 
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Lock size={20} color="#64748B" />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Contraseña"
-                placeholderTextColor={colors.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color="#64748B" />
-                ) : (
-                  <Eye size={20} color="#64748B" />
-                )}
+            <View>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Contraseña</Text>
+              <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Lock size={18} color="#64748B" />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Ingresa tu contraseña"
+                  placeholderTextColor={colors.textSecondary}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  textContentType="password"
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color="#64748B" />
+                  ) : (
+                    <Eye size={18} color="#64748B" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.formActionsRow}>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity disabled={isLoading} onPress={handleForgotPassword}>
+                <Text style={[styles.linkText, { color: colors.primary }]}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+              style={[styles.loginButton, { backgroundColor: colors.primary }, isLoading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
             >
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+                <Text style={styles.loginButtonText}>Ingresar</Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Footer */}
+        {/* Pie de página */}
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            © 2025 Empresas Wilson Castillo
-          </Text>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>© 2025 Empresas Wilson Castillo</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -148,21 +189,29 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     minHeight: height,
   },
+  heroGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: height * 0.36,
+  },
   header: {
     alignItems: 'center',
     marginBottom: 48,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   companyName: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '600',
     marginBottom: 8,
   },
@@ -170,18 +219,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   loginCard: {
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 20,
+    padding: 20,
     marginHorizontal: 16,
     marginBottom: 32,
+    borderWidth: 1,
+    // sombras suaves tipo web
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 3,
   },
   formTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: 24,
     textAlign: 'center',
@@ -189,30 +240,35 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
   },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 12,
-    borderWidth: 2,
-    paddingHorizontal: 16,
-    minHeight: 56,
-    gap: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    minHeight: 52,
+    gap: 10,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    paddingVertical: 16,
+    fontSize: 15,
+    paddingVertical: 14,
   },
   eyeButton: {
     padding: 8,
   },
   loginButton: {
     backgroundColor: '#2563EB',
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
+    minHeight: 48,
     marginTop: 8,
   },
   loginButtonDisabled: {
@@ -220,8 +276,17 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
+  },
+  formActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  linkText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   testUsersToggle: {
     flexDirection: 'row',
