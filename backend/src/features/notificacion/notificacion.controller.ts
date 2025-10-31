@@ -47,7 +47,8 @@ export class NotificacionController {
     }
 
     // Solo los admins pueden editar el resto de la notificación.
-    const isAdmin = req.user.roleAssignments.some(ra => ra.role === Role.Admin);
+    const roleAssignments = Array.isArray(req.user?.roleAssignments) ? req.user.roleAssignments : [];
+    const isAdmin = roleAssignments.some(ra => ra.role === Role.Admin);
     if (isAdmin) {
       // Excluimos 'read' porque se maneja por separado
       const { read, ...rest } = updateNotificationDto;

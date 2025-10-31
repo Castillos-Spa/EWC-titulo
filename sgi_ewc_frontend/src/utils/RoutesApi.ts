@@ -3,6 +3,7 @@ import type {
   CreateTransportRoutePayload,
 } from "../types/TransportRoute";
 import apiFetch from "./api";
+import { fetchWithCache, invalidateCache } from "./requestCache";
 
 /**
  * Payload para crear una nueva ruta.
@@ -18,11 +19,17 @@ export type UpdateRoutePayload = Partial<CreateRoutePayload> & {
   active?: boolean;
 };
 
+const ROUTES_CACHE_KEY = "routes:list";
+
 /**
  * Obtiene todas las rutas.
  */
-export async function getRoutes(): Promise<TransportRoute[]> {
-  return apiFetch("/rutas");
+export async function getRoutes(
+  forceRefresh = false
+): Promise<TransportRoute[]> {
+  return fetchWithCache(ROUTES_CACHE_KEY, () => apiFetch("/rutas"), {
+    force: forceRefresh,
+  });
 }
 
 /**
@@ -38,10 +45,12 @@ export async function getRouteById(id: number): Promise<TransportRoute> {
 export async function createRoute(
   payload: CreateRoutePayload
 ): Promise<TransportRoute> {
-  return apiFetch("/rutas", {
+  const created = await apiFetch("/rutas", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCache(ROUTES_CACHE_KEY);
+  return created;
 }
 
 /**
@@ -49,6 +58,7 @@ export async function createRoute(
  */
 export async function deleteRoute(id: number): Promise<void> {
   await apiFetch(`/rutas/${id}`, { method: "DELETE" });
+  invalidateCache(ROUTES_CACHE_KEY);
 }
 
 /**
@@ -58,8 +68,10 @@ export async function updateRoute(
   id: number,
   payload: UpdateRoutePayload
 ): Promise<TransportRoute> {
-  return apiFetch(`/rutas/${id}`, {
+  const updated = await apiFetch(`/rutas/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  invalidateCache(ROUTES_CACHE_KEY);
+  return updated;
 }

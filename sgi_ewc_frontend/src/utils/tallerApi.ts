@@ -1,6 +1,11 @@
 import type { OrdenTrabajo } from "../types/OrdenTrabajo";
 import type { Vehiculo } from "../types/Vehiculo";
 import apiFetch from "./api";
+import {
+  fetchWithCache,
+  invalidateCache,
+  invalidateCacheByPrefix,
+} from "./requestCache";
 
 type PaginatedResponse<T> =
   | T[]
@@ -10,7 +15,9 @@ type PaginatedResponse<T> =
       results?: T[] | null;
     };
 
-const extractList = <T>(input: PaginatedResponse<T> | null | undefined): T[] => {
+const extractList = <T>(
+  input: PaginatedResponse<T> | null | undefined
+): T[] => {
   if (!input) return [];
   if (Array.isArray(input)) return input;
   if (typeof input === "object") {
@@ -22,6 +29,10 @@ const extractList = <T>(input: PaginatedResponse<T> | null | undefined): T[] => 
   }
   return [];
 };
+
+const WORK_ORDERS_CACHE_KEY = "taller:work-orders";
+const VEHICLES_CACHE_PREFIX = "taller:vehicles";
+const DRIVERS_CACHE_KEY = "taller:drivers";
 
 /**
  * Payload para crear una nueva orden de trabajo desde el taller.
@@ -64,29 +75,44 @@ export type CreateVehiculoPayload = {
 export async function createTallerWorkOrder(
   payload: CreateTallerWorkOrderPayload
 ): Promise<OrdenTrabajo> {
-  return apiFetch("/taller/orden-trabajo", {
+  const created = await apiFetch("/taller/orden-trabajo", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCache(WORK_ORDERS_CACHE_KEY);
+  return created;
 }
 
 /**
  * Obtiene todas las órdenes de trabajo del taller.
  * Asume un endpoint GET /taller/orden-trabajo
  */
-export async function getTallerWorkOrders(): Promise<OrdenTrabajo[]> {
-  const response = (await apiFetch("/taller/orden-trabajo")) as PaginatedResponse<OrdenTrabajo>;
-  return extractList(response);
+export async function getTallerWorkOrders(
+  forceRefresh = false
+): Promise<OrdenTrabajo[]> {
+  return fetchWithCache(
+    WORK_ORDERS_CACHE_KEY,
+    async () => {
+      const response = (await apiFetch(
+        "/taller/orden-trabajo"
+      )) as PaginatedResponse<OrdenTrabajo>;
+      return extractList(response);
+    },
+    { force: forceRefresh }
+  );
 }
 
 /**
  * Obtiene la lista completa de vehículos desde el módulo de taller.
  * Asume un endpoint GET /taller/vehiculos
  */
-export async function getVehiculos(filters?: {
-  tipo?: string;
-  estado?: string;
-}): Promise<Vehiculo[]> {
+export async function getVehiculos(
+  filters?: {
+    tipo?: string;
+    estado?: string;
+  },
+  forceRefresh = false
+): Promise<Vehiculo[]> {
   const params = new URLSearchParams();
   if (filters?.tipo) {
     params.append("tipo", filters.tipo);
@@ -96,17 +122,25 @@ export async function getVehiculos(filters?: {
   }
   const query = params.toString();
   const url = query ? `/vehiculos?${query}` : "/vehiculos";
-  const response = (await apiFetch(url)) as PaginatedResponse<Vehiculo>;
-  return extractList(response);
+  const cacheKey = `${VEHICLES_CACHE_PREFIX}:${JSON.stringify({
+    tipo: filters?.tipo ?? null,
+    estado: filters?.estado ?? null,
+  })}`;
+  return fetchWithCache(
+    cacheKey,
+    async () => {
+      const response = (await apiFetch(url)) as PaginatedResponse<Vehiculo>;
+      return extractList(response);
+    },
+    { force: forceRefresh }
+  );
 }
 
 /**
  * Obtiene un vehículo específico por su patente desde el módulo de taller.
  * Asume un endpoint GET /taller/vehiculos/:patente
  */
-export async function getVehiculoById(
-  id: number
-): Promise<Vehiculo> {
+export async function getVehiculoById(id: number): Promise<Vehiculo> {
   return apiFetch(`/vehiculos/${id}`);
 }
 
@@ -117,10 +151,12 @@ export async function getVehiculoById(
 export async function createVehiculo(
   payload: CreateVehiculoPayload
 ): Promise<Vehiculo> {
-  return apiFetch("/vehiculos", {
+  const created = await apiFetch("/vehiculos", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCacheByPrefix(VEHICLES_CACHE_PREFIX);
+  return created;
 }
 
 /**
@@ -132,10 +168,12 @@ export async function closeTallerWorkOrder(
   payload: { checklist: string; resultado: string }
 ): Promise<unknown> {
   // El tipo de retorno depende de lo que devuelva `qaService.create`
-  return apiFetch(`/taller/orden-trabajo/${otId}/cerrar`, {
+  const result = await apiFetch(`/taller/orden-trabajo/${otId}/cerrar`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  invalidateCache(WORK_ORDERS_CACHE_KEY);
+  return result;
 }
 
 /**
@@ -146,10 +184,12 @@ export async function updateVehiculo(
   id: number,
   payload: Partial<CreateVehiculoPayload>
 ): Promise<Vehiculo> {
-  return apiFetch(`/vehiculos/${id}`, {
+  const updated = await apiFetch(`/vehiculos/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  invalidateCacheByPrefix(VEHICLES_CACHE_PREFIX);
+  return updated;
 }
 
 // Aliases de compatibilidad (deprecated)
@@ -166,10 +206,12 @@ export async function updateWorkOrderStatus(
   id: number,
   estado: string
 ): Promise<OrdenTrabajo> {
-  return apiFetch(`/taller/orden-trabajo/${id}/status`, {
+  const updated = await apiFetch(`/taller/orden-trabajo/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ estado }),
   });
+  invalidateCache(WORK_ORDERS_CACHE_KEY);
+  return updated;
 }
 
 /**
@@ -205,34 +247,53 @@ const normalizeUsersResponse = (input: unknown): UsersApiDriverCandidate[] => {
   return extractList(input as PaginatedResponse<UsersApiDriverCandidate>);
 };
 
-const isDriverAssignment = (assignment: { specialty?: string | null; isActive?: boolean | null }) => {
+const isDriverAssignment = (assignment: {
+  specialty?: string | null;
+  isActive?: boolean | null;
+}) => {
   if (!assignment) return false;
   if (assignment.isActive === false) return false;
   return (assignment.specialty ?? "").toUpperCase() === "DRIVER";
 };
 
-export async function getDrivers(): Promise<TallerDriver[]> {
-  const response = await apiFetch("/users?pageSize=200");
-  const candidates = normalizeUsersResponse(response);
+export async function getDrivers(
+  forceRefresh = false
+): Promise<TallerDriver[]> {
+  return fetchWithCache(
+    DRIVERS_CACHE_KEY,
+    async () => {
+      const response = await apiFetch("/users?pageSize=200");
+      const candidates = normalizeUsersResponse(response);
 
-  return candidates
-    .filter(candidate => candidate.roleAssignments?.some(isDriverAssignment))
-    .map(candidate => {
-      const id = candidate.id ?? null;
-      const firstName = candidate.firstName ?? undefined;
-      const lastName = candidate.lastName ?? undefined;
-      const username = candidate.username ?? undefined;
-      const email = candidate.email ?? undefined;
-      const nameParts = [candidate.fullName, firstName, lastName, username, email].filter(Boolean) as string[];
-      return {
-        id: id ?? undefined,
-        userId: id ?? undefined,
-        username,
-        email,
-        fullName: nameParts[0],
-        firstName,
-        lastName,
-        active: candidate.active ?? true,
-      } satisfies TallerDriver;
-    });
+      return candidates
+        .filter((candidate) =>
+          candidate.roleAssignments?.some(isDriverAssignment)
+        )
+        .map((candidate) => {
+          const id = candidate.id ?? null;
+          const firstName = candidate.firstName ?? undefined;
+          const lastName = candidate.lastName ?? undefined;
+          const username = candidate.username ?? undefined;
+          const email = candidate.email ?? undefined;
+          const nameParts = [
+            candidate.fullName,
+            firstName,
+            lastName,
+            username,
+            email,
+          ].filter(Boolean) as string[];
+          return {
+            id: id ?? undefined,
+            userId: id ?? undefined,
+            username,
+            email,
+            fullName: nameParts[0],
+            firstName,
+            lastName,
+            active: candidate.active ?? true,
+          } satisfies TallerDriver;
+        });
+    },
+    { force: forceRefresh }
+  );
 }

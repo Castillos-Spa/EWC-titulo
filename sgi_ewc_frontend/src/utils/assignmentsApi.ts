@@ -1,4 +1,5 @@
 import apiFetch from "./api";
+import { fetchWithCache, invalidateCache } from "./requestCache";
 
 export type AssignmentDTO = {
   id: number;
@@ -28,7 +29,9 @@ type PaginatedResponse<T> =
       results?: T[] | null;
     };
 
-const extractList = <T>(input: PaginatedResponse<T> | null | undefined): T[] => {
+const extractList = <T>(
+  input: PaginatedResponse<T> | null | undefined
+): T[] => {
   if (!input) return [];
   if (Array.isArray(input)) return input;
   if (typeof input === "object") {
@@ -39,12 +42,24 @@ const extractList = <T>(input: PaginatedResponse<T> | null | undefined): T[] => 
   return [];
 };
 
+const ASSIGNMENTS_CACHE_KEY = "routes:assignments";
+
 /**
  * Obtiene todas las asignaciones.
  */
-export async function getAssignments(): Promise<AssignmentDTO[]> {
-  const res = (await apiFetch("/rutas/assignments")) as PaginatedResponse<AssignmentDTO>;
-  return extractList(res);
+export async function getAssignments(
+  forceRefresh = false
+): Promise<AssignmentDTO[]> {
+  return fetchWithCache(
+    ASSIGNMENTS_CACHE_KEY,
+    async () => {
+      const res = (await apiFetch(
+        "/rutas/assignments"
+      )) as PaginatedResponse<AssignmentDTO>;
+      return extractList(res);
+    },
+    { force: forceRefresh }
+  );
 }
 
 /**
@@ -53,10 +68,12 @@ export async function getAssignments(): Promise<AssignmentDTO[]> {
 export async function createAssignment(
   payload: CreateAssignmentPayload
 ): Promise<AssignmentDTO> {
-  return apiFetch("/rutas/assignments", {
+  const created = await apiFetch("/rutas/assignments", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCache(ASSIGNMENTS_CACHE_KEY);
+  return created;
 }
 
 /**
@@ -64,4 +81,5 @@ export async function createAssignment(
  */
 export async function deleteAssignment(id: number): Promise<void> {
   await apiFetch(`/rutas/assignments/${id}`, { method: "DELETE" });
+  invalidateCache(ASSIGNMENTS_CACHE_KEY);
 }

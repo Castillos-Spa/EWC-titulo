@@ -1,5 +1,6 @@
 import apiFetch from "./api";
 import type { Aseo } from "../types/Aseo";
+import { fetchWithCache, invalidateCache } from "./requestCache";
 
 function normalizeListResponse(res: unknown): unknown[] {
   if (Array.isArray(res)) return res as unknown[];
@@ -33,25 +34,51 @@ function toStringArray(v: unknown): string[] {
   return (v as unknown[]).map((x) => (typeof x === "string" ? x : String(x)));
 }
 
-export async function fetchAseos(): Promise<Aseo[]> {
-  const res = await apiFetch("/aseo");
-  const list = normalizeListResponse(res);
-  return list.map((raw) => {
-    const it = raw as Record<string, unknown>;
-    const id = toIdString(it.id);
-    const date = toSafeString(it.date);
-    const area = toSafeString(it.area);
-    const responsibleStaff = toSafeString(it.responsibleStaff);
-    const timeSpent = Number(it.timeSpent ?? 0);
-    const tasks = toStringArray(it.tasks);
-    const issues = toStringArray(it.issues);
-    const status = typeof it.status === "string" ? (it.status as Aseo["status"]) : "PENDING";
-    const observations = typeof it.observations === "string" ? it.observations : undefined;
-    const createdAt = typeof it.createdAt === "string" ? it.createdAt : undefined;
-    const updatedAt = typeof it.updatedAt === "string" ? it.updatedAt : undefined;
+const ASEO_CACHE_KEY = "aseo:list";
 
-    return { id, date, area, tasks, responsibleStaff, timeSpent, issues, status, observations, createdAt, updatedAt } as Aseo;
-  });
+export async function fetchAseos(forceRefresh = false): Promise<Aseo[]> {
+  return fetchWithCache(
+    ASEO_CACHE_KEY,
+    async () => {
+      const res = await apiFetch("/aseo");
+      const list = normalizeListResponse(res);
+      return list.map((raw) => {
+        const it = raw as Record<string, unknown>;
+        const id = toIdString(it.id);
+        const date = toSafeString(it.date);
+        const area = toSafeString(it.area);
+        const responsibleStaff = toSafeString(it.responsibleStaff);
+        const timeSpent = Number(it.timeSpent ?? 0);
+        const tasks = toStringArray(it.tasks);
+        const issues = toStringArray(it.issues);
+        const status =
+          typeof it.status === "string"
+            ? (it.status as Aseo["status"])
+            : "PENDING";
+        const observations =
+          typeof it.observations === "string" ? it.observations : undefined;
+        const createdAt =
+          typeof it.createdAt === "string" ? it.createdAt : undefined;
+        const updatedAt =
+          typeof it.updatedAt === "string" ? it.updatedAt : undefined;
+
+        return {
+          id,
+          date,
+          area,
+          tasks,
+          responsibleStaff,
+          timeSpent,
+          issues,
+          status,
+          observations,
+          createdAt,
+          updatedAt,
+        } as Aseo;
+      });
+    },
+    { force: forceRefresh }
+  );
 }
 
 export async function createAseo(a: Partial<Aseo>): Promise<Aseo> {
@@ -69,6 +96,7 @@ export async function createAseo(a: Partial<Aseo>): Promise<Aseo> {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCache(ASEO_CACHE_KEY);
   return { ...created, id: String(created.id) } as Aseo;
 }
 
@@ -81,9 +109,11 @@ export async function updateAseo(
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  invalidateCache(ASEO_CACHE_KEY);
   return { ...updated, id: String(updated.id) } as Aseo;
 }
 
 export async function deleteAseo(id: string): Promise<void> {
   await apiFetch(`/aseo/${id}`, { method: "DELETE" });
+  invalidateCache(ASEO_CACHE_KEY);
 }
