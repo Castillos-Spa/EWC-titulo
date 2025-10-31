@@ -1,4 +1,9 @@
 import apiFetch from "./api";
+import {
+  clearRequestCache,
+  fetchWithCache,
+  invalidateCache,
+} from "./requestCache";
 import type { User } from "../types/User";
 export type { User } from "../types/User";
 
@@ -10,7 +15,9 @@ type PaginatedUserResponse =
       results?: User[] | null;
     };
 
-const extractUsers = (input: PaginatedUserResponse | null | undefined): User[] => {
+const extractUsers = (
+  input: PaginatedUserResponse | null | undefined
+): User[] => {
   if (!input) return [];
   if (Array.isArray(input)) return input;
   if (typeof input === "object") {
@@ -21,24 +28,38 @@ const extractUsers = (input: PaginatedUserResponse | null | undefined): User[] =
   return [];
 };
 
+const PROFILE_CACHE_KEY = "auth:profile";
+const USERS_CACHE_KEY = "users:list";
+
 // --- Auth ---
 
 export async function login(
   email: string,
   password: string
 ): Promise<{ access_token: string; refresh_token: string; user: User }> {
-  return apiFetch("/auth/login", {
+  const result = await apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
+  clearRequestCache();
+  invalidateCache([PROFILE_CACHE_KEY, USERS_CACHE_KEY]);
+  return result;
 }
 
 export async function getProfile(): Promise<User> {
-  return apiFetch("/auth/profile", { method: "GET" });
+  return fetchWithCache(
+    PROFILE_CACHE_KEY,
+    () => apiFetch("/auth/profile", { method: "GET" }) as Promise<User>
+  );
 }
 
 export async function logoutUser(): Promise<{ message: string }> {
-  return apiFetch("/auth/logout", { method: "POST" });
+  try {
+    return await apiFetch("/auth/logout", { method: "POST" });
+  } finally {
+    clearRequestCache();
+    invalidateCache([PROFILE_CACHE_KEY, USERS_CACHE_KEY]);
+  }
 }
 
 // Obtener la contraseña temporal de un usuario (solo si mustChangePassword=true)
@@ -65,36 +86,55 @@ export async function changePassword(
 }
 
 // --- User Management ---
-export async function getUsers(): Promise<User[]> {
-  const response = (await apiFetch("/users", { method: "GET" })) as PaginatedUserResponse;
-  return extractUsers(response);
+export async function getUsers(forceRefresh = false): Promise<User[]> {
+  return fetchWithCache(
+    USERS_CACHE_KEY,
+    async () => {
+      const response = (await apiFetch("/users", {
+        method: "GET",
+      })) as PaginatedUserResponse;
+      return extractUsers(response);
+    },
+    { force: forceRefresh }
+  );
 }
 
 // Corrige el tipo de respuesta para incluir tempPassword
 export async function createUser(
   data: Partial<User>
 ): Promise<{ user: User; tempPassword?: string }> {
-  return apiFetch("/users", {
+  const created = await apiFetch("/users", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCache(USERS_CACHE_KEY);
+  return created;
 }
 
 export async function updateUser(
   id: number,
   data: Partial<User>
 ): Promise<User> {
-  return apiFetch(`/users/${id}`, {
+  const updated = await apiFetch(`/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+  invalidateCache(USERS_CACHE_KEY);
+  return updated;
 }
 
 export async function deleteUser(id: number): Promise<void> {
-  return apiFetch(`/users/${id}`, { method: "DELETE" });
+  await apiFetch(`/users/${id}`, { method: "DELETE" });
+  invalidateCache(USERS_CACHE_KEY);
 }
 
 // --- Utilidades administrativas ---
-export async function regenerateTempPassword(userId: number): Promise<{ tempPassword?: string } | { message: string }> {
-  return apiFetch(`/users/${userId}/regenerate-password`, { method: "PUT" });
+export async function regenerateTempPassword(
+  userId: number
+): Promise<{ tempPassword?: string } | { message: string }> {
+  const result = await apiFetch(`/users/${userId}/regenerate-password`, {
+    method: "PUT",
+  });
+  invalidateCache(USERS_CACHE_KEY);
+  return result;
 }

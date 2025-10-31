@@ -3,32 +3,31 @@ import { PrismaService } from 'prisma/prisma.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { IncidentStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class IncidentService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createIncidentDto: CreateIncidentDto) {
-    // Ajustar los campos según el schema y DTO
-    // Mapear los campos del DTO a los del modelo Prisma
+  async create(createIncidentDto: CreateIncidentDto, reportedById: number) {
+    const locationPayload = {
+      ...(createIncidentDto.address ? { direccion: createIncidentDto.address } : {}),
+      ...(typeof createIncidentDto.latitude === 'number' ? { latitude: createIncidentDto.latitude } : {}),
+      ...(typeof createIncidentDto.longitude === 'number' ? { longitude: createIncidentDto.longitude } : {}),
+    };
+
     return this.prisma.incident.create({
       data: {
-        title: createIncidentDto.Area, // Usamos Area como título (ajustar si corresponde)
-        description: createIncidentDto.Descripcion,
-        area: createIncidentDto.Area,
-        type: createIncidentDto.Tipo as any, // Debe ser un valor válido de IncidentType
-        severity: (createIncidentDto.Severidad?.toUpperCase() as any) ?? 'MEDIUM', // Ajustar mapping si es necesario
-        status: 'REPORTED',
-        // Keep Direccion (string) and also store latitude/longitude separately inside location JSON
-        location: {
-          ...(createIncidentDto.Direccion ? { direccion: createIncidentDto.Direccion } : {}),
-          ...(typeof createIncidentDto.Latitude === 'number' ? { latitude: createIncidentDto.Latitude } : {}),
-          ...(typeof createIncidentDto.Longitude === 'number' ? { longitude: createIncidentDto.Longitude } : {}),
-        },
+        title: createIncidentDto.title,
+        description: createIncidentDto.description,
+        area: createIncidentDto.area,
+        type: createIncidentDto.type,
+        severity: createIncidentDto.severity,
+        status: IncidentStatus.REPORTED,
+        location: locationPayload,
         photos: [],
-        reportedById: 1, // Ajustar: se debe obtener del usuario autenticado
-        reportedAt: createIncidentDto.Fecha ? new Date(createIncidentDto.Fecha) : new Date(),
-        updatedAt: new Date(),
+        reportedById,
+        ...(createIncidentDto.reportedAt ? { reportedAt: new Date(createIncidentDto.reportedAt) } : {}),
       },
     });
   }
@@ -70,36 +69,49 @@ export class IncidentService {
 
   async update(id: number, updateIncidentDto: UpdateIncidentDto) {
     await this.findOne(id); // throws if not found
+
+    const data: Prisma.IncidentUpdateInput = {};
+
+    if (updateIncidentDto.title) {
+      data.title = updateIncidentDto.title;
+    }
+    if (updateIncidentDto.description !== undefined) {
+      data.description = updateIncidentDto.description;
+    }
+    if (updateIncidentDto.area) {
+      data.area = updateIncidentDto.area;
+    }
+    if (updateIncidentDto.type) {
+      data.type = updateIncidentDto.type;
+    }
+    if (updateIncidentDto.severity) {
+      data.severity = updateIncidentDto.severity;
+    }
+    if (updateIncidentDto.status) {
+      data.status = updateIncidentDto.status;
+    }
+
+    if (
+      updateIncidentDto.address !== undefined ||
+      updateIncidentDto.latitude !== undefined ||
+      updateIncidentDto.longitude !== undefined
+    ) {
+      const location: Record<string, string | number> = {};
+      if (updateIncidentDto.address !== undefined) {
+        location.direccion = updateIncidentDto.address;
+      }
+      if (updateIncidentDto.latitude !== undefined) {
+        location.latitude = updateIncidentDto.latitude;
+      }
+      if (updateIncidentDto.longitude !== undefined) {
+        location.longitude = updateIncidentDto.longitude;
+      }
+      data.location = location;
+    }
+
     return this.prisma.incident.update({
       where: { id },
-      data: {
-        // Map DTO fields (which may be PascalCase from the client) to Prisma model fields
-        ...((updateIncidentDto as any).Title ? { title: (updateIncidentDto as any).Title } : {}),
-        ...((updateIncidentDto as any).Descripcion ? { description: (updateIncidentDto as any).Descripcion } : {}),
-        ...((updateIncidentDto as any).Area ? { area: (updateIncidentDto as any).Area } : {}),
-        ...((updateIncidentDto as any).Tipo ? { type: (updateIncidentDto as any).Tipo } : {}),
-        ...((updateIncidentDto as any).Severidad
-          ? { severity: (updateIncidentDto as any).Severidad?.toUpperCase() }
-          : {}),
-        ...((updateIncidentDto as any).Status ? { status: (updateIncidentDto as any).Status } : {}),
-        // Update location JSON merging existing fields
-        ...((updateIncidentDto as any).Direccion ||
-        (updateIncidentDto as any).Latitude ||
-        (updateIncidentDto as any).Longitude
-          ? {
-              location: {
-                ...((updateIncidentDto as any).Direccion ? { direccion: (updateIncidentDto as any).Direccion } : {}),
-                ...(typeof (updateIncidentDto as any).Latitude === 'number'
-                  ? { latitude: (updateIncidentDto as any).Latitude }
-                  : {}),
-                ...(typeof (updateIncidentDto as any).Longitude === 'number'
-                  ? { longitude: (updateIncidentDto as any).Longitude }
-                  : {}),
-              },
-            }
-          : {}),
-        updatedAt: new Date(),
-      },
+      data,
     });
   }
 

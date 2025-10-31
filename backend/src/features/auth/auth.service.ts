@@ -6,12 +6,14 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
 import { JwtPayload, RolesByArea } from './interfaces/jwt-payload.interface';
 import { Prisma, Role } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
   // Segun passport en nestJS
   async validateUser(
@@ -36,11 +38,19 @@ export class AuthService {
   async login(user: Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'>) {
     const { payload, userDetails } = this.createJwtPayload(user);
     const access_token = this.jwtService.sign(payload);
-    const refresh_token = this.jwtService.sign({ sub: user.id, email: user.email }, { expiresIn: '7d' });
+    const refreshSecret =
+      this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET');
+    const refresh_token = this.jwtService.sign(
+      { sub: user.id, email: user.email },
+      {
+        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
+        secret: refreshSecret,
+      },
+    );
 
     // Use HMAC-SHA256 to hash refresh tokens (faster than bcrypt for this use-case)
     const refreshTokenHash = crypto
-      .createHmac('sha256', process.env.REFRESH_TOKEN_SECRET || '')
+      .createHmac('sha256', this.configService.get<string>('REFRESH_TOKEN_SECRET') || '')
       .update(refresh_token)
       .digest('hex');
 
@@ -65,7 +75,9 @@ export class AuthService {
 
   async refreshToken(token: string) {
     try {
-      const refreshTokenPayload = this.jwtService.verify(token);
+      const refreshSecret =
+        this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET');
+      const refreshTokenPayload = this.jwtService.verify(token, { secret: refreshSecret });
       const user = await this.usersService.findById(refreshTokenPayload.sub);
 
       if (!user || !user.active || !user.refreshToken) {
@@ -74,7 +86,7 @@ export class AuthService {
 
       // Verify HMAC-SHA256 hash of incoming token matches stored hash
       const incomingHash = crypto
-        .createHmac('sha256', process.env.REFRESH_TOKEN_SECRET || '')
+        .createHmac('sha256', this.configService.get<string>('REFRESH_TOKEN_SECRET') || '')
         .update(token)
         .digest('hex');
 

@@ -18,6 +18,7 @@ import { Role, Permission } from '@prisma/client';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { RegisterDto } from './dtos/register.dto';
+import { OptionalAuth } from './decorators/optional-auth.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -32,9 +33,13 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
+  @OptionalAuth()
   async logout(@Request() req) {
-    // req.user contiene el payload del JWT validado por el guard global
-    await this.authService.logout(req.user.userId);
+    const userId = req.user?.userId;
+    if (userId) {
+      // req.user contiene el payload del JWT validado por el guard global
+      await this.authService.logout(userId);
+    }
     return { message: 'Se ha cerrado la sesión con éxito' };
   }
 

@@ -1,4 +1,5 @@
 import apiFetch from "./api";
+import { fetchWithCache, invalidateCacheByPrefix } from "./requestCache";
 import type {
   Incident as FrontIncident,
   IncidentSeverity,
@@ -118,16 +119,83 @@ function mapBackToFront(b: BackIncident): FrontIncident {
   } as FrontIncident;
 }
 
-export async function fetchIncidents(): Promise<FrontIncident[]> {
-  const res: unknown = await apiFetch("/incident");
-  // Backend may return either an array of incidents or a paginated object { items, total, page, pageSize }
-  if (!res) return [];
-  if (Array.isArray(res)) return (res as BackIncident[]).map(mapBackToFront);
-  const obj = res as Record<string, unknown>;
-  if (obj.items && Array.isArray(obj.items)) {
-    return (obj.items as BackIncident[]).map(mapBackToFront);
+const INCIDENTS_CACHE_KEY = "incidents:list";
+
+const mapLocationForUpdate = (location: unknown): Record<string, unknown> => {
+  const patch: Record<string, unknown> = {};
+  if (!location) {
+    return patch;
   }
-  return [];
+
+  if (typeof location === "string") {
+    patch.Direccion = location;
+    return patch;
+  }
+
+  if (typeof location === "object" && location !== null) {
+    const raw = location as Record<string, unknown>;
+    if (typeof raw.address === "string") {
+      patch.Direccion = raw.address;
+    } else if (
+      typeof raw.latitude === "number" &&
+      typeof raw.longitude === "number"
+    ) {
+      patch.Direccion = `${raw.latitude},${raw.longitude}`;
+    } else {
+      patch.Direccion = JSON.stringify(raw);
+    }
+
+    if (typeof raw.latitude === "number") {
+      patch.Latitude = raw.latitude;
+    }
+
+    if (typeof raw.longitude === "number") {
+      patch.Longitude = raw.longitude;
+    }
+  }
+
+  return patch;
+};
+
+const buildUpdatePayload = (
+  data: Partial<FrontIncident>
+): Record<string, unknown> => {
+  const payload: Record<string, unknown> = {};
+  if (data.title) payload.Title = data.title;
+  if (data.description) payload.Descripcion = data.description;
+  if (data.status)
+    payload.Status = mapStatusToBack(data.status as unknown as IncidentStatus);
+  if (data.severity)
+    payload.Severidad = mapSeverityToBack(
+      data.severity as unknown as IncidentSeverity
+    );
+  if (data.type)
+    payload.Tipo = mapTypeToBack(data.type as unknown as IncidentType);
+
+  const locationPatch = mapLocationForUpdate(data.location as unknown);
+  Object.assign(payload, locationPatch);
+
+  return payload;
+};
+
+export async function fetchIncidents(
+  forceRefresh = false
+): Promise<FrontIncident[]> {
+  return fetchWithCache(
+    INCIDENTS_CACHE_KEY,
+    async () => {
+      const res: unknown = await apiFetch("/incident");
+      if (!res) return [];
+      if (Array.isArray(res))
+        return (res as BackIncident[]).map(mapBackToFront);
+      const obj = res as Record<string, unknown>;
+      if (obj.items && Array.isArray(obj.items)) {
+        return (obj.items as BackIncident[]).map(mapBackToFront);
+      }
+      return [];
+    },
+    { force: forceRefresh }
+  );
 }
 
 export async function createIncident(
@@ -180,6 +248,7 @@ export async function createIncident(
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
   return mapBackToFront(created as BackIncident);
 }
 
@@ -187,40 +256,16 @@ export async function updateIncident(
   id: string,
   data: Partial<FrontIncident>
 ): Promise<FrontIncident> {
-  const payload: Record<string, unknown> = {};
-  if (data.title) payload.Title = data.title;
-  if (data.description) payload.Descripcion = data.description;
-  if (data.status)
-    payload.Status = mapStatusToBack(data.status as unknown as IncidentStatus);
-  if (data.severity)
-    payload.Severidad = mapSeverityToBack(
-      data.severity as unknown as IncidentSeverity
-    );
-  if (data.type)
-    payload.Tipo = mapTypeToBack(data.type as unknown as IncidentType);
-  if (data.location) {
-    const loc = data.location as unknown;
-    if (typeof loc === "string") payload.Direccion = loc;
-    else if (typeof loc === "object" && loc !== null) {
-      const l = loc as Record<string, unknown>;
-      if (typeof l.address === "string") payload.Direccion = l.address;
-      else if (
-        typeof l.latitude === "number" &&
-        typeof l.longitude === "number"
-      )
-        payload.Direccion = `${l.latitude},${l.longitude}`;
-      else payload.Direccion = JSON.stringify(l);
-      if (typeof l.latitude === "number") payload.Latitude = l.latitude;
-      if (typeof l.longitude === "number") payload.Longitude = l.longitude;
-    }
-  }
+  const payload = buildUpdatePayload(data);
   const updated = await apiFetch(`/incident/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
   return mapBackToFront(updated as BackIncident);
 }
 
 export async function deleteIncident(id: string): Promise<void> {
   await apiFetch(`/incident/${id}`, { method: "DELETE" });
+  invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
 }

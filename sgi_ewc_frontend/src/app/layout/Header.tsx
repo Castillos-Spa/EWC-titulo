@@ -148,8 +148,8 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
 	const { formatTime } = useIntlFormat();
-	const mapAppNotification = makeMapAppNotification(formatTime);
-	const mapWireNotification = makeMapWireNotification(formatTime);
+	const mapAppNotification = useMemo(() => makeMapAppNotification(formatTime), [formatTime]);
+	const mapWireNotification = useMemo(() => makeMapWireNotification(formatTime), [formatTime]);
 	const [showProfileMenu, setShowProfileMenu] = useState(false);
 	const [showNotifications, setShowNotifications] = useState(false);
 	const [notifications, setNotifications] = useState<Notification[]>([]);

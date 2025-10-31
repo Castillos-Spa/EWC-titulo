@@ -1,5 +1,6 @@
 import apiFetch from "./api";
 import { Ticket, TicketPriority } from "../types/Ticket";
+import { fetchWithCache, invalidateCache } from "./requestCache";
 
 export type CreateTicketPayload = {
   title: string;
@@ -12,8 +13,9 @@ export type CreateTicketPayload = {
 
 // --- Ticket Management ---
 
-export async function getTickets(): Promise<Ticket[]> {
-  const res = await apiFetch("/tickets", { method: "GET" });
+const TICKETS_CACHE_KEY = "tickets:list";
+
+const normalizeTickets = (res: unknown): Ticket[] => {
   if (Array.isArray(res)) return res as Ticket[];
   if (
     res &&
@@ -30,6 +32,17 @@ export async function getTickets(): Promise<Ticket[]> {
     return (res as Record<string, unknown>)["data"] as Ticket[];
   }
   return [];
+};
+
+export async function getTickets(forceRefresh = false): Promise<Ticket[]> {
+  return fetchWithCache(
+    TICKETS_CACHE_KEY,
+    async () => {
+      const res = await apiFetch("/tickets", { method: "GET" });
+      return normalizeTickets(res);
+    },
+    { force: forceRefresh }
+  );
 }
 
 export async function getTicket(id: number): Promise<Ticket> {
@@ -37,28 +50,37 @@ export async function getTicket(id: number): Promise<Ticket> {
 }
 
 export async function createTicket(data: CreateTicketPayload): Promise<Ticket> {
-  return apiFetch("/tickets", {
+  const created = await apiFetch("/tickets", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCache(TICKETS_CACHE_KEY);
+  return created;
 }
 
 export async function updateTicket(
   id: number,
   data: Partial<Ticket> & { assignedToId?: number }
 ): Promise<Ticket> {
-  return apiFetch(`/tickets/${id}`, {
+  const updated = await apiFetch(`/tickets/${id}`, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
+  invalidateCache(TICKETS_CACHE_KEY);
+  return updated;
 }
 export const approveTicketStep = async (
   ticketId: number,
   approvalId: number,
   payload: { approved: boolean; comments?: string }
 ) => {
-  return apiFetch(`/tickets/${ticketId}/approvals/${approvalId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+  const updated = await apiFetch(
+    `/tickets/${ticketId}/approvals/${approvalId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
+  invalidateCache(TICKETS_CACHE_KEY);
+  return updated;
 };

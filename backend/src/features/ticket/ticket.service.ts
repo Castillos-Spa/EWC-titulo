@@ -382,7 +382,7 @@ export class TicketService {
           description: `Se requiere revisión para la OT #${payload.id} en el vehículo ${payload.vehiculo.patente}. Descripción: ${payload.description}`,
           category: TicketCategory.Mantenimiento,
           // Asignamos al área de Transporte y rol de Supervisor usando el enum
-          recipientArea: [AreaEnum.TRANSPORTE],
+          recipientArea: [AreaEnum.Transporte],
           recipientRole: [Role.Supervisor],
           ordenTrabajoId: payload.id,
         },

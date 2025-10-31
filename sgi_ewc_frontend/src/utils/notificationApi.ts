@@ -4,6 +4,7 @@ import type {
   UpdateNotificationPayload,
 } from "../types/Notification";
 import apiFetch from "./api";
+import { fetchWithCache, invalidateCache } from "./requestCache";
 
 type RawNotification = {
   id: number;
@@ -29,7 +30,7 @@ type NotificationsApiResponse =
     };
 
 const extractNotifications = (
-  response: NotificationsApiResponse | null | undefined,
+  response: NotificationsApiResponse | null | undefined
 ): RawNotification[] => {
   if (!response) return [];
   if (Array.isArray(response)) return response;
@@ -48,9 +49,11 @@ const toAppNotification = (raw: RawNotification): AppNotification => {
     target = { scope: "global" };
   }
 
-  const isScheduled = !!(raw.scheduledAt && new Date(raw.scheduledAt) > new Date());
+  const isScheduled = !!(
+    raw.scheduledAt && new Date(raw.scheduledAt) > new Date()
+  );
   const hasReadEntry = Array.isArray(raw.readBy)
-    ? raw.readBy.some(entry => entry.read)
+    ? raw.readBy.some((entry) => entry.read)
     : false;
 
   return {
@@ -69,14 +72,44 @@ const toAppNotification = (raw: RawNotification): AppNotification => {
   };
 };
 
-export async function listNotifications(): Promise<AppNotification[]> {
-  const response = (await apiFetch("/notificacion")) as NotificationsApiResponse;
-  const rawNotifications = extractNotifications(response);
-  return rawNotifications.map(toAppNotification);
+const getNotificationCacheKey = () => {
+  const rawUser = globalThis.localStorage?.getItem("userData");
+  if (!rawUser) return "notifications:list:anon";
+  try {
+    const parsed = JSON.parse(rawUser) as Record<string, unknown> | null;
+    if (!parsed) return "notifications:list:anon";
+    const idCandidate = (parsed.id ?? parsed.userId) as
+      | string
+      | number
+      | undefined;
+    if (idCandidate === undefined) {
+      return "notifications:list:anon";
+    }
+    return `notifications:list:${String(idCandidate)}`;
+  } catch {
+    return "notifications:list:anon";
+  }
+};
+
+export async function listNotifications(
+  forceRefresh = false
+): Promise<AppNotification[]> {
+  const cacheKey = getNotificationCacheKey();
+  return fetchWithCache(
+    cacheKey,
+    async () => {
+      const response = (await apiFetch(
+        "/notificacion"
+      )) as NotificationsApiResponse;
+      const rawNotifications = extractNotifications(response);
+      return rawNotifications.map(toAppNotification);
+    },
+    { force: forceRefresh }
+  );
 }
 
 export async function createNotification(
-  payload: CreateNotificationPayload,
+  payload: CreateNotificationPayload
 ): Promise<AppNotification> {
   const created = (await apiFetch("/notificacion", {
     method: "POST",
@@ -88,28 +121,29 @@ export async function createNotification(
       target: payload.target,
     }),
   })) as RawNotification;
-
+  invalidateCache(getNotificationCacheKey());
   return toAppNotification(created);
 }
 
 export async function updateNotification(
   id: string,
-  payload: UpdateNotificationPayload,
+  payload: UpdateNotificationPayload
 ): Promise<AppNotification | null> {
   const updated = (await apiFetch(`/notificacion/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   })) as RawNotification | null;
-
+  invalidateCache(getNotificationCacheKey());
   return updated ? toAppNotification(updated) : null;
 }
 
 export async function deleteNotification(id: string): Promise<void> {
   await apiFetch(`/notificacion/${id}`, { method: "DELETE" });
+  invalidateCache(getNotificationCacheKey());
 }
 
 export async function markNotificationAsRead(
-  id: string,
+  id: string
 ): Promise<AppNotification | null> {
   return updateNotification(id, { read: true });
 }

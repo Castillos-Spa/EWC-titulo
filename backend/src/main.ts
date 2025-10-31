@@ -4,6 +4,9 @@ import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  await applySecurityMiddleware(app);
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -64,4 +67,35 @@ async function bootstrap() {
     }, 30_000);
   }
 }
-bootstrap();
+
+// eslint-disable-next-line unicorn/prefer-top-level-await
+bootstrap().catch(error => {
+  console.error('Error durante la inicialización de Nest', error);
+  process.exitCode = 1;
+});
+
+async function applySecurityMiddleware(app: any) {
+  try {
+    const helmetModule = await import('helmet');
+    const helmet = helmetModule?.default ?? helmetModule;
+    if (typeof helmet === 'function') {
+      app.use(helmet());
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('helmet no está instalado; omitiendo middleware de seguridad', error);
+    }
+  }
+
+  try {
+    const compressionModule = await import('compression');
+    const compression = compressionModule?.default ?? compressionModule;
+    if (typeof compression === 'function') {
+      app.use(compression());
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('compression no está instalado; omitiendo middleware de compresión', error);
+    }
+  }
+}

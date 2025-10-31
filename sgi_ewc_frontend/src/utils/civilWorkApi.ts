@@ -4,8 +4,16 @@ import type {
   CivilWorkTask,
 } from "../types/CivilWork";
 import apiFetch from "./api";
+import {
+  fetchWithCache,
+  invalidateCache,
+  invalidateCacheByPrefix,
+} from "./requestCache";
 
 export type UpdateCivilWorkPayload = Partial<Omit<CivilWork, "id">>;
+
+const CIVIL_WORK_CACHE_PREFIX = "civil-work:list";
+const CIVIL_WORK_ITEM_PREFIX = "civil-work:item";
 
 /**
  * Obtiene todos los reportes de obras civiles con paginación.
@@ -14,9 +22,15 @@ export type UpdateCivilWorkPayload = Partial<Omit<CivilWork, "id">>;
  */
 export async function fetchCivilWorks(
   page = 1,
-  pageSize = 20
+  pageSize = 20,
+  forceRefresh = false
 ): Promise<{ items: Partial<CivilWork>[]; total: number }> {
-  return apiFetch(`/civil-work?page=${page}&pageSize=${pageSize}`);
+  const cacheKey = `${CIVIL_WORK_CACHE_PREFIX}:${page}:${pageSize}`;
+  return fetchWithCache(
+    cacheKey,
+    () => apiFetch(`/civil-work?page=${page}&pageSize=${pageSize}`),
+    { force: forceRefresh }
+  );
 }
 
 /**
@@ -24,7 +38,8 @@ export async function fetchCivilWorks(
  * @param id - ID del reporte
  */
 export async function fetchCivilWorkById(id: number): Promise<CivilWork> {
-  return apiFetch(`/civil-work/${id}`);
+  const cacheKey = `${CIVIL_WORK_ITEM_PREFIX}:${id}`;
+  return fetchWithCache(cacheKey, () => apiFetch(`/civil-work/${id}`));
 }
 
 /**
@@ -34,10 +49,18 @@ export async function fetchCivilWorkById(id: number): Promise<CivilWork> {
 export async function createCivilWork(
   payload: CreateCivilWorkPayload
 ): Promise<CivilWork> {
-  return apiFetch("/civil-work", {
+  const created = await apiFetch("/civil-work", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
+  if (created && typeof created === "object" && "id" in created) {
+    const createdId = (created as Record<string, unknown>).id;
+    if (typeof createdId === "string" || typeof createdId === "number") {
+      invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${String(createdId)}`);
+    }
+  }
+  return created;
 }
 
 /**
@@ -49,10 +72,13 @@ export async function updateCivilWork(
   id: number,
   payload: UpdateCivilWorkPayload
 ): Promise<CivilWork> {
-  return apiFetch(`/civil-work/${id}`, {
+  const updated = await apiFetch(`/civil-work/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+  invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
+  invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${id}`);
+  return updated;
 }
 
 /**
@@ -60,15 +86,21 @@ export async function updateCivilWork(
  * @param id - ID del reporte a eliminar
  */
 export async function deleteCivilWork(id: number): Promise<CivilWork> {
-  return apiFetch(`/civil-work/${id}`, { method: "DELETE" });
+  const deleted = await apiFetch(`/civil-work/${id}`, { method: "DELETE" });
+  invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
+  invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${id}`);
+  return deleted;
 }
 
 export const updateCivilWorkTasks = async (
   id: number,
   tasks: CivilWorkTask[]
 ): Promise<CivilWork> => {
-  return apiFetch(`/civil-work/${id}/tasks`, {
+  const updated = await apiFetch(`/civil-work/${id}/tasks`, {
     method: "PATCH",
     body: JSON.stringify({ tasks }),
   });
+  invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
+  invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${id}`);
+  return updated;
 };
