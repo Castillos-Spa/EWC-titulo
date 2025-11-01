@@ -7,5 +7,6 @@ import { CommonModule } from '@/common/common.module';
   imports: [CommonModule],
   controllers: [CleaningController],
   providers: [CleaningService],
+  exports: [CleaningService],
 })
 export class CleaningModule {}

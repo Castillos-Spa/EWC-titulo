@@ -1,5 +1,6 @@
 import apiFetch from "./api";
 import { fetchWithCache, invalidateCacheByPrefix } from "./requestCache";
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 import type {
   Incident as FrontIncident,
   IncidentSeverity,
@@ -249,6 +250,7 @@ export async function createIncident(
     body: JSON.stringify(payload),
   });
   invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return mapBackToFront(created as BackIncident);
 }
 
@@ -262,10 +264,12 @@ export async function updateIncident(
     body: JSON.stringify(payload),
   });
   invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return mapBackToFront(updated as BackIncident);
 }
 
 export async function deleteIncident(id: string): Promise<void> {
   await apiFetch(`/incident/${id}`, { method: "DELETE" });
   invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
 }

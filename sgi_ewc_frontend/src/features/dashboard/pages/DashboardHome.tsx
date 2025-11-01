@@ -2,19 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { AlertTriangle, Clock, Leaf, ShieldCheck } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts';
-import { getVehiculos, getTallerWorkOrders, getDrivers } from '../../../utils/tallerApi';
-import { getTickets } from '../../../utils/ticketApi';
-import { fetchAseos } from '../../../utils/aseoApi';
-import { fetchCivilWorks } from '../../../utils/civilWorkApi';
-import { fetchIncidents } from '../../../utils/incidentApi';
-import { getUsers } from '../../../utils/userApi';
-import type { Vehiculo } from '../../../types/Vehiculo';
+import { fetchDashboardOverview, DashboardModuleKey } from '../../../utils/dashboardApi';
 import type { OrdenTrabajo } from '../../../types/OrdenTrabajo';
 import type { Ticket as TicketType } from '../../../types/Ticket';
 import type { Aseo } from '../../../types/Aseo';
 import type { CivilWork } from '../../../types/CivilWork';
 import type { Incident } from '../../../types/Incident';
-import { listNotifications } from '../../../utils/notificationApi';
+import { toAppNotification } from '../../../utils/notificationApi';
 import type { ModuleAlert, ModuleDefinition, ModuleHighlight, ModuleKey, TrendTone } from '../types';
 import type { ChartTheme } from '../components/Charts';
 import { moduleBlueprints } from '../config/moduleBlueprints';
@@ -256,18 +250,39 @@ const DashboardHome: React.FC = () => {
         const needTickets = enabledKeys.has('tickets') || needTransport; // transporte usa tickets para series
         const needIncidents = needTransport; // retrasos transporte y timeline por módulos habilitados
 
-        const pVehicles = needTransport ? getVehiculos().catch(() => [] as Vehiculo[]) : Promise.resolve([] as Vehiculo[]);
-        const pOts = needMaintenance ? getTallerWorkOrders().catch(() => [] as OrdenTrabajo[]) : Promise.resolve([] as OrdenTrabajo[]);
-        const pTickets = needTickets ? getTickets().catch(() => [] as TicketType[]) : Promise.resolve([] as TicketType[]);
-        const pAseos = needCleaning ? fetchAseos().catch(() => [] as Aseo[]) : Promise.resolve([] as Aseo[]);
-        const pCivil = needCivil ? fetchCivilWorks(1, 200).catch(() => ({ items: [] as Partial<CivilWork>[], total: 0 })) : Promise.resolve({ items: [] as Partial<CivilWork>[], total: 0 });
-        const pDrivers = needTransport ? getDrivers().catch(() => [] as Array<{ id?: number }>) : Promise.resolve([] as Array<{ id?: number }>);
-        const pUsers = getUsers().catch(() => [] as unknown[]);
-        const pIncidents = needIncidents ? fetchIncidents().catch(() => [] as Incident[]) : Promise.resolve([] as Incident[]);
-  const pNotifications = enabledKeys.has('tickets') ? listNotifications().catch(() => []) : Promise.resolve([]);
-        const [vehicles, ots, tickets, aseos, civil, drivers, users, incidents, notifications] = await Promise.all([
-          pVehicles, pOts, pTickets, pAseos, pCivil, pDrivers, pUsers, pIncidents, pNotifications,
-        ]);
+        const modulesToFetch = new Set<DashboardModuleKey>(['users']);
+        if (needTransport) modulesToFetch.add('transport');
+        if (needMaintenance) modulesToFetch.add('maintenance');
+        if (needTickets) modulesToFetch.add('tickets');
+        if (needCleaning) modulesToFetch.add('cleaning');
+        if (needCivil) modulesToFetch.add('civilWorks');
+        if (needIncidents) modulesToFetch.add('incidents');
+        if (enabledKeys.has('tickets')) modulesToFetch.add('notifications');
+
+        const overview = await fetchDashboardOverview({
+          modules: Array.from(modulesToFetch),
+          vehiclesPageSize: needTransport ? 200 : undefined,
+          driversPageSize: needTransport ? 200 : undefined,
+          workOrdersPageSize: needMaintenance ? 200 : undefined,
+          ticketsPageSize: needTickets ? 200 : undefined,
+          cleaningPageSize: needCleaning ? 200 : undefined,
+          civilWorksPageSize: needCivil ? 200 : undefined,
+          incidentsPageSize: needIncidents ? 200 : undefined,
+          notificationsPageSize: enabledKeys.has('tickets') ? 50 : undefined,
+          usersPageSize: 200,
+        });
+
+        const vehicles = overview.transport?.vehicles?.items ?? [];
+        const drivers = overview.transport?.drivers?.items ?? [];
+        const ots = overview.maintenance?.workOrders?.items ?? [];
+        const tickets = overview.tickets?.items ?? [];
+        const aseos = overview.cleaning?.items ?? [];
+        const civil = overview.civilWorks ?? { items: [] as Partial<CivilWork>[], total: 0, page: 1, pageSize: 0 };
+        const incidents = overview.incidents?.items ?? [];
+        const notificationsRaw = overview.notifications?.items ?? [];
+        const notifications = notificationsRaw.map(toAppNotification);
+  const users = overview.users?.items ?? [];
+  const usersTotal = overview.users?.total ?? (Array.isArray(users) ? users.length : null);
 
         if (cancelled) return;
 
@@ -303,7 +318,7 @@ const DashboardHome: React.FC = () => {
           tickets: ticketsData,
         };
         setRealStats(next);
-        setUsersCount(Array.isArray(users) ? users.length : null);
+  setUsersCount(usersTotal);
 
         // --------- Series reales y alertas ---------
         // Helpers de fechas

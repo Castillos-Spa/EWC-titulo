@@ -5,11 +5,9 @@ import type { User as AppUser } from '../../../types/User';
 import type { CreateTallerWorkOrderPayload } from '../../../utils/tallerApi';
 import {
   createTallerWorkOrder,
-  getTallerWorkOrders,
-  getVehiculosFromTaller,
+  getWorkshopOverview,
   updateWorkOrderStatus,
 } from '../../../utils/tallerApi';
-import { getUsers } from '../../../utils/userApi';
 
 export type MaintenanceStatus = OrdenTrabajo['estado'];
 export type MaintenanceType = CreateTallerWorkOrderPayload['tipo'];
@@ -38,14 +36,16 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
-      const [recordsData, vehiclesData, usersData] = await Promise.all([
-        getTallerWorkOrders(),
-        getVehiculosFromTaller(),
-        getUsers(),
-      ]);
-      setRecords(recordsData);
-      setVehicles(vehiclesData);
-      setUsers(usersData);
+      const overview = await getWorkshopOverview({
+        include: ['workOrders', 'vehicles', 'users'],
+        workOrdersPageSize: 100,
+        vehiclesPageSize: 100,
+        usersPageSize: 100,
+      });
+
+      setRecords(overview.workOrders?.items ?? []);
+      setVehicles(overview.vehicles?.items ?? []);
+      setUsers(overview.users?.items ?? []);
       setError(null);
     } catch (err) {
       console.error(err);

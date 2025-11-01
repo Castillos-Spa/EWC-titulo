@@ -1,6 +1,7 @@
 import apiFetch from "./api";
 import type { Aseo } from "../types/Aseo";
 import { fetchWithCache, invalidateCache } from "./requestCache";
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 function normalizeListResponse(res: unknown): unknown[] {
   if (Array.isArray(res)) return res as unknown[];
@@ -97,6 +98,7 @@ export async function createAseo(a: Partial<Aseo>): Promise<Aseo> {
     body: JSON.stringify(payload),
   });
   invalidateCache(ASEO_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return { ...created, id: String(created.id) } as Aseo;
 }
 
@@ -110,10 +112,12 @@ export async function updateAseo(
     body: JSON.stringify(payload),
   });
   invalidateCache(ASEO_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return { ...updated, id: String(updated.id) } as Aseo;
 }
 
 export async function deleteAseo(id: string): Promise<void> {
   await apiFetch(`/cleaning/${id}`, { method: "DELETE" });
   invalidateCache(ASEO_CACHE_KEY);
+  invalidateDashboardOverviewCache();
 }

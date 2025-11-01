@@ -14,6 +14,7 @@ import { CivilWorkModule } from '@/features/civil-work/civil-work.module';
 import { RoutesModule } from '@/features/routes/routes.module';
 import { VehicleModule } from '@/features/vehicle/vehicle.module';
 import { CoreModule } from './core/core.module';
+import { DashboardModule } from '@/features/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CoreModule } from './core/core.module';
     CivilWorkModule,
     RoutesModule,
     VehicleModule,
+    DashboardModule,
     CoreModule,
   ],
 

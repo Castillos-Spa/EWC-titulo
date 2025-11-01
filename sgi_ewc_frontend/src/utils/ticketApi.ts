@@ -1,6 +1,7 @@
 import apiFetch from "./api";
 import { Ticket, TicketPriority } from "../types/Ticket";
 import { fetchWithCache, invalidateCache } from "./requestCache";
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 export type CreateTicketPayload = {
   title: string;
@@ -55,6 +56,7 @@ export async function createTicket(data: CreateTicketPayload): Promise<Ticket> {
     body: JSON.stringify(data),
   });
   invalidateCache(TICKETS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return created;
 }
 
@@ -67,6 +69,7 @@ export async function updateTicket(
     body: JSON.stringify(data),
   });
   invalidateCache(TICKETS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return updated;
 }
 export const approveTicketStep = async (
@@ -82,5 +85,6 @@ export const approveTicketStep = async (
     }
   );
   invalidateCache(TICKETS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return updated;
 };

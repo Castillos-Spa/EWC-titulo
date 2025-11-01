@@ -1,11 +1,14 @@
 import type { OrdenTrabajo } from "../types/OrdenTrabajo";
 import type { Vehiculo } from "../types/Vehiculo";
+import type { User as AppUser } from "../types/User";
 import apiFetch from "./api";
 import {
   fetchWithCache,
   invalidateCache,
   invalidateCacheByPrefix,
 } from "./requestCache";
+import type { FetchWithCacheOptions } from "./requestCache";
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 type PaginatedResponse<T> =
   | T[]
@@ -33,6 +36,87 @@ const extractList = <T>(
 const WORK_ORDERS_CACHE_KEY = "workshop:work-orders";
 const VEHICLES_CACHE_PREFIX = "vehicles:list";
 const DRIVERS_CACHE_KEY = "workshop:drivers";
+const WORKSHOP_OVERVIEW_CACHE_PREFIX = "workshop:overview";
+
+type Paginated<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages?: number;
+};
+
+export type WorkshopOverviewResponse = {
+  workOrders?: Paginated<OrdenTrabajo>;
+  vehicles?: Paginated<Vehiculo>;
+  users?: Paginated<AppUser>;
+  mechanics?: Paginated<AppUser>;
+};
+
+type WorkshopOverviewParams = {
+  include?: Array<"workOrders" | "vehicles" | "users" | "mechanics">;
+  workOrdersPage?: number;
+  workOrdersPageSize?: number;
+  vehiclesPage?: number;
+  vehiclesPageSize?: number;
+  usersPage?: number;
+  usersPageSize?: number;
+  mechanicsPageSize?: number;
+};
+
+export async function getWorkshopOverview(
+  params: WorkshopOverviewParams = {},
+  options: FetchWithCacheOptions = {}
+): Promise<WorkshopOverviewResponse> {
+  const normalizedInclude = params.include
+    ? Array.from(new Set(params.include)).sort((a, b) => a.localeCompare(b))
+    : undefined;
+
+  const normalizedParams: WorkshopOverviewParams = {
+    ...params,
+    include: normalizedInclude,
+  };
+
+  const cacheKey = `${WORKSHOP_OVERVIEW_CACHE_PREFIX}:${JSON.stringify(
+    normalizedParams
+  )}`;
+
+  return fetchWithCache(
+    cacheKey,
+    async () => {
+      const search = new URLSearchParams();
+      if (normalizedInclude && normalizedInclude.length > 0) {
+        search.set("include", normalizedInclude.join(","));
+      }
+
+      const numericKeys: Array<keyof WorkshopOverviewParams> = [
+        "workOrdersPage",
+        "workOrdersPageSize",
+        "vehiclesPage",
+        "vehiclesPageSize",
+        "usersPage",
+        "usersPageSize",
+        "mechanicsPageSize",
+      ];
+
+      for (const key of numericKeys) {
+        const value = params[key];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          search.set(String(key), String(value));
+        }
+      }
+
+      const query = search.toString();
+      const url = query ? `/workshop/overview?${query}` : "/workshop/overview";
+      return apiFetch(url) as Promise<WorkshopOverviewResponse>;
+    },
+    options
+  );
+}
+
+export function invalidateWorkshopOverviewCache(): void {
+  invalidateCacheByPrefix(WORKSHOP_OVERVIEW_CACHE_PREFIX);
+}
 
 /**
  * Payload para crear una nueva orden de trabajo desde el taller.
@@ -80,6 +164,8 @@ export async function createTallerWorkOrder(
     body: JSON.stringify(payload),
   });
   invalidateCache(WORK_ORDERS_CACHE_KEY);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return created;
 }
 
@@ -156,6 +242,8 @@ export async function createVehiculo(
     body: JSON.stringify(payload),
   });
   invalidateCacheByPrefix(VEHICLES_CACHE_PREFIX);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return created;
 }
 
@@ -173,6 +261,8 @@ export async function closeTallerWorkOrder(
     body: JSON.stringify(payload),
   });
   invalidateCache(WORK_ORDERS_CACHE_KEY);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return result;
 }
 
@@ -189,6 +279,8 @@ export async function updateVehiculo(
     body: JSON.stringify(payload),
   });
   invalidateCacheByPrefix(VEHICLES_CACHE_PREFIX);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return updated;
 }
 
@@ -211,6 +303,8 @@ export async function updateWorkOrderStatus(
     body: JSON.stringify({ status }),
   });
   invalidateCache(WORK_ORDERS_CACHE_KEY);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return updated;
 }
 

@@ -9,6 +9,7 @@ import {
   Patch,
   Query,
   ValidationPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { WorkshopService } from './workshop.service';
 import { CreateWorkOrderDto } from '../work-order/dto/create-work-order.dto';
@@ -16,10 +17,18 @@ import { CreateVehicleDto } from '../vehicle/dto/create-vehicle.dto';
 import { UpdateVehicleDto } from '../vehicle/dto/update-vehicle.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { UpdateWorkOrderStatusDto } from './dto/update-work-order-status.dto';
+import { WorkshopOverviewQueryDto } from './dto/workshop-overview-query.dto';
+import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
 
 @Controller('workshop')
 export class WorkshopController {
   constructor(private readonly workshopService: WorkshopService) {}
+
+  @Get('overview')
+  @UseGuards(JwtAuthGuard)
+  getOverview(@Query(new ValidationPipe({ transform: true, whitelist: true })) query: WorkshopOverviewQueryDto) {
+    return this.workshopService.getOverview(query);
+  }
 
   @Post('work-orders')
   createWorkOrder(@Body() createWorkOrderDto: CreateWorkOrderDto) {

@@ -2,24 +2,11 @@ import type {
   AppNotification,
   CreateNotificationPayload,
   UpdateNotificationPayload,
+  RawNotification,
 } from "../types/Notification";
 import apiFetch from "./api";
 import { fetchWithCache, invalidateCache } from "./requestCache";
-
-type RawNotification = {
-  id: number;
-  title: string;
-  message: string;
-  priority: "low" | "normal" | "high";
-  createdAt: string;
-  scheduledAt?: string | null;
-  pinned: boolean;
-  areas: string[];
-  roles: string[];
-  createdBy?: { username: string } | null;
-  readBy?: { userId: number; notificationId: number; read: boolean }[] | null;
-  type?: string | null;
-};
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 type NotificationsApiResponse =
   | RawNotification[]
@@ -29,7 +16,7 @@ type NotificationsApiResponse =
       results?: RawNotification[] | null;
     };
 
-const extractNotifications = (
+export const extractNotifications = (
   response: NotificationsApiResponse | null | undefined
 ): RawNotification[] => {
   if (!response) return [];
@@ -39,7 +26,7 @@ const extractNotifications = (
   return firstArray ? (firstArray as RawNotification[]) : [];
 };
 
-const toAppNotification = (raw: RawNotification): AppNotification => {
+export const toAppNotification = (raw: RawNotification): AppNotification => {
   let target: AppNotification["target"];
   if (Array.isArray(raw.areas) && raw.areas.length > 0) {
     target = { scope: "areas", areas: raw.areas };
@@ -122,6 +109,7 @@ export async function createNotification(
     }),
   })) as RawNotification;
   invalidateCache(getNotificationCacheKey());
+  invalidateDashboardOverviewCache();
   return toAppNotification(created);
 }
 
@@ -134,12 +122,14 @@ export async function updateNotification(
     body: JSON.stringify(payload),
   })) as RawNotification | null;
   invalidateCache(getNotificationCacheKey());
+  invalidateDashboardOverviewCache();
   return updated ? toAppNotification(updated) : null;
 }
 
 export async function deleteNotification(id: string): Promise<void> {
   await apiFetch(`/notification/${id}`, { method: "DELETE" });
   invalidateCache(getNotificationCacheKey());
+  invalidateDashboardOverviewCache();
 }
 
 export async function markNotificationAsRead(
