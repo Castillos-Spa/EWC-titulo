@@ -23,7 +23,7 @@ export type MaintenanceCtx = {
   error: string | null;
   refresh: () => Promise<void>;
   createRecord: (payload: CreateTallerWorkOrderPayload) => Promise<OrdenTrabajo>;
-  updateStatus: (id: number, estado: MaintenanceStatus) => Promise<OrdenTrabajo>;
+  updateStatus: (id: number, status: MaintenanceStatus) => Promise<OrdenTrabajo>;
 };
 
 const MaintenanceContext = createContext<MaintenanceCtx | undefined>(undefined);
@@ -65,8 +65,8 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return created;
   }, []);
 
-  const updateStatus = useCallback(async (id: number, estado: MaintenanceStatus) => {
-    const updated = await updateWorkOrderStatus(id, estado);
+  const updateStatus = useCallback(async (id: number, status: MaintenanceStatus) => {
+    const updated = await updateWorkOrderStatus(id, status);
     setRecords(prev => prev.map(record => (record.id === id ? updated : record)));
     return updated;
   }, []);

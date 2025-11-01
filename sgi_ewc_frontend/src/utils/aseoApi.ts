@@ -40,7 +40,7 @@ export async function fetchAseos(forceRefresh = false): Promise<Aseo[]> {
   return fetchWithCache(
     ASEO_CACHE_KEY,
     async () => {
-      const res = await apiFetch("/aseo");
+      const res = await apiFetch("/cleaning");
       const list = normalizeListResponse(res);
       return list.map((raw) => {
         const it = raw as Record<string, unknown>;
@@ -92,7 +92,7 @@ export async function createAseo(a: Partial<Aseo>): Promise<Aseo> {
     status: a.status,
     observations: a.observations ?? null,
   };
-  const created = await apiFetch("/aseo", {
+  const created = await apiFetch("/cleaning", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -105,7 +105,7 @@ export async function updateAseo(
   data: Partial<Aseo>
 ): Promise<Aseo> {
   const payload = { ...data };
-  const updated = await apiFetch(`/aseo/${id}`, {
+  const updated = await apiFetch(`/cleaning/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -114,6 +114,6 @@ export async function updateAseo(
 }
 
 export async function deleteAseo(id: string): Promise<void> {
-  await apiFetch(`/aseo/${id}`, { method: "DELETE" });
+  await apiFetch(`/cleaning/${id}`, { method: "DELETE" });
   invalidateCache(ASEO_CACHE_KEY);
 }

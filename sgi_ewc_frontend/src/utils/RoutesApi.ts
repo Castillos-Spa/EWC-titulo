@@ -27,7 +27,7 @@ const ROUTES_CACHE_KEY = "routes:list";
 export async function getRoutes(
   forceRefresh = false
 ): Promise<TransportRoute[]> {
-  return fetchWithCache(ROUTES_CACHE_KEY, () => apiFetch("/rutas"), {
+  return fetchWithCache(ROUTES_CACHE_KEY, () => apiFetch("/routes"), {
     force: forceRefresh,
   });
 }
@@ -36,7 +36,7 @@ export async function getRoutes(
  * Obtiene una ruta por su ID.
  */
 export async function getRouteById(id: number): Promise<TransportRoute> {
-  return apiFetch(`/rutas/${id}`);
+  return apiFetch(`/routes/${id}`);
 }
 
 /**
@@ -45,7 +45,7 @@ export async function getRouteById(id: number): Promise<TransportRoute> {
 export async function createRoute(
   payload: CreateRoutePayload
 ): Promise<TransportRoute> {
-  const created = await apiFetch("/rutas", {
+  const created = await apiFetch("/routes", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -57,7 +57,7 @@ export async function createRoute(
  * Elimina una ruta por su ID.
  */
 export async function deleteRoute(id: number): Promise<void> {
-  await apiFetch(`/rutas/${id}`, { method: "DELETE" });
+  await apiFetch(`/routes/${id}`, { method: "DELETE" });
   invalidateCache(ROUTES_CACHE_KEY);
 }
 
@@ -68,7 +68,7 @@ export async function updateRoute(
   id: number,
   payload: UpdateRoutePayload
 ): Promise<TransportRoute> {
-  const updated = await apiFetch(`/rutas/${id}`, {
+  const updated = await apiFetch(`/routes/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

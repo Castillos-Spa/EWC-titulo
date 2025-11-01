@@ -5,15 +5,13 @@ import { User, Role, Permission, Prisma, Specialty, Area } from '@prisma/client'
 import { RegisterDto } from '@/features/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
-import { NotificacionService } from '../notificacion/notificacion.service';
+import { NotificationService } from '../notification/notification.service';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
-    // Inyectar `forwardRef` para romper dependencias circulares si es necesario
-    // @Inject(forwardRef(() => NotificacionService))
-    private readonly notificationService: NotificacionService,
+    private readonly notificationService: NotificationService,
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
   ) {}

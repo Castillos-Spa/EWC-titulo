@@ -4,15 +4,15 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '@/features/auth/auth.module';
 import { UsersModule } from '@/features/users/users.module';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
-import { TallerModule } from '@/features/taller/taller.module';
+import { WorkshopModule } from '@/features/workshop/workshop.module';
 import { TicketModule } from '@/features/ticket/ticket.module';
-import { NotificacionModule } from '@/features/notificacion/notificacion.module';
+import { NotificationModule } from '@/features/notification/notification.module';
 import { FuelModule } from '@/features/fuel/fuel.module';
 import { IncidentModule } from '@/features/incident/incident.module';
-import { AseoModule } from '@/features/aseo/aseo.module';
+import { CleaningModule } from '@/features/cleaning/cleaning.module';
 import { CivilWorkModule } from '@/features/civil-work/civil-work.module';
-import { RutasModule } from '@/features/rutas/rutas.module';
-import { VehiculoModule } from '@/features/vehiculo/vehiculo.module';
+import { RoutesModule } from '@/features/routes/routes.module';
+import { VehicleModule } from '@/features/vehicle/vehicle.module';
 import { CoreModule } from './core/core.module';
 
 @Module({
@@ -24,15 +24,15 @@ import { CoreModule } from './core/core.module';
     }),
     AuthModule,
     UsersModule,
-    TallerModule,
+    WorkshopModule,
     TicketModule,
-    NotificacionModule,
+    NotificationModule,
     FuelModule,
     IncidentModule,
-    AseoModule,
+    CleaningModule,
     CivilWorkModule,
-    RutasModule,
-    VehiculoModule,
+    RoutesModule,
+    VehicleModule,
     CoreModule,
   ],
 

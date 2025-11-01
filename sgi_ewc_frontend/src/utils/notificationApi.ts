@@ -99,7 +99,7 @@ export async function listNotifications(
     cacheKey,
     async () => {
       const response = (await apiFetch(
-        "/notificacion"
+        "/notification"
       )) as NotificationsApiResponse;
       const rawNotifications = extractNotifications(response);
       return rawNotifications.map(toAppNotification);
@@ -111,7 +111,7 @@ export async function listNotifications(
 export async function createNotification(
   payload: CreateNotificationPayload
 ): Promise<AppNotification> {
-  const created = (await apiFetch("/notificacion", {
+  const created = (await apiFetch("/notification", {
     method: "POST",
     body: JSON.stringify({
       title: payload.title,
@@ -129,7 +129,7 @@ export async function updateNotification(
   id: string,
   payload: UpdateNotificationPayload
 ): Promise<AppNotification | null> {
-  const updated = (await apiFetch(`/notificacion/${id}`, {
+  const updated = (await apiFetch(`/notification/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   })) as RawNotification | null;
@@ -138,7 +138,7 @@ export async function updateNotification(
 }
 
 export async function deleteNotification(id: string): Promise<void> {
-  await apiFetch(`/notificacion/${id}`, { method: "DELETE" });
+  await apiFetch(`/notification/${id}`, { method: "DELETE" });
   invalidateCache(getNotificationCacheKey());
 }
 

@@ -18,6 +18,8 @@ model User {
   mustChangePassword   Boolean              @default(false)
   refreshToken         String?              @unique
   lastLogin            DateTime?            @map("last_login")
+  Aseo                 Aseo[]
+  createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
   drivenFuelLogs       FuelLog[]            @relation("DriverFuelLogs")
   createdFuelLogs      FuelLog[]            @relation("UserFuelLogs")
   reportedIncidents    Incident[]           @relation("ReportedIncidents")
@@ -26,15 +28,13 @@ model User {
   assignedTickets      Ticket[]             @relation("AssignedTickets")
   createdTickets       Ticket[]             @relation("CreatedTickets")
   TicketApproval       TicketApproval[]
+  assignments          TruckAssignment[]    @relation("DriverToAssignments")
   UserNotification     UserNotification[]
   roleAssignments      UserRoleAssignment[]
   notifications        Notification[]       @relation("NotificationToUser")
-  createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
-  assignments          TruckAssignment[]    @relation("DriverToAssignments")
-  Aseo                 Aseo[]
 
-  @@index([username], name: "idx_user_username")
-  @@index([refreshToken], name: "idx_user_refresh_token")
+  @@index([username], map: "idx_user_username")
+  @@index([refreshToken], map: "idx_user_refresh_token")
 }
 
 model UserRoleAssignment {
@@ -53,13 +53,12 @@ model UserRoleAssignment {
   @@index([area, role])
 }
 
-// En tu schema.prisma
 model ApprovalWorkflow {
   id        Int            @id @default(autoincrement())
-  name      String // e.g., "Suministros Transporte"
+  name      String
   area      Area
-  category  TicketCategory // Categoría de ticket a la que aplica
-  steps     Json // [{ "step": 1, "approverRole": "Supervisor", "approverArea": "Transporte" }, ...]
+  category  TicketCategory
+  steps     Json
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 }
@@ -269,19 +268,18 @@ model TransportRoute {
 }
 
 model TruckAssignment {
-  id           Int      @id @default(autoincrement())
+  id           Int            @id @default(autoincrement())
   truckId      Int
   routeId      Int
   driverId     Int
   date         DateTime
-  status       String   @default("Planificada") // Planificada, Programada, Iniciada, Cancelada
+  status       String         @default("Planificada")
   volumeLiters Float?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  truck  Vehiculo       @relation("TruckToAssignments", fields: [truckId], references: [id])
-  route  TransportRoute @relation("RouteToAssignments", fields: [routeId], references: [id])
-  driver User           @relation("DriverToAssignments", fields: [driverId], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  driver       User           @relation("DriverToAssignments", fields: [driverId], references: [id])
+  route        TransportRoute @relation("RouteToAssignments", fields: [routeId], references: [id])
+  truck        Vehiculo       @relation("TruckToAssignments", fields: [truckId], references: [id])
 
   @@unique([truckId, routeId, date])
 }
@@ -292,14 +290,14 @@ model Aseo {
   area             String
   tasks            String[]       @default([])
   responsibleStaff String
-  createdById      Int
   timeSpent        Float
   issues           String[]       @default([])
   status           CleaningStatus
   observations     String?
-  createdBy        User           @relation(fields: [createdById], references: [id])
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  createdById      Int
+  createdBy        User           @relation(fields: [createdById], references: [id])
 
   @@index([createdById])
 }
@@ -320,11 +318,10 @@ model CivilWork {
   photos                    String[]        @default([])
   responsibleStaffUsernames String[]        @default([])
   materialsUsed             String[]        @default([])
-  // Auditoría
   createdById               Int
-  createdBy                 User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
+  createdBy                 User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([createdById])
 }

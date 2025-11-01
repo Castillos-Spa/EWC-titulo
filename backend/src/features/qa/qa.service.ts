@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateQADto } from './dto/create-qa.dto';
 import { PrismaService } from 'prisma/prisma.service';
-import { IQaService } from '@/features/taller/interfaces/qa.interface';
+import { IQaService } from '@/features/workshop/interfaces/qa.interface';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 @Injectable()
