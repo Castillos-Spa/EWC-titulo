@@ -1,6 +1,14 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, Reflector } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import {
+  ThrottlerGuard,
+  ThrottlerModule,
+  getOptionsToken,
+  getStorageToken,
+  ThrottlerModuleOptions,
+  ThrottlerStorage,
+} from '@nestjs/throttler';
 import { AuthModule } from '@/features/auth/auth.module';
 import { UsersModule } from '@/features/users/users.module';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
@@ -23,6 +31,12 @@ import { DashboardModule } from '@/features/dashboard/dashboard.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 100,
+      },
+    ]),
     AuthModule,
     UsersModule,
     WorkshopModule,
@@ -38,6 +52,14 @@ import { DashboardModule } from '@/features/dashboard/dashboard.module';
     CoreModule,
   ],
 
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useFactory: (options: ThrottlerModuleOptions, storage: ThrottlerStorage) =>
+        new ThrottlerGuard(options, storage, new Reflector()),
+      inject: [getOptionsToken(), getStorageToken()],
+    },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+  ],
 })
 export class AppModule {}
