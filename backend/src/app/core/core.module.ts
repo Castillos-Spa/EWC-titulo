@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { NotificacionModule } from '@/features/notificacion/notificacion.module';
+import { NotificationModule } from '@/features/notification/notification.module';
 import { PrismaModule } from 'prisma/prisma.module';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -10,12 +10,12 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     // Configura el ConfigModule para que sea global y cargue las variables .env
     EventEmitterModule.forRoot(),
     PrismaModule,
-    NotificacionModule,
+    NotificationModule,
   ],
   exports: [
     // Exportamos los módulos para que otros módulos puedan usar sus providers
     PrismaModule,
-    NotificacionModule,
+    NotificationModule,
   ],
 })
 export class CoreModule {}

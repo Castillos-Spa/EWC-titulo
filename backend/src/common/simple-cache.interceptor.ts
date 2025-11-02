@@ -16,7 +16,13 @@ export class SimpleCacheInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const ttl = this.reflector.get<number>(CACHE_TTL_KEY, context.getHandler()) ?? 0;
     const req = context.switchToHttp().getRequest();
-    const key = `cache:${req.method}:${req.originalUrl}`;
+
+    if (req.method !== 'GET' || ttl <= 0) {
+      return next.handle();
+    }
+
+    const userPart = req.user?.userId ? `:user:${req.user.userId}` : '';
+    const key = `cache:${req.method}:${req.originalUrl}${userPart}`;
 
     const cached = this.cacheService.get<any>(key);
     if (cached !== undefined) {
@@ -25,9 +31,7 @@ export class SimpleCacheInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap(result => {
-        if (ttl > 0) {
-          this.cacheService.set(key, result, ttl * 1000);
-        }
+        this.cacheService.set(key, result, ttl * 1000);
       }),
     );
   }

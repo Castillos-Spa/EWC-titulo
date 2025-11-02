@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
 
 let isRefreshing = false;
 type PendingRequest = {
@@ -91,12 +91,15 @@ async function apiFetch(path: string, options?: RequestInit) {
 
       if (!refreshRes.ok) throw new Error("Session expired");
 
-      const { access_token: newAccessToken, user: refreshedUser } = await refreshRes.json();
+      const { access_token: newAccessToken, user: refreshedUser } =
+        await refreshRes.json();
       if (!newAccessToken) throw new Error("Session expired");
       localStorage.setItem("authToken", newAccessToken);
       if (refreshedUser) {
         localStorage.setItem("userData", JSON.stringify(refreshedUser));
-        globalThis.dispatchEvent?.(new CustomEvent("session-refreshed", { detail: refreshedUser }));
+        globalThis.dispatchEvent?.(
+          new CustomEvent("session-refreshed", { detail: refreshedUser })
+        );
       }
       headers["Authorization"] = `Bearer ${newAccessToken}`;
       processQueue(null, newAccessToken); // Procesamos la cola de peticiones pendientes.

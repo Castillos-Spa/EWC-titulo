@@ -20,6 +20,7 @@ import { Role, Specialty } from '@prisma/client';
 import { SimpleCacheInterceptor } from 'src/common/simple-cache.interceptor';
 import { CacheTTL } from 'src/common/cache-ttl.decorator';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -49,7 +50,7 @@ export class UsersController {
     return { message: 'Por seguridad, la contraseña temporal solo se muestra al crear el usuario.' };
   }
   @Post()
-  async create(@Body() registerDto: RegisterDto) {
+  async create(@Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })) registerDto: RegisterDto) {
     return this.usersService.register(registerDto);
   }
 
@@ -80,8 +81,10 @@ export class UsersController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() data: Partial<RegisterDto>) {
-    // Implementa update en el service
+  async update(
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })) data: UpdateUserDto,
+  ) {
     return this.usersService.updateUser(Number(id), data);
   }
 

@@ -5,11 +5,9 @@ import type { User as AppUser } from '../../../types/User';
 import type { CreateTallerWorkOrderPayload } from '../../../utils/tallerApi';
 import {
   createTallerWorkOrder,
-  getTallerWorkOrders,
-  getVehiculosFromTaller,
+  getWorkshopOverview,
   updateWorkOrderStatus,
 } from '../../../utils/tallerApi';
-import { getUsers } from '../../../utils/userApi';
 
 export type MaintenanceStatus = OrdenTrabajo['estado'];
 export type MaintenanceType = CreateTallerWorkOrderPayload['tipo'];
@@ -23,7 +21,7 @@ export type MaintenanceCtx = {
   error: string | null;
   refresh: () => Promise<void>;
   createRecord: (payload: CreateTallerWorkOrderPayload) => Promise<OrdenTrabajo>;
-  updateStatus: (id: number, estado: MaintenanceStatus) => Promise<OrdenTrabajo>;
+  updateStatus: (id: number, status: MaintenanceStatus) => Promise<OrdenTrabajo>;
 };
 
 const MaintenanceContext = createContext<MaintenanceCtx | undefined>(undefined);
@@ -38,14 +36,16 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
-      const [recordsData, vehiclesData, usersData] = await Promise.all([
-        getTallerWorkOrders(),
-        getVehiculosFromTaller(),
-        getUsers(),
-      ]);
-      setRecords(recordsData);
-      setVehicles(vehiclesData);
-      setUsers(usersData);
+      const overview = await getWorkshopOverview({
+        include: ['workOrders', 'vehicles', 'users'],
+        workOrdersPageSize: 100,
+        vehiclesPageSize: 100,
+        usersPageSize: 100,
+      });
+
+      setRecords(overview.workOrders?.items ?? []);
+      setVehicles(overview.vehicles?.items ?? []);
+      setUsers(overview.users?.items ?? []);
       setError(null);
     } catch (err) {
       console.error(err);
@@ -65,8 +65,8 @@ export const MaintenanceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return created;
   }, []);
 
-  const updateStatus = useCallback(async (id: number, estado: MaintenanceStatus) => {
-    const updated = await updateWorkOrderStatus(id, estado);
+  const updateStatus = useCallback(async (id: number, status: MaintenanceStatus) => {
+    const updated = await updateWorkOrderStatus(id, status);
     setRecords(prev => prev.map(record => (record.id === id ? updated : record)));
     return updated;
   }, []);

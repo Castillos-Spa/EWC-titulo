@@ -5,15 +5,15 @@ import { User, Role, Permission, Prisma, Specialty, Area } from '@prisma/client'
 import { RegisterDto } from '@/features/auth/dtos/register.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
-import { NotificacionService } from '../notificacion/notificacion.service';
+import { NotificationService } from '../notification/notification.service';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { toPrismaPagination } from '@/common/utils/pagination.util';
 
 @Injectable()
 export class UsersService {
   constructor(
-    // Inyectar `forwardRef` para romper dependencias circulares si es necesario
-    // @Inject(forwardRef(() => NotificacionService))
-    private readonly notificationService: NotificacionService,
+    private readonly notificationService: NotificationService,
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
   ) {}
@@ -23,7 +23,16 @@ export class UsersService {
   } satisfies Prisma.UserInclude;
 
   private async findUser(where: Prisma.UserWhereUniqueInput) {
-    return this.prisma.user.findUnique({ where, include: { roleAssignments: true } });
+    return this.prisma.user.findUnique({ where, include: this.userInclude });
+  }
+
+  private sanitizeUser<T extends { password?: string }>(user: T | null) {
+    if (!user) {
+      return null;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...rest } = user;
+    return rest;
   }
 
   async findOne(username: string): Promise<Prisma.UserGetPayload<{ include: { roleAssignments: true } }> | null> {
@@ -94,10 +103,13 @@ export class UsersService {
     if (!userWithRoles) {
       throw new NotFoundException('No se pudo crear el usuario.');
     }
-    const { password: _, ...result } = userWithRoles;
+    const result = this.sanitizeUser(userWithRoles);
+    if (!result) {
+      throw new NotFoundException('No se pudo crear el usuario.');
+    }
 
     // Notificar a todos los usuarios del área 'Admin' sobre la creación del nuevo usuario.
-    let message = `El usuario ${result.username} fue creado exitosamente.`;
+    const message = `El usuario ${result.username} fue creado exitosamente.`;
     // La contraseña temporal solo se debe mostrar al admin que lo creó, no a todos.
     // El modal que aparece en el frontend después de crear ya cumple esta función.
 
@@ -116,24 +128,16 @@ export class UsersService {
     return { user: result, tempPassword };
   }
 
-  async updateUser(
-    id: number,
-    data: Partial<RegisterDto>,
-  ): Promise<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>> {
+  async updateUser(id: number, data: UpdateUserDto) {
     const { roleAssignments, ...userData } = data;
 
     return this.prisma.$transaction(async prisma => {
       const userExists = await prisma.user.findUnique({ where: { id } });
       if (!userExists) throw new NotFoundException('Usuario no encontrado');
 
-      const updateData: any = { ...userData };
-      if (userData.password) {
-        updateData.password = await bcrypt.hash(userData.password, 10);
-      }
-
       await prisma.user.update({
         where: { id },
-        data: updateData,
+        data: userData,
       });
 
       if (roleAssignments) {
@@ -156,13 +160,13 @@ export class UsersService {
       if (!finalUser) {
         throw new NotFoundException('No se pudo encontrar el usuario actualizado.');
       }
-      return finalUser;
+      return this.sanitizeUser(finalUser);
     });
   }
 
   async findAll(query: PaginationQueryDto & { specialty?: Specialty }) {
-    const { page = 1, pageSize = 10, specialty } = query;
-    const skip = (page - 1) * pageSize;
+    const { specialty } = query;
+    const { skip, take } = toPrismaPagination(query);
 
     const where: Prisma.UserWhereInput = {};
     if (specialty) {
@@ -176,7 +180,7 @@ export class UsersService {
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         skip,
-        take: pageSize,
+        take,
         where,
         orderBy: { id: 'desc' },
         select: {
@@ -208,14 +212,21 @@ export class UsersService {
       const rolesArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.role).filter(Boolean)));
       const areasArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.area).filter(Boolean)));
       const rolesByArea: Record<string, { role: string; specialty?: string | null; permissions: string[] }> = {};
-      (ra || []).forEach((r: any) => {
-        if (!r?.area) return;
+      for (const r of ra || []) {
+        if (!r?.area) continue;
+        let permissions: string[] = [];
+        if (Array.isArray((r as any).additionalPermissions)) {
+          permissions = (r as any).additionalPermissions as string[];
+        } else if (Array.isArray(r.permissions)) {
+          permissions = r.permissions as string[];
+        }
+
         rolesByArea[r.area] = {
           role: r.role,
           specialty: r.specialty ?? null,
-          permissions: Array.isArray(r.additionalPermissions) ? r.additionalPermissions : [],
+          permissions,
         };
-      });
+      }
 
       return {
         id: user.id,
@@ -231,6 +242,8 @@ export class UsersService {
       } as unknown as Omit<User, 'password'>;
     });
 
+    const page = Math.max(query.page ?? 1, 1);
+    const pageSize = Math.min(Math.max(query.pageSize ?? 10, 1), 100);
     const totalPages = Math.ceil(total / pageSize);
 
     return { items, total, page, pageSize, totalPages };

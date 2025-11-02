@@ -344,8 +344,15 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 
 	useEffect(() => {
 		if (!user?.id) return;
-		const wsBaseUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
-		const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(wsBaseUrl, {
+		const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000/api/v1';
+		let socketOrigin = rawApiUrl;
+		try {
+			const parsed = new URL(rawApiUrl);
+			socketOrigin = `${parsed.protocol}//${parsed.host}`;
+		} catch {
+			socketOrigin = rawApiUrl.replace(/\/api\/v1.*$/, '').replace(/\/$/, '') || 'http://localhost:3000';
+		}
+		const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(socketOrigin, {
 			// permitir polling + upgrade a websocket
 			reconnection: true,
 			reconnectionAttempts: 5,
@@ -540,12 +547,12 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 
 	return (
 		<header className={`relative border-b border-slate-200/60 bg-gradient-to-r from-blue-100 via-white to-indigo-100 ${headerPadding} text-slate-800 shadow-lg dark:border-white/10 dark:from-blue-900 dark:via-slate-950 dark:to-slate-950 dark:text-white`}>
-			<div className="flex w-full flex-wrap items-center gap-6">
-				<div className="flex min-w-0 flex-col gap-2">
+			<div className="flex flex-wrap items-center w-full gap-6">
+				<div className="flex flex-col min-w-0 gap-2">
 					<span className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-600/70 drop-shadow-sm dark:text-blue-200/80">Operaciones EWC</span>
 					<div className="flex flex-wrap items-center gap-3">
 						<h1 className="text-2xl font-semibold leading-tight text-slate-900 drop-shadow-sm dark:text-white">{getTitle(title)}</h1>
-						<span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-white">
+						<span className="px-3 py-1 text-xs font-medium border rounded-full shadow-sm border-white/70 bg-white/80 text-slate-700 backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-white">
 							{areaBadgeLabel}
 						</span>
 					</div>
@@ -555,7 +562,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	<div className={`ml-auto flex items-center ${actionGap}`}>
 		{/* Search */}
 					<div className="relative hidden md:block" ref={searchRef}>
-						<Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-blue-200/80" />
+						<Search className="absolute w-4 h-4 -translate-y-1/2 pointer-events-none left-4 top-1/2 text-slate-500 dark:text-blue-200/80" />
 						<input
 							type="text"
 							placeholder="Buscar"
@@ -619,14 +626,14 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 						/>
 
 						{searchOpen && (
-							<div className="absolute left-0 right-0 z-40 mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
-								<div className="border-b px-4 py-2 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
+							<div className="absolute left-0 right-0 z-40 mt-3 overflow-hidden border shadow-2xl rounded-2xl border-slate-200 bg-white/95 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
+								<div className="px-4 py-2 text-sm font-medium border-b text-slate-700 dark:border-slate-800 dark:text-slate-200">
 									Resultados de búsqueda
 								</div>
 								{searchLoading ? (
 									<div className="p-4 text-sm text-slate-500 dark:text-blue-200/80">Buscando…</div>
 								) : (
-									<div className="max-h-96 overflow-y-auto">
+									<div className="overflow-y-auto max-h-96">
 										{(((user?.isAdmin ? searchResults.users.length : 0)
 											+ searchResults.tickets.length
 											+ searchResults.vehicles.length
@@ -655,7 +662,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 															}}
 															className={`flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-blue-50/70 dark:hover:bg-white/10 ${isActive ? 'bg-blue-50/70 dark:bg-white/10' : ''}`}
 													>
-														<div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/30 text-blue-600 shadow-inner dark:from-sky-500/30 dark:to-indigo-500/30 dark:text-blue-100">
+														<div className="flex items-center justify-center text-blue-600 rounded-full shadow-inner h-9 w-9 bg-gradient-to-br from-blue-500/20 to-purple-500/30 dark:from-sky-500/30 dark:to-indigo-500/30 dark:text-blue-100">
 															{u.title.charAt(0)}
 														</div>
 														<div>
@@ -693,7 +700,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 															<div className="text-sm font-medium text-slate-800 dark:text-white">{t.title}</div>
 															<div className="text-xs text-slate-500 dark:text-blue-200/80">{t.subtitle}</div>
 														</div>
-														<ChevronDown className="h-4 w-4 text-slate-400" />
+														<ChevronDown className="w-4 h-4 text-slate-400" />
 													</button>
 													);
 												})}
@@ -827,9 +834,9 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 						<button
 							type="button"
 							onClick={() => setShowNotifications(prev => !prev)}
-							className="relative inline-flex items-center rounded-full border border-slate-200 bg-white/80 p-2 text-slate-600 shadow-sm backdrop-blur hover:border-sky-300 hover:bg-sky-50 dark:border-white/10 dark:bg-white/10 dark:text-blue-100 dark:hover:bg-white/15"
+							className="relative inline-flex items-center p-2 border rounded-full shadow-sm border-slate-200 bg-white/80 text-slate-600 backdrop-blur hover:border-sky-300 hover:bg-sky-50 dark:border-white/10 dark:bg-white/10 dark:text-blue-100 dark:hover:bg-white/15"
 						>
-							<Bell className="h-5 w-5" />
+							<Bell className="w-5 h-5" />
 							{unreadCount > 0 && (
 								<span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-xs font-semibold text-white">
 									{unreadDisplay}
@@ -838,11 +845,11 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 						</button>
 
 						{showNotifications && (
-							<div className="absolute right-0 z-40 mt-3 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
-								<div className="border-b px-4 py-2 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
+							<div className="absolute right-0 z-40 mt-3 overflow-hidden border shadow-2xl w-80 rounded-2xl border-slate-200 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
+								<div className="px-4 py-2 text-sm font-medium border-b text-slate-700 dark:border-slate-800 dark:text-slate-200">
 									Notificaciones
 								</div>
-								<div className="max-h-80 overflow-y-auto">
+								<div className="overflow-y-auto max-h-80">
 									{notifications.length === 0 ? (
 										<div className="px-4 py-3 text-sm text-slate-500 dark:text-blue-200/80">Sin notificaciones</div>
 									) : (
@@ -862,11 +869,11 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 										))
 									)}
 								</div>
-								<div className="border-t p-2 text-right text-xs dark:border-slate-800">
+								<div className="p-2 text-xs text-right border-t dark:border-slate-800">
 									<button
 										type="button"
 										onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
-										className="rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 dark:text-blue-200 dark:hover:bg-white/10"
+										className="px-2 py-1 rounded-lg text-slate-600 hover:bg-slate-100 dark:text-blue-200 dark:hover:bg-white/10"
 									>
 										Marcar todo como leído
 									</button>
@@ -882,34 +889,34 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 							onClick={() => setShowProfileMenu(prev => !prev)}
 							className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-700 shadow-sm backdrop-blur hover:border-sky-300 hover:bg-sky-50 dark:border-white/10 dark:bg-white/10 dark:text-blue-100 dark:hover:border-white/20 dark:hover:bg-white/20"
 						>
-							<span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/30 text-blue-700 shadow-inner dark:from-blue-500/25 dark:to-indigo-500/20 dark:text-blue-100">
+							<span className="inline-flex items-center justify-center w-8 h-8 text-blue-700 rounded-full shadow-inner bg-gradient-to-br from-blue-500/20 to-indigo-500/30 dark:from-blue-500/25 dark:to-indigo-500/20 dark:text-blue-100">
 								{user?.username?.charAt(0) || 'U'}
 							</span>
 							<span className="hidden sm:inline">{user?.username}</span>
-							<ChevronDown className="h-4 w-4" />
+							<ChevronDown className="w-4 h-4" />
 						</button>
 
 						{showProfileMenu && (
-							<div className="absolute right-0 z-40 mt-3 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
+							<div className="absolute right-0 z-40 w-56 mt-3 overflow-hidden border shadow-2xl rounded-2xl border-slate-200 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/90">
 								<div className="py-1">
 									<button
 										type="button"
 										onClick={onProfileClick}
-										className="block w-full px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-blue-50/70 dark:text-slate-200 dark:hover:bg-white/10"
+										className="block w-full px-4 py-2 text-sm text-left transition-colors text-slate-700 hover:bg-blue-50/70 dark:text-slate-200 dark:hover:bg-white/10"
 									>
 										Mi Perfil
 									</button>
 									<button
 										type="button"
 										onClick={onSettingsClick}
-										className="block w-full px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-blue-50/70 dark:text-slate-200 dark:hover:bg-white/10"
+										className="block w-full px-4 py-2 text-sm text-left transition-colors text-slate-700 hover:bg-blue-50/70 dark:text-slate-200 dark:hover:bg-white/10"
 									>
 										Configuración
 									</button>
 									<button
 										type="button"
 										onClick={() => logout()}
-										className="block w-full px-4 py-2 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50/70 dark:text-rose-300 dark:hover:bg-rose-500/10"
+										className="block w-full px-4 py-2 text-sm text-left transition-colors text-rose-600 hover:bg-rose-50/70 dark:text-rose-300 dark:hover:bg-rose-500/10"
 									>
 										Cerrar sesión
 									</button>

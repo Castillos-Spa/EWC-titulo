@@ -9,6 +9,7 @@ import {
   invalidateCache,
   invalidateCacheByPrefix,
 } from "./requestCache";
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 export type UpdateCivilWorkPayload = Partial<Omit<CivilWork, "id">>;
 
@@ -60,6 +61,7 @@ export async function createCivilWork(
       invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${String(createdId)}`);
     }
   }
+  invalidateDashboardOverviewCache();
   return created;
 }
 
@@ -78,6 +80,7 @@ export async function updateCivilWork(
   });
   invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
   invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${id}`);
+  invalidateDashboardOverviewCache();
   return updated;
 }
 
@@ -89,6 +92,7 @@ export async function deleteCivilWork(id: number): Promise<CivilWork> {
   const deleted = await apiFetch(`/civil-work/${id}`, { method: "DELETE" });
   invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
   invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${id}`);
+  invalidateDashboardOverviewCache();
   return deleted;
 }
 
@@ -102,5 +106,6 @@ export const updateCivilWorkTasks = async (
   });
   invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
   invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${id}`);
+  invalidateDashboardOverviewCache();
   return updated;
 };

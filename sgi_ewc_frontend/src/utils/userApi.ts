@@ -6,6 +6,7 @@ import {
 } from "./requestCache";
 import type { User } from "../types/User";
 export type { User } from "../types/User";
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 type PaginatedUserResponse =
   | User[]
@@ -108,6 +109,7 @@ export async function createUser(
     body: JSON.stringify(data),
   });
   invalidateCache(USERS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return created;
 }
 
@@ -120,12 +122,14 @@ export async function updateUser(
     body: JSON.stringify(data),
   });
   invalidateCache(USERS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return updated;
 }
 
 export async function deleteUser(id: number): Promise<void> {
   await apiFetch(`/users/${id}`, { method: "DELETE" });
   invalidateCache(USERS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
 }
 
 // --- Utilidades administrativas ---
@@ -136,5 +140,6 @@ export async function regenerateTempPassword(
     method: "PUT",
   });
   invalidateCache(USERS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
   return result;
 }

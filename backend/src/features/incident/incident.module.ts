@@ -7,5 +7,6 @@ import { CommonModule } from '@/common/common.module';
   imports: [CommonModule],
   controllers: [IncidentController],
   providers: [IncidentService],
+  exports: [IncidentService],
 })
 export class IncidentModule {}

@@ -54,7 +54,7 @@ export async function getAssignments(
     ASSIGNMENTS_CACHE_KEY,
     async () => {
       const res = (await apiFetch(
-        "/rutas/assignments"
+        "/routes/assignments"
       )) as PaginatedResponse<AssignmentDTO>;
       return extractList(res);
     },
@@ -68,7 +68,7 @@ export async function getAssignments(
 export async function createAssignment(
   payload: CreateAssignmentPayload
 ): Promise<AssignmentDTO> {
-  const created = await apiFetch("/rutas/assignments", {
+  const created = await apiFetch("/routes/assignments", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -80,6 +80,6 @@ export async function createAssignment(
  * Elimina una asignación por su ID.
  */
 export async function deleteAssignment(id: number): Promise<void> {
-  await apiFetch(`/rutas/assignments/${id}`, { method: "DELETE" });
+  await apiFetch(`/routes/assignments/${id}`, { method: "DELETE" });
   invalidateCache(ASSIGNMENTS_CACHE_KEY);
 }

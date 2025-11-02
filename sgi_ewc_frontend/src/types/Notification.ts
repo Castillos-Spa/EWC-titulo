@@ -20,6 +20,21 @@ export type AppNotification = {
   read?: boolean;
 };
 
+export type RawNotification = {
+  id: number;
+  title: string;
+  message: string;
+  priority: NotificationPriority;
+  createdAt: string;
+  scheduledAt?: string | null;
+  pinned: boolean;
+  areas: string[];
+  roles: string[];
+  createdBy?: { username: string } | null;
+  readBy?: { userId: number; notificationId: number; read: boolean }[] | null;
+  type?: string | null;
+};
+
 export const PRIORITY_LABELS: Record<NotificationPriority, string> = {
   high: "Alta",
   normal: "Normal",

@@ -1,19 +1,28 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, Reflector } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import {
+  ThrottlerGuard,
+  ThrottlerModule,
+  getOptionsToken,
+  getStorageToken,
+  ThrottlerModuleOptions,
+  ThrottlerStorage,
+} from '@nestjs/throttler';
 import { AuthModule } from '@/features/auth/auth.module';
 import { UsersModule } from '@/features/users/users.module';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
-import { TallerModule } from '@/features/taller/taller.module';
+import { WorkshopModule } from '@/features/workshop/workshop.module';
 import { TicketModule } from '@/features/ticket/ticket.module';
-import { NotificacionModule } from '@/features/notificacion/notificacion.module';
+import { NotificationModule } from '@/features/notification/notification.module';
 import { FuelModule } from '@/features/fuel/fuel.module';
 import { IncidentModule } from '@/features/incident/incident.module';
-import { AseoModule } from '@/features/aseo/aseo.module';
+import { CleaningModule } from '@/features/cleaning/cleaning.module';
 import { CivilWorkModule } from '@/features/civil-work/civil-work.module';
-import { RutasModule } from '@/features/rutas/rutas.module';
-import { VehiculoModule } from '@/features/vehiculo/vehiculo.module';
+import { RoutesModule } from '@/features/routes/routes.module';
+import { VehicleModule } from '@/features/vehicle/vehicle.module';
 import { CoreModule } from './core/core.module';
+import { DashboardModule } from '@/features/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -22,20 +31,35 @@ import { CoreModule } from './core/core.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 100,
+      },
+    ]),
     AuthModule,
     UsersModule,
-    TallerModule,
+    WorkshopModule,
     TicketModule,
-    NotificacionModule,
+    NotificationModule,
     FuelModule,
     IncidentModule,
-    AseoModule,
+    CleaningModule,
     CivilWorkModule,
-    RutasModule,
-    VehiculoModule,
+    RoutesModule,
+    VehicleModule,
+    DashboardModule,
     CoreModule,
   ],
 
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useFactory: (options: ThrottlerModuleOptions, storage: ThrottlerStorage) =>
+        new ThrottlerGuard(options, storage, new Reflector()),
+      inject: [getOptionsToken(), getStorageToken()],
+    },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+  ],
 })
 export class AppModule {}

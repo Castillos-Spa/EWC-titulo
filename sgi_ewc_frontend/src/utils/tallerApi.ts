@@ -1,11 +1,14 @@
 import type { OrdenTrabajo } from "../types/OrdenTrabajo";
 import type { Vehiculo } from "../types/Vehiculo";
+import type { User as AppUser } from "../types/User";
 import apiFetch from "./api";
 import {
   fetchWithCache,
   invalidateCache,
   invalidateCacheByPrefix,
 } from "./requestCache";
+import type { FetchWithCacheOptions } from "./requestCache";
+import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 type PaginatedResponse<T> =
   | T[]
@@ -30,13 +33,94 @@ const extractList = <T>(
   return [];
 };
 
-const WORK_ORDERS_CACHE_KEY = "taller:work-orders";
-const VEHICLES_CACHE_PREFIX = "taller:vehicles";
-const DRIVERS_CACHE_KEY = "taller:drivers";
+const WORK_ORDERS_CACHE_KEY = "workshop:work-orders";
+const VEHICLES_CACHE_PREFIX = "vehicles:list";
+const DRIVERS_CACHE_KEY = "workshop:drivers";
+const WORKSHOP_OVERVIEW_CACHE_PREFIX = "workshop:overview";
+
+type Paginated<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages?: number;
+};
+
+export type WorkshopOverviewResponse = {
+  workOrders?: Paginated<OrdenTrabajo>;
+  vehicles?: Paginated<Vehiculo>;
+  users?: Paginated<AppUser>;
+  mechanics?: Paginated<AppUser>;
+};
+
+type WorkshopOverviewParams = {
+  include?: Array<"workOrders" | "vehicles" | "users" | "mechanics">;
+  workOrdersPage?: number;
+  workOrdersPageSize?: number;
+  vehiclesPage?: number;
+  vehiclesPageSize?: number;
+  usersPage?: number;
+  usersPageSize?: number;
+  mechanicsPageSize?: number;
+};
+
+export async function getWorkshopOverview(
+  params: WorkshopOverviewParams = {},
+  options: FetchWithCacheOptions = {}
+): Promise<WorkshopOverviewResponse> {
+  const normalizedInclude = params.include
+    ? Array.from(new Set(params.include)).sort((a, b) => a.localeCompare(b))
+    : undefined;
+
+  const normalizedParams: WorkshopOverviewParams = {
+    ...params,
+    include: normalizedInclude,
+  };
+
+  const cacheKey = `${WORKSHOP_OVERVIEW_CACHE_PREFIX}:${JSON.stringify(
+    normalizedParams
+  )}`;
+
+  return fetchWithCache(
+    cacheKey,
+    async () => {
+      const search = new URLSearchParams();
+      if (normalizedInclude && normalizedInclude.length > 0) {
+        search.set("include", normalizedInclude.join(","));
+      }
+
+      const numericKeys: Array<keyof WorkshopOverviewParams> = [
+        "workOrdersPage",
+        "workOrdersPageSize",
+        "vehiclesPage",
+        "vehiclesPageSize",
+        "usersPage",
+        "usersPageSize",
+        "mechanicsPageSize",
+      ];
+
+      for (const key of numericKeys) {
+        const value = params[key];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          search.set(String(key), String(value));
+        }
+      }
+
+      const query = search.toString();
+      const url = query ? `/workshop/overview?${query}` : "/workshop/overview";
+      return apiFetch(url) as Promise<WorkshopOverviewResponse>;
+    },
+    options
+  );
+}
+
+export function invalidateWorkshopOverviewCache(): void {
+  invalidateCacheByPrefix(WORKSHOP_OVERVIEW_CACHE_PREFIX);
+}
 
 /**
  * Payload para crear una nueva orden de trabajo desde el taller.
- * Debes ajustar los campos según la definición de `CreateOrdenTrabajoTallerDto` en tu backend.
+ * Debes ajustar los campos según la definición de `CreateWorkOrderDto` en tu backend.
  */
 export type CreateTallerWorkOrderPayload = {
   vehiculoId: number;
@@ -70,22 +154,24 @@ export type CreateVehiculoPayload = {
 
 /**
  * Crea una nueva orden de trabajo desde el taller.
- * Asume un endpoint POST /taller/orden-trabajo
+ * Asume un endpoint POST /workshop/work-orders
  */
 export async function createTallerWorkOrder(
   payload: CreateTallerWorkOrderPayload
 ): Promise<OrdenTrabajo> {
-  const created = await apiFetch("/taller/orden-trabajo", {
+  const created = await apiFetch("/workshop/work-orders", {
     method: "POST",
     body: JSON.stringify(payload),
   });
   invalidateCache(WORK_ORDERS_CACHE_KEY);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return created;
 }
 
 /**
  * Obtiene todas las órdenes de trabajo del taller.
- * Asume un endpoint GET /taller/orden-trabajo
+ * Asume un endpoint GET /workshop/work-orders
  */
 export async function getTallerWorkOrders(
   forceRefresh = false
@@ -94,7 +180,7 @@ export async function getTallerWorkOrders(
     WORK_ORDERS_CACHE_KEY,
     async () => {
       const response = (await apiFetch(
-        "/taller/orden-trabajo"
+        "/workshop/work-orders"
       )) as PaginatedResponse<OrdenTrabajo>;
       return extractList(response);
     },
@@ -104,7 +190,7 @@ export async function getTallerWorkOrders(
 
 /**
  * Obtiene la lista completa de vehículos desde el módulo de taller.
- * Asume un endpoint GET /taller/vehiculos
+ * Asume un endpoint GET /vehicles
  */
 export async function getVehiculos(
   filters?: {
@@ -121,7 +207,7 @@ export async function getVehiculos(
     params.append("estado", filters.estado);
   }
   const query = params.toString();
-  const url = query ? `/vehiculos?${query}` : "/vehiculos";
+  const url = query ? `/vehicles?${query}` : "/vehicles";
   const cacheKey = `${VEHICLES_CACHE_PREFIX}:${JSON.stringify({
     tipo: filters?.tipo ?? null,
     estado: filters?.estado ?? null,
@@ -138,57 +224,63 @@ export async function getVehiculos(
 
 /**
  * Obtiene un vehículo específico por su patente desde el módulo de taller.
- * Asume un endpoint GET /taller/vehiculos/:patente
+ * Asume un endpoint GET /vehicles/:id
  */
 export async function getVehiculoById(id: number): Promise<Vehiculo> {
-  return apiFetch(`/vehiculos/${id}`);
+  return apiFetch(`/vehicles/${id}`);
 }
 
 /**
  * Crea un nuevo vehículo desde el módulo de taller.
- * Asume un endpoint POST /taller/vehiculos
+ * Asume un endpoint POST /vehicles
  */
 export async function createVehiculo(
   payload: CreateVehiculoPayload
 ): Promise<Vehiculo> {
-  const created = await apiFetch("/vehiculos", {
+  const created = await apiFetch("/vehicles", {
     method: "POST",
     body: JSON.stringify(payload),
   });
   invalidateCacheByPrefix(VEHICLES_CACHE_PREFIX);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return created;
 }
 
 /**
  * Cierra una orden de trabajo desde el taller y crea el registro de QA.
- * Asume un endpoint PATCH /taller/orden-trabajo/:id/cerrar
+ * Asume un endpoint PATCH /workshop/work-orders/:id/close
  */
 export async function closeTallerWorkOrder(
   otId: number,
-  payload: { checklist: string; resultado: string }
+  payload: { checklist: string; result: string }
 ): Promise<unknown> {
   // El tipo de retorno depende de lo que devuelva `qaService.create`
-  const result = await apiFetch(`/taller/orden-trabajo/${otId}/cerrar`, {
+  const result = await apiFetch(`/workshop/work-orders/${otId}/close`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
   invalidateCache(WORK_ORDERS_CACHE_KEY);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return result;
 }
 
 /**
  * Actualiza un vehículo existente desde el módulo de taller.
- * Asume un endpoint PATCH /taller/vehiculos/:id
+ * Asume un endpoint PATCH /vehicles/:id
  */
 export async function updateVehiculo(
   id: number,
   payload: Partial<CreateVehiculoPayload>
 ): Promise<Vehiculo> {
-  const updated = await apiFetch(`/vehiculos/${id}`, {
+  const updated = await apiFetch(`/vehicles/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
   invalidateCacheByPrefix(VEHICLES_CACHE_PREFIX);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return updated;
 }
 
@@ -200,17 +292,19 @@ export const updateVehiculoFromTaller = updateVehiculo; // deprecated
 
 /**
  * Actualiza el estado de una orden de trabajo.
- * Asume un endpoint PATCH /taller/orden-trabajo/:id/status
+ * Asume un endpoint PATCH /workshop/work-orders/:id/status
  */
 export async function updateWorkOrderStatus(
   id: number,
-  estado: string
+  status: string
 ): Promise<OrdenTrabajo> {
-  const updated = await apiFetch(`/taller/orden-trabajo/${id}/status`, {
+  const updated = await apiFetch(`/workshop/work-orders/${id}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ estado }),
+    body: JSON.stringify({ status }),
   });
   invalidateCache(WORK_ORDERS_CACHE_KEY);
+  invalidateWorkshopOverviewCache();
+  invalidateDashboardOverviewCache();
   return updated;
 }
 
