@@ -377,7 +377,8 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 
 		// Escuchar notificaciones
 		socket.on('notifications:init', (list) => {
-			const mapped = (list ?? []).map(mapWireNotification);
+			const safeList = Array.isArray(list) ? list : [];
+			const mapped = safeList.map(mapWireNotification);
 			setNotifications(prev => mergeNotifications(mapped, prev));
 		});
 

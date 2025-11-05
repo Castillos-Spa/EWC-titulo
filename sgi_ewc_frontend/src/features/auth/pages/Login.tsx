@@ -102,30 +102,31 @@ const Login: React.FC = () => {
 
   return (
     <div className={styles.root}>
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className={`absolute -left-1/4 top-[-10%] h-[60vh] w-[60vh] rounded-full ${styles.haloTop}`} />
         <div className={`absolute bottom-[-15%] right-[-10%] h-[65vh] w-[65vh] rounded-full ${styles.haloBottom}`} />
         <div className={`absolute inset-0 ${styles.overlay}`} />
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col">
+      <div className="relative z-10 flex flex-col flex-1">
         <div className="flex items-center justify-end gap-3 px-6 py-6">
           <button
             type="button"
             onClick={() => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))}
             className={styles.toggleButton}
             aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            data-cy="theme-toggle"
           >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             <span className="hidden sm:inline">{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col lg:flex-row">
+        <div className="flex flex-col flex-1 lg:flex-row">
           <section className="flex min-h-[280px] flex-1 items-center justify-center px-8 py-12">
             <div className="max-w-xl space-y-6 text-center lg:text-left">
               <span className={styles.heroBadge}>
-                <ShieldCheck className="h-4 w-4" /> Seguridad corporativa
+                <ShieldCheck className="w-4 h-4" /> Seguridad corporativa
               </span>
               <h1 className="text-3xl font-semibold leading-tight sm:text-4xl">
                 Plataforma Integral de Gestión Operacional
@@ -135,23 +136,23 @@ const Login: React.FC = () => {
               </p>
               <div className="flex flex-wrap items-center justify-center gap-4 lg:justify-start">
                 <div className={styles.heroChip}>
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-400" /> Disponibilidad 99.9%
+                  <span className="flex w-2 h-2 rounded-full bg-emerald-400" /> Disponibilidad 99.9%
                 </div>
                 <div className={styles.heroChip}>
-                  <span className="flex h-2 w-2 rounded-full bg-sky-400" /> Monitoreo 24/7
+                  <span className="flex w-2 h-2 rounded-full bg-sky-400" /> Monitoreo 24/7
                 </div>
                 <div className={styles.heroChip}>
-                  <span className="flex h-2 w-2 rounded-full bg-violet-400" /> Acceso seguro
+                  <span className="flex w-2 h-2 rounded-full bg-violet-400" /> Acceso seguro
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="flex w-full max-w-xl flex-1 items-center justify-center px-6 py-10 lg:px-12 lg:py-16">
+          <section className="flex items-center justify-center flex-1 w-full max-w-xl px-6 py-10 lg:px-12 lg:py-16">
             <div className={styles.card}>
               <div className="space-y-3 text-center lg:text-left">
                 <div className={styles.cardIcon}>
-                  <Lock className="h-6 w-6" />
+                  <Lock className="w-6 h-6" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-semibold">Inicia sesión</h2>
@@ -159,7 +160,7 @@ const Login: React.FC = () => {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6" data-cy="login-form">
                 <div className="space-y-2">
                   <label htmlFor="email" className={styles.label}>
                     Correo electrónico
@@ -175,6 +176,7 @@ const Login: React.FC = () => {
                       className={styles.input}
                       placeholder="nombre@empresa.com"
                       autoComplete="username"
+                      data-cy="login-email"
                     />
                   </div>
                 </div>
@@ -194,13 +196,14 @@ const Login: React.FC = () => {
                       className={styles.input}
                       placeholder="••••••••"
                       autoComplete="current-password"
+                      data-cy="login-password"
                     />
                   </div>
                 </div>
 
                 {error && (
-                  <div className={styles.error}>
-                    <AlertCircle className="h-5 w-5" />
+                  <div className={styles.error} data-cy="login-error">
+                    <AlertCircle className="w-5 h-5" />
                     <span>{error}</span>
                   </div>
                 )}
@@ -209,6 +212,7 @@ const Login: React.FC = () => {
                   type="submit"
                   disabled={isLoading}
                   className={styles.submit}
+                  data-cy="login-submit"
                 >
                   {isLoading ? 'Validando...' : 'Acceder'}
                 </button>
@@ -217,12 +221,13 @@ const Login: React.FC = () => {
               <div className={styles.footer}>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className={styles.supportChip}>
-                    <Headset className="h-4 w-4" /> Soporte 24/7
+                    <Headset className="w-4 h-4" /> Soporte 24/7
                   </div>
                   <button
                     type="button"
                     onClick={() => navigate('/forgot-password')}
                     className={styles.supportLink}
+                    data-cy="forgot-password-link"
                   >
                     ¿Olvidaste tu contraseña?
                   </button>

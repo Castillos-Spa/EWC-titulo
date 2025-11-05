@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.node.json",
+  "compilerOptions": {
+    "types": ["cypress"],
+    "isolatedModules": false,
+    "noEmit": true
+  },
+  "include": ["../vite.config.ts", "./**/*.ts", "./**/*.tsx"]
+}
