@@ -30,10 +30,15 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showDemoHelp, setShowDemoHelp] = useState(false);
   const [uiDensity, setUiDensity] = useState<UiDensity>(() => {
     const stored = localStorage.getItem('uiDensity');
     return stored === 'compact' ? 'compact' : 'comfortable';
   });
+  const DEMO_ACTIVE = useMemo(() => {
+    const byEnv = String(import.meta.env.VITE_DEMO_MODE || 'false').toLowerCase() === 'true';
+    try { return byEnv || globalThis?.localStorage?.getItem('demoMode') === 'true'; } catch { return byEnv; }
+  }, []);
 
   // Tema ahora se aplica vía PreferencesInitializer.
 
@@ -152,6 +157,55 @@ export default function MainLayout() {
             setShowChangePassword(false);
           }}
         />
+      )}
+
+      {DEMO_ACTIVE && (
+        <>
+          {/* Badge flotante de modo demo */}
+          <div className="fixed z-40 flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-900 border rounded-full shadow-sm bottom-4 left-4 border-amber-300/50 bg-amber-100/90 backdrop-blur">
+            <span className="inline-flex w-2 h-2 rounded-full bg-amber-500" />
+            <span>Modo demo activo</span>
+            <button
+              type="button"
+              onClick={() => setShowDemoHelp(true)}
+              className="px-2 py-0.5 text-xs border rounded-full border-amber-300/70 hover:bg-amber-200"
+            >Ver ayuda</button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  localStorage.removeItem('demoMode');
+                  localStorage.removeItem('autoStartTour');
+                } catch {}
+                await logout();
+              }}
+              className="px-2 py-0.5 text-xs border rounded-full border-amber-300/70 hover:bg-amber-200"
+            >Salir del demo</button>
+          </div>
+
+          {/* Modal de ayuda */}
+          {showDemoHelp && (
+            <dialog open className="fixed inset-0 z-50 m-0 p-0 bg-transparent" aria-label="Ayuda del modo demo">
+              <button className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDemoHelp(false)} aria-label="Cerrar" />
+              <div className="absolute max-w-lg p-5 text-slate-800 border rounded-2xl shadow-2xl -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 bg-white dark:bg-slate-900 dark:text-white dark:border-white/10">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-blue-200/80">Modo demo</div>
+                <h3 className="mb-1 text-lg font-semibold">Recorrido rápido</h3>
+                <p className="mb-3 text-sm text-slate-600 dark:text-blue-200/80">
+                  Estás explorando una versión demostrativa. Puedes navegar por los módulos, simular creaciones y cambios, pero no se guardan en un servidor real.
+                </p>
+                <ul className="mb-4 text-sm list-disc list-inside text-slate-600 dark:text-blue-200/80">
+                  <li>El login acepta cualquier contraseña con un correo válido.</li>
+                  <li>Algunas acciones de crear/editar muestran resultado simulado.</li>
+                  <li>Puedes iniciar un tour guiado para conocer los módulos.</li>
+                </ul>
+                <div className="flex items-center justify-end gap-2">
+                  <button type="button" onClick={() => setShowDemoHelp(false)} className="px-3 py-1.5 text-xs border rounded-full text-slate-700 hover:bg-slate-100 dark:text-white dark:border-white/10 dark:hover:bg-white/10">Cerrar</button>
+                  <button type="button" onClick={() => { setShowDemoHelp(false); globalThis.dispatchEvent?.(new Event('demo:startTour')); }} className="px-3 py-1.5 text-xs font-semibold text-white rounded-full bg-sky-600 hover:bg-sky-500">Iniciar tour</button>
+                </div>
+              </div>
+            </dialog>
+          )}
+        </>
       )}
     </div>
   );

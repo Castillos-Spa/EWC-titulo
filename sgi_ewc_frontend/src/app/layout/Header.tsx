@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Bell, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
+import { createPortal } from 'react-dom';
 import { listNotifications, markNotificationAsRead } from '../../utils/notificationApi';
 import { getUsers } from '../../utils/userApi';
 import { getTickets } from '../../utils/ticketApi';
@@ -26,6 +27,10 @@ interface Notification {
 }
 
 type UiDensity = 'comfortable' | 'compact';
+const DEMO_MODE = (() => {
+	const byEnv = String(import.meta.env.VITE_DEMO_MODE || 'false').toLowerCase() === 'true';
+	try { return byEnv || globalThis?.localStorage?.getItem('demoMode') === 'true'; } catch { return byEnv; }
+})();
 
 interface HeaderProps {
 	title: string;
@@ -147,6 +152,37 @@ const buildFlatResults = (
 const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick, uiDensity }) => {
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
+	// Tour demo (solo visible si VITE_DEMO_MODE=true)
+	const [tourActive, setTourActive] = useState(false);
+	const [tourIndex, setTourIndex] = useState(0);
+	const tourSteps = useMemo(() => ([
+		{ path: '/', title: 'Dashboard', description: 'Resumen principal con KPIs y accesos rápidos.' },
+		{ path: '/rutas', title: 'Rutas', description: 'Gestiona rutas y asignaciones de camiones y conductores.' },
+		{ path: '/flota', title: 'Flota', description: 'Registro de vehículos, estado y datos técnicos.' },
+		{ path: '/combustible', title: 'Combustible', description: 'Carga y análisis de consumo por vehículo.' },
+		{ path: '/mantenimiento', title: 'Mantenimiento', description: 'Órdenes de trabajo, estados y cierres con QA.' },
+		{ path: '/notificaciones', title: 'Notificaciones', description: 'Comunica novedades a roles/áreas o globalmente.' },
+		{ path: '/tickets', title: 'Tickets', description: 'Mesa de ayuda con prioridades y aprobaciones.' },
+		{ path: '/ajustes', title: 'Configuración', description: 'Preferencias personales y opciones avanzadas.' },
+	]), []);
+
+	useEffect(() => {
+		// Escuchar solicitud global para iniciar tour desde otros componentes (p. ej., modal de ayuda demo)
+		const onStartTour = () => startTour();
+		globalThis.addEventListener?.('demo:startTour', onStartTour as EventListener);
+		return () => globalThis.removeEventListener?.('demo:startTour', onStartTour as EventListener);
+	}, []);
+
+	useEffect(() => {
+		if (tourActive) {
+			navigate(tourSteps[tourIndex].path);
+		}
+	}, [tourActive, tourIndex, tourSteps, navigate]);
+
+		const startTour = () => { setTourIndex(0); setTourActive(true); };
+	const stopTour = () => setTourActive(false);
+	const nextStep = () => setTourIndex(i => Math.min(i + 1, tourSteps.length - 1));
+	const prevStep = () => setTourIndex(i => Math.max(i - 1, 0));
 	const { formatTime } = useIntlFormat();
 	const mapAppNotification = useMemo(() => makeMapAppNotification(formatTime), [formatTime]);
 	const mapWireNotification = useMemo(() => makeMapWireNotification(formatTime), [formatTime]);
@@ -185,6 +221,16 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	const searchPadding = density === 'compact' ? 'py-1.5' : 'py-2';
 
 	useEffect(() => {
+			// Autoiniciar tour si viene de login demo; esperar un tick para montar UI
+			if (DEMO_MODE) {
+				try {
+					const auto = globalThis.localStorage?.getItem('autoStartTour') === 'true';
+					if (auto) {
+						globalThis.localStorage?.removeItem('autoStartTour');
+						setTimeout(() => startTour(), 120);
+					}
+				} catch {}
+			}
 		if (!user?.id) return;
 		let cancelled = false;
 
@@ -345,7 +391,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	useEffect(() => {
 		if (!user?.id) return;
 		const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000/api/v1';
-		let socketOrigin = rawApiUrl;
+		let socketOrigin: string;
 		try {
 			const parsed = new URL(rawApiUrl);
 			socketOrigin = `${parsed.protocol}//${parsed.host}`;
@@ -547,6 +593,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	};
 
 	return (
+		<>
 		<header className={`relative border-b border-slate-200/60 bg-gradient-to-r from-blue-100 via-white to-indigo-100 ${headerPadding} text-slate-800 shadow-lg dark:border-white/10 dark:from-blue-900 dark:via-slate-950 dark:to-slate-950 dark:text-white`}>
 			<div className="flex flex-wrap items-center w-full gap-6">
 				<div className="flex flex-col min-w-0 gap-2">
@@ -561,6 +608,15 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 				</div>
 
 	<div className={`ml-auto flex items-center ${actionGap}`}>
+					{DEMO_MODE && (
+						<button
+							type="button"
+							onClick={startTour}
+							className="hidden md:inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm hover:bg-amber-200"
+						>
+							Iniciar tour
+						</button>
+					)}
 		{/* Search */}
 					<div className="relative hidden md:block" ref={searchRef}>
 						<Search className="absolute w-4 h-4 -translate-y-1/2 pointer-events-none left-4 top-1/2 text-slate-500 dark:text-blue-200/80" />
@@ -928,6 +984,32 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 				</div>
 			</div>
 		</header>
+		{tourActive && createPortal(
+			<dialog open className="fixed inset-0 z-[100] m-0 p-0 bg-transparent" aria-label="Tour guiado">
+				<button
+					className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+					aria-label="Cerrar tour"
+					onClick={stopTour}
+				/>
+				<div className="absolute bottom-6 left-1/2 z-[101] w-[92vw] max-w-xl -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-5 text-slate-800 shadow-2xl dark:border-white/10 dark:bg-slate-900 dark:text-white">
+					<div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-blue-200/80">Tour guiado</div>
+					<div className="mb-1 text-lg font-semibold">{tourSteps[tourIndex].title}</div>
+					<p className="mb-4 text-sm text-slate-600 dark:text-blue-200/80">{tourSteps[tourIndex].description}</p>
+					<div className="flex items-center justify-between">
+						<span className="text-xs text-slate-500 dark:text-blue-200/70">Paso {tourIndex + 1} de {tourSteps.length}</span>
+						<div className="flex items-center gap-2">
+							<button type="button" onClick={stopTour} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:text-white dark:hover:bg-white/10">Salir</button>
+							<button type="button" onClick={prevStep} disabled={tourIndex === 0} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50 hover:bg-slate-100 dark:border-white/10 dark:text-white dark:hover:bg-white/10">Anterior</button>
+							<button type="button" onClick={tourIndex === tourSteps.length - 1 ? stopTour : nextStep} className="rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500">
+								{tourIndex === tourSteps.length - 1 ? 'Finalizar' : 'Siguiente'}
+							</button>
+						</div>
+					</div>
+				</div>
+			</dialog>,
+			document.body
+		)}
+		</>
 	);
 };
 
