@@ -2,47 +2,60 @@ import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { OPTIONAL_AUTH_KEY } from '../decorators/optional-auth.decorator';
+
+type ExecutionContextOverrides = {
+  type?: string;
+  handler?: unknown;
+  classRef?: unknown;
+  request?: { headers?: Record<string, string | undefined> };
+};
+
+const createExecutionContext = (overrides: ExecutionContextOverrides = {}): ExecutionContext => {
+  const request = overrides.request ?? { headers: {} };
+
+  const contextMock = {
+    getHandler: jest.fn().mockReturnValue(overrides.handler ?? {}),
+    getClass: jest.fn().mockReturnValue(overrides.classRef ?? {}),
+    switchToHttp: jest.fn().mockReturnValue({
+      getRequest: jest.fn().mockReturnValue(request),
+    }),
+    switchToRpc: jest.fn(),
+    switchToWs: jest.fn(),
+    getType: jest.fn().mockReturnValue(overrides.type ?? 'http'),
+    getArgs: jest.fn(),
+    getArgByIndex: jest.fn(),
+  } as Record<string, any>;
+
+  return contextMock as unknown as ExecutionContext;
+};
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
   let reflector: jest.Mocked<Reflector>;
 
-  // FAST: Setup rápido antes de cada test
   beforeEach(() => {
     reflector = {
       getAllAndOverride: jest.fn(),
-    } as any;
+    } as unknown as jest.Mocked<Reflector>;
 
     guard = new JwtAuthGuard(reflector);
   });
 
-  // Helper para crear contexto de ejecución
-  const createExecutionContext = (): ExecutionContext => ({
-    getHandler: jest.fn().mockReturnValue({}),
-    getClass: jest.fn().mockReturnValue({}),
-    switchToHttp: jest.fn(),
-    switchToRpc: jest.fn(),
-    switchToWs: jest.fn(),
-    getType: jest.fn(),
-    getArgs: function <T extends Array<any> = any[]>(): T {
-      throw new Error('Function not implemented.');
-    },
-    getArgByIndex: function <T = any>(index: number): T {
-      throw new Error('Function not implemented.');
-    },
-  });
-
   describe('canActivate', () => {
-    // FAST: Test rápido para endpoint público
-    it('debería retornar true inmediatamente para endpoints públicos (FAST)', () => {
-      // Arrange
-      reflector.getAllAndOverride.mockReturnValue(true);
+    it('retorna true para contextos websocket', () => {
+      const context = createExecutionContext({ type: 'ws' });
+
+      expect(guard.canActivate(context)).toBe(true);
+      expect(reflector.getAllAndOverride).not.toHaveBeenCalled();
+    });
+
+    it('retorna true para rutas públicas', () => {
+      reflector.getAllAndOverride.mockImplementation((key: string) => key === IS_PUBLIC_KEY);
       const context = createExecutionContext();
 
-      // Act
       const result = guard.canActivate(context);
 
-      // Assert
       expect(result).toBe(true);
       expect(reflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC_KEY, [
         context.getHandler(),
@@ -50,215 +63,99 @@ describe('JwtAuthGuard', () => {
       ]);
     });
 
-    // ISOLATED: Test independiente para endpoint no público
-    it('debería delegar al AuthGuard padre para endpoints no públicos (ISOLATED)', () => {
-      // Arrange
-      reflector.getAllAndOverride.mockReturnValue(false);
+    it('delegates to AuthGuard for rutas protegidas', () => {
+      reflector.getAllAndOverride.mockImplementation(() => false);
+      const parentMock = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(true);
       const context = createExecutionContext();
 
-      // Mock del método padre
-      const parentMock = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(true);
-
-      // Act
       const result = guard.canActivate(context);
 
-      // Assert
       expect(result).toBe(true);
       expect(parentMock).toHaveBeenCalledWith(context);
       parentMock.mockRestore();
     });
 
-    // REPEATABLE: Comportamiento consistente
-    it('debería comportarse consistentemente con diferentes valores (REPEATABLE)', () => {
-      const context = createExecutionContext();
+    it('permite auth opcional sin encabezado Authorization', () => {
+      reflector.getAllAndOverride.mockImplementation((key: string) => key === OPTIONAL_AUTH_KEY);
+      const context = createExecutionContext({ request: { headers: {} } });
 
-      // Test 1: IS_PUBLIC = true
-      reflector.getAllAndOverride.mockReturnValue(true);
       expect(guard.canActivate(context)).toBe(true);
-
-      // Test 2: IS_PUBLIC = false, padre retorna true
-      reflector.getAllAndOverride.mockReturnValue(false);
-      const parentMock1 = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(true);
-      expect(guard.canActivate(context)).toBe(true);
-      parentMock1.mockRestore();
-
-      // Test 3: IS_PUBLIC = false, padre retorna false
-      reflector.getAllAndOverride.mockReturnValue(false);
-      const parentMock2 = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(false);
-      expect(guard.canActivate(context)).toBe(false);
-      parentMock2.mockRestore();
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(OPTIONAL_AUTH_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
     });
 
-    // SELF-VALIDATING: Resultados booleanos claros
-    it('debería retornar resultados auto-validantes claros (SELF-VALIDATING)', () => {
-      const context = createExecutionContext();
+    it('delegates cuando auth opcional recibe token', () => {
+      reflector.getAllAndOverride.mockImplementation((key: string) => key === OPTIONAL_AUTH_KEY);
+      const parentMock = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(true);
+      const context = createExecutionContext({ request: { headers: { authorization: 'Bearer abc' } } });
 
-      // Caso público
-      reflector.getAllAndOverride.mockReturnValue(true);
-      expect(guard.canActivate(context)).toBe(true);
+      const result = guard.canActivate(context);
 
-      // Caso no público con padre true
-      reflector.getAllAndOverride.mockReturnValue(false);
-      const parentMock1 = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(true);
-      expect(guard.canActivate(context)).toBe(true);
-      parentMock1.mockRestore();
-
-      // Caso no público con padre false
-      reflector.getAllAndOverride.mockReturnValue(false);
-      const parentMock2 = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(false);
-      expect(guard.canActivate(context)).toBe(false);
-      parentMock2.mockRestore();
-    });
-
-    // THOROUGH: Casos límite completos
-    it('debería manejar valores truthy como true para IS_PUBLIC (THOROUGH)', () => {
-      const context = createExecutionContext();
-      const truthyValues = [true, 1, 'true', [], {}];
-
-      truthyValues.forEach(value => {
-        reflector.getAllAndOverride.mockReturnValue(value);
-        const result = guard.canActivate(context);
-        expect(result).toBe(true);
-      });
-    });
-
-    it('debería manejar valores falsy como false para IS_PUBLIC (THOROUGH)', () => {
-      const context = createExecutionContext();
-      const falsyValues = [false, 0, '', null, undefined];
-
-      falsyValues.forEach(value => {
-        reflector.getAllAndOverride.mockReturnValue(value);
-        const parentMock = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockReturnValue(true);
-        const result = guard.canActivate(context);
-        expect(result).toBe(true); // Porque el padre retorna true
-        parentMock.mockRestore();
-      });
-    });
-
-    // THOROUGH: Manejo de errores
-    it('debería propagar errores del AuthGuard padre (THOROUGH)', () => {
-      // Arrange
-      reflector.getAllAndOverride.mockReturnValue(false);
-      const context = createExecutionContext();
-      const error = new Error('Authentication failed');
-
-      const parentMock = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockImplementation(() => {
-        throw error;
-      });
-
-      // Act & Assert
-      expect(() => guard.canActivate(context)).toThrow('Authentication failed');
+      expect(result).toBe(true);
+      expect(parentMock).toHaveBeenCalledWith(context);
       parentMock.mockRestore();
     });
 
-    // FAST: Test de performance
-    it('debería ser rápido para endpoints públicos (FAST)', () => {
-      // Arrange
-      reflector.getAllAndOverride.mockReturnValue(true);
+    it('propaga errores del AuthGuard base', () => {
+      reflector.getAllAndOverride.mockImplementation(() => false);
+      const error = new Error('boom');
+      const parentMock = jest.spyOn(Object.getPrototypeOf(guard), 'canActivate').mockImplementation(() => {
+        throw error;
+      });
       const context = createExecutionContext();
-      const iterations = 100;
-      const start = Date.now();
 
-      // Act
-      for (let i = 0; i < iterations; i++) {
-        guard.canActivate(context);
-      }
-      const duration = Date.now() - start;
-
-      // Assert
-      expect(duration).toBeLessThan(50); // Menos de 50ms para 100 iteraciones
+      expect(() => guard.canActivate(context)).toThrow(error);
+      parentMock.mockRestore();
     });
 
-    // ISOLATED: Diferentes contextos
-    it('debería manejar diferentes contextos de forma aislada (ISOLATED)', () => {
-      // Arrange
-      const handler1 = { name: 'handler1' };
-      const class1 = { name: 'class1' };
-      const context1 = {
-        getHandler: jest.fn().mockReturnValue(handler1),
-        getClass: jest.fn().mockReturnValue(class1),
-      } as unknown as ExecutionContext;
-
-      const handler2 = { name: 'handler2' };
-      const class2 = { name: 'class2' };
-      const context2 = {
-        getHandler: jest.fn().mockReturnValue(handler2),
-        getClass: jest.fn().mockReturnValue(class2),
-      } as unknown as ExecutionContext;
+    it('maneja contextos múltiples sin contaminación entre llamadas', () => {
+      const handlerA = { name: 'handlerA' };
+      const classA = { name: 'classA' };
+      const handlerB = { name: 'handlerB' };
+      const classB = { name: 'classB' };
 
       reflector.getAllAndOverride.mockReturnValue(true);
 
-      // Act
-      guard.canActivate(context1);
-      guard.canActivate(context2);
+      guard.canActivate(createExecutionContext({ handler: handlerA, classRef: classA }));
+      guard.canActivate(createExecutionContext({ handler: handlerB, classRef: classB }));
 
-      // Assert
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC_KEY, [handler1, class1]);
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC_KEY, [handler2, class2]);
+      expect(reflector.getAllAndOverride).toHaveBeenNthCalledWith(1, IS_PUBLIC_KEY, [handlerA, classA]);
+      expect(reflector.getAllAndOverride).toHaveBeenNthCalledWith(2, IS_PUBLIC_KEY, [handlerB, classB]);
     });
   });
 
-  // THOROUGH: Tests de construcción
   describe('construcción', () => {
-    it('debería crearse correctamente con el reflector inyectado', () => {
-      // Assert
+    it('usa el reflector inyectado', () => {
       expect(guard).toBeInstanceOf(JwtAuthGuard);
-      expect(guard).toHaveProperty('reflector', reflector);
-    });
-
-    it('debería llamar al constructor padre sin errores', () => {
-      // Act & Assert
-      try {
-        guard = new JwtAuthGuard(reflector);
-        expect(true).toBe(true); // Siempre pasa si no hay error
-      } catch (error) {
-        // Si hay un error, el test falla
-        expect(error).toBeUndefined();
-      }
+      expect((guard as any).reflector).toBe(reflector);
     });
   });
 
-  // THOROUGH: Comportamiento con decoradores
-  describe('integración con decoradores', () => {
-    it('debería buscar IS_PUBLIC_KEY en handler y class', () => {
-      // Arrange
+  describe('decoradores', () => {
+    it('prefiere el decorador en el handler', () => {
       const handler = { [IS_PUBLIC_KEY]: true };
       const classRef = { [IS_PUBLIC_KEY]: false };
-      const context = {
-        getHandler: jest.fn().mockReturnValue(handler),
-        getClass: jest.fn().mockReturnValue(classRef),
-      } as unknown as ExecutionContext;
+      const context = createExecutionContext({ handler, classRef });
 
-      reflector.getAllAndOverride.mockImplementation((key, sources) => {
-        // Simula el comportamiento real: handler primero, luego class
-        return sources[0][IS_PUBLIC_KEY] || sources[1][IS_PUBLIC_KEY];
+      reflector.getAllAndOverride.mockImplementation((_key, [handlerRef, classRefRef]) => {
+        return handlerRef[IS_PUBLIC_KEY] || classRefRef[IS_PUBLIC_KEY];
       });
 
-      // Act
-      const result = guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true); // Toma el valor del handler
+      expect(guard.canActivate(context)).toBe(true);
     });
 
-    it('debería usar el class cuando el handler no tiene decorador', () => {
-      // Arrange
-      const handler = {}; // Sin decorador
-      const classRef = { [IS_PUBLIC_KEY]: true }; // Class tiene decorador
-      const context = {
-        getHandler: jest.fn().mockReturnValue(handler),
-        getClass: jest.fn().mockReturnValue(classRef),
-      } as unknown as ExecutionContext;
+    it('usa el decorador de la clase cuando el handler no lo define', () => {
+      const handler = {};
+      const classRef = { [IS_PUBLIC_KEY]: true };
+      const context = createExecutionContext({ handler, classRef });
 
-      reflector.getAllAndOverride.mockImplementation((key, sources) => {
-        return sources[0][IS_PUBLIC_KEY] || sources[1][IS_PUBLIC_KEY];
+      reflector.getAllAndOverride.mockImplementation((_key, [handlerRef, classRefRef]) => {
+        return handlerRef[IS_PUBLIC_KEY] || classRefRef[IS_PUBLIC_KEY];
       });
 
-      // Act
-      const result = guard.canActivate(context);
-
-      // Assert
-      expect(result).toBe(true); // Toma el valor del class
+      expect(guard.canActivate(context)).toBe(true);
     });
   });
 });

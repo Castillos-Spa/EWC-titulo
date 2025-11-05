@@ -53,9 +53,9 @@ describe('RolesGuard', () => {
     // ISOLATED: Test independiente que no depende de otros
     it('debería retornar true cuando el usuario tiene al menos un rol requerido (ISOLATED)', () => {
       // Arrange
-  const requiredRoles = [Role.Admin, Role.Lector];
+      const requiredRoles = [Role.Admin, Role.Lector];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-      const user = { roles: [Role.Admin, Role.Driver] };
+      const user = { roles: [Role.Admin, Role.Trabajador] };
       const context = createExecutionContext(user);
 
       // Act
@@ -71,7 +71,7 @@ describe('RolesGuard', () => {
       // Arrange
       const requiredRoles = [Role.Admin];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-      const user = { roles: [Role.Driver] }; // Solo tiene Driver, no Admin
+      const user = { roles: [Role.Trabajador] }; // Solo tiene Trabajador, no Admin
       const context = createExecutionContext(user);
 
       // Act
@@ -158,7 +158,7 @@ describe('RolesGuard', () => {
       // Arrange
       const requiredRoles = [Role.Admin];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-  const user = { roles: [Role.Lector, Role.Admin, Role.Driver] };
+      const user = { roles: [Role.Lector, Role.Admin, Role.Trabajador] };
       const context = createExecutionContext(user);
 
       // Act
@@ -171,9 +171,9 @@ describe('RolesGuard', () => {
     // THOROUGH: Casos con múltiples roles requeridos
     it('debería retornar true cuando se requieren múltiples roles y el usuario tiene al menos uno', () => {
       // Arrange
-      const requiredRoles = [Role.Admin, Role.Driver];
+      const requiredRoles = [Role.Admin, Role.Trabajador];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-  const user = { roles: [Role.Lector, Role.Driver] }; // Tiene Driver
+      const user = { roles: [Role.Lector, Role.Trabajador] }; // Tiene Trabajador
       const context = createExecutionContext(user);
 
       // Act
@@ -185,9 +185,9 @@ describe('RolesGuard', () => {
 
     it('debería retornar false cuando se requieren múltiples roles y el usuario no tiene ninguno', () => {
       // Arrange
-      const requiredRoles = [Role.Admin, Role.IT];
+      const requiredRoles = [Role.Admin, Role.Especialista];
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-  const user = { roles: [Role.Lector, Role.Driver] }; // No tiene Admin ni IT
+      const user = { roles: [Role.Lector, Role.Trabajador] }; // No tiene Admin ni Especialista
       const context = createExecutionContext(user);
 
       // Act
@@ -202,7 +202,7 @@ describe('RolesGuard', () => {
       // Arrange
       const requiredRoles = Array(1000).fill(Role.Admin);
       mockReflector.getAllAndOverride.mockReturnValue(requiredRoles);
-  const user = { roles: [Role.Lector, Role.Admin] }; // Tiene Admin
+      const user = { roles: [Role.Lector, Role.Admin] }; // Tiene Admin
       const context = createExecutionContext(user);
 
       // Act
