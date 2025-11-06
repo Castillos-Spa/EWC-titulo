@@ -5,6 +5,7 @@ import Header from './Header';
 import ChangePasswordModal from '../../features/auth/components/ChangePasswordModal';
 import { changePassword as apiChangePassword } from '../../utils/userApi';
 import { useAuth } from '../../contexts/AuthContext';
+import apiFetch from '../../utils/api';
 
 type UiDensity = 'comfortable' | 'compact';
 
@@ -31,6 +32,7 @@ export default function MainLayout() {
   const { user, logout } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showDemoHelp, setShowDemoHelp] = useState(false);
+  const [resettingDemo, setResettingDemo] = useState(false);
   const [uiDensity, setUiDensity] = useState<UiDensity>(() => {
     const stored = localStorage.getItem('uiDensity');
     return stored === 'compact' ? 'compact' : 'comfortable';
@@ -170,6 +172,22 @@ export default function MainLayout() {
               onClick={() => setShowDemoHelp(true)}
               className="px-2 py-0.5 text-xs border rounded-full border-amber-300/70 hover:bg-amber-200"
             >Ver ayuda</button>
+            <button
+              type="button"
+              disabled={resettingDemo}
+              onClick={async () => {
+                try {
+                  setResettingDemo(true);
+                  await apiFetch('/demo/reset', { method: 'POST' });
+                  // Refrescar UI para reflejar datos semilla
+                  globalThis.location?.reload();
+                } catch (e) {
+                  console.warn('No se pudo restablecer el modo demo', e);
+                  setResettingDemo(false);
+                }
+              }}
+              className="px-2 py-0.5 text-xs border rounded-full border-amber-300/70 hover:bg-amber-200 disabled:opacity-60"
+            >{resettingDemo ? 'Restableciendo…' : 'Restablecer datos'}</button>
             <button
               type="button"
               onClick={async () => {
