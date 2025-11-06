@@ -55,13 +55,13 @@ const MaintenanceBoard: React.FC<MaintenanceBoardProps> = ({
   const userMap = useMemo(() => new Map(users.map(user => [user.id, user])), [users]);
 
   const getNextAction = (record: OrdenTrabajo) => {
-    if (record.estado === 'abierta') {
+    if ((record.estado as string) === 'abierta') {
       return { label: 'Iniciar intervención', status: 'en_progreso' as MaintenanceStatus };
     }
-    if (record.estado === 'en_progreso') {
+    if ((record.estado as string) === 'en_progreso') {
       return { label: 'Enviar a QA', status: 'pendiente_revision' as MaintenanceStatus };
     }
-    if (record.estado === 'pendiente_revision') {
+    if ((record.estado as string) === 'pendiente_revision') {
       return { label: 'Marcar completada', status: 'completado' as MaintenanceStatus };
     }
     return null;
@@ -100,7 +100,7 @@ const MaintenanceBoard: React.FC<MaintenanceBoardProps> = ({
       {records.map(record => {
         const vehicle = vehicleMap.get(record.vehiculoId);
         const mechanic = record.responsableId ? userMap.get(record.responsableId) : undefined;
-        const statusConfig = statusStyles[record.estado];
+  const statusConfig = statusStyles[record.estado] ?? statusStyles.abierta;
         const type = (record.tipo as MaintenanceType) || 'Preventivo';
         const typeBadge = typeStyles[type] ?? typeStyles.Preventivo;
         const nextAction = getNextAction(record);
@@ -163,7 +163,7 @@ const MaintenanceBoard: React.FC<MaintenanceBoardProps> = ({
                   <div>
                     <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">Repuestos utilizados</h4>
                     <div className="flex flex-wrap gap-2">
-                      {record.repuestos.length > 0 ? (
+                      {Array.isArray(record.repuestos) && record.repuestos.length > 0 ? (
                         Array.from(new Set(record.repuestos)).map(item => (
                           <span key={item} className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">
                             <Package className="h-3.5 w-3.5" />
