@@ -1,14 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { CreateQADto } from './dto/create-qa.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import { IQaService } from '@/features/workshop/interfaces/qa.interface';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class QaService implements IQaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
   async create(createQADto: CreateQADto) {
+    const tenantId = this.resolveTenantId();
     // Check if the work order (OT) exists
     const ordenTrabajo = await this.prisma.ordenTrabajo.findUnique({
       where: { id: createQADto.otId },
@@ -25,6 +30,7 @@ export class QaService implements IQaService {
         otId: createQADto.otId,
         checklist: createQADto.checklist,
         resultado: createQADto.resultado,
+        tenantId,
       },
     });
   }
@@ -67,5 +73,13 @@ export class QaService implements IQaService {
     return this.prisma.qA.delete({
       where: { id },
     });
+  }
+
+  private resolveTenantId(): number {
+    const tenantId = this.tenantContext.tenantId;
+    if (!tenantId) {
+      throw new UnauthorizedException('Tenant no especificado en la operación.');
+    }
+    return tenantId;
   }
 }

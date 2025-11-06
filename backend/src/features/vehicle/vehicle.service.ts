@@ -1,14 +1,18 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { PrismaService } from 'prisma/prisma.service';
 
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { Prisma, Vehiculo } from '@prisma/client';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class VehicleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
   private readonly vehicleInclude = {
     documentos: true,
@@ -24,6 +28,7 @@ export class VehicleService {
   } satisfies Prisma.VehiculoInclude;
 
   async create(createVehicleDto: CreateVehicleDto): Promise<Vehiculo> {
+    const tenantId = this.resolveTenantId();
     const { patente, tipo, ...restDto } = createVehicleDto;
     const normalizedPatente = patente.toUpperCase().trim();
     const normalizedTipo = tipo?.trim() || null;
@@ -41,6 +46,7 @@ export class VehicleService {
         ...restDto,
         tipo: normalizedTipo,
         patente: normalizedPatente,
+        tenantId,
       },
     });
   }
@@ -119,13 +125,23 @@ export class VehicleService {
   }
 
   async registerDocument(vehiculoId: number, tipo: string, url: string, descripcion?: string) {
+    const tenantId = this.resolveTenantId();
     return this.prisma.documento.create({
       data: {
         vehiculoId,
         tipo,
         url,
         descripcion,
+        tenantId,
       },
     });
+  }
+
+  private resolveTenantId(): number {
+    const tenantId = this.tenantContext.tenantId;
+    if (!tenantId) {
+      throw new UnauthorizedException('Tenant no especificado en la operación.');
+    }
+    return tenantId;
   }
 }

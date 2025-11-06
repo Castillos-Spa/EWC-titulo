@@ -9,6 +9,7 @@ import {
   IsEnum,
   ValidateNested,
   ArrayMinSize,
+  IsInt,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Role, Specialty } from '@prisma/client';
@@ -31,6 +32,10 @@ export class RoleAssignmentDto {
   @IsString({ each: true })
   @IsOptional()
   additionalPermissions?: string[]; // Permisos extra si es necesario
+
+  @IsInt()
+  @IsOptional()
+  companyId?: number;
 }
 
 // DTO principal para registro completo
@@ -51,6 +56,15 @@ export class RegisterDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean; // Por defecto true
+
+  @IsArray()
+  @IsOptional()
+  @IsInt({ each: true })
+  companyIds?: number[];
+
+  @IsInt()
+  @IsOptional()
+  primaryCompanyId?: number;
 
   // 🎯 SISTEMA NUEVO: Array de asignaciones de roles
   @IsArray()
@@ -96,6 +110,10 @@ export class SimpleRegisterDto {
   @IsString({ each: true })
   @IsOptional()
   additionalPermissions?: string[];
+
+  @IsInt()
+  @IsOptional()
+  companyId?: number;
 }
 
 // DTO para actualizar roles de usuario existente
@@ -159,6 +177,14 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password: string;
+
+  @IsString()
+  @IsNotEmpty()
+  tenantSlug: string;
+
+  @IsInt()
+  @IsOptional()
+  companyId?: number;
 }
 
 // DTO para verificar permisos

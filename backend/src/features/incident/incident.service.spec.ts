@@ -2,14 +2,16 @@ import { NotFoundException } from '@nestjs/common';
 import { IncidentService } from './incident.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
 import { IncidentStatus } from '@prisma/client';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('IncidentService', () => {
   let service: IncidentService;
   let prisma: PrismaMock;
+  const tenantContext = { tenantId: 13 } as unknown as TenantContextService;
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    service = new IncidentService(prisma);
+    service = new IncidentService(prisma, tenantContext);
   });
 
   describe('create', () => {
@@ -34,6 +36,7 @@ describe('IncidentService', () => {
           data: expect.objectContaining({
             status: IncidentStatus.REPORTED,
             location: expect.objectContaining({ direccion: 'Street 1', latitude: 1.23 }),
+            tenant: { connect: { id: tenantContext.tenantId } },
           }),
         }),
       );

@@ -1,7 +1,7 @@
 import { JwtStrategy } from './jwt.strategy';
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Permission, Role } from '@prisma/client';
+import { ModuleKey, Permission, Role } from '@prisma/client';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
 describe('JwtStrategy', () => {
@@ -26,6 +26,11 @@ describe('JwtStrategy', () => {
     isAdmin: true,
     mustChangePassword: false,
     active: true,
+    tenantId: 55,
+    tenantSlug: 'tenant-55',
+    companyId: 101,
+    companyIds: [101, 202],
+    modules: [ModuleKey.DASHBOARD],
     iat: 1620000000,
     exp: 1620003600,
   });
@@ -45,6 +50,11 @@ describe('JwtStrategy', () => {
 
       expect(result).toEqual({
         userId: payload.sub,
+        tenantId: payload.tenantId,
+        tenantSlug: payload.tenantSlug,
+        companyId: payload.companyId,
+        companyIds: payload.companyIds,
+        modules: payload.modules,
         email: payload.email,
         username: payload.username,
         areas: payload.areas,
@@ -99,12 +109,14 @@ describe('JwtStrategy', () => {
 
     it('debería manejar payload sin campos opcionales', async () => {
       const payload = buildValidPayload();
-      const { roles, permissions, rolesByArea, ...rest } = payload;
+      const { roles, permissions, rolesByArea, modules, companyIds, ...rest } = payload;
       const minimalPayload = {
         ...rest,
         roles: undefined,
         permissions: undefined,
         rolesByArea: {} as any,
+        modules: undefined,
+        companyIds: undefined,
       } as unknown as JwtPayload;
 
       const result = await jwtStrategy.validate(minimalPayload);
@@ -115,6 +127,8 @@ describe('JwtStrategy', () => {
           email: payload.email,
           roles: undefined,
           permissions: undefined,
+          modules: [],
+          companyIds: [],
         }),
       );
     });
@@ -126,6 +140,8 @@ describe('JwtStrategy', () => {
         roles: [],
         permissions: [],
         rolesByArea: {},
+        modules: [],
+        companyIds: [],
       } as unknown as JwtPayload;
 
       const result = await jwtStrategy.validate(emptyCollectionsPayload);
@@ -135,8 +151,24 @@ describe('JwtStrategy', () => {
           roles: [],
           permissions: [],
           rolesByArea: {},
+          modules: [],
+          companyIds: [],
         }),
       );
+    });
+
+    it('debería lanzar UnauthorizedException cuando falta tenantId', async () => {
+      const { tenantId, ...rest } = buildValidPayload();
+      const invalidPayload = { ...rest, tenantId: undefined } as unknown as JwtPayload;
+
+      await expect(jwtStrategy.validate(invalidPayload)).rejects.toThrow('Token invalido: falta tenant');
+    });
+
+    it('debería lanzar UnauthorizedException cuando falta tenantSlug', async () => {
+      const { tenantSlug, ...rest } = buildValidPayload();
+      const invalidPayload = { ...rest, tenantSlug: undefined } as unknown as JwtPayload;
+
+      await expect(jwtStrategy.validate(invalidPayload)).rejects.toThrow('Token invalido: falta tenant slug');
     });
   });
 });

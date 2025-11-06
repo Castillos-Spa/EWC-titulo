@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { Role, Area } from '@prisma/client';
 import type { Ticket, OrdenTrabajo, CivilWork, Aseo } from '@prisma/client';
@@ -6,6 +6,7 @@ import { NotificationGateway } from './notification.gateway';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class NotificationService {
@@ -13,6 +14,7 @@ export class NotificationService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => NotificationGateway))
     private readonly gateway: NotificationGateway,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   async createNotification(data: {
@@ -25,6 +27,7 @@ export class NotificationService {
     type: string;
   }) {
     const { title, message, createdById, userId, areas, roles, type } = data; // roles is now Role[]
+    const tenantId = this.resolveTenantId();
 
     const created = await this.prisma.notification.create({
       data: {
@@ -34,6 +37,7 @@ export class NotificationService {
         createdBy: {
           connect: { id: createdById },
         },
+        tenant: { connect: { id: tenantId } },
         areas: areas ?? [], // Use directly, default to empty array
         roles: roles ?? [], // Use directly, default to empty array
         ...(userId
@@ -60,11 +64,13 @@ export class NotificationService {
   }
 
   async createCustomNotification(dto: any, createdById: number) {
+    const tenantId = this.resolveTenantId();
     const { target, ...rest } = dto;
     const data: any = {
       ...rest,
       type: 'custom',
       createdBy: { connect: { id: createdById } },
+      tenant: { connect: { id: tenantId } },
     };
 
     if (target?.scope === 'areas' && target.areas.length > 0) {
@@ -139,10 +145,11 @@ export class NotificationService {
   }
 
   async markAsRead(notificationId: number, userId: number) {
+    const tenantId = this.resolveTenantId();
     await this.prisma.userNotification.upsert({
       where: { userId_notificationId: { userId, notificationId } },
       update: { read: true },
-      create: { userId, notificationId, read: true },
+      create: { userId, notificationId, read: true, tenantId },
     });
     // Devolvemos la notificación actualizada para el usuario
     return this.prisma.notification.findUnique({
@@ -358,5 +365,13 @@ export class NotificationService {
       areas: [Area.Aseo],
       roles: [Role.Supervisor],
     });
+  }
+
+  private resolveTenantId(): number {
+    const tenantId = this.tenantContext.tenantId;
+    if (!tenantId) {
+      throw new UnauthorizedException('Tenant no especificado en la operación.');
+    }
+    return tenantId;
   }
 }

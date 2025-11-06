@@ -1,16 +1,18 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateCivilWorkDto } from './dto/create-civil-work.dto';
 import { UpdateCivilWorkDto } from './dto/update-civil-work.dto';
 import { CivilWork, Prisma, CivilWorkStatus } from '@prisma/client';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class CivilWorkService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   // Define un include estándar para obtener todos los detalles de una obra.
@@ -21,6 +23,7 @@ export class CivilWorkService {
   } satisfies Prisma.CivilWorkInclude;
 
   async create(createDto: CreateCivilWorkDto, createdById: number): Promise<CivilWork> {
+    const tenantId = this.resolveTenantId();
     const { responsibleStaffUsernames, materialsUsed, tasks, ...workData } = createDto;
 
     // Convertimos el array de strings de tareas a un array de objetos con estado 'completed: false'
@@ -33,6 +36,7 @@ export class CivilWorkService {
       data: {
         ...workData,
         createdBy: { connect: { id: createdById } },
+        tenant: { connect: { id: tenantId } },
         tasks: tasksAsObjects as any,
         responsibleStaffUsernames: responsibleStaffUsernames, // Guardamos directamente el array de strings
         materialsUsed: materialsUsed, // Guardamos directamente el array de strings
@@ -160,5 +164,13 @@ export class CivilWorkService {
     return this.prisma.civilWork.delete({
       where: { id },
     });
+  }
+
+  private resolveTenantId(): number {
+    const tenantId = this.tenantContext.tenantId;
+    if (!tenantId) {
+      throw new UnauthorizedException('Tenant no especificado en la operación.');
+    }
+    return tenantId;
   }
 }

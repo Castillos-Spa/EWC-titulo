@@ -13,12 +13,16 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
-import { RequirePermissions } from './decorators/permissions.decorator';
-import { Role, Permission } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { RolesGuard } from './guards/roles.guard';
-import { PermissionsGuard } from './guards/permissions.guard';
 import { RegisterDto } from './dtos/register.dto';
 import { OptionalAuth } from './decorators/optional-auth.decorator';
+import type { Request as ExpressRequest } from 'express';
+import type { AuthSession } from './auth.service';
+
+type AuthenticatedRequest = ExpressRequest & { user: AuthSession };
+type JwtRequestUser = { userId: number } & Record<string, unknown>;
+type MaybeAuthenticatedRequest = ExpressRequest & { user?: AuthSession | JwtRequestUser };
 
 @Controller('auth')
 export class AuthController {
@@ -27,14 +31,14 @@ export class AuthController {
   @Public()
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req) {
+  async login(@Request() req: AuthenticatedRequest) {
     return this.authService.login(req.user);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @OptionalAuth()
-  async logout(@Request() req) {
+  async logout(@Request() req: MaybeAuthenticatedRequest) {
     const userId = req.user?.userId;
     if (userId) {
       // req.user contiene el payload del JWT validado por el guard global
@@ -53,7 +57,7 @@ export class AuthController {
   }
 
   @Get('profile')
-  getProfile(@Request() req) {
+  getProfile(@Request() req: MaybeAuthenticatedRequest) {
     return req.user;
   }
 

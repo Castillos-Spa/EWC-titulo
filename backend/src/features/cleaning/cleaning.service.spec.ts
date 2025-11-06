@@ -2,16 +2,18 @@ import { NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CleaningService } from './cleaning.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('CleaningService', () => {
   let service: CleaningService;
   let prisma: PrismaMock;
   const eventEmitter = { emit: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
+  const tenantContext = { tenantId: 55 } as unknown as TenantContextService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = createPrismaMock();
-    service = new CleaningService(prisma, eventEmitter);
+    service = new CleaningService(prisma, eventEmitter, tenantContext);
   });
 
   describe('create', () => {
@@ -25,6 +27,7 @@ describe('CleaningService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             createdBy: { connect: { id: 5 } },
+            tenant: { connect: { id: tenantContext.tenantId } },
           }),
         }),
       );
