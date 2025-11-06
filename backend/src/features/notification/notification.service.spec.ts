@@ -3,6 +3,7 @@ import { NotificationService } from './notification.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
 import { NotificationGateway } from './notification.gateway';
 import { Role } from '@prisma/client';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 const createGatewayMock = () => ({
   sendNotification: jest.fn(),
@@ -12,11 +13,12 @@ describe('NotificationService', () => {
   let service: NotificationService;
   let prisma: PrismaMock;
   const gateway = createGatewayMock() as unknown as jest.Mocked<NotificationGateway>;
+  const tenantContext = { tenantId: 27 } as unknown as TenantContextService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = createPrismaMock();
-    service = new NotificationService(prisma, gateway);
+    service = new NotificationService(prisma, gateway, tenantContext);
   });
 
   describe('createNotification', () => {
@@ -40,7 +42,11 @@ describe('NotificationService', () => {
 
       expect(prisma.notification.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ title: 'Hello', message: 'World' }),
+          data: expect.objectContaining({
+            title: 'Hello',
+            message: 'World',
+            tenant: { connect: { id: tenantContext.tenantId } },
+          }),
         }),
       );
       expect(gateway.sendNotification).toHaveBeenCalledWith(enriched);
@@ -94,7 +100,7 @@ describe('NotificationService', () => {
       expect(prisma.userNotification.upsert).toHaveBeenCalledWith({
         where: { userId_notificationId: { notificationId: 10, userId: 5 } },
         update: { read: true },
-        create: { userId: 5, notificationId: 10, read: true },
+        create: { userId: 5, notificationId: 10, read: true, tenantId: tenantContext.tenantId },
       });
       expect(result).toBe(notification);
     });

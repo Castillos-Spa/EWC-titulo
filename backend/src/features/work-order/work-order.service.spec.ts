@@ -2,16 +2,18 @@ import { NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WorkOrderService, WorkOrderStatus } from './work-order.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('WorkOrderService', () => {
   let service: WorkOrderService;
   let prisma: PrismaMock;
   const eventEmitter = { emit: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
+  const tenantContext = { tenantId: 21 } as unknown as TenantContextService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = createPrismaMock();
-    service = new WorkOrderService(prisma, eventEmitter);
+    service = new WorkOrderService(prisma, eventEmitter, tenantContext);
   });
 
   describe('create', () => {
@@ -25,7 +27,10 @@ describe('WorkOrderService', () => {
 
       expect(prisma.ordenTrabajo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ estado: WorkOrderStatus.OPEN }),
+          data: expect.objectContaining({
+            estado: WorkOrderStatus.OPEN,
+            tenant: { connect: { id: tenantContext.tenantId } },
+          }),
         }),
       );
       expect(prisma.vehiculo.update).toHaveBeenCalledWith(
@@ -68,7 +73,12 @@ describe('WorkOrderService', () => {
 
       expect(prisma.qA.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { otId: 1, checklist: 'check', resultado: 'ok' },
+          data: {
+            ot: { connect: { id: 1 } },
+            checklist: 'check',
+            resultado: 'ok',
+            tenant: { connect: { id: tenantContext.tenantId } },
+          },
         }),
       );
       expect(result).toEqual({ id: 5 });

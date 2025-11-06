@@ -3,6 +3,7 @@ import { FuelService } from './fuel.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
 import { UsersService } from '@/features/users/users.service';
 import { Role } from '@prisma/client';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('FuelService', () => {
   let service: FuelService;
@@ -10,11 +11,12 @@ describe('FuelService', () => {
   const usersService = {
     findById: jest.fn(),
   } as unknown as jest.Mocked<UsersService>;
+  const tenantContext = { tenantId: 11 } as unknown as TenantContextService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = createPrismaMock();
-    service = new FuelService(prisma, usersService);
+    service = new FuelService(prisma, usersService, tenantContext);
   });
 
   describe('createFuelLog', () => {
@@ -32,7 +34,10 @@ describe('FuelService', () => {
 
       expect(prisma.fuelLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ driver: { connect: { id: 3 } } }),
+          data: expect.objectContaining({
+            driver: { connect: { id: 3 } },
+            tenant: { connect: { id: tenantContext.tenantId } },
+          }),
         }),
       );
       expect(result).toEqual({ id: 10 });

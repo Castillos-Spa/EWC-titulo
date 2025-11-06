@@ -1,16 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class RoutesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
   async create(createTransportRouteDto: CreateRouteDto) {
+    const tenantId = this.resolveTenantId();
     return this.prisma.transportRoute.create({
-      data: createTransportRouteDto,
+      data: {
+        ...createTransportRouteDto,
+        tenantId,
+      },
     });
   }
 
@@ -56,12 +64,14 @@ export class RoutesService {
   }
 
   async createAssignment(data: any) {
+    const tenantId = this.resolveTenantId();
     return this.prisma.truckAssignment.create({
       data: {
         ...data,
         truckId: Number(data.truckId),
         routeId: Number(data.routeId),
         driverId: Number(data.driverId),
+        tenantId,
       },
     });
   }
@@ -93,5 +103,13 @@ export class RoutesService {
     return this.prisma.transportRoute.delete({
       where: { id },
     });
+  }
+
+  private resolveTenantId(): number {
+    const tenantId = this.tenantContext.tenantId;
+    if (!tenantId) {
+      throw new UnauthorizedException('Tenant no especificado en la operación.');
+    }
+    return tenantId;
   }
 }

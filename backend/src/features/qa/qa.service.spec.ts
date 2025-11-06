@@ -1,13 +1,15 @@
 import { QaService } from './qa.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
+import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('QaService', () => {
   let service: QaService;
   let prisma: PrismaMock;
+  const tenantContext = { tenantId: 33 } as unknown as TenantContextService;
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    service = new QaService(prisma);
+    service = new QaService(prisma, tenantContext);
   });
 
   describe('create', () => {
@@ -26,7 +28,9 @@ describe('QaService', () => {
       const result = await service.create({ otId: 1, checklist: 'c', resultado: 'ok' });
 
       expect(prisma.qA.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { otId: 1, checklist: 'c', resultado: 'ok' } }),
+        expect.objectContaining({
+          data: { otId: 1, checklist: 'c', resultado: 'ok', tenantId: tenantContext.tenantId },
+        }),
       );
       expect(result).toEqual({ id: 2 });
     });

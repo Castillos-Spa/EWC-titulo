@@ -7,10 +7,51 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum ModuleKey {
+  DASHBOARD
+  INCIDENTS
+  TICKETS
+  NOTIFICATIONS
+  USERS
+  FLEET
+  FUEL
+  ROUTES
+  CLEANING
+  CIVIL_WORK
+  MAINTENANCE
+  PURCHASING
+  HR
+  FINANCE
+  SAFETY
+  ANALYTICS
+  CUSTOM
+}
+
+enum ModuleStatus {
+  ACTIVE
+  INACTIVE
+  TRIAL
+  PENDING
+}
+
 model User {
   id                   Int                  @id @default(autoincrement())
+  tenantId             Int
+  primaryCompanyId     Int?
   username             String
-  email                String               @unique
+  email                String
   password             String
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
@@ -18,6 +59,9 @@ model User {
   mustChangePassword   Boolean              @default(false)
   refreshToken         String?              @unique
   lastLogin            DateTime?            @map("last_login")
+  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  primaryCompany       Company?             @relation("UserPrimaryCompany", fields: [primaryCompanyId], references: [id], onDelete: SetNull)
+  userCompanies        UserCompany[]
   Aseo                 Aseo[]
   createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
   drivenFuelLogs       FuelLog[]            @relation("DriverFuelLogs")
@@ -33,38 +77,54 @@ model User {
   roleAssignments      UserRoleAssignment[]
   notifications        Notification[]       @relation("NotificationToUser")
 
-  @@index([username], map: "idx_user_username")
+  @@unique([tenantId, email])
+  @@unique([tenantId, username])
+  @@index([tenantId, username], map: "idx_user_username")
   @@index([refreshToken], map: "idx_user_refresh_token")
 }
 
 model UserRoleAssignment {
   id          Int          @id @default(autoincrement())
+  tenantId    Int
   userId      Int
+  companyId   Int?
   area        Area
   role        Role
   specialty   Specialty?
   permissions Permission[] @default([])
   isActive    Boolean      @default(true)
   assignedAt  DateTime     @default(now())
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  membership  UserCompany? @relation(fields: [userId, companyId], references: [userId, companyId], onDelete: Cascade)
 
-  @@unique([userId, area, role])
-  @@index([userId])
-  @@index([area, role])
+  @@unique([userId, area, role, companyId])
+  @@unique([userId, area, role], map: "user_area_role_unique_global")
+  @@index([tenantId])
+  @@index([companyId])
 }
 
 model ApprovalWorkflow {
   id        Int            @id @default(autoincrement())
+  tenantId  Int
+  companyId Int?
   name      String
   area      Area
   category  TicketCategory
   steps     Json
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company   Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, area, category])
 }
 
 model Ticket {
   id                         Int              @id @default(autoincrement())
+  tenantId                   Int
+  companyId                  Int?
   title                      String
   description                String?
   status                     TicketStatus     @default(Pendiente)
@@ -75,20 +135,27 @@ model Ticket {
   createdById                Int
   assignedToId               Int?
   recipientArea              Area[]           @default([])
-  recipientRole              Role[]
+  recipientRole              Role[]           @default([])
   assignedUserConfirmation   Boolean?         @default(false)
   requestingUserConfirmation Boolean?         @default(false)
   tags                       String[]         @default([])
   ordenTrabajoId             Int?             @unique
+  tenant                     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company                    Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   attachments                Documento[]
   assignedTo                 User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
   createdBy                  User             @relation("CreatedTickets", fields: [createdById], references: [id])
   ordenTrabajo               OrdenTrabajo?    @relation("OTReviewTicket", fields: [ordenTrabajoId], references: [id])
   approvals                  TicketApproval[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, category])
 }
 
 model Vehiculo {
   id                  Int               @id @default(autoincrement())
+  tenantId            Int
+  companyId           Int?
   patente             String            @unique
   capacidad           Float
   odometro            Int
@@ -101,29 +168,39 @@ model Vehiculo {
   marca               String            @default("")
   modelo              String            @default("")
   codigo              String?           @unique
+  tenant              Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company             Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   documentos          Documento[]
   fuelLogs            FuelLog[]
   ordenes             OrdenTrabajo[]
   assignments         TruckAssignment[] @relation("TruckToAssignments")
 
-  @@index([estado])
-  @@index([areaAsignada])
+  @@index([tenantId, estado])
+  @@index([tenantId, areaAsignada])
 }
 
 model Documento {
   id          Int      @id @default(autoincrement())
+  tenantId    Int
+  companyId   Int?
   vehiculoId  Int
   tipo        String
   url         String
   fechaSubida DateTime @default(now())
   descripcion String?
   ticketId    Int?
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   ticket      Ticket?  @relation(fields: [ticketId], references: [id])
   vehiculo    Vehiculo @relation(fields: [vehiculoId], references: [id])
+
+  @@index([tenantId])
 }
 
 model OrdenTrabajo {
   id              Int       @id @default(autoincrement())
+  tenantId        Int
+  companyId       Int?
   tipo            String
   estado          String    @default("abierta")
   vehiculoId      Int
@@ -137,40 +214,64 @@ model OrdenTrabajo {
   repuestos       String[]  @default([])
   scheduledDate   DateTime?
   nextServiceDate DateTime?
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company         Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   vehiculo        Vehiculo  @relation(fields: [vehiculoId], references: [id])
   qa              QA[]
   reviewTicket    Ticket?   @relation("OTReviewTicket")
+
+  @@index([tenantId, estado])
 }
 
 model QA {
   id        Int          @id @default(autoincrement())
+  tenantId  Int
+  companyId Int?
   checklist String
   resultado String
   otId      Int
   createdAt DateTime     @default(now())
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company   Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   ot        OrdenTrabajo @relation(fields: [otId], references: [id])
+
+  @@index([tenantId])
 }
 
 model SolicitudCompra {
   id        Int        @id @default(autoincrement())
+  tenantId  Int
+  companyId Int?
   monto     Float
   aprobada  Boolean    @default(false)
   createdAt DateTime   @default(now())
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company   Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   repuestos Repuesto[]
+
+  @@index([tenantId])
 }
 
 model Repuesto {
   id                Int              @id @default(autoincrement())
+  tenantId          Int
+  companyId         Int?
   nombre            String
   stock             Int              @default(0)
   costoUnitario     Float            @default(0)
   solicitudCompraId Int?
   createdAt         DateTime         @default(now())
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company           Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   solicitudCompra   SolicitudCompra? @relation(fields: [solicitudCompraId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Notification {
   id          Int                @id @default(autoincrement())
+  tenantId    Int
+  companyId   Int?
   title       String
   message     String
   type        String
@@ -181,23 +282,33 @@ model Notification {
   pinned      Boolean            @default(false)
   priority    String             @default("normal")
   scheduledAt DateTime?
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company     Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy   User               @relation("CreatedNotifications", fields: [createdById], references: [id])
   readBy      UserNotification[]
   user        User[]             @relation("NotificationToUser")
+
+  @@index([tenantId, type])
+  @@index([tenantId, createdAt])
 }
 
 model UserNotification {
+  tenantId       Int
   userId         Int
   notificationId Int
   read           Boolean      @default(false)
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, notificationId])
+  @@index([tenantId])
 }
 
 model TicketApproval {
   id           Int            @id @default(autoincrement())
+  tenantId     Int
+  companyId    Int?
   ticketId     Int
   step         Int
   status       ApprovalStatus @default(Pendiente)
@@ -206,16 +317,20 @@ model TicketApproval {
   approvedById Int?
   approvedAt   DateTime?
   comments     String?
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company      Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   approvedBy   User?          @relation(fields: [approvedById], references: [id])
   ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@unique([ticketId, step])
-  @@index([ticketId])
+  @@index([tenantId])
   @@index([approverArea, approverRole])
 }
 
 model FuelLog {
   id         Int      @id @default(autoincrement())
+  tenantId   Int
+  companyId  Int?
   vehiculoId Int
   date       DateTime
   liters     Float
@@ -225,15 +340,20 @@ model FuelLog {
   invoiceUrl String?
   createdAt  DateTime @default(now())
   userId     Int?
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   driver     User     @relation("DriverFuelLogs", fields: [driverId], references: [id])
   user       User?    @relation("UserFuelLogs", fields: [userId], references: [id])
   vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, date])
   @@index([vehiculoId, date])
 }
 
 model Incident {
   id           Int              @id @default(autoincrement())
+  tenantId     Int
+  companyId    Int?
   title        String
   description  String
   area         String
@@ -247,15 +367,20 @@ model Incident {
   reviewedAt   DateTime?
   reviewedById Int?
   updatedAt    DateTime         @updatedAt
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company      Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   reportedBy   User             @relation("ReportedIncidents", fields: [reportedById], references: [id])
   reviewedBy   User?            @relation("ReviewedIncidents", fields: [reviewedById], references: [id])
 
+  @@index([tenantId, status])
   @@index([reportedById])
   @@index([reviewedById])
 }
 
 model TransportRoute {
   id          Int               @id @default(autoincrement())
+  tenantId    Int
+  companyId   Int?
   code        String            @unique
   origin      String
   destination String
@@ -264,11 +389,17 @@ model TransportRoute {
   active      Boolean           @default(true)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company     Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignments TruckAssignment[] @relation("RouteToAssignments")
+
+  @@index([tenantId])
 }
 
 model TruckAssignment {
   id           Int            @id @default(autoincrement())
+  tenantId     Int
+  companyId    Int?
   truckId      Int
   routeId      Int
   driverId     Int
@@ -277,15 +408,20 @@ model TruckAssignment {
   volumeLiters Float?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company      Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   driver       User           @relation("DriverToAssignments", fields: [driverId], references: [id])
   route        TransportRoute @relation("RouteToAssignments", fields: [routeId], references: [id])
   truck        Vehiculo       @relation("TruckToAssignments", fields: [truckId], references: [id])
 
   @@unique([truckId, routeId, date])
+  @@index([tenantId])
 }
 
 model Aseo {
   id               Int            @id @default(autoincrement())
+  tenantId         Int
+  companyId        Int?
   date             DateTime
   area             String
   tasks            String[]       @default([])
@@ -297,13 +433,17 @@ model Aseo {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   createdById      Int
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company          Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy        User           @relation(fields: [createdById], references: [id])
 
-  @@index([createdById])
+  @@index([tenantId, createdById])
 }
 
 model CivilWork {
   id                        Int             @id @default(autoincrement())
+  tenantId                  Int
+  companyId                 Int?
   project                   String
   location                  String
   startDate                 DateTime
@@ -321,9 +461,112 @@ model CivilWork {
   createdById               Int
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
+  tenant                    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company                   Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy                 User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, status])
   @@index([createdById])
+}
+
+model Tenant {
+  id                Int                  @id @default(autoincrement())
+  name              String
+  slug              String               @unique
+  status            TenantStatus         @default(ACTIVE)
+  contactEmail      String?
+  metadata          Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  companies         Company[]
+  modules           TenantModule[]
+  users             User[]
+  userCompanies     UserCompany[]
+  roleAssignments   UserRoleAssignment[]
+  approvalFlows     ApprovalWorkflow[]
+  tickets           Ticket[]
+  vehicles          Vehiculo[]
+  documents         Documento[]
+  workOrders        OrdenTrabajo[]
+  qaChecks          QA[]
+  purchaseRequests  SolicitudCompra[]
+  spareParts        Repuesto[]
+  notifications     Notification[]
+  userNotifications UserNotification[]
+  ticketApprovals   TicketApproval[]
+  fuelLogs          FuelLog[]
+  incidents         Incident[]
+  routes            TransportRoute[]
+  truckAssignments  TruckAssignment[]
+  cleaningReports   Aseo[]
+  civilWorks        CivilWork[]
+
+  @@index([slug])
+}
+
+model Company {
+  id               Int                  @id @default(autoincrement())
+  tenantId         Int
+  name             String
+  legalName        String?
+  taxId            String?
+  status           CompanyStatus        @default(ACTIVE)
+  metadata         Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users            UserCompany[]
+  primaryUsers     User[]               @relation("UserPrimaryCompany")
+  roleAssignments  UserRoleAssignment[]
+  approvalFlows    ApprovalWorkflow[]
+  tickets          Ticket[]
+  vehicles         Vehiculo[]
+  documents        Documento[]
+  workOrders       OrdenTrabajo[]
+  qaChecks         QA[]
+  purchaseRequests SolicitudCompra[]
+  spareParts       Repuesto[]
+  notifications    Notification[]
+  ticketApprovals  TicketApproval[]
+  fuelLogs         FuelLog[]
+  incidents        Incident[]
+  routes           TransportRoute[]
+  truckAssignments TruckAssignment[]
+  cleaningReports  Aseo[]
+  civilWorks       CivilWork[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model TenantModule {
+  id            Int          @id @default(autoincrement())
+  tenantId      Int
+  module        ModuleKey
+  status        ModuleStatus @default(ACTIVE)
+  activatedAt   DateTime     @default(now())
+  deactivatedAt DateTime?
+  metadata      Json?
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, module])
+  @@index([module])
+}
+
+model UserCompany {
+  tenantId        Int
+  userId          Int
+  companyId       Int
+  isDefault       Boolean              @default(false)
+  assignedAt      DateTime             @default(now())
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleAssignments UserRoleAssignment[]
+
+  @@id([userId, companyId])
+  @@index([tenantId])
+  @@index([companyId])
 }
 
 /// Enum de roles

@@ -1,12 +1,66 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { RegisterDto } from './dtos/register.dto';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'node:crypto';
+
+import { UsersService } from '../users/users.service';
+import { RegisterDto } from './dtos/register.dto';
 import { JwtPayload, RolesByArea } from './interfaces/jwt-payload.interface';
-import { Prisma, Role } from '@prisma/client';
-import { ConfigService } from '@nestjs/config';
+import { PrismaService } from 'prisma/prisma.service';
+import { CompanyStatus, ModuleKey, ModuleStatus, Prisma, Role, TenantStatus } from '@prisma/client';
+
+type TenantWithRelations = Prisma.TenantGetPayload<{
+  include: {
+    modules: true;
+    companies: true;
+  };
+}>;
+
+type UserWithRelations = Prisma.UserGetPayload<{
+  include: {
+    roleAssignments: true;
+    userCompanies: true;
+  };
+}>;
+
+export interface AuthUserDetails {
+  id: number;
+  username: string;
+  email: string;
+  areas: string[];
+  roles: Role[];
+  rolesByArea: RolesByArea;
+  isAdmin: boolean;
+  mustChangePassword: boolean;
+  active: boolean;
+  tenantId: number;
+  tenantSlug: string;
+  companyId: number | null;
+  companyIds: number[];
+  modules: ModuleKey[];
+}
+
+export interface AuthSession {
+  userId: number;
+  user: Omit<UserWithRelations, 'password'>;
+  tenant: TenantWithRelations;
+  modules: ModuleKey[];
+  companies: Array<{ id: number; name: string; status: CompanyStatus; isDefault: boolean }>;
+  companyId: number | null;
+  payload: JwtPayload;
+  userDetails: AuthUserDetails;
+}
+
+interface RefreshTokenPayload {
+  sub: number;
+  email: string;
+  tenantId?: number;
+  companyId?: number | null;
+}
+
+type RoleAssignment = NonNullable<UserWithRelations['roleAssignments']>[number];
+type UserCompanyMembership = NonNullable<UserWithRelations['userCompanies']>[number];
 
 @Injectable()
 export class AuthService {
@@ -14,53 +68,84 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
-  // Segun passport en nestJS
+
   async validateUser(
     email: string,
     pass: string,
-  ): Promise<Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'> | null> {
-    const user = await this.usersService.findByEmail(email); // This already includes roleAssignments
+    tenantSlug: string | undefined,
+    requestedCompanyId?: number | null,
+  ): Promise<AuthSession | null> {
+    if (!tenantSlug) {
+      throw new UnauthorizedException('Debe especificar el tenant.');
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { slug: tenantSlug },
+      include: {
+        modules: true,
+        companies: true,
+      },
+    });
+
+    if (!tenant || tenant.status !== TenantStatus.ACTIVE) {
+      throw new UnauthorizedException('El tenant no está disponible.');
+    }
+
+    const user = await this.usersService.findByEmail(email, tenant.id);
     if (!user) {
       return null;
     }
 
-    // Compara la contraseña usando bcrypt - CORREGIDO
     const isPasswordValid = await bcrypt.compare(pass, user.password);
-    if (isPasswordValid) {
-      // Usar desestructuración para excluir la propiedad password
-      const { password, ...result } = user;
-      return result;
+    if (!isPasswordValid) {
+      return null;
     }
-    return null;
+
+    const typedUser = user as unknown as UserWithRelations;
+    const sanitizedUser = this.stripPassword(typedUser);
+    return this.buildSessionContext(sanitizedUser, tenant, requestedCompanyId);
   }
 
-  async login(user: Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'>) {
-    const { payload, userDetails } = this.createJwtPayload(user);
-    const access_token = this.jwtService.sign(payload);
+  async login(session: AuthSession) {
+    const access_token = this.jwtService.sign(session.payload);
     const refreshSecret =
       this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET');
-    const refresh_token = this.jwtService.sign(
-      { sub: user.id, email: user.email },
-      {
-        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
-        secret: refreshSecret,
-      },
-    );
 
-    // Use HMAC-SHA256 to hash refresh tokens (faster than bcrypt for this use-case)
+    const refreshPayload = {
+      sub: session.user.id,
+      email: session.user.email,
+      tenantId: session.payload.tenantId,
+      companyId: session.companyId,
+    };
+
+    const refresh_token = this.jwtService.sign(refreshPayload, {
+      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
+      secret: refreshSecret,
+    });
+
     const refreshTokenHash = crypto
       .createHmac('sha256', this.configService.get<string>('REFRESH_TOKEN_SECRET') || '')
       .update(refresh_token)
       .digest('hex');
 
-    await this.usersService.setRefreshToken(user.id, refreshTokenHash);
-    await this.usersService.updateLastLogin(user.id);
+    await this.usersService.setRefreshToken(session.user.id, refreshTokenHash);
+    await this.usersService.updateLastLogin(session.user.id);
 
     return {
       access_token,
       refresh_token,
-      user: userDetails,
+      user: session.userDetails,
+      tenant: {
+        id: session.payload.tenantId,
+        name: session.tenant.name,
+        slug: session.payload.tenantSlug,
+        status: session.tenant.status,
+      },
+      companyId: session.companyId,
+      companies: session.companies,
+      modules: session.modules,
     };
   }
 
@@ -69,22 +154,21 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const user = await this.usersService.register(registerDto);
-    return user;
+    return this.usersService.register(registerDto);
   }
 
   async refreshToken(token: string) {
     try {
       const refreshSecret =
         this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET');
-      const refreshTokenPayload = this.jwtService.verify(token, { secret: refreshSecret });
-      const user = await this.usersService.findById(refreshTokenPayload.sub);
+      const refreshTokenPayload = this.jwtService.verify<RefreshTokenPayload>(token, { secret: refreshSecret });
+
+      const user = await this.usersService.findById(refreshTokenPayload.sub, refreshTokenPayload.tenantId);
 
       if (!user || !user.active || !user.refreshToken) {
         throw new UnauthorizedException('Access Denied');
       }
 
-      // Verify HMAC-SHA256 hash of incoming token matches stored hash
       const incomingHash = crypto
         .createHmac('sha256', this.configService.get<string>('REFRESH_TOKEN_SECRET') || '')
         .update(token)
@@ -94,29 +178,154 @@ export class AuthService {
         throw new UnauthorizedException('Access Denied');
       }
 
-      const { payload, userDetails } = this.createJwtPayload(user);
-      const newAccessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: refreshTokenPayload.tenantId ?? user.tenantId },
+        include: {
+          modules: true,
+          companies: true,
+        },
+      });
+
+      if (!tenant || tenant.status !== TenantStatus.ACTIVE) {
+        throw new UnauthorizedException('El tenant no está disponible.');
+      }
+
+      const typedUser = user as unknown as UserWithRelations;
+      const sanitizedUser = this.stripPassword(typedUser);
+      const session = this.buildSessionContext(sanitizedUser, tenant, refreshTokenPayload.companyId ?? null);
+
+      const newAccessToken = this.jwtService.sign(session.payload, { expiresIn: '15m' });
 
       return {
         access_token: newAccessToken,
-        user: userDetails,
+        user: session.userDetails,
+        tenant: {
+          id: session.payload.tenantId,
+          name: tenant.name,
+          slug: session.payload.tenantSlug,
+          status: tenant.status,
+        },
+        companyId: session.companyId,
+        companies: session.companies,
+        modules: session.modules,
       };
-    } catch (e) {
-      if (e instanceof UnauthorizedException) {
-        throw e;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
       }
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }
 
-  private createJwtPayload(user: Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'>) {
-    const roleAssignments = user.roleAssignments || [];
+  private buildSessionContext(
+    user: Omit<UserWithRelations, 'password'>,
+    tenant: TenantWithRelations,
+    requestedCompanyId?: number | null,
+  ): AuthSession {
+    const memberships = this.getCompanyMemberships(user);
+    const companyIds = memberships.map(membership => membership.companyId);
 
-    const activeAssignments = roleAssignments.filter(a => a.isActive);
+    if (requestedCompanyId && !companyIds.includes(requestedCompanyId)) {
+      throw new ForbiddenException('No tienes acceso a la empresa solicitada.');
+    }
 
-    const areas = [...new Set(activeAssignments.map(r => r.area))];
-    const roles = [...new Set(activeAssignments.map(r => r.role))];
-    const allPermissions = [...new Set(activeAssignments.flatMap(r => r.permissions))];
+    let activeCompanyId = requestedCompanyId ?? user.primaryCompanyId ?? null;
+    if (!activeCompanyId && memberships.length > 0) {
+      activeCompanyId = memberships.find(membership => membership.isDefault)?.companyId ?? memberships[0].companyId;
+    }
+    if (activeCompanyId && !companyIds.includes(activeCompanyId)) {
+      activeCompanyId = companyIds[0] ?? null;
+    }
+
+    const modules = tenant.modules
+      .filter(module => module.status === ModuleStatus.ACTIVE || module.status === ModuleStatus.TRIAL)
+      .map(module => module.module);
+
+    const companies = tenant.companies
+      .filter(company => companyIds.includes(company.id) && company.status !== CompanyStatus.ARCHIVED)
+      .map(company => ({
+        id: company.id,
+        name: company.name,
+        status: company.status,
+        isDefault: memberships.some(membership => membership.companyId === company.id && membership.isDefault),
+      }));
+
+    const { payload, userDetails } = this.createJwtPayload(user, {
+      tenantId: tenant.id,
+      tenantSlug: tenant.slug,
+      modules,
+      companyId: activeCompanyId,
+      companyIds,
+    });
+
+    return {
+      user,
+      userId: user.id,
+      tenant,
+      modules,
+      companies,
+      companyId: activeCompanyId,
+      payload,
+      userDetails,
+    };
+  }
+
+  private createJwtPayload(
+    user: Omit<UserWithRelations, 'password'>,
+    context: {
+      tenantId: number;
+      tenantSlug: string;
+      modules: ModuleKey[];
+      companyId: number | null;
+      companyIds: number[];
+    },
+  ): { payload: JwtPayload; userDetails: AuthUserDetails } {
+    const { areas, roles, permissions, rolesByArea, isAdmin } = this.extractRoleData(user);
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      tenantId: context.tenantId,
+      tenantSlug: context.tenantSlug,
+      companyId: context.companyId ?? null,
+      companyIds: context.companyIds,
+      modules: context.modules,
+      email: user.email,
+      username: user.username,
+      areas,
+      roles,
+      permissions,
+      rolesByArea,
+      isAdmin,
+      mustChangePassword: user.mustChangePassword,
+      active: user.active,
+    };
+
+    const userDetails: AuthUserDetails = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      areas,
+      roles,
+      rolesByArea,
+      isAdmin,
+      mustChangePassword: user.mustChangePassword,
+      active: user.active,
+      tenantId: context.tenantId,
+      tenantSlug: context.tenantSlug,
+      companyId: context.companyId ?? null,
+      companyIds: context.companyIds,
+      modules: context.modules,
+    };
+
+    return { payload, userDetails };
+  }
+
+  private extractRoleData(user: Omit<UserWithRelations, 'password'>) {
+    const assignments = this.getRoleAssignments(user);
+    const activeAssignments = assignments.filter(assignment => assignment.isActive);
+    const areas = Array.from(new Set(activeAssignments.map(assignment => assignment.area)));
+    const roles = Array.from(new Set(activeAssignments.map(assignment => assignment.role)));
+    const permissions = Array.from(new Set(activeAssignments.flatMap(assignment => assignment.permissions)));
 
     const rolesByArea = activeAssignments.reduce<RolesByArea>((acc, assignment) => {
       acc[assignment.area] = {
@@ -128,101 +337,97 @@ export class AuthService {
       return acc;
     }, {});
 
-    const isAdmin = roles.includes('Admin');
+    const isAdmin = roles.includes(Role.Admin);
 
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      username: user.username,
-      areas,
-      roles,
-      permissions: allPermissions,
-      rolesByArea,
-      isAdmin,
-      mustChangePassword: user.mustChangePassword,
-      active: user.active,
-    };
-
-    const userDetails = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      areas,
-      roles,
-      rolesByArea,
-      isAdmin,
-      mustChangePassword: user.mustChangePassword,
-      active: user.active,
-    };
-
-    return { payload, userDetails };
+    return { areas, roles, permissions, rolesByArea, isAdmin };
   }
 
-  // 🆕 Cambiar contraseña
+  private getRoleAssignments(source: Pick<UserWithRelations, 'roleAssignments'>): RoleAssignment[] {
+    return Array.isArray(source.roleAssignments) ? [...source.roleAssignments] : [];
+  }
+
+  private getCompanyMemberships(source: Pick<UserWithRelations, 'userCompanies'>): UserCompanyMembership[] {
+    return Array.isArray(source.userCompanies) ? [...source.userCompanies] : [];
+  }
+
+  private stripPassword<T extends { password?: string | null }>(user: T): Omit<T, 'password'> {
+    const { password, ...rest } = user;
+    return rest;
+  }
+
   async changePassword(userId: number, currentPassword: string, newPassword: string) {
-    return await this.usersService.changePassword(userId, currentPassword, newPassword);
+    return this.usersService.changePassword(userId, currentPassword, newPassword);
   }
 
-  // 🆕 Regenerar contraseña temporal
   async regenerateTempPassword(userId: number) {
-    return await this.usersService.regenerateTempPassword(userId);
+    return this.usersService.regenerateTempPassword(userId);
   }
 
-  // 🆕 Verificar si el usuario es supervisor de al menos un área
   async isSupervisor(userId: number): Promise<boolean> {
     const user = await this.usersService.findById(userId);
     if (!user) return false;
 
-    return user.roleAssignments?.some(assignment => assignment.role === 'Supervisor' && assignment.isActive) || false;
+    const assignments = this.getRoleAssignments(user as unknown as UserWithRelations);
+    return assignments.some(assignment => assignment.role === Role.Supervisor && assignment.isActive);
   }
 
-  // 🆕 Verificar si el usuario es jefe de al menos un área
   async isJefe(userId: number): Promise<boolean> {
     const user = await this.usersService.findById(userId);
     if (!user) return false;
-    return user.roleAssignments?.some(assignment => assignment.role === 'Jefe' && assignment.isActive) || false;
+
+    const assignments = this.getRoleAssignments(user as unknown as UserWithRelations);
+    return assignments.some(assignment => assignment.role === Role.Jefe && assignment.isActive);
   }
 
-  // 🆕 Obtener áreas donde el usuario tiene un rol específico
   async getAreasByRole(userId: number, role: string): Promise<string[]> {
     const user = await this.usersService.findById(userId);
     if (!user) return [];
 
-    return (
-      user.roleAssignments
-        ?.filter(assignment => assignment.role === role && assignment.isActive)
-        ?.map(assignment => assignment.area) || []
-    );
+    const assignments = this.getRoleAssignments(user as unknown as UserWithRelations);
+    const normalizedRole = role as Role;
+
+    return assignments
+      .filter(assignment => assignment.role === normalizedRole && assignment.isActive)
+      .map(assignment => assignment.area);
   }
 
-  // 🆕 Validar si el usuario puede acceder a un área específica
   async canAccessArea(userId: number, area: string): Promise<boolean> {
     const user = await this.usersService.findById(userId);
     if (!user) return false;
 
-    if (user.roleAssignments?.some(a => a.role === 'Admin' && a.isActive)) {
+    const assignments = this.getRoleAssignments(user as unknown as UserWithRelations);
+
+    if (assignments.some(assignment => assignment.role === Role.Admin && assignment.isActive)) {
       return true;
     }
 
-    // Verificar si tiene algún rol en esa área
-    return user.roleAssignments?.some(assignment => assignment.area === area && assignment.isActive) || false;
+    return assignments.some(assignment => assignment.area === area && assignment.isActive);
   }
 
-  // 🆕 Obtener el rol más alto del usuario en un área específica
   async getHighestRoleInArea(userId: number, area: string): Promise<Role | null> {
     const user = await this.usersService.findById(userId);
     if (!user) return null;
 
-    const roleHierarchy = ['Admin', 'Jefe', 'Supervisor', 'Especialista', 'Trabajador', 'Lector'];
+    const assignments = this.getRoleAssignments(user as unknown as UserWithRelations);
 
-    const userRolesInArea =
-      user.roleAssignments
-        ?.filter(assignment => assignment.area === area && assignment.isActive)
-        ?.map(assignment => assignment.role) || [];
+    const roleHierarchy: Role[] = [
+      Role.Admin,
+      Role.Jefe,
+      Role.Supervisor,
+      Role.Especialista,
+      Role.Trabajador,
+      Role.Lector,
+    ];
 
-    for (const role of roleHierarchy) {
-      if (userRolesInArea.includes(role as Role)) {
-        return role as Role;
+    const userRolesInArea = new Set(
+      assignments
+        .filter(assignment => assignment.area === area && assignment.isActive)
+        .map(assignment => assignment.role),
+    );
+
+    for (const candidate of roleHierarchy) {
+      if (userRolesInArea.has(candidate)) {
+        return candidate;
       }
     }
 
