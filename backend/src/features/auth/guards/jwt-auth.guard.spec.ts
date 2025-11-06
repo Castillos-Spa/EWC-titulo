@@ -33,13 +33,17 @@ const createExecutionContext = (overrides: ExecutionContextOverrides = {}): Exec
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
   let reflector: jest.Mocked<Reflector>;
+  let tenantContext: { setContext: jest.Mock };
 
   beforeEach(() => {
     reflector = {
       getAllAndOverride: jest.fn(),
     } as unknown as jest.Mocked<Reflector>;
+    tenantContext = {
+      setContext: jest.fn(),
+    };
 
-    guard = new JwtAuthGuard(reflector);
+    guard = new JwtAuthGuard(reflector, tenantContext as any);
   });
 
   describe('canActivate', () => {
@@ -130,6 +134,7 @@ describe('JwtAuthGuard', () => {
     it('usa el reflector inyectado', () => {
       expect(guard).toBeInstanceOf(JwtAuthGuard);
       expect((guard as any).reflector).toBe(reflector);
+      expect((guard as any).tenantContext).toBe(tenantContext);
     });
   });
 
@@ -156,6 +161,41 @@ describe('JwtAuthGuard', () => {
       });
 
       expect(guard.canActivate(context)).toBe(true);
+    });
+  });
+
+  describe('handleRequest', () => {
+    it('establece contexto de tenant cuando usuario existe', () => {
+      const context = createExecutionContext();
+      const payload = {
+        tenantId: 1,
+        tenantSlug: 'tenant-1',
+        companyId: 2,
+        companyIds: [2, 3],
+        modules: ['dashboard'],
+      };
+
+      const result = guard.handleRequest(null, payload, null, context);
+
+      expect(result).toBe(payload);
+      expect(tenantContext.setContext).toHaveBeenCalledWith({
+        tenantId: 1,
+        tenantSlug: 'tenant-1',
+        companyId: 2,
+        companyIds: [2, 3],
+        modules: ['dashboard'],
+      });
+    });
+
+    it('no establece contexto cuando usuario falta', () => {
+      const context = createExecutionContext();
+      const parentHandle = jest.spyOn(Object.getPrototypeOf(guard), 'handleRequest').mockReturnValueOnce(null);
+
+      const result = guard.handleRequest(null, null, null, context);
+
+      expect(result).toBeNull();
+      expect(tenantContext.setContext).not.toHaveBeenCalled();
+      parentHandle.mockRestore();
     });
   });
 });
