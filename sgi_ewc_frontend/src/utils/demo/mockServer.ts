@@ -148,6 +148,7 @@ const handleAuthLogout = (cleanPath: string) => {
     localStorage.removeItem("userData");
     localStorage.removeItem("demoMode");
     localStorage.removeItem("autoStartTour");
+    localStorage.removeItem("demoTourState");
     // Clear persisted demo state
     localStorage.removeItem(LS_KEYS.notifications);
     localStorage.removeItem(LS_KEYS.workOrders);
