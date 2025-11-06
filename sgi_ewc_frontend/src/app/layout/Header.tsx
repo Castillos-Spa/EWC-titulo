@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Bell, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
-import { createPortal } from 'react-dom';
 import { listNotifications, markNotificationAsRead } from '../../utils/notificationApi';
 import { getUsers } from '../../utils/userApi';
 import { getTickets } from '../../utils/ticketApi';
@@ -15,6 +14,7 @@ import type { AppNotification } from '../../types/Notification';
 import { useIntlFormat } from '../intl/format';
 import { useNavigate } from 'react-router-dom';
 import { useTour } from '../../contexts/TourContext';
+import OverlayTour from '../../components/tour/OverlayTour';
 import type { Vehiculo } from '../../types/Vehiculo';
 import type { OrdenTrabajo } from '../../types/OrdenTrabajo';
 import type { Incident } from '../../types/Incident';
@@ -154,7 +154,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
 	// Tour: usar el contexto con persistencia y navegación
-	const { active: tourActive, index: tourIndex, steps: tourSteps, startTour, stopTour, prevStep, nextStep, resumeTour } = useTour();
+	const { active: tourActive, index: tourIndex, startTour, resumeTour } = useTour();
 
 	// El TourContext ya maneja eventos globales y navegación entre pasos
 	const { formatTime } = useIntlFormat();
@@ -564,7 +564,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 				<div className="flex flex-col min-w-0 gap-2">
 					<span className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-600/70 drop-shadow-sm dark:text-blue-200/80">Operaciones EWC</span>
 					<div className="flex flex-wrap items-center gap-3">
-						<h1 className="text-2xl font-semibold leading-tight text-slate-900 drop-shadow-sm dark:text-white">{getTitle(title)}</h1>
+						<h1 className="text-2xl font-semibold leading-tight text-slate-900 drop-shadow-sm dark:text-white" data-tour="page-title">{getTitle(title)}</h1>
 						<span className="px-3 py-1 text-xs font-medium border rounded-full shadow-sm border-white/70 bg-white/80 text-slate-700 backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-white">
 							{areaBadgeLabel}
 						</span>
@@ -589,7 +589,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 						</button>
 					)}
 		{/* Search */}
-					<div className="relative hidden md:block" ref={searchRef}>
+					<div className="relative hidden md:block" ref={searchRef} data-tour="global-search">
 						<Search className="absolute w-4 h-4 -translate-y-1/2 pointer-events-none left-4 top-1/2 text-slate-500 dark:text-blue-200/80" />
 						<input
 							type="text"
@@ -858,7 +858,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 					</div>
 
 					{/* Notifications */}
-					<div className="relative" ref={notifRef}>
+					<div className="relative" ref={notifRef} data-tour="notifications-button">
 						<button
 							type="button"
 							onClick={() => setShowNotifications(prev => !prev)}
@@ -911,7 +911,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 					</div>
 
 					{/* Profile */}
-					<div className="relative" ref={menuRef}>
+					<div className="relative" ref={menuRef} data-tour="profile-button">
 						<button
 							type="button"
 							onClick={() => setShowProfileMenu(prev => !prev)}
@@ -955,31 +955,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 				</div>
 			</div>
 		</header>
-		{tourActive && createPortal(
-			<dialog open className="fixed inset-0 z-[100] m-0 p-0 bg-transparent" aria-label="Tour guiado">
-				<button
-					className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-					aria-label="Cerrar tour"
-					onClick={stopTour}
-				/>
-				<div className="absolute bottom-6 left-1/2 z-[101] w-[92vw] max-w-xl -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-5 text-slate-800 shadow-2xl dark:border-white/10 dark:bg-slate-900 dark:text-white">
-					<div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-blue-200/80">Tour guiado</div>
-					<div className="mb-1 text-lg font-semibold">{tourSteps[tourIndex].title}</div>
-					<p className="mb-4 text-sm text-slate-600 dark:text-blue-200/80">{tourSteps[tourIndex].description}</p>
-					<div className="flex items-center justify-between">
-						<span className="text-xs text-slate-500 dark:text-blue-200/70">Paso {tourIndex + 1} de {tourSteps.length}</span>
-						<div className="flex items-center gap-2">
-							<button type="button" onClick={stopTour} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:text-white dark:hover:bg-white/10">Salir</button>
-							<button type="button" onClick={prevStep} disabled={tourIndex === 0} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50 hover:bg-slate-100 dark:border-white/10 dark:text-white dark:hover:bg-white/10">Anterior</button>
-							<button type="button" onClick={nextStep} className="rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500">
-								{tourIndex === tourSteps.length - 1 ? 'Finalizar' : 'Siguiente'}
-							</button>
-						</div>
-					</div>
-				</div>
-			</dialog>,
-			document.body
-		)}
+		<OverlayTour />
 		</>
 	);
 };

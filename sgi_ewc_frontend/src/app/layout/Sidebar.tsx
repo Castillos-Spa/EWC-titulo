@@ -221,6 +221,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 				compact={compact}
 				isActive={currentPage === item.id}
 				onClick={onPageChange}
+				// Atributo para tour
+				data-tour={(() => {
+					const map: Record<string,string> = {
+						'dashboard':'dashboard',
+						'tickets':'tickets',
+						'transport-routes':'rutas',
+						'fleet-registry':'flota',
+						'fuel-by-fleet':'combustible',
+						'maintenance':'mantenimiento',
+						'cleaning-reports':'aseo',
+						'civil-works':'obras-civiles',
+						'incidents':'incidentes',
+						'notifications':'notificaciones',
+						'user-management':'usuarios',
+						'settings':'ajustes'
+					};
+					return map[item.id] || undefined;
+				})()}
 			/>
 		);
 	});

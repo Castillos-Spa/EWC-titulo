@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-interface TourStep { path: string; title: string; description: string; }
+interface TourStep { path: string; title: string; description: string; target?: string; }
 interface TourStateShape { active: boolean; index: number; completed: boolean; }
 interface TourContextValue {
   steps: TourStep[];
@@ -28,18 +28,18 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
   const location = useLocation();
   const steps: TourStep[] = useMemo(() => ([
-    { path: '/', title: 'Dashboard', description: 'Resumen con KPIs iniciales y accesos rápidos.' },
-    { path: '/rutas', title: 'Rutas', description: 'Gestión y asignación de rutas operativas.' },
-    { path: '/flota', title: 'Flota', description: 'Registro de vehículos y su estado técnico.' },
-    { path: '/combustible', title: 'Combustible', description: 'Carga y análisis de consumo por vehículo.' },
-    { path: '/mantenimiento', title: 'Mantenimiento', description: 'Órdenes de trabajo, estados y cierres con QA.' },
-    { path: '/obras-civiles', title: 'Obras Civiles', description: 'Seguimiento de avance, materiales y tareas.' },
-    { path: '/aseo', title: 'Aseo', description: 'Reportes de limpieza y conformidad.' },
-    { path: '/incidentes', title: 'Incidentes', description: 'Registro y gestión de incidentes y su estado.' },
-    { path: '/notificaciones', title: 'Notificaciones', description: 'Avisos globales, por roles o por áreas.' },
-    { path: '/tickets', title: 'Tickets', description: 'Mesa de ayuda con prioridades y aprobaciones.' },
-    { path: '/usuarios', title: 'Usuarios', description: 'Gestión de usuarios y roles de acceso.' },
-    { path: '/ajustes', title: 'Configuración', description: 'Preferencias personales y opciones avanzadas.' },
+    { path: '/', title: 'Dashboard', description: 'Resumen con KPIs iniciales y accesos rápidos.', target: '[data-tour="dashboard"]' },
+    { path: '/rutas', title: 'Rutas', description: 'Gestión y asignación de rutas operativas.', target: '[data-tour="rutas"]' },
+    { path: '/flota', title: 'Flota', description: 'Registro de vehículos y su estado técnico.', target: '[data-tour="flota"]' },
+    { path: '/combustible', title: 'Combustible', description: 'Carga y análisis de consumo por vehículo.', target: '[data-tour="combustible"]' },
+    { path: '/mantenimiento', title: 'Mantenimiento', description: 'Órdenes de trabajo, estados y cierres con QA.', target: '[data-tour="mantenimiento"]' },
+    { path: '/obras-civiles', title: 'Obras Civiles', description: 'Seguimiento de avance, materiales y tareas.', target: '[data-tour="obras-civiles"]' },
+    { path: '/aseo', title: 'Aseo', description: 'Reportes de limpieza y conformidad.', target: '[data-tour="aseo"]' },
+    { path: '/incidentes', title: 'Incidentes', description: 'Registro y gestión de incidentes y su estado.', target: '[data-tour="incidentes"]' },
+    { path: '/notificaciones', title: 'Notificaciones', description: 'Avisos globales, por roles o por áreas.', target: '[data-tour="notificaciones"]' },
+    { path: '/tickets', title: 'Tickets', description: 'Mesa de ayuda con prioridades y aprobaciones.', target: '[data-tour="tickets"]' },
+    { path: '/usuarios', title: 'Usuarios', description: 'Gestión de usuarios y roles de acceso.', target: '[data-tour="usuarios"]' },
+    { path: '/ajustes', title: 'Configuración', description: 'Preferencias personales y opciones avanzadas.', target: '[data-tour="ajustes"]' },
   ]), []);
 
   const [state, setState] = useState<TourStateShape>(() => ({ active: false, index: 0, completed: false }));
