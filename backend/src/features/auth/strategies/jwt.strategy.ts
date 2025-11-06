@@ -30,20 +30,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!payload.email) {
       throw new UnauthorizedException('Token invalido: falta email');
     }
-    if (!payload.tenantId) {
-      throw new UnauthorizedException('Token invalido: falta tenant');
-    }
-    if (!payload.tenantSlug) {
-      throw new UnauthorizedException('Token invalido: falta tenant slug');
-    }
     // El objeto que se retorna aquí es lo que se inyectará en `req.user`
     return {
       userId: payload.sub,
-      tenantId: payload.tenantId,
-      tenantSlug: payload.tenantSlug,
-      companyId: payload.companyId ?? null,
-      companyIds: payload.companyIds ?? [],
-      modules: payload.modules ?? [],
       email: payload.email,
       username: payload.username,
       areas: payload.areas,

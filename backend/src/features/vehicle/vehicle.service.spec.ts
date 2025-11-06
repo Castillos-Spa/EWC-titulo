@@ -1,16 +1,14 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { VehicleService } from './vehicle.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('VehicleService', () => {
   let service: VehicleService;
   let prisma: PrismaMock;
-  const tenantContext = { tenantId: 7 } as unknown as TenantContextService;
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    service = new VehicleService(prisma, tenantContext);
+    service = new VehicleService(prisma);
   });
 
   describe('create', () => {
@@ -22,7 +20,7 @@ describe('VehicleService', () => {
 
       expect(prisma.vehiculo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ patente: 'AAA111', tipo: 'Truck', tenantId: tenantContext.tenantId }),
+          data: expect.objectContaining({ patente: 'AAA111', tipo: 'Truck' }),
         }),
       );
       expect(created).toEqual({ id: 2, patente: 'AAA111' });

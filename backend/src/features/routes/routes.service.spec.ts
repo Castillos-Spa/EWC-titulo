@@ -1,16 +1,14 @@
 import { NotFoundException } from '@nestjs/common';
 import { RoutesService } from './routes.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('RoutesService', () => {
   let service: RoutesService;
   let prisma: PrismaMock;
-  const tenantContext = { tenantId: 99 } as unknown as TenantContextService;
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    service = new RoutesService(prisma, tenantContext);
+    service = new RoutesService(prisma);
   });
 
   describe('findAll', () => {
@@ -40,7 +38,7 @@ describe('RoutesService', () => {
 
       expect(prisma.truckAssignment.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ truckId: 1, routeId: 2, driverId: 3, tenantId: tenantContext.tenantId }),
+          data: expect.objectContaining({ truckId: 1, routeId: 2, driverId: 3 }),
         }),
       );
     });

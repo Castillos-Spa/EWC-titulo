@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import {
   Role,
   Area,
@@ -15,7 +9,6 @@ import {
   VehiculoStatus,
   OrdenTrabajo,
   Vehiculo,
-  Prisma,
 } from '@prisma/client';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { ticketInclude } from 'prisma/prisma-includes';
@@ -25,16 +18,12 @@ import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { ApproveStepDto } from './dto/approve-step.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Area as AreaEnum } from '@/app/shared/enums/area.enum';
-import { TenantContextService } from '@/app/core/tenant-context.service';
-
-type TicketWithRelations = Prisma.TicketGetPayload<{ include: { approvals: true; ordenTrabajo: true } }>;
 
 @Injectable()
 export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly tenantContext: TenantContextService,
   ) {}
   private async getApprovalWorkflow(
     area: Area,
@@ -56,11 +45,10 @@ export class TicketService {
   }
 
   async create(createTicketDto: CreateTicketDto, createdById: number): Promise<Ticket> {
-    const tenantId = this.resolveTenantId();
     const { recipientArea, recipientRole, tags, category, ...restOfDto } = createTicketDto;
 
     // Convertir la categoría de string a enum
-    const categoryEnum = category.replaceAll(' ', '_') as TicketCategory;
+    const categoryEnum = category.replace(/ /g, '_') as TicketCategory;
     // Convertir el array de strings de área al enum Area
     const recipientAreaEnum = recipientArea?.map(areaStr => areaStr as Area) ?? [];
 
@@ -71,7 +59,6 @@ export class TicketService {
         recipientArea: recipientAreaEnum, // Usamos el array de enums
         tags: tags ?? [],
         createdById,
-        tenantId,
         recipientRole: recipientRole ?? [], // Initialize recipientRole as an empty array if not provided
       },
     });
@@ -93,7 +80,6 @@ export class TicketService {
               step: step.step,
               approverRole: step.approverRole,
               approverArea: step.approverArea,
-              tenantId,
             })),
           });
 
@@ -173,14 +159,63 @@ export class TicketService {
       throw new NotFoundException(`Ticket con ID #${id} no encontrado`);
     }
 
-    const { dataToUpdate, manualStatusChange } = this.buildTicketUpdatePlan(updateTicketDto, ticketBeforeUpdate);
+    // Desestructuramos 'status' junto con las otras propiedades
+    const {
+      recipientArea,
+      assignedToId,
+      category,
+      status,
+      assignedUserConfirmation,
+      requestingUserConfirmation,
+      ...restOfUpdateDto
+    } = updateTicketDto;
 
-    if (manualStatusChange) {
-      this.eventEmitter.emit('ticket.statusChanged', {
-        ticket: ticketBeforeUpdate,
-        newStatus: manualStatusChange,
-        updatedById,
-      });
+    const dataToUpdate: any = {
+      ...restOfUpdateDto,
+    };
+
+    if (assignedToId !== undefined) dataToUpdate.assignedToId = assignedToId;
+
+    if (category) {
+      dataToUpdate.category = category.replace(/ /g, '_') as TicketCategory;
+    }
+
+    // Lógica de confirmación y cambio de estado automático
+    if (assignedUserConfirmation === true) {
+      // Si el ticket tiene un flujo de aprobación, no usamos esta lógica simple
+      if (!ticketBeforeUpdate.approvals?.length) {
+        dataToUpdate.assignedUserConfirmation = true;
+        dataToUpdate.status = TicketStatus.Resuelto; // 1er check -> Resuelto
+      }
+    } else if (assignedUserConfirmation === false) {
+      if (!ticketBeforeUpdate.approvals?.length) {
+        // Si se desmarca la primera confirmación, se reabre y se resetea la segunda.
+        dataToUpdate.assignedUserConfirmation = false;
+        dataToUpdate.requestingUserConfirmation = false;
+        dataToUpdate.status = TicketStatus.EnProgreso;
+      }
+    } else if (requestingUserConfirmation === true) {
+      if (!ticketBeforeUpdate.approvals?.length) {
+        if (ticketBeforeUpdate.assignedUserConfirmation) {
+          // NOSONAR
+          dataToUpdate.requestingUserConfirmation = true;
+          dataToUpdate.status = TicketStatus.Cerrado; // 2do check -> Cerrado
+        }
+      }
+    } else if (
+      status &&
+      ticketBeforeUpdate.category === TicketCategory.Solicitud_Suministro &&
+      ticketBeforeUpdate.approvals.length > 0
+    ) {
+      // Para tickets de suministro con flujo, el estado se gestiona por las aprobaciones.
+    } else if (status) {
+      // Solo permite cambiar el estado manualmente si no hay una lógica de confirmación activa
+      dataToUpdate.status = status;
+
+      // Notificación por cambio de estado manual
+      if (status !== ticketBeforeUpdate.status) {
+        this.eventEmitter.emit('ticket.statusChanged', { ticket: ticketBeforeUpdate, newStatus: status, updatedById });
+      }
     }
 
     const updatedTicket = await this.prisma.ticket.update({
@@ -188,12 +223,31 @@ export class TicketService {
       data: dataToUpdate,
     });
 
-    await this.handleMaintenanceSideEffects(updatedTicket, ticketBeforeUpdate);
+    // --- LÓGICA POST-ACTUALIZACIÓN ---
+    // Si el ticket de mantenimiento se cierra, actualizamos la OT y el vehículo.
+    if (
+      (updatedTicket.status === TicketStatus.Cerrado || updatedTicket.status === TicketStatus.Resuelto) &&
+      ticketBeforeUpdate.category === TicketCategory.Mantenimiento &&
+      ticketBeforeUpdate.ordenTrabajo // Verificamos que la OT exista
+    ) {
+      // Cambiamos el estado de la OT a 'completado' directamente desde aquí
+      await this.prisma.ordenTrabajo.update({
+        where: { id: ticketBeforeUpdate.ordenTrabajo.id },
+        data: { estado: 'completado' },
+      });
 
-    if (this.hasAssignmentChanged(updateTicketDto.assignedToId, ticketBeforeUpdate.assignedToId)) {
+      // Cambiamos el estado del vehículo a 'disponible' directamente
+      await this.prisma.vehiculo.update({
+        where: { id: ticketBeforeUpdate.ordenTrabajo.vehiculoId },
+        data: { estado: VehiculoStatus.disponible },
+      });
+    }
+
+    // Notificación por cambio de asignación
+    if (updateTicketDto.assignedToId && updateTicketDto.assignedToId !== ticketBeforeUpdate.assignedToId) {
       this.eventEmitter.emit('ticket.assigned', {
         ticket: updatedTicket,
-        assignedToId: updateTicketDto.assignedToId as number,
+        assignedToId: updateTicketDto.assignedToId,
         createdById: updatedById,
       });
     }
@@ -267,8 +321,7 @@ export class TicketService {
       });
 
       const allApprovals = approvalStep.ticket.approvals;
-      const lastStep = allApprovals.at(-1)?.step;
-      const isLastStep = approvalStep.step === lastStep;
+      const isLastStep = approvalStep.step === allApprovals[allApprovals.length - 1].step;
 
       let finalTicketStatus = approvalStep.ticket.status;
 
@@ -336,110 +389,5 @@ export class TicketService {
         otCreatorId, // El ticket es "creado" por el mecánico que finalizó el trabajo.
       );
     }
-  }
-
-  private buildTicketUpdatePlan(
-    updateTicketDto: UpdateTicketDto,
-    ticketBeforeUpdate: TicketWithRelations,
-  ): { dataToUpdate: Record<string, unknown>; manualStatusChange?: TicketStatus } {
-    const {
-      recipientArea: _recipientArea,
-      assignedToId,
-      category,
-      status,
-      assignedUserConfirmation,
-      requestingUserConfirmation,
-      ...restOfUpdateDto
-    } = updateTicketDto;
-
-    const dataToUpdate: Record<string, unknown> = {
-      ...restOfUpdateDto,
-    };
-
-    if (assignedToId !== undefined) {
-      dataToUpdate.assignedToId = assignedToId;
-    }
-
-    if (category) {
-      dataToUpdate.category = category.replaceAll(' ', '_') as TicketCategory;
-    }
-
-    let manualStatusChange: TicketStatus | undefined;
-
-    const approvalsCount = ticketBeforeUpdate.approvals?.length ?? 0;
-
-    if (assignedUserConfirmation === true && approvalsCount === 0) {
-      dataToUpdate.assignedUserConfirmation = true;
-      dataToUpdate.status = TicketStatus.Resuelto;
-      return { dataToUpdate, manualStatusChange };
-    }
-
-    if (assignedUserConfirmation === false && approvalsCount === 0) {
-      dataToUpdate.assignedUserConfirmation = false;
-      dataToUpdate.requestingUserConfirmation = false;
-      dataToUpdate.status = TicketStatus.EnProgreso;
-      return { dataToUpdate, manualStatusChange };
-    }
-
-    const canConfirmRequestingUser =
-      requestingUserConfirmation === true && approvalsCount === 0 && ticketBeforeUpdate.assignedUserConfirmation;
-    if (canConfirmRequestingUser) {
-      dataToUpdate.requestingUserConfirmation = true;
-      dataToUpdate.status = TicketStatus.Cerrado;
-      return { dataToUpdate, manualStatusChange };
-    }
-
-    const approvalsManageStatus =
-      status &&
-      ticketBeforeUpdate.category === TicketCategory.Solicitud_Suministro &&
-      ticketBeforeUpdate.approvals.length > 0;
-    if (approvalsManageStatus) {
-      return { dataToUpdate, manualStatusChange };
-    }
-
-    if (status) {
-      dataToUpdate.status = status;
-      if (status !== ticketBeforeUpdate.status) {
-        manualStatusChange = status;
-      }
-    }
-
-    return { dataToUpdate, manualStatusChange };
-  }
-
-  private async handleMaintenanceSideEffects(
-    updatedTicket: Ticket,
-    ticketBeforeUpdate: TicketWithRelations,
-  ): Promise<void> {
-    if (
-      (updatedTicket.status === TicketStatus.Cerrado || updatedTicket.status === TicketStatus.Resuelto) &&
-      ticketBeforeUpdate.category === TicketCategory.Mantenimiento &&
-      ticketBeforeUpdate.ordenTrabajo
-    ) {
-      await this.prisma.ordenTrabajo.update({
-        where: { id: ticketBeforeUpdate.ordenTrabajo.id },
-        data: { estado: 'completado' },
-      });
-
-      await this.prisma.vehiculo.update({
-        where: { id: ticketBeforeUpdate.ordenTrabajo.vehiculoId },
-        data: { estado: VehiculoStatus.disponible },
-      });
-    }
-  }
-
-  private hasAssignmentChanged(
-    newAssignedId: number | undefined,
-    previousAssignedId: number | null | undefined,
-  ): boolean {
-    return newAssignedId !== undefined && newAssignedId !== previousAssignedId;
-  }
-
-  private resolveTenantId(): number {
-    const tenantId = this.tenantContext.tenantId;
-    if (!tenantId) {
-      throw new UnauthorizedException('Tenant no especificado en la operación.');
-    }
-    return tenantId;
   }
 }

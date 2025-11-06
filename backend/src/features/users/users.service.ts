@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CacheService } from '@/common/cache.service';
 import { User, Role, Permission, Prisma, Specialty, Area } from '@prisma/client';
@@ -15,7 +9,6 @@ import { NotificationService } from '../notification/notification.service';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { toPrismaPagination } from '@/common/utils/pagination.util';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class UsersService {
@@ -23,26 +16,17 @@ export class UsersService {
     private readonly notificationService: NotificationService,
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
-    private readonly tenantContext: TenantContextService,
   ) {}
 
-  private readonly userInclude: Prisma.UserInclude = {
+  private readonly userInclude = {
     roleAssignments: true,
-    userCompanies: true,
-    tenant: true,
-    _count: {
-      select: {
-        notifications: true,
-        userCompanies: true,
-      },
-    },
-  } as Prisma.UserInclude;
+  } satisfies Prisma.UserInclude;
 
-  private async findUser(where: Prisma.UserWhereInput) {
-    return this.prisma.user.findFirst({ where, include: this.userInclude });
+  private async findUser(where: Prisma.UserWhereUniqueInput) {
+    return this.prisma.user.findUnique({ where, include: this.userInclude });
   }
 
-  private sanitizeUser<T extends { password?: string }>(user: T | null): Omit<T, 'password'> | null {
+  private sanitizeUser<T extends { password?: string }>(user: T | null) {
     if (!user) {
       return null;
     }
@@ -51,40 +35,29 @@ export class UsersService {
     return rest;
   }
 
-  private resolveTenantId(tenantId?: number): number {
-    const resolved = tenantId ?? this.tenantContext.tenantId;
-    if (!resolved) {
-      throw new UnauthorizedException('Tenant no especificado en la operación.');
-    }
-    return resolved;
+  async findOne(username: string): Promise<Prisma.UserGetPayload<{ include: { roleAssignments: true } }> | null> {
+    return this.prisma.user.findFirst({
+      where: { username },
+      include: this.userInclude,
+    });
   }
 
-  async findOne(username: string, tenantId?: number) {
-    const resolvedTenantId = this.resolveTenantId(tenantId);
-    return this.findUser({ username, tenantId: resolvedTenantId });
+  async findByEmail(email: string): Promise<Prisma.UserGetPayload<{ include: { roleAssignments: true } }> | null> {
+    return this.findUser({ email });
   }
 
-  async findByEmail(email: string, tenantId?: number) {
-    const resolvedTenantId = this.resolveTenantId(tenantId);
-    return this.findUser({ email, tenantId: resolvedTenantId });
-  }
-
-  async findById(id: number, tenantId?: number) {
-    const where: Prisma.UserWhereInput = { id };
-    const resolvedTenantId = tenantId ?? this.tenantContext.tenantId;
-    if (resolvedTenantId) {
-      where.tenantId = resolvedTenantId;
-    }
-    return this.findUser(where);
+  async findById(id: number): Promise<Prisma.UserGetPayload<{ include: { roleAssignments: true } }> | null> {
+    return this.findUser({ id });
   }
 
   generateTempPassword(length = 10) {
     return crypto.randomBytes(length).toString('base64').slice(0, length);
   }
 
-  async register(registerDto: RegisterDto) {
-    const tenantId = this.resolveTenantId();
-
+  async register(registerDto: RegisterDto): Promise<{
+    user: Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'>;
+    tempPassword?: string;
+  }> {
     let password = registerDto.password;
     let tempPassword: string | undefined;
     let mustChangePassword = false;
@@ -98,108 +71,57 @@ export class UsersService {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    const { roleAssignments, companyIds = [], primaryCompanyId, ...userData } = registerDto;
-
-    const requestedCompanyIds = Array.from(new Set(companyIds.filter(id => Number.isInteger(id))));
-    if (primaryCompanyId && !requestedCompanyIds.includes(primaryCompanyId)) {
-      requestedCompanyIds.push(primaryCompanyId);
-    }
-
-    let resolvedPrimaryCompanyId = primaryCompanyId ?? null;
-    if (requestedCompanyIds.length > 0) {
-      const validCompanies = await this.prisma.company.findMany({
-        where: {
-          tenantId,
-          id: { in: requestedCompanyIds },
-        },
-        select: { id: true },
-      });
-
-      const validIds = new Set(validCompanies.map(company => company.id));
-      const missing = requestedCompanyIds.filter(id => !validIds.has(id));
-      if (missing.length > 0) {
-        throw new NotFoundException('Una o más empresas no pertenecen al tenant actual.');
-      }
-
-      if (!resolvedPrimaryCompanyId && validCompanies.length > 0) {
-        resolvedPrimaryCompanyId = validCompanies[0]?.id ?? null;
-      }
-    }
+    const { roleAssignments, ...userData } = registerDto;
 
     const newUser = await this.prisma.$transaction(async prisma => {
       const user = await prisma.user.create({
         data: {
-          tenantId,
           username: userData.username,
           email: userData.email,
           password: hashedPassword,
           mustChangePassword,
           active: userData.active ?? true,
-          primaryCompanyId: resolvedPrimaryCompanyId,
         },
       });
 
-      if (requestedCompanyIds.length > 0) {
-        await prisma.userCompany.createMany({
-          data: requestedCompanyIds.map(companyIdValue => ({
-            tenantId,
-            userId: user.id,
-            companyId: companyIdValue,
-            isDefault: resolvedPrimaryCompanyId
-              ? companyIdValue === resolvedPrimaryCompanyId
-              : companyIdValue === requestedCompanyIds[0],
-          })),
-          skipDuplicates: true,
-        });
-      }
-
       if (roleAssignments && roleAssignments.length > 0) {
         await prisma.userRoleAssignment.createMany({
-          data: roleAssignments.map(assignment => {
-            if (assignment.companyId && !requestedCompanyIds.includes(assignment.companyId)) {
-              throw new BadRequestException(
-                'La asignación de rol hace referencia a una empresa no asignada al usuario.',
-              );
-            }
-
-            return {
-              tenantId,
-              userId: user.id,
-              area: assignment.area as Area,
-              role: Role[assignment.role as keyof typeof Role],
-              specialty: assignment.specialty ? assignment.specialty : null,
-              permissions: (assignment.additionalPermissions || []).filter(Boolean) as Permission[],
-              companyId: assignment.companyId ?? resolvedPrimaryCompanyId ?? null,
-            };
-          }),
+          data: roleAssignments.map(assignment => ({
+            userId: user.id,
+            area: assignment.area as Area,
+            role: Role[assignment.role as keyof typeof Role],
+            specialty: assignment.specialty ? assignment.specialty : null,
+            permissions: (assignment.additionalPermissions || []).filter(Boolean) as Permission[],
+          })),
         });
       }
 
       return user;
     });
 
-    const userWithRelations = await this.findById(newUser.id, tenantId);
-    if (!userWithRelations) {
+    const userWithRoles = await this.findById(newUser.id);
+    if (!userWithRoles) {
       throw new NotFoundException('No se pudo crear el usuario.');
     }
-    const result = this.sanitizeUser(userWithRelations);
+    const result = this.sanitizeUser(userWithRoles);
     if (!result) {
       throw new NotFoundException('No se pudo crear el usuario.');
     }
 
-    const username = (result as any).username ?? registerDto.username;
-    const userId = (result as any).id ?? newUser.id;
-
-    const message = `El usuario ${username} fue creado exitosamente.`;
+    // Notificar a todos los usuarios del área 'Admin' sobre la creación del nuevo usuario.
+    const message = `El usuario ${result.username} fue creado exitosamente.`;
+    // La contraseña temporal solo se debe mostrar al admin que lo creó, no a todos.
+    // El modal que aparece en el frontend después de crear ya cumple esta función.
 
     await this.notificationService.createNotification({
       title: 'Nuevo Usuario Creado',
       message,
-      roles: ['Admin'],
+      roles: ['Admin'], // 🎯 Usamos 'role' para que coincida con el DTO de notificación
       type: 'user_created',
-      createdById: userId,
+      createdById: result.id, // El ID del usuario que se acaba de crear
     });
 
+    // Invalidar cache de total y listados de usuarios
     this.cacheService.del('users_total');
     this.cacheService.delPrefix('cache:GET:/users');
 
@@ -208,7 +130,6 @@ export class UsersService {
 
   async updateUser(id: number, data: UpdateUserDto) {
     const { roleAssignments, ...userData } = data;
-    const tenantId = this.resolveTenantId();
 
     return this.prisma.$transaction(async prisma => {
       const userExists = await prisma.user.findUnique({ where: { id } });
@@ -226,13 +147,11 @@ export class UsersService {
         // Luego creamos las nuevas asignaciones
         await prisma.userRoleAssignment.createMany({
           data: roleAssignments.map(assignment => ({
-            tenantId,
             userId: id,
             area: assignment.area as Area,
             role: Role[assignment.role as keyof typeof Role],
             specialty: assignment.specialty ? assignment.specialty : null,
             permissions: (assignment.additionalPermissions || []).filter(Boolean) as Permission[],
-            companyId: (assignment as any).companyId ?? null,
           })),
         });
       }
@@ -288,9 +207,7 @@ export class UsersService {
 
     // Procesamos los resultados para añadir los campos derivados que espera el frontend
     const items = users.map(user => {
-      const castUser = user as any;
-      const ra = castUser.roleAssignments ?? [];
-      const primaryCompanyId = null;
+      const ra = user.roleAssignments;
       // Build derived fields expected by frontend
       const rolesArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.role).filter(Boolean)));
       const areasArr: string[] = Array.from(new Set((ra || []).map((r: any) => r.area).filter(Boolean)));
@@ -298,10 +215,10 @@ export class UsersService {
       for (const r of ra || []) {
         if (!r?.area) continue;
         let permissions: string[] = [];
-        if (Array.isArray(r.additionalPermissions)) {
-          permissions = r.additionalPermissions;
+        if (Array.isArray((r as any).additionalPermissions)) {
+          permissions = (r as any).additionalPermissions as string[];
         } else if (Array.isArray(r.permissions)) {
-          permissions = r.permissions;
+          permissions = r.permissions as string[];
         }
 
         rolesByArea[r.area] = {
@@ -322,9 +239,6 @@ export class UsersService {
         areas: areasArr,
         rolesByArea,
         isAdmin: rolesArr.includes('Admin'),
-        primaryCompanyId,
-        companyIds: [],
-        defaultCompanyId: primaryCompanyId,
       } as unknown as Omit<User, 'password'>;
     });
 

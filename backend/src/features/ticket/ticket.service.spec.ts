@@ -3,18 +3,16 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Area, ApprovalStatus, Role, TicketCategory, TicketStatus, VehiculoStatus } from '@prisma/client';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
 import { TicketService } from './ticket.service';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 describe('TicketService', () => {
   let service: TicketService;
   let prisma: PrismaMock;
   const eventEmitter = { emit: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
-  const tenantContext = { tenantId: 42 } as unknown as TenantContextService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = createPrismaMock();
-    service = new TicketService(prisma, eventEmitter, tenantContext);
+    service = new TicketService(prisma, eventEmitter);
   });
 
   describe('create', () => {
@@ -52,7 +50,6 @@ describe('TicketService', () => {
           data: expect.objectContaining({
             category: TicketCategory.Solicitud_Suministro,
             recipientArea: [Area.Transporte],
-            tenantId: tenantContext.tenantId,
           }),
         }),
       );
@@ -63,7 +60,6 @@ describe('TicketService', () => {
               ticketId: createdTicket.id,
               approverRole: Role.Supervisor,
               approverArea: Area.Transporte,
-              tenantId: tenantContext.tenantId,
             }),
           ],
         }),

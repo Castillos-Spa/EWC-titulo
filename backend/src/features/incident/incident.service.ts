@@ -1,20 +1,15 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { IncidentStatus, Prisma } from '@prisma/client';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class IncidentService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly tenantContext: TenantContextService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createIncidentDto: CreateIncidentDto, reportedById: number) {
-    const tenantId = this.resolveTenantId();
     const locationPayload = {
       ...(createIncidentDto.address ? { direccion: createIncidentDto.address } : {}),
       ...(typeof createIncidentDto.latitude === 'number' ? { latitude: createIncidentDto.latitude } : {}),
@@ -31,8 +26,7 @@ export class IncidentService {
         status: IncidentStatus.REPORTED,
         location: locationPayload,
         photos: [],
-        reportedBy: { connect: { id: reportedById } },
-        tenant: { connect: { id: tenantId } },
+        reportedById,
         ...(createIncidentDto.reportedAt ? { reportedAt: new Date(createIncidentDto.reportedAt) } : {}),
       },
     });
@@ -124,13 +118,5 @@ export class IncidentService {
   async remove(id: number) {
     await this.findOne(id); // throws if not found
     return this.prisma.incident.delete({ where: { id } });
-  }
-
-  private resolveTenantId(): number {
-    const tenantId = this.tenantContext.tenantId;
-    if (!tenantId) {
-      throw new UnauthorizedException('Tenant no especificado en la operación.');
-    }
-    return tenantId;
   }
 }
