@@ -272,6 +272,106 @@ describe('AuthService', () => {
     });
   });
 
+  describe('discoverAccess', () => {
+    it('returns empty discovery when email is unknown', async () => {
+      (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      const result = await service.discoverAccess('unknown@example.com');
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            email: expect.objectContaining({ equals: 'unknown@example.com' }),
+            active: true,
+          }),
+        }),
+      );
+      expect(result).toEqual({ email: 'unknown@example.com', tenants: [] });
+    });
+
+    it('assembles tenant options with companies and defaults', async () => {
+      const userRecord = {
+        id: 5,
+        email: 'USER@example.com',
+        tenantId: 401,
+        active: true,
+        primaryCompanyId: 9001,
+        tenant: {
+          id: 401,
+          slug: 'tenant-401',
+          name: 'Operaciones 401',
+          status: TenantStatus.ACTIVE,
+        },
+        userCompanies: [
+          {
+            tenantId: 401,
+            userId: 5,
+            companyId: 9001,
+            isDefault: true,
+            company: {
+              id: 9001,
+              name: 'Compañía Principal',
+              status: 'ACTIVE',
+            },
+          },
+          {
+            tenantId: 401,
+            userId: 5,
+            companyId: 9002,
+            isDefault: false,
+            company: {
+              id: 9002,
+              name: 'Compañía Secundaria',
+              status: 'INACTIVE',
+            },
+          },
+          {
+            tenantId: 401,
+            userId: 5,
+            companyId: 9003,
+            isDefault: false,
+            company: {
+              id: 9003,
+              name: 'Compañía Archivada',
+              status: 'ARCHIVED',
+            },
+          },
+        ],
+      } as any;
+
+      (prisma.user.findMany as jest.Mock).mockResolvedValueOnce([userRecord]);
+
+      const result = await service.discoverAccess('USER@example.com');
+
+      expect(result.email).toBe('user@example.com');
+      expect(result.tenants).toHaveLength(1);
+      expect(result.tenants[0]).toEqual({
+        tenant: {
+          id: 401,
+          slug: 'tenant-401',
+          name: 'Operaciones 401',
+          status: TenantStatus.ACTIVE,
+        },
+        defaultCompanyId: 9001,
+        requiresCompanySelection: true,
+        companies: [
+          {
+            id: 9001,
+            name: 'Compañía Principal',
+            status: 'ACTIVE',
+            isDefault: true,
+          },
+          {
+            id: 9002,
+            name: 'Compañía Secundaria',
+            status: 'INACTIVE',
+            isDefault: false,
+          },
+        ],
+      });
+    });
+  });
+
   describe('role helpers', () => {
     it('delegates changePassword', async () => {
       usersService.changePassword.mockResolvedValueOnce({ success: true } as any);

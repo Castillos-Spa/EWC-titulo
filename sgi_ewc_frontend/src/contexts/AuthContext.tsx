@@ -1,66 +1,106 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { login as apiLogin, getProfile, logoutUser } from '../utils/userApi';
-import { User } from '../types/User';
+import type {
+  User,
+  ClientAuthSession,
+  TenantSummary,
+  TenantCompany,
+  BackendModuleKey,
+} from '../types/User';
+import { loadAuthSession, saveAuthSession, clearAuthSession } from '../utils/authSessionStorage';
 
 interface AuthContextType {
+  session: ClientAuthSession | null;
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  tenant: TenantSummary | null;
+  companyId: number | null;
+  companies: TenantCompany[];
+  modules: BackendModuleKey[];
+  login: (
+    email: string,
+    password: string,
+    tenantSlug: string,
+    companyId?: number | null,
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  // Nota: Mocks eliminados — ahora usamos datos reales del backend
+const buildSessionFromProfile = (
+  profile: User,
+  base: ClientAuthSession | null,
+): ClientAuthSession => ({
+  user: profile,
+  tenant: base?.tenant ?? null,
+  companyId: profile.companyId ?? base?.companyId ?? null,
+  companies: base?.companies ?? [],
+  modules: profile.modules ?? base?.modules ?? [],
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<ClientAuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const logout = useCallback(async () => {
-    try {
-      // Llama al backend para invalidar la sesión en el servidor.
-      await logoutUser();
-    } catch (error) {
-      // Incluso si la llamada a la API falla, el logout del frontend debe continuar.
-      console.error("Fallo al cerrar sesión en el servidor:", error);
-    } finally {
-      // Limpia los tokens y el estado local sin importar el resultado de la API.
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userData');
-      setUser(null);
+  const applySession = useCallback((next: ClientAuthSession | null) => {
+    if (next) {
+      saveAuthSession(next);
+      setSession(next);
+    } else {
+      clearAuthSession();
+      setSession(null);
     }
   }, []);
 
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.error('Fallo al cerrar sesión en el servidor:', error);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      applySession(null);
+    }
+  }, [applySession]);
+
   const loadUserFromToken = useCallback(async () => {
     const token = localStorage.getItem('authToken');
-    if (token) {
-      try {
-        const profile = await getProfile();
-        setUser(profile); // El perfil ya viene con la estructura correcta
-      } catch (error) {
-        console.error("Fallo al verificar el token, cerrando sesión local.", error);
-  await logout(); // Limpia por completo el estado si el token no es válido (manejo inmediato)
-      }
-    } else {
-      setUser(null);
+    const storedSession = loadAuthSession();
+    if (storedSession) {
+      setSession(storedSession);
     }
-    setIsLoading(false);
-  }, [logout]);
+
+    if (!token) {
+      applySession(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const profile = await getProfile();
+      const mergedSession = buildSessionFromProfile(profile, storedSession);
+      applySession(mergedSession);
+    } catch (error) {
+      console.error('Fallo al verificar el token, cerrando sesión local.', error);
+      await logout();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [applySession, logout]);
 
   useEffect(() => {
-    loadUserFromToken();
+    void loadUserFromToken();
 
     const handleSessionExpired = () => {
       void logout();
     };
 
     const handleSessionRefreshed = (event: Event) => {
-      const detail = (event as CustomEvent<User | undefined>).detail;
+      const detail = (event as CustomEvent<ClientAuthSession | undefined>).detail;
       if (detail) {
-        localStorage.setItem('userData', JSON.stringify(detail));
-        setUser(detail);
+        applySession(detail);
       } else {
         void loadUserFromToken();
       }
@@ -73,38 +113,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       globalThis.removeEventListener?.('session-expired', handleSessionExpired);
       globalThis.removeEventListener?.('session-refreshed', handleSessionRefreshed);
     };
-  }, [loadUserFromToken, logout]);
+  }, [applySession, loadUserFromToken, logout]);
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      // El backend devuelve access_token y refresh_token
-      const { access_token, refresh_token, user: loggedInUser } = await apiLogin(email, password);
-      if (!access_token || !refresh_token || !loggedInUser) {
-        throw new Error('No se recibieron los tokens necesarios');
+  const login = useCallback(
+    async (
+      email: string,
+      password: string,
+      tenantSlug: string,
+      requestedCompanyId?: number | null,
+    ): Promise<boolean> => {
+      setIsLoading(true);
+      try {
+        const {
+          access_token,
+          refresh_token,
+          user: loggedInUser,
+          tenant,
+          companyId: responseCompanyId,
+          companies,
+          modules,
+        } = await apiLogin(email, password, tenantSlug, requestedCompanyId);
+
+        if (!access_token || !refresh_token || !loggedInUser) {
+          throw new Error('No se recibieron los tokens necesarios');
+        }
+
+        localStorage.setItem('authToken', access_token);
+        localStorage.setItem('refreshToken', refresh_token);
+
+        const nextSession: ClientAuthSession = {
+          user: loggedInUser,
+          tenant: tenant ?? null,
+          companyId: responseCompanyId ?? requestedCompanyId ?? null,
+          companies: Array.isArray(companies) ? companies : [],
+          modules: modules ?? loggedInUser.modules ?? [],
+        };
+
+        applySession(nextSession);
+
+        try {
+          if (tenantSlug) {
+            localStorage.setItem('lastTenantSlug', tenantSlug);
+          }
+        } catch (storageError) {
+          console.warn('No se pudo persistir el último tenant utilizado', storageError);
+        }
+
+        setIsLoading(false);
+        return true;
+      } catch (err) {
+        console.error('Login error', err);
+        setIsLoading(false);
+        return false;
       }
-
-      localStorage.setItem('authToken', access_token);
-      localStorage.setItem('refreshToken', refresh_token); // ¡Guardar el refresh token!
-      localStorage.setItem('userData', JSON.stringify(loggedInUser));
-      setUser(loggedInUser);
-      setIsLoading(false);
-      return true;
-    } catch (err) {
-      console.error('Login error', err);
-      setIsLoading(false);
-      return false;
-    }
-  }, []);
+    },
+    [applySession],
+  );
 
   const contextValue = useMemo(
-    () => ({ user, login, logout, isLoading }),
-    [user, login, logout, isLoading]
+    () => ({
+      session,
+      user: session?.user ?? null,
+      tenant: session?.tenant ?? null,
+      companyId: session?.companyId ?? null,
+      companies: session?.companies ?? [],
+      modules: session?.modules ?? [],
+      login,
+      logout,
+      isLoading,
+    }),
+    [session, login, logout, isLoading],
   );
 
-  return (
-    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components

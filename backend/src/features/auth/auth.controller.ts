@@ -19,6 +19,7 @@ import { RegisterDto } from './dtos/register.dto';
 import { OptionalAuth } from './decorators/optional-auth.decorator';
 import type { Request as ExpressRequest } from 'express';
 import type { AuthSession } from './auth.service';
+import { DiscoverAccessDto } from './dtos/discover-access.dto';
 
 type AuthenticatedRequest = ExpressRequest & { user: AuthSession };
 type JwtRequestUser = { userId: number } & Record<string, unknown>;
@@ -33,6 +34,12 @@ export class AuthController {
   @Post('login')
   async login(@Request() req: AuthenticatedRequest) {
     return this.authService.login(req.user);
+  }
+
+  @Public()
+  @Post('discover')
+  async discoverAccess(@Body() { email, tenantSlug }: DiscoverAccessDto) {
+    return this.authService.discoverAccess(email, tenantSlug);
   }
 
   @Post('logout')

@@ -52,6 +52,23 @@ export interface AuthSession {
   userDetails: AuthUserDetails;
 }
 
+export interface TenantAccessOption {
+  tenant: {
+    id: number;
+    slug: string;
+    name: string;
+    status: TenantStatus;
+  };
+  defaultCompanyId: number | null;
+  companies: Array<{ id: number; name: string; status: CompanyStatus; isDefault: boolean }>;
+  requiresCompanySelection: boolean;
+}
+
+export interface AuthDiscoveryResult {
+  email: string;
+  tenants: TenantAccessOption[];
+}
+
 interface RefreshTokenPayload {
   sub: number;
   email: string;
@@ -215,6 +232,90 @@ export class AuthService {
       }
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+  }
+
+  async discoverAccess(email: string, tenantSlug?: string): Promise<AuthDiscoveryResult> {
+    const normalizedEmail = email?.trim();
+    if (!normalizedEmail) {
+      return { email: '', tenants: [] };
+    }
+
+    const where: Prisma.UserWhereInput = {
+      email: { equals: normalizedEmail, mode: 'insensitive' },
+      active: true,
+    };
+
+    if (tenantSlug) {
+      where.tenant = { slug: tenantSlug };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      include: {
+        tenant: true,
+        userCompanies: {
+          include: {
+            company: true,
+          },
+        },
+      },
+    });
+
+    const tenants = new Map<number, TenantAccessOption>();
+
+    for (const user of users) {
+      if (!user.tenant || user.tenant.status !== TenantStatus.ACTIVE) {
+        continue;
+      }
+
+      const memberships = Array.isArray(user.userCompanies) ? user.userCompanies : [];
+      const companies = memberships
+        .filter(membership => membership.company && membership.company.status !== CompanyStatus.ARCHIVED)
+        .map(membership => ({
+          id: membership.companyId,
+          name: membership.company!.name,
+          status: membership.company!.status,
+          isDefault: membership.isDefault,
+        }));
+
+      const defaultCompanyId = user.primaryCompanyId ?? companies.find(company => company.isDefault)?.id ?? null;
+
+      const option: TenantAccessOption = {
+        tenant: {
+          id: user.tenantId,
+          slug: user.tenant.slug,
+          name: user.tenant.name,
+          status: user.tenant.status,
+        },
+        defaultCompanyId,
+        companies,
+        requiresCompanySelection: companies.length > 1,
+      };
+
+      const existing = tenants.get(user.tenantId);
+      if (existing) {
+        const mergedCompanies = [...existing.companies];
+        for (const company of option.companies) {
+          if (!mergedCompanies.some(existingCompany => existingCompany.id === company.id)) {
+            mergedCompanies.push(company);
+          }
+        }
+
+        tenants.set(user.tenantId, {
+          ...option,
+          companies: mergedCompanies,
+          requiresCompanySelection: mergedCompanies.length > 1,
+          defaultCompanyId: option.defaultCompanyId ?? existing.defaultCompanyId ?? null,
+        });
+      } else {
+        tenants.set(user.tenantId, option);
+      }
+    }
+
+    return {
+      email: normalizedEmail.toLowerCase(),
+      tenants: Array.from(tenants.values()),
+    };
   }
 
   private buildSessionContext(

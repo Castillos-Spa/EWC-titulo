@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Lock, User, AlertCircle, ShieldCheck, Headset, Sun, Moon } from 'lucide-react';
+import { Lock, User, AlertCircle, ShieldCheck, Headset, Sun, Moon, Building2, Loader2 } from 'lucide-react';
 import { getPreferredRoute } from '../../../app/navigation/navigationUtils';
+import { discoverAuthAccess } from '../../../utils/userApi';
+import type { TenantAccessOption } from '../../../types/User';
 
 type ThemeVariant = 'light' | 'dark';
+
+const isValidEmail = (value: string) => /.+@.+\..+/.test(value.trim());
 
 const getInitialTheme = (): ThemeVariant => {
   if (!globalThis?.document) return 'dark';
@@ -59,13 +63,87 @@ const themeStyles: Record<ThemeVariant, Record<string, string>> = {
   },
 };
 
+const renderTenantInput = ({
+  hasTenantOptions,
+  tenantOptions,
+  tenantDisplayName,
+  tenantSlug,
+  styles,
+  onTenantChange,
+}: {
+  hasTenantOptions: boolean;
+  tenantOptions: TenantAccessOption[];
+  tenantDisplayName: string;
+  tenantSlug: string;
+  styles: typeof themeStyles[ThemeVariant extends never ? never : keyof typeof themeStyles];
+  onTenantChange: (value: string) => void;
+}) => {
+  if (!hasTenantOptions) {
+    return (
+      <input
+        id="tenant"
+        type="text"
+        value=""
+        readOnly
+        className={`${styles.input} cursor-not-allowed`}
+        placeholder="Ingresa tu correo corporativo"
+        data-cy="login-tenant"
+      />
+    );
+  }
+
+  if (tenantOptions.length === 1) {
+    return (
+      <input
+        id="tenant"
+        type="text"
+        value={tenantDisplayName || tenantSlug}
+        readOnly
+        className={`${styles.input} cursor-default`}
+        data-cy="login-tenant"
+      />
+    );
+  }
+
+  return (
+    <select
+      id="tenant"
+      required
+      value={tenantSlug}
+      onChange={(e) => onTenantChange(e.target.value)}
+      className={`${styles.input} appearance-none pr-8`}
+      autoComplete="organization"
+      data-cy="login-tenant"
+    >
+      <option value="" disabled>
+        Selecciona una organización
+      </option>
+      {tenantOptions.map((option) => (
+        <option key={option.tenant.slug} value={option.tenant.slug}>
+          {option.tenant.name} ({option.tenant.slug})
+        </option>
+      ))}
+    </select>
+  );
+};
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [tenantSlug, setTenantSlug] = useState('');
+  const [companyId, setCompanyId] = useState('');
   const [error, setError] = useState('');
+  const [tenantOptions, setTenantOptions] = useState<TenantAccessOption[]>([]);
+  const [isDiscoveringOptions, setIsDiscoveringOptions] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState('');
   const [theme, setTheme] = useState<ThemeVariant>(() => getInitialTheme());
   const { login, isLoading, user } = useAuth();
   const navigate = useNavigate();
+  const tenantSlugRef = useRef('');
+
+  useEffect(() => {
+    tenantSlugRef.current = tenantSlug;
+  }, [tenantSlug]);
 
 
   useEffect(() => {
@@ -74,14 +152,130 @@ const Login: React.FC = () => {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const trimmedEmail = email.trim();
+    if (!isValidEmail(trimmedEmail)) {
+      setTenantOptions([]);
+      setTenantSlug('');
+      setCompanyId('');
+      setDiscoveryError('');
+      setIsDiscoveringOptions(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsDiscoveringOptions(true);
+    setDiscoveryError('');
+
+    const timeoutId = typeof globalThis.setTimeout === 'function'
+      ? globalThis.setTimeout(async () => {
+      try {
+        const response = await discoverAuthAccess(trimmedEmail);
+        if (cancelled) {
+          return;
+        }
+
+        const options = Array.isArray(response.tenants) ? response.tenants : [];
+        setTenantOptions(options);
+
+        if (options.length === 0) {
+          setTenantSlug('');
+          setCompanyId('');
+          setDiscoveryError('No encontramos accesos vinculados a este correo. Verifica con tu administrador.');
+          return;
+        }
+
+        const storedSlug = (() => {
+          try {
+            return globalThis.localStorage?.getItem('lastTenantSlug') ?? '';
+          } catch {
+            return '';
+          }
+        })();
+
+        const candidate =
+          options.find(option => option.tenant.slug === tenantSlugRef.current) ??
+          options.find(option => option.tenant.slug === storedSlug) ??
+          options[0];
+
+        setTenantSlug(candidate.tenant.slug);
+
+        if (candidate.companies.length <= 1) {
+          const singleCompany = candidate.companies[0];
+          setCompanyId(singleCompany ? String(singleCompany.id) : '');
+        } else {
+          const defaultCompanyId = candidate.defaultCompanyId;
+          setCompanyId(defaultCompanyId ? String(defaultCompanyId) : '');
+        }
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        console.error('No se pudo descubrir el tenant', err);
+        setTenantOptions([]);
+        setTenantSlug('');
+        setCompanyId('');
+        setDiscoveryError('No pudimos validar tu correo en este momento. Intenta nuevamente.');
+      } finally {
+        if (!cancelled) {
+          setIsDiscoveringOptions(false);
+        }
+      }
+        }, 350)
+      : null;
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [email]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = await login(email, password);
+    const normalizedEmail = email.trim();
+    if (!isValidEmail(normalizedEmail)) {
+      setError('Ingresa un correo corporativo válido.');
+      return;
+    }
+
+    if (isDiscoveringOptions) {
+      setError('Estamos validando tus accesos, intenta nuevamente en unos segundos.');
+      return;
+    }
+
+    const normalizedTenant = tenantSlug.trim();
+    if (!normalizedTenant || !hasTenantOptions) {
+      setError('Selecciona la organización a la que deseas acceder.');
+      return;
+    }
+
+    if (shouldShowCompanySelector && !companyId.trim()) {
+      setError('Selecciona la empresa con la que deseas iniciar sesión.');
+      return;
+    }
+
+    const normalizedCompany = companyId.trim();
+    let parsedCompanyId: number | undefined;
+    if (normalizedCompany.length > 0) {
+      const numeric = Number(normalizedCompany);
+      if (Number.isNaN(numeric)) {
+        setError('El ID de empresa debe ser un número válido.');
+        return;
+      }
+      parsedCompanyId = numeric;
+    }
+
+  const success = await login(normalizedEmail, password, normalizedTenant, parsedCompanyId);
     if (success) {
-      // Recalcular con el usuario ya autenticado
-      const next = getPreferredRoute(user);
-      navigate(next, { replace: true });
+      try {
+        globalThis.localStorage?.setItem('lastTenantSlug', normalizedTenant);
+      } catch {
+        // ignore storage errors
+      }
+      // La navegación ocurre cuando el contexto actualiza al usuario autenticado
     } else {
       setError('Credenciales inválidas');
     }
@@ -97,6 +291,38 @@ const Login: React.FC = () => {
       console.warn('No se pudo persistir el tema', err);
     }
   }, [theme]);
+
+  const selectedTenant = useMemo(
+    () => tenantOptions.find(option => option.tenant.slug === tenantSlug) ?? null,
+    [tenantOptions, tenantSlug],
+  );
+  const companyOptions = selectedTenant?.companies ?? [];
+  const shouldShowCompanySelector = companyOptions.length > 1;
+  const hasTenantOptions = tenantOptions.length > 0;
+  let tenantDisplayName = '';
+  if (selectedTenant) {
+    tenantDisplayName = selectedTenant.tenant.name || '';
+    if (selectedTenant.tenant.slug) {
+      tenantDisplayName = tenantDisplayName
+        ? `${tenantDisplayName} (${selectedTenant.tenant.slug})`
+        : selectedTenant.tenant.slug;
+    }
+    tenantDisplayName = tenantDisplayName.trim();
+  }
+
+  let singleCompanyDisplayName = '';
+  if (!shouldShowCompanySelector && companyOptions[0]) {
+    singleCompanyDisplayName = companyOptions[0].name;
+  }
+  const discoveryInfoClass = theme === 'dark' ? 'text-blue-100/80' : 'text-slate-500';
+  const discoveryErrorClass = theme === 'dark' ? 'text-rose-300' : 'text-rose-600';
+  let submitLabel = 'Acceder';
+  if (isDiscoveringOptions) {
+    submitLabel = 'Cargando accesos...';
+  }
+  if (isLoading) {
+    submitLabel = 'Validando...';
+  }
 
   const styles = themeStyles[theme];
 
@@ -162,6 +388,28 @@ const Login: React.FC = () => {
 
               <form onSubmit={handleSubmit} className="space-y-6" data-cy="login-form">
                 <div className="space-y-2">
+                  <label htmlFor="tenant" className={styles.label}>
+                    Organización
+                  </label>
+                  <div className="relative">
+                    <ShieldCheck className={styles.inputIcon} />
+                    {renderTenantInput({
+                      hasTenantOptions,
+                      tenantOptions,
+                      tenantDisplayName,
+                      tenantSlug,
+                      styles,
+                      onTenantChange: setTenantSlug,
+                    })}
+                  </div>
+                  {hasTenantOptions && tenantOptions.length > 1 && (
+                    <p className={`text-xs ${discoveryInfoClass}`}>
+                      Selecciona la organización asociada a tu cuenta.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
                   <label htmlFor="email" className={styles.label}>
                     Correo electrónico
                   </label>
@@ -179,6 +427,19 @@ const Login: React.FC = () => {
                       data-cy="login-email"
                     />
                   </div>
+                  {isDiscoveringOptions && (
+                    <p
+                      className={`flex items-center gap-2 text-xs ${discoveryInfoClass}`}
+                      data-cy="login-discovery-loading"
+                    >
+                      <Loader2 className="h-3 w-3 animate-spin" /> Buscando organizaciones disponibles...
+                    </p>
+                  )}
+                  {discoveryError && (
+                    <p className={`text-xs ${discoveryErrorClass}`} data-cy="login-discovery-error">
+                      {discoveryError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -201,6 +462,52 @@ const Login: React.FC = () => {
                   </div>
                 </div>
 
+                {selectedTenant && (
+                  <div className="space-y-2">
+                    <label htmlFor="company" className={styles.label}>
+                      Empresa {shouldShowCompanySelector ? '' : '(asignada automáticamente)'}
+                    </label>
+                    <div className="relative">
+                      <Building2 className={styles.inputIcon} />
+                      {shouldShowCompanySelector ? (
+                        <select
+                          id="company"
+                          required
+                          value={companyId}
+                          onChange={(e) => setCompanyId(e.target.value)}
+                          className={`${styles.input} appearance-none pr-8`}
+                          data-cy="login-company-id"
+                        >
+                          <option value="">Selecciona una empresa</option>
+                          {companyOptions.map((company) => (
+                            <option key={company.id} value={company.id}>
+                              {company.name} (ID: {company.id})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          id="company"
+                          type="text"
+                          value={singleCompanyDisplayName || 'Sin empresa asignada'}
+                          readOnly
+                          className={`${styles.input} cursor-default`}
+                          data-cy="login-company-id"
+                        />
+                      )}
+                    </div>
+                    {shouldShowCompanySelector ? (
+                      <p className={`text-xs ${discoveryInfoClass}`}>
+                        Elige la empresa con la que deseas operar.
+                      </p>
+                    ) : (
+                      <p className={`text-xs ${discoveryInfoClass}`}>
+                        Usaremos la empresa predeterminada configurada para tu perfil.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {error && (
                   <div className={styles.error} data-cy="login-error">
                     <AlertCircle className="w-5 h-5" />
@@ -210,11 +517,16 @@ const Login: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={
+                    isLoading ||
+                    isDiscoveringOptions ||
+                    !hasTenantOptions ||
+                    (shouldShowCompanySelector && !companyId.trim())
+                  }
                   className={styles.submit}
                   data-cy="login-submit"
                 >
-                  {isLoading ? 'Validando...' : 'Acceder'}
+                  {submitLabel}
                 </button>
               </form>
 

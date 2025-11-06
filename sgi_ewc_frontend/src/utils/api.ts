@@ -1,3 +1,10 @@
+import type { ClientAuthSession } from "../types/User";
+import {
+  clearAuthSession,
+  loadAuthSession,
+  saveAuthSession,
+} from "./authSessionStorage";
+
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
 
 let isRefreshing = false;
@@ -21,10 +28,44 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
+type RefreshSessionPayload = {
+  user?: ClientAuthSession["user"];
+  tenant?: ClientAuthSession["tenant"];
+  companyId?: number | null;
+  companies?: ClientAuthSession["companies"];
+  modules?: ClientAuthSession["modules"];
+};
+
+const applyRefreshedSession = (payload: RefreshSessionPayload) => {
+  if (!payload.user) {
+    globalThis.dispatchEvent?.(
+      new CustomEvent("session-refreshed", { detail: undefined })
+    );
+    return;
+  }
+
+  const previousSession = loadAuthSession();
+  const nextSession: ClientAuthSession = {
+    user: payload.user,
+    tenant: payload.tenant ?? previousSession?.tenant ?? null,
+    companyId: payload.companyId ?? previousSession?.companyId ?? null,
+    companies: Array.isArray(payload.companies)
+      ? payload.companies
+      : previousSession?.companies ?? [],
+    modules:
+      payload.modules ?? payload.user.modules ?? previousSession?.modules ?? [],
+  };
+
+  saveAuthSession(nextSession);
+  globalThis.dispatchEvent?.(
+    new CustomEvent("session-refreshed", { detail: nextSession })
+  );
+};
+
 const handleLogout = () => {
   localStorage.removeItem("authToken");
   localStorage.removeItem("refreshToken");
-  localStorage.removeItem("userData");
+  clearAuthSession();
   // Disparamos un evento global para que la UI reaccione (AuthContext lo escucha).
   globalThis.dispatchEvent?.(new Event("session-expired"));
 };
@@ -91,17 +132,34 @@ async function apiFetch(path: string, options?: RequestInit) {
 
       if (!refreshRes.ok) throw new Error("Session expired");
 
-      const { access_token: newAccessToken, user: refreshedUser } =
-        await refreshRes.json();
+      const refreshPayload = await refreshRes.json();
+      const {
+        access_token: newAccessToken,
+        user: refreshedUser,
+        tenant,
+        companyId,
+        companies,
+        modules,
+      } = refreshPayload as {
+        access_token?: string;
+        user?: ClientAuthSession["user"];
+        tenant?: ClientAuthSession["tenant"];
+        companyId?: number | null;
+        companies?: ClientAuthSession["companies"];
+        modules?: ClientAuthSession["modules"];
+      };
       if (!newAccessToken) throw new Error("Session expired");
       localStorage.setItem("authToken", newAccessToken);
-      if (refreshedUser) {
-        localStorage.setItem("userData", JSON.stringify(refreshedUser));
-        globalThis.dispatchEvent?.(
-          new CustomEvent("session-refreshed", { detail: refreshedUser })
-        );
-      }
       headers["Authorization"] = `Bearer ${newAccessToken}`;
+
+      applyRefreshedSession({
+        user: refreshedUser,
+        tenant,
+        companyId,
+        companies,
+        modules,
+      });
+
       processQueue(null, newAccessToken); // Procesamos la cola de peticiones pendientes.
       res = await fetch(url, { ...init, headers }); // Reintentamos la petición original.
     } catch (error) {

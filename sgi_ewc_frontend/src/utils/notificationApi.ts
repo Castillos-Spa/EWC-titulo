@@ -7,6 +7,7 @@ import type {
 import apiFetch from "./api";
 import { fetchWithCache, invalidateCache } from "./requestCache";
 import { invalidateDashboardOverviewCache } from "./dashboardApi";
+import { loadAuthSession } from "./authSessionStorage";
 
 type NotificationsApiResponse =
   | RawNotification[]
@@ -60,22 +61,12 @@ export const toAppNotification = (raw: RawNotification): AppNotification => {
 };
 
 const getNotificationCacheKey = () => {
-  const rawUser = globalThis.localStorage?.getItem("userData");
-  if (!rawUser) return "notifications:list:anon";
-  try {
-    const parsed = JSON.parse(rawUser) as Record<string, unknown> | null;
-    if (!parsed) return "notifications:list:anon";
-    const idCandidate = (parsed.id ?? parsed.userId) as
-      | string
-      | number
-      | undefined;
-    if (idCandidate === undefined) {
-      return "notifications:list:anon";
-    }
-    return `notifications:list:${String(idCandidate)}`;
-  } catch {
+  const session = loadAuthSession();
+  const userId = session?.user?.id ?? null;
+  if (userId === null || userId === undefined) {
     return "notifications:list:anon";
   }
+  return `notifications:list:${String(userId)}`;
 };
 
 export async function listNotifications(

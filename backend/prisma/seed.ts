@@ -103,11 +103,60 @@ async function main() {
       companyId?: number;
     }>;
     companyId?: number;
+    extraCompanyIds?: number[];
   }) => {
     const primaryCompanyId = config.companyId ?? mainCompany.id;
+    const companyIds = Array.from(
+      new Set(
+        [primaryCompanyId, ...(config.extraCompanyIds ?? [])].filter(
+          (companyIdValue): companyIdValue is number => typeof companyIdValue === 'number',
+        ),
+      ),
+    );
 
-    const user = await prisma.user.create({
-      data: {
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        tenantId_email: {
+          tenantId: tenant.id,
+          email: config.email,
+        },
+      },
+    });
+
+    const user = await prisma.user.upsert({
+      where: {
+        tenantId_email: {
+          tenantId: tenant.id,
+          email: config.email,
+        },
+      },
+      update: {
+        username: config.username,
+        password: defaultPassword,
+        mustChangePassword: false,
+        active: true,
+        primaryCompanyId,
+        userCompanies: {
+          deleteMany: {},
+          create: companyIds.map(companyIdValue => ({
+            tenantId: tenant.id,
+            companyId: companyIdValue,
+            isDefault: companyIdValue === primaryCompanyId,
+          })),
+        },
+        roleAssignments: {
+          deleteMany: {},
+          create: config.areaRoles.map(roleConfig => ({
+            tenantId: tenant.id,
+            area: roleConfig.area,
+            role: roleConfig.role,
+            specialty: roleConfig.specialty ?? null,
+            permissions: roleConfig.permissions,
+            companyId: roleConfig.companyId ?? primaryCompanyId,
+          })),
+        },
+      },
+      create: {
         tenantId: tenant.id,
         username: config.username,
         email: config.email,
@@ -116,13 +165,11 @@ async function main() {
         active: true,
         primaryCompanyId,
         userCompanies: {
-          create: [
-            {
-              tenantId: tenant.id,
-              companyId: primaryCompanyId,
-              isDefault: true,
-            },
-          ],
+          create: companyIds.map(companyIdValue => ({
+            tenantId: tenant.id,
+            companyId: companyIdValue,
+            isDefault: companyIdValue === primaryCompanyId,
+          })),
         },
         roleAssignments: {
           create: config.areaRoles.map(roleConfig => ({
@@ -137,7 +184,7 @@ async function main() {
       },
     });
 
-    console.log(`✅ Usuario creado: ${user.username}`);
+    console.log(`${existingUser ? '🔄 Usuario actualizado' : '✅ Usuario creado'}: ${user.username}`);
   };
 
   await createUser({
@@ -231,16 +278,56 @@ async function main() {
     companyId: secondaryCompany.id,
   });
 
+  await createUser({
+    username: 'coordinador.multi',
+    email: 'coordinador.multi@empresa.cl',
+    areaRoles: [
+      {
+        area: Area.Transporte,
+        role: Role.Jefe,
+        permissions: [
+          Permission.VIEW_DASHBOARD,
+          Permission.VIEW_TICKETS,
+          Permission.MANAGE_TICKETS,
+          Permission.MANAGE_ROUTES,
+          Permission.MANAGE_FLEET,
+          Permission.VIEW_TRIP_REPORTS,
+          Permission.MANAGE_TRIP_REPORTS,
+          Permission.VIEW_ROUTES,
+          Permission.VIEW_FLEET,
+          Permission.VIEW_MAINTENANCE,
+          Permission.MANAGE_MAINTENANCE,
+        ],
+        companyId: mainCompany.id,
+      },
+      {
+        area: Area.Aseo,
+        role: Role.Supervisor,
+        permissions: [
+          Permission.VIEW_DASHBOARD,
+          Permission.VIEW_TICKETS,
+          Permission.MANAGE_TICKETS,
+          Permission.VIEW_CLEANING_REPORTS,
+          Permission.MANAGE_CLEANING_REPORTS,
+        ],
+        companyId: secondaryCompany.id,
+      },
+    ],
+    extraCompanyIds: [secondaryCompany.id],
+  });
+
   const totalUsers = await prisma.user.count({ where: { tenantId: tenant.id } });
   console.log(`\n✅ Seed completado para el tenant ${tenant.slug}. Usuarios creados: ${totalUsers}`);
   console.log('🔑 Contraseña para todos: admin123');
 }
 
-main()
-  .catch(e => {
-    console.error('❌ Error en seed:', e);
+void (async () => {
+  try {
+    await main();
+  } catch (error) {
+    console.error('❌ Error en seed:', error);
     process.exit(1);
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+})();
