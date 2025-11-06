@@ -194,6 +194,7 @@ export default function MainLayout() {
                 try {
                   localStorage.removeItem('demoMode');
                   localStorage.removeItem('autoStartTour');
+                  localStorage.removeItem('demoTourState');
                 } catch {}
                 await logout();
               }}
@@ -216,10 +217,26 @@ export default function MainLayout() {
                   <li>Algunas acciones de crear/editar muestran resultado simulado.</li>
                   <li>Puedes iniciar un tour guiado para conocer los módulos.</li>
                 </ul>
-                <div className="flex items-center justify-end gap-2">
-                  <button type="button" onClick={() => setShowDemoHelp(false)} className="px-3 py-1.5 text-xs border rounded-full text-slate-700 hover:bg-slate-100 dark:text-white dark:border-white/10 dark:hover:bg-white/10">Cerrar</button>
-                  <button type="button" onClick={() => { setShowDemoHelp(false); globalThis.dispatchEvent?.(new Event('demo:startTour')); }} className="px-3 py-1.5 text-xs font-semibold text-white rounded-full bg-sky-600 hover:bg-sky-500">Iniciar tour</button>
-                </div>
+                {(() => {
+                  let canResume = false;
+                  try {
+                    const raw = localStorage.getItem('demoTourState');
+                    if (raw) {
+                      const s = JSON.parse(raw) as { active: boolean; index: number; completed: boolean };
+                      canResume = !s.active && !s.completed && (s.index ?? 0) > 0;
+                    }
+                  } catch {}
+                  return (
+                    <div className="flex items-center justify-end gap-2">
+                      <button type="button" onClick={() => setShowDemoHelp(false)} className="px-3 py-1.5 text-xs border rounded-full text-slate-700 hover:bg-slate-100 dark:text-white dark:border-white/10 dark:hover:bg-white/10">Cerrar</button>
+                      {canResume && (
+                        <button type="button" onClick={() => { setShowDemoHelp(false); globalThis.dispatchEvent?.(new Event('demo:resumeTour')); }} className="px-3 py-1.5 text-xs font-semibold text-white rounded-full bg-emerald-600 hover:bg-emerald-500">Reanudar tour</button>
+                      )}
+                      <button type="button" onClick={() => { setShowDemoHelp(false); globalThis.dispatchEvent?.(new Event('demo:startTour')); }} className="px-3 py-1.5 text-xs font-semibold text-white rounded-full bg-sky-600 hover:bg-sky-500">Iniciar tour</button>
+                      <button type="button" onClick={() => { setShowDemoHelp(false); globalThis.dispatchEvent?.(new Event('demo:resetTour')); }} className="px-3 py-1.5 text-xs font-semibold text-white rounded-full bg-indigo-600 hover:bg-indigo-500">Reiniciar tour</button>
+                    </div>
+                  );
+                })()}
               </div>
             </dialog>
           )}

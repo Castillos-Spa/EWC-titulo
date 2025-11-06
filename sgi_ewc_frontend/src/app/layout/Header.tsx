@@ -14,6 +14,7 @@ import type { User as UserType } from '../../types/User';
 import type { AppNotification } from '../../types/Notification';
 import { useIntlFormat } from '../intl/format';
 import { useNavigate } from 'react-router-dom';
+import { useTour } from '../../contexts/TourContext';
 import type { Vehiculo } from '../../types/Vehiculo';
 import type { OrdenTrabajo } from '../../types/OrdenTrabajo';
 import type { Incident } from '../../types/Incident';
@@ -152,37 +153,10 @@ const buildFlatResults = (
 const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick, uiDensity }) => {
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
-	// Tour demo (solo visible si VITE_DEMO_MODE=true)
-	const [tourActive, setTourActive] = useState(false);
-	const [tourIndex, setTourIndex] = useState(0);
-	const tourSteps = useMemo(() => ([
-		{ path: '/', title: 'Dashboard', description: 'Resumen principal con KPIs y accesos rápidos.' },
-		{ path: '/rutas', title: 'Rutas', description: 'Gestiona rutas y asignaciones de camiones y conductores.' },
-		{ path: '/flota', title: 'Flota', description: 'Registro de vehículos, estado y datos técnicos.' },
-		{ path: '/combustible', title: 'Combustible', description: 'Carga y análisis de consumo por vehículo.' },
-		{ path: '/mantenimiento', title: 'Mantenimiento', description: 'Órdenes de trabajo, estados y cierres con QA.' },
-		{ path: '/notificaciones', title: 'Notificaciones', description: 'Comunica novedades a roles/áreas o globalmente.' },
-		{ path: '/tickets', title: 'Tickets', description: 'Mesa de ayuda con prioridades y aprobaciones.' },
-		{ path: '/ajustes', title: 'Configuración', description: 'Preferencias personales y opciones avanzadas.' },
-	]), []);
+	// Tour: usar el contexto con persistencia y navegación
+	const { active: tourActive, index: tourIndex, steps: tourSteps, startTour, stopTour, prevStep, nextStep, resumeTour } = useTour();
 
-	useEffect(() => {
-		// Escuchar solicitud global para iniciar tour desde otros componentes (p. ej., modal de ayuda demo)
-		const onStartTour = () => startTour();
-		globalThis.addEventListener?.('demo:startTour', onStartTour as EventListener);
-		return () => globalThis.removeEventListener?.('demo:startTour', onStartTour as EventListener);
-	}, []);
-
-	useEffect(() => {
-		if (tourActive) {
-			navigate(tourSteps[tourIndex].path);
-		}
-	}, [tourActive, tourIndex, tourSteps, navigate]);
-
-		const startTour = () => { setTourIndex(0); setTourActive(true); };
-	const stopTour = () => setTourActive(false);
-	const nextStep = () => setTourIndex(i => Math.min(i + 1, tourSteps.length - 1));
-	const prevStep = () => setTourIndex(i => Math.max(i - 1, 0));
+	// El TourContext ya maneja eventos globales y navegación entre pasos
 	const { formatTime } = useIntlFormat();
 	const mapAppNotification = useMemo(() => makeMapAppNotification(formatTime), [formatTime]);
 	const mapWireNotification = useMemo(() => makeMapWireNotification(formatTime), [formatTime]);
@@ -221,16 +195,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	const searchPadding = density === 'compact' ? 'py-1.5' : 'py-2';
 
 	useEffect(() => {
-			// Autoiniciar tour si viene de login demo; esperar un tick para montar UI
-			if (DEMO_MODE) {
-				try {
-					const auto = globalThis.localStorage?.getItem('autoStartTour') === 'true';
-					if (auto) {
-						globalThis.localStorage?.removeItem('autoStartTour');
-						setTimeout(() => startTour(), 120);
-					}
-				} catch {}
-			}
+				// Carga de notificaciones iniciales
 		if (!user?.id) return;
 		let cancelled = false;
 
@@ -611,10 +576,16 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 					{DEMO_MODE && (
 						<button
 							type="button"
-							onClick={startTour}
+							onClick={() => {
+								if (!tourActive && tourIndex > 0) {
+									resumeTour();
+								} else {
+									startTour();
+								}
+							}}
 							className="hidden md:inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm hover:bg-amber-200"
 						>
-							Iniciar tour
+							{!tourActive && tourIndex > 0 ? 'Reanudar tour' : 'Iniciar tour'}
 						</button>
 					)}
 		{/* Search */}
@@ -1000,7 +971,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 						<div className="flex items-center gap-2">
 							<button type="button" onClick={stopTour} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:text-white dark:hover:bg-white/10">Salir</button>
 							<button type="button" onClick={prevStep} disabled={tourIndex === 0} className="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 disabled:opacity-50 hover:bg-slate-100 dark:border-white/10 dark:text-white dark:hover:bg-white/10">Anterior</button>
-							<button type="button" onClick={tourIndex === tourSteps.length - 1 ? stopTour : nextStep} className="rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500">
+							<button type="button" onClick={nextStep} className="rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500">
 								{tourIndex === tourSteps.length - 1 ? 'Finalizar' : 'Siguiente'}
 							</button>
 						</div>

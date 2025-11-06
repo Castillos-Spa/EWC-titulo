@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useMemo } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import MainLayout from './layout/MainLayout';
+import { TourProvider } from '../contexts/TourContext';
 import RouteErrorBoundary from './RouteErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -54,7 +55,9 @@ export function AppRouter() {
       path: '/',
       element: (
         <RequireAuth>
-          <MainLayout />
+          <TourProvider>
+            <MainLayout />
+          </TourProvider>
         </RequireAuth>
       ),
       errorElement: <RouteErrorBoundary />,
