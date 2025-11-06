@@ -77,6 +77,9 @@ export interface User {
   companyId?: number | null;
   companyIds?: number[];
   modules?: BackendModuleKey[];
+  tenantModules?: BackendModuleKey[];
+  restrictedModules?: BackendModuleKey[];
+  moduleMap?: ModuleAccessSnapshot;
 }
 
 export interface TenantSummary {
@@ -111,4 +114,24 @@ export interface ClientAuthSession {
   companyId: number | null;
   companies: TenantCompany[];
   modules: BackendModuleKey[];
+  tenantModules?: BackendModuleKey[];
+  restrictedModules?: BackendModuleKey[];
+  moduleMap?: ModuleAccessSnapshot;
+}
+
+export interface ModuleStatusBuckets {
+  active: BackendModuleKey[];
+  trial: BackendModuleKey[];
+  inactive: BackendModuleKey[];
+  pending: BackendModuleKey[];
+  enabled: BackendModuleKey[];
+  disabled: BackendModuleKey[];
+}
+
+export interface ModuleAccessSnapshot {
+  tenant: ModuleStatusBuckets;
+  user: {
+    enabled: BackendModuleKey[];
+    restricted: BackendModuleKey[];
+  };
 }

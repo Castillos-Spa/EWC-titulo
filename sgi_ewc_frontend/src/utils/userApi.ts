@@ -10,6 +10,7 @@ import type {
   TenantCompany,
   BackendModuleKey,
   AuthDiscoveryResponse,
+  ModuleAccessSnapshot,
 } from "../types/User";
 export type { User } from "../types/User";
 import { invalidateDashboardOverviewCache } from "./dashboardApi";
@@ -30,6 +31,9 @@ export interface AuthSessionResponse {
   companyId?: number | null;
   companies?: TenantCompany[];
   modules?: BackendModuleKey[];
+  tenantModules?: BackendModuleKey[];
+  restrictedModules?: BackendModuleKey[];
+  moduleMap?: ModuleAccessSnapshot;
 }
 
 const extractUsers = (

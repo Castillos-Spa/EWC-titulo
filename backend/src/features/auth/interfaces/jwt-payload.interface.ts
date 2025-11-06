@@ -16,6 +16,8 @@ export interface JwtPayload {
   companyId?: number | null;
   companyIds?: number[];
   modules?: ModuleKey[];
+  tenantModules?: ModuleKey[];
+  restrictedModules?: ModuleKey[];
   email: string;
   username: string;
   areas: string[];

@@ -18,6 +18,7 @@ import {
 	Fuel,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { BackendModuleKey } from '../../types/User';
 
 type UiDensity = 'comfortable' | 'compact';
 
@@ -32,7 +33,12 @@ type ViewDefinition = {
 	labelKey: string;
 	icon: LucideIcon;
 	areas?: string[];
+	moduleKey?: BackendModuleKey | BackendModuleKey[];
+	sectionKey: SidebarSectionKey;
+	moduleBadgeKey?: string;
 };
+
+type SidebarSectionKey = 'general' | 'operations' | 'management';
 
 interface NavButtonProps {
 	item: ViewDefinition;
@@ -41,6 +47,7 @@ interface NavButtonProps {
 	compact: boolean;
 	isActive: boolean;
 	onClick: (id: string) => void;
+	moduleLabel?: string;
 }
 
 interface SidebarHeaderProps {
@@ -59,7 +66,39 @@ interface SidebarFooterProps {
 	logoutLabel: string;
 }
 
-const SidebarNavButton: React.FC<NavButtonProps> = ({ item, label, collapsed, compact, isActive, onClick }) => {
+const SidebarSectionHeader: React.FC<{ label: string; collapsed: boolean; compact: boolean }> = ({
+	label,
+	collapsed,
+	compact,
+}) => {
+	const dividerClass = compact ? 'my-2.5 mx-1' : 'my-3 mx-1.5';
+	if (collapsed) {
+		return <div className={`${dividerClass} h-px rounded-full bg-slate-200/70 dark:bg-white/10`} aria-hidden="true" />;
+	}
+	return (
+		<div
+			className={`flex items-center text-xs font-semibold uppercase tracking-[0.32em] text-slate-400/90 dark:text-blue-100/50 ${
+				compact ? 'px-2.5 pt-3 pb-1' : 'px-3 pt-4 pb-1.5'
+			}`}
+		>
+			<span className="flex-1 border-t border-dashed border-slate-200/70 pr-3 dark:border-white/10" aria-hidden="true" />
+			<span className="px-2 text-[11px] tracking-[0.32em] text-slate-500/80 dark:text-blue-100/60">{label}</span>
+			<span className="flex-1 border-t border-dashed border-slate-200/70 pl-3 dark:border-white/10" aria-hidden="true" />
+		</div>
+	);
+};
+
+const SidebarModuleGroupHeader: React.FC<{ label: string; compact: boolean }> = ({ label, compact }) => (
+	<div
+		className={`px-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400/80 dark:text-blue-100/60 ${
+			compact ? 'pt-2 pb-1' : 'pt-3 pb-1.5'
+		}`}
+	>
+		{label}
+	</div>
+);
+
+const SidebarNavButton: React.FC<NavButtonProps> = ({ item, label, collapsed, compact, isActive, onClick, moduleLabel }) => {
 	const Icon = item.icon;
 	const baseClasses = 'group relative flex items-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-400 focus-visible:ring-offset-transparent';
 	const activeClasses = 'bg-gradient-to-br from-sky-200/90 to-indigo-200/80 text-slate-900 shadow-lg shadow-sky-200/60 dark:from-white/15 dark:to-white/15 dark:text-white dark:shadow-blue-900/40';
@@ -72,7 +111,7 @@ const SidebarNavButton: React.FC<NavButtonProps> = ({ item, label, collapsed, co
 		return (
 			<button
 				onClick={() => onClick(item.id)}
-				title={label}
+				title={moduleLabel ? `${label} • ${moduleLabel}` : label}
 				className={`${collapsedBaseClasses} ${isActive ? collapsedActiveClasses : collapsedInactiveClasses}`}
 			>
 				<Icon className="relative h-5 w-5" />
@@ -94,7 +133,9 @@ const SidebarNavButton: React.FC<NavButtonProps> = ({ item, label, collapsed, co
 			>
 				<Icon className={compact ? 'h-4 w-4' : 'h-5 w-5'} />
 			</span>
-			<span className="flex-1 text-left text-sm font-medium tracking-tight text-slate-700 dark:text-white">{label}</span>
+			<div className="flex flex-1 flex-col text-left">
+				<span className="text-sm font-medium tracking-tight text-slate-700 dark:text-white">{label}</span>
+			</div>
 			{isActive && (
 				<span className={`${compact ? 'h-[6px] w-[6px]' : 'h-2 w-2'} rounded-full bg-emerald-400`} />
 			)}
@@ -160,28 +201,139 @@ const SidebarFooter: React.FC<SidebarFooterProps> = ({ isCollapsed, compact, onL
 
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity }) => {
 	const [isCollapsed, setIsCollapsed] = useState(false);
-	const { user, logout } = useAuth();
+	const { user, logout, modules } = useAuth();
 	const { t, language } = useLanguage();
 	const compact = uiDensity === 'compact';
+	const moduleSet = useMemo(() => new Set(modules ?? []), [modules]);
+
+	const sectionLabels = useMemo(
+		() => ({
+			general: t('sidebar.section.general'),
+			operations: t('sidebar.section.operations'),
+			management: t('sidebar.section.management'),
+		}),
+		[t],
+	);
 
 	const hasAreaAccess = (area: string) => Boolean(user?.isAdmin || user?.areas?.includes(area));
 
+	const hasModuleAccess = (moduleRequirement?: BackendModuleKey | BackendModuleKey[]) => {
+		if (!moduleRequirement) {
+			return true;
+		}
+		if (user?.isAdmin) {
+			return true;
+		}
+		if (moduleSet.size === 0) {
+			return true;
+		}
+		const required = Array.isArray(moduleRequirement) ? moduleRequirement : [moduleRequirement];
+		return required.some(key => moduleSet.has(key));
+	};
+
+	const getModuleLabel = (moduleRequirement?: BackendModuleKey | BackendModuleKey[], badgeKey?: string) => {
+		if (badgeKey) {
+			const badgeTranslation = t(badgeKey);
+			if (badgeTranslation && badgeTranslation !== badgeKey) {
+				return badgeTranslation;
+			}
+		}
+		if (!moduleRequirement) {
+			return undefined;
+		}
+		const keys = Array.isArray(moduleRequirement) ? moduleRequirement : [moduleRequirement];
+		const primaryKey = keys[0];
+		if (!primaryKey) {
+			return undefined;
+		}
+		const translationKey = `module.label.${primaryKey}`;
+		const translated = t(translationKey);
+		return translated && translated !== translationKey ? translated : primaryKey.split('_').join(' ');
+	};
+
 	const viewDefinitions: ViewDefinition[] = [
-		{ id: 'dashboard', labelKey: 'nav.dashboard', icon: Home },
-		{ id: 'tickets', labelKey: 'nav.tickets', icon: Ticket },
-		{ id: 'transport-routes', labelKey: 'nav.routes', icon: Map, areas: ['Transporte'] },
-		{ id: 'fleet-registry', labelKey: 'nav.fleetRegistry', icon: Car, areas: ['Transporte'] },
-		{ id: 'fuel-by-fleet', labelKey: 'nav.fuel', icon: Fuel, areas: ['Transporte'] },
-		{ id: 'truck-assignments', labelKey: 'nav.assignments', icon: Car, areas: ['Transporte'] },
-		{ id: 'notifications', labelKey: 'nav.notifications', icon: Bell },
-		{ id: 'maintenance', labelKey: 'nav.maintenance', icon: Wrench, areas: ['Taller'] },
-		{ id: 'cleaning-reports', labelKey: 'nav.cleaningReports', icon: Sparkles, areas: ['Aseo'] },
-		{ id: 'civil-works', labelKey: 'nav.civilWorks', icon: HardHat, areas: ['Obras'] },
-		{ id: 'incidents', labelKey: 'nav.incidents', icon: AlertTriangle },
-		{ id: 'user-management', labelKey: 'nav.userManagement', icon: Users, areas: ['Admin', 'RRHH'] },
+		{ id: 'dashboard', labelKey: 'nav.dashboard', icon: Home, moduleKey: 'DASHBOARD', sectionKey: 'general' },
+		{ id: 'notifications', labelKey: 'nav.notifications', icon: Bell, moduleKey: 'NOTIFICATIONS', sectionKey: 'general' },
+		{ id: 'tickets', labelKey: 'nav.tickets', icon: Ticket, moduleKey: 'TICKETS', sectionKey: 'general' },
+		{ id: 'incidents', labelKey: 'nav.incidents', icon: AlertTriangle, moduleKey: 'INCIDENTS', sectionKey: 'general' },
+		{
+			id: 'transport-routes',
+			labelKey: 'nav.routes',
+			icon: Map,
+			areas: ['Transporte'],
+			moduleKey: 'ROUTES',
+			sectionKey: 'operations',
+			moduleBadgeKey: 'module.badge.transport',
+		},
+		{
+			id: 'fleet-registry',
+			labelKey: 'nav.fleetRegistry',
+			icon: Car,
+			areas: ['Transporte'],
+			moduleKey: 'FLEET',
+			sectionKey: 'operations',
+			moduleBadgeKey: 'module.badge.transport',
+		},
+		{
+			id: 'fuel-by-fleet',
+			labelKey: 'nav.fuel',
+			icon: Fuel,
+			areas: ['Transporte'],
+			moduleKey: 'FUEL',
+			sectionKey: 'operations',
+			moduleBadgeKey: 'module.badge.transport',
+		},
+		{
+			id: 'truck-assignments',
+			labelKey: 'nav.assignments',
+			icon: Car,
+			areas: ['Transporte'],
+			moduleKey: 'ROUTES',
+			sectionKey: 'operations',
+			moduleBadgeKey: 'module.badge.transport',
+		},
+		{
+			id: 'maintenance',
+			labelKey: 'nav.maintenance',
+			icon: Wrench,
+			areas: ['Taller'],
+			moduleKey: 'MAINTENANCE',
+			sectionKey: 'operations',
+			moduleBadgeKey: 'module.badge.maintenance',
+		},
+		{
+			id: 'cleaning-reports',
+			labelKey: 'nav.cleaningReports',
+			icon: Sparkles,
+			areas: ['Aseo'],
+			moduleKey: 'CLEANING',
+			sectionKey: 'operations',
+			moduleBadgeKey: 'module.badge.cleaning',
+		},
+		{
+			id: 'civil-works',
+			labelKey: 'nav.civilWorks',
+			icon: HardHat,
+			areas: ['Obras'],
+			moduleKey: 'CIVIL_WORK',
+			sectionKey: 'operations',
+			moduleBadgeKey: 'module.badge.civil',
+		},
+		{
+			id: 'user-management',
+			labelKey: 'nav.userManagement',
+			icon: Users,
+			areas: ['Admin', 'RRHH'],
+			moduleKey: 'USERS',
+			sectionKey: 'management',
+			moduleBadgeKey: 'module.badge.management',
+		},
 	];
 
 	const visibleItemsUnique = viewDefinitions.filter((item) => {
+		if (!hasModuleAccess(item.moduleKey)) {
+			return false;
+		}
 		if (!item.areas || item.areas.length === 0) return true;
 		return item.areas.some(area => hasAreaAccess(area));
 	});
@@ -210,18 +362,42 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 		}
 	}, [language]);
 
+	let lastSection: SidebarSectionKey | null = null;
+	let lastModuleGroupKey: string | null = null;
 	const navContent = visibleItemsUnique.map(item => {
-		const label = t(item.labelKey);
+		const sectionChanged = item.sectionKey !== lastSection;
+		if (sectionChanged) {
+			lastModuleGroupKey = null;
+		}
+		const moduleLabel = item.moduleBadgeKey ? getModuleLabel(item.moduleKey, item.moduleBadgeKey) : undefined;
+		const shouldRenderModuleHeader =
+			!isCollapsed && Boolean(moduleLabel) && Boolean(sectionChanged || item.moduleBadgeKey !== lastModuleGroupKey);
+		lastSection = item.sectionKey;
+		if (item.moduleBadgeKey && moduleLabel) {
+			lastModuleGroupKey = item.moduleBadgeKey;
+		}
 		return (
-			<SidebarNavButton
-				key={item.id}
-				item={item}
-				label={label}
-				collapsed={isCollapsed}
-				compact={compact}
-				isActive={currentPage === item.id}
-				onClick={onPageChange}
-			/>
+			<React.Fragment key={item.id}>
+				{sectionChanged && (
+					<SidebarSectionHeader
+						label={sectionLabels[item.sectionKey] ?? item.sectionKey}
+						collapsed={isCollapsed}
+						compact={compact}
+					/>
+				)}
+				{shouldRenderModuleHeader && moduleLabel && (
+					<SidebarModuleGroupHeader label={moduleLabel} compact={compact} />
+				)}
+				<SidebarNavButton
+					item={item}
+					label={t(item.labelKey)}
+					collapsed={isCollapsed}
+					compact={compact}
+					isActive={currentPage === item.id}
+					onClick={onPageChange}
+					moduleLabel={isCollapsed ? moduleLabel : undefined}
+				/>
+			</React.Fragment>
 		);
 	});
 

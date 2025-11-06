@@ -8,7 +8,7 @@ import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dtos/register.dto';
 import { JwtPayload, RolesByArea } from './interfaces/jwt-payload.interface';
 import { PrismaService } from 'prisma/prisma.service';
-import { CompanyStatus, ModuleKey, ModuleStatus, Prisma, Role, TenantStatus } from '@prisma/client';
+import { Area, CompanyStatus, ModuleKey, ModuleStatus, Permission, Prisma, Role, TenantStatus } from '@prisma/client';
 
 type TenantWithRelations = Prisma.TenantGetPayload<{
   include: {
@@ -21,6 +21,17 @@ type UserWithRelations = Prisma.UserGetPayload<{
   include: {
     roleAssignments: true;
     userCompanies: true;
+  };
+}>;
+
+type UserWithTenantAndCompanies = Prisma.UserGetPayload<{
+  include: {
+    tenant: true;
+    userCompanies: {
+      include: {
+        company: true;
+      };
+    };
   };
 }>;
 
@@ -39,6 +50,8 @@ export interface AuthUserDetails {
   companyId: number | null;
   companyIds: number[];
   modules: ModuleKey[];
+  tenantModules: ModuleKey[];
+  restrictedModules: ModuleKey[];
 }
 
 export interface AuthSession {
@@ -46,10 +59,29 @@ export interface AuthSession {
   user: Omit<UserWithRelations, 'password'>;
   tenant: TenantWithRelations;
   modules: ModuleKey[];
+  tenantModules: ModuleKey[];
   companies: Array<{ id: number; name: string; status: CompanyStatus; isDefault: boolean }>;
   companyId: number | null;
   payload: JwtPayload;
   userDetails: AuthUserDetails;
+  moduleMap: ModuleAccessSnapshot;
+}
+
+export interface ModuleStatusBuckets {
+  active: ModuleKey[];
+  trial: ModuleKey[];
+  inactive: ModuleKey[];
+  pending: ModuleKey[];
+  enabled: ModuleKey[];
+  disabled: ModuleKey[];
+}
+
+export interface ModuleAccessSnapshot {
+  tenant: ModuleStatusBuckets;
+  user: {
+    enabled: ModuleKey[];
+    restricted: ModuleKey[];
+  };
 }
 
 export interface TenantAccessOption {
@@ -78,6 +110,88 @@ interface RefreshTokenPayload {
 
 type RoleAssignment = NonNullable<UserWithRelations['roleAssignments']>[number];
 type UserCompanyMembership = NonNullable<UserWithRelations['userCompanies']>[number];
+type UserCompanyWithCompany = UserCompanyMembership & {
+  company?: {
+    id: number;
+    name: string;
+    status: CompanyStatus;
+  };
+};
+
+interface ModuleAccessRule {
+  anyPermissions?: Permission[];
+  areas?: Area[];
+  always?: boolean;
+}
+
+const MODULE_ACCESS_RULES: Record<ModuleKey, ModuleAccessRule> = {
+  [ModuleKey.DASHBOARD]: { always: true },
+  [ModuleKey.INCIDENTS]: {
+    anyPermissions: [
+      Permission.VIEW_RISK_ASSESSMENTS,
+      Permission.MANAGE_RISK_ASSESSMENTS,
+      Permission.CREATE_SAFETY_PROTOCOLS,
+    ],
+    areas: [Area.Prev_Riesgo, Area.Transporte, Area.Obras],
+  },
+  [ModuleKey.TICKETS]: {
+    anyPermissions: [Permission.VIEW_TICKETS, Permission.MANAGE_TICKETS],
+  },
+  [ModuleKey.NOTIFICATIONS]: { always: true },
+  [ModuleKey.USERS]: {
+    anyPermissions: [Permission.VIEW_MANAGEMENT_USER, Permission.MANAGE_MANAGEMENT_USER],
+    areas: [Area.IT, Area.Admin],
+  },
+  [ModuleKey.FLEET]: {
+    anyPermissions: [Permission.MANAGE_FLEET, Permission.VIEW_FLEET],
+    areas: [Area.Transporte],
+  },
+  [ModuleKey.FUEL]: {
+    anyPermissions: [Permission.VIEW_TRIP_REPORTS, Permission.MANAGE_TRIP_REPORTS],
+    areas: [Area.Transporte],
+  },
+  [ModuleKey.ROUTES]: {
+    anyPermissions: [Permission.VIEW_ROUTES, Permission.MANAGE_ROUTES],
+    areas: [Area.Transporte],
+  },
+  [ModuleKey.CLEANING]: {
+    anyPermissions: [Permission.VIEW_CLEANING_REPORTS, Permission.MANAGE_CLEANING_REPORTS],
+    areas: [Area.Aseo],
+  },
+  [ModuleKey.CIVIL_WORK]: {
+    anyPermissions: [Permission.VIEW_CIVIL_WORKS, Permission.MANAGE_CIVIL_WORKS],
+    areas: [Area.Obras],
+  },
+  [ModuleKey.MAINTENANCE]: {
+    anyPermissions: [Permission.VIEW_MAINTENANCE, Permission.MANAGE_MAINTENANCE],
+    areas: [Area.Transporte],
+  },
+  [ModuleKey.PURCHASING]: {
+    anyPermissions: [Permission.MANAGE_BUDGETS, Permission.APPROVE_EXPENSES],
+    areas: [Area.Finanzas, Area.Admin],
+  },
+  [ModuleKey.HR]: {
+    anyPermissions: [Permission.VIEW_EMPLOYEES, Permission.MANAGE_EMPLOYEES],
+    areas: [Area.RRHH],
+  },
+  [ModuleKey.FINANCE]: {
+    anyPermissions: [Permission.VIEW_FINANCIAL_REPORTS, Permission.MANAGE_BUDGETS, Permission.APPROVE_EXPENSES],
+    areas: [Area.Finanzas, Area.Admin],
+  },
+  [ModuleKey.SAFETY]: {
+    anyPermissions: [
+      Permission.VIEW_RISK_ASSESSMENTS,
+      Permission.MANAGE_RISK_ASSESSMENTS,
+      Permission.CREATE_SAFETY_PROTOCOLS,
+    ],
+    areas: [Area.Prev_Riesgo, Area.Obras],
+  },
+  [ModuleKey.ANALYTICS]: {
+    anyPermissions: [Permission.VIEW_DASHBOARD, Permission.VIEW_FINANCIAL_REPORTS],
+    areas: [Area.Admin, Area.IT],
+  },
+  [ModuleKey.CUSTOM]: { always: true },
+};
 
 @Injectable()
 export class AuthService {
@@ -163,6 +277,9 @@ export class AuthService {
       companyId: session.companyId,
       companies: session.companies,
       modules: session.modules,
+      tenantModules: session.tenantModules,
+      restrictedModules: session.moduleMap.user.restricted,
+      moduleMap: session.moduleMap,
     };
   }
 
@@ -225,6 +342,9 @@ export class AuthService {
         companyId: session.companyId,
         companies: session.companies,
         modules: session.modules,
+        tenantModules: session.tenantModules,
+        restrictedModules: session.moduleMap.user.restricted,
+        moduleMap: session.moduleMap,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -249,7 +369,7 @@ export class AuthService {
       where.tenant = { slug: tenantSlug };
     }
 
-    const users = await this.prisma.user.findMany({
+    const users = (await this.prisma.user.findMany({
       where,
       include: {
         tenant: true,
@@ -259,63 +379,93 @@ export class AuthService {
           },
         },
       },
-    });
+    })) as UserWithTenantAndCompanies[];
 
     const tenants = new Map<number, TenantAccessOption>();
 
     for (const user of users) {
-      if (!user.tenant || user.tenant.status !== TenantStatus.ACTIVE) {
+      const option = this.createTenantAccessOption(user);
+      if (!option) {
         continue;
       }
-
-      const memberships = Array.isArray(user.userCompanies) ? user.userCompanies : [];
-      const companies = memberships
-        .filter(membership => membership.company && membership.company.status !== CompanyStatus.ARCHIVED)
-        .map(membership => ({
-          id: membership.companyId,
-          name: membership.company!.name,
-          status: membership.company!.status,
-          isDefault: membership.isDefault,
-        }));
-
-      const defaultCompanyId = user.primaryCompanyId ?? companies.find(company => company.isDefault)?.id ?? null;
-
-      const option: TenantAccessOption = {
-        tenant: {
-          id: user.tenantId,
-          slug: user.tenant.slug,
-          name: user.tenant.name,
-          status: user.tenant.status,
-        },
-        defaultCompanyId,
-        companies,
-        requiresCompanySelection: companies.length > 1,
-      };
-
-      const existing = tenants.get(user.tenantId);
-      if (existing) {
-        const mergedCompanies = [...existing.companies];
-        for (const company of option.companies) {
-          if (!mergedCompanies.some(existingCompany => existingCompany.id === company.id)) {
-            mergedCompanies.push(company);
-          }
-        }
-
-        tenants.set(user.tenantId, {
-          ...option,
-          companies: mergedCompanies,
-          requiresCompanySelection: mergedCompanies.length > 1,
-          defaultCompanyId: option.defaultCompanyId ?? existing.defaultCompanyId ?? null,
-        });
-      } else {
-        tenants.set(user.tenantId, option);
-      }
+      this.mergeTenantAccessOption(tenants, option);
     }
 
     return {
       email: normalizedEmail.toLowerCase(),
       tenants: Array.from(tenants.values()),
     };
+  }
+
+  private createTenantAccessOption(user: UserWithTenantAndCompanies): TenantAccessOption | null {
+    if (!user.tenant || user.tenant.status !== TenantStatus.ACTIVE) {
+      return null;
+    }
+
+    const memberships: UserCompanyWithCompany[] = Array.isArray(user.userCompanies)
+      ? (user.userCompanies as UserCompanyWithCompany[])
+      : [];
+
+    const companies = memberships
+      .filter(
+        (
+          membership,
+        ): membership is UserCompanyWithCompany & { company: NonNullable<UserCompanyWithCompany['company']> } => {
+          const { company } = membership;
+          if (!company) {
+            return false;
+          }
+          return company.status !== CompanyStatus.ARCHIVED;
+        },
+      )
+      .map(membership => ({
+        id: membership.companyId,
+        name: membership.company.name,
+        status: membership.company.status,
+        isDefault: membership.isDefault,
+      }));
+
+    const defaultCompanyId = user.primaryCompanyId ?? companies.find(company => company.isDefault)?.id ?? null;
+
+    return {
+      tenant: {
+        id: user.tenantId,
+        slug: user.tenant.slug,
+        name: user.tenant.name,
+        status: user.tenant.status,
+      },
+      defaultCompanyId,
+      companies,
+      requiresCompanySelection: companies.length > 1,
+    };
+  }
+
+  private mergeTenantAccessOption(target: Map<number, TenantAccessOption>, option: TenantAccessOption): void {
+    const existing = target.get(option.tenant.id);
+    if (!existing) {
+      target.set(option.tenant.id, option);
+      return;
+    }
+
+    const companiesById = new Map<number, TenantAccessOption['companies'][number]>();
+    for (const company of existing.companies) {
+      companiesById.set(company.id, company);
+    }
+    for (const company of option.companies) {
+      if (!companiesById.has(company.id)) {
+        companiesById.set(company.id, company);
+      }
+    }
+
+    const mergedCompanies = Array.from(companiesById.values());
+    const defaultCompanyId = option.defaultCompanyId ?? existing.defaultCompanyId ?? null;
+
+    target.set(option.tenant.id, {
+      tenant: existing.tenant,
+      defaultCompanyId,
+      companies: mergedCompanies,
+      requiresCompanySelection: mergedCompanies.length > 1,
+    });
   }
 
   private buildSessionContext(
@@ -338,9 +488,11 @@ export class AuthService {
       activeCompanyId = companyIds[0] ?? null;
     }
 
-    const modules = tenant.modules
-      .filter(module => module.status === ModuleStatus.ACTIVE || module.status === ModuleStatus.TRIAL)
-      .map(module => module.module);
+    const roleAssignments = this.getRoleAssignments(user);
+    const moduleMap = this.deriveModuleAccess(tenant.modules, roleAssignments);
+    const tenantModules = moduleMap.tenant.enabled;
+    const modules = moduleMap.user.enabled;
+    const restrictedModules = moduleMap.user.restricted;
 
     const companies = tenant.companies
       .filter(company => companyIds.includes(company.id) && company.status !== CompanyStatus.ARCHIVED)
@@ -355,6 +507,8 @@ export class AuthService {
       tenantId: tenant.id,
       tenantSlug: tenant.slug,
       modules,
+      tenantModules,
+      restrictedModules,
       companyId: activeCompanyId,
       companyIds,
     });
@@ -364,10 +518,12 @@ export class AuthService {
       userId: user.id,
       tenant,
       modules,
+      tenantModules,
       companies,
       companyId: activeCompanyId,
       payload,
       userDetails,
+      moduleMap,
     };
   }
 
@@ -377,6 +533,8 @@ export class AuthService {
       tenantId: number;
       tenantSlug: string;
       modules: ModuleKey[];
+      tenantModules: ModuleKey[];
+      restrictedModules: ModuleKey[];
       companyId: number | null;
       companyIds: number[];
     },
@@ -390,6 +548,8 @@ export class AuthService {
       companyId: context.companyId ?? null,
       companyIds: context.companyIds,
       modules: context.modules,
+      tenantModules: context.tenantModules,
+      restrictedModules: context.restrictedModules,
       email: user.email,
       username: user.username,
       areas,
@@ -416,9 +576,134 @@ export class AuthService {
       companyId: context.companyId ?? null,
       companyIds: context.companyIds,
       modules: context.modules,
+      tenantModules: context.tenantModules,
+      restrictedModules: context.restrictedModules,
     };
 
     return { payload, userDetails };
+  }
+
+  private deriveModuleAccess(
+    tenantModules: TenantWithRelations['modules'],
+    assignments: RoleAssignment[],
+  ): ModuleAccessSnapshot {
+    const buckets = this.buildModuleStatusBuckets(tenantModules);
+    const { permissions, areas, isAdmin } = this.extractAssignmentAccessContext(assignments);
+
+    const tenantEnabled = [...buckets.enabled];
+    const userEnabledSet = new Set<ModuleKey>();
+    const userEnabled = tenantEnabled.filter(moduleKey => {
+      const allowed = this.isModuleEnabledForUser(moduleKey, permissions, areas, isAdmin);
+      if (allowed) {
+        userEnabledSet.add(moduleKey);
+      }
+      return allowed;
+    });
+
+    const restricted = tenantEnabled.filter(moduleKey => !userEnabledSet.has(moduleKey));
+
+    return {
+      tenant: buckets,
+      user: {
+        enabled: userEnabled,
+        restricted,
+      },
+    };
+  }
+
+  private buildModuleStatusBuckets(tenantModules: TenantWithRelations['modules']): ModuleStatusBuckets {
+    const buckets: ModuleStatusBuckets = {
+      active: [],
+      trial: [],
+      inactive: [],
+      pending: [],
+      enabled: [],
+      disabled: [],
+    };
+
+    for (const tenantModule of tenantModules) {
+      const { module, status } = tenantModule;
+      switch (status) {
+        case ModuleStatus.ACTIVE:
+          buckets.active.push(module);
+          buckets.enabled.push(module);
+          break;
+        case ModuleStatus.TRIAL:
+          buckets.trial.push(module);
+          buckets.enabled.push(module);
+          break;
+        case ModuleStatus.INACTIVE:
+          buckets.inactive.push(module);
+          buckets.disabled.push(module);
+          break;
+        case ModuleStatus.PENDING:
+          buckets.pending.push(module);
+          buckets.disabled.push(module);
+          break;
+        default:
+          break;
+      }
+    }
+
+    return buckets;
+  }
+
+  private extractAssignmentAccessContext(assignments: RoleAssignment[]): {
+    permissions: Set<Permission>;
+    areas: Set<Area>;
+    isAdmin: boolean;
+  } {
+    const permissions = new Set<Permission>();
+    const areas = new Set<Area>();
+    let isAdmin = false;
+
+    for (const assignment of assignments) {
+      if (!assignment || assignment.isActive === false) {
+        continue;
+      }
+
+      areas.add(assignment.area);
+      const assignmentPermissions = assignment.permissions ?? [];
+      for (const permission of assignmentPermissions) {
+        permissions.add(permission);
+      }
+
+      if (assignment.role === Role.Admin) {
+        isAdmin = true;
+      }
+    }
+
+    return { permissions, areas, isAdmin };
+  }
+
+  private isModuleEnabledForUser(
+    moduleKey: ModuleKey,
+    permissions: Set<Permission>,
+    areas: Set<Area>,
+    isAdmin: boolean,
+  ): boolean {
+    if (isAdmin) {
+      return true;
+    }
+
+    const rule = MODULE_ACCESS_RULES[moduleKey];
+    if (!rule) {
+      return false;
+    }
+
+    if (rule.always) {
+      return true;
+    }
+
+    if (rule.anyPermissions?.some(permission => permissions.has(permission))) {
+      return true;
+    }
+
+    if (rule.areas?.some(area => areas.has(area))) {
+      return true;
+    }
+
+    return false;
   }
 
   private extractRoleData(user: Omit<UserWithRelations, 'password'>) {

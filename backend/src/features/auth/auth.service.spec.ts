@@ -1,7 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { AuthService, AuthSession } from './auth.service';
+import { AuthService, AuthSession, ModuleAccessSnapshot } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { ModuleKey, ModuleStatus, Role, TenantStatus } from '@prisma/client';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
@@ -98,11 +98,27 @@ describe('AuthService', () => {
     jest.restoreAllMocks();
   });
 
+  const moduleMap: ModuleAccessSnapshot = {
+    tenant: {
+      active: [ModuleKey.DASHBOARD],
+      trial: [],
+      inactive: [],
+      pending: [],
+      enabled: [ModuleKey.DASHBOARD],
+      disabled: [],
+    },
+    user: {
+      enabled: [ModuleKey.DASHBOARD],
+      restricted: [],
+    },
+  };
+
   const mockSession = {
     userId: baseUser.id,
     user: (({ password: _pw, ...rest }) => rest)(baseUser),
     tenant,
     modules: [ModuleKey.DASHBOARD],
+    tenantModules: [ModuleKey.DASHBOARD],
     companies: [],
     companyId: null,
     payload: {
@@ -112,6 +128,8 @@ describe('AuthService', () => {
       companyId: null,
       companyIds: [],
       modules: [ModuleKey.DASHBOARD],
+      tenantModules: [ModuleKey.DASHBOARD],
+      restrictedModules: [],
       email: baseUser.email,
       username: baseUser.username,
       areas: [],
@@ -137,7 +155,10 @@ describe('AuthService', () => {
       companyId: null,
       companyIds: [],
       modules: [ModuleKey.DASHBOARD],
+      tenantModules: [ModuleKey.DASHBOARD],
+      restrictedModules: [],
     },
+    moduleMap,
   } as AuthSession;
 
   describe('validateUser', () => {

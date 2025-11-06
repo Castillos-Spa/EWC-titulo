@@ -58,18 +58,7 @@ async function main() {
     }),
   ]);
 
-  const defaultModules: ModuleKey[] = [
-    ModuleKey.DASHBOARD,
-    ModuleKey.INCIDENTS,
-    ModuleKey.TICKETS,
-    ModuleKey.NOTIFICATIONS,
-    ModuleKey.USERS,
-    ModuleKey.FLEET,
-    ModuleKey.FUEL,
-    ModuleKey.ROUTES,
-    ModuleKey.CLEANING,
-    ModuleKey.CIVIL_WORK,
-  ];
+  const defaultModules = Object.values(ModuleKey) as ModuleKey[];
 
   await Promise.all(
     defaultModules.map(moduleKey =>
@@ -321,7 +310,7 @@ async function main() {
   console.log('🔑 Contraseña para todos: admin123');
 }
 
-void (async () => {
+async function runSeed() {
   try {
     await main();
   } catch (error) {
@@ -330,4 +319,7 @@ void (async () => {
   } finally {
     await prisma.$disconnect();
   }
-})();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-floating-promises, @typescript-eslint/prefer-top-level-await
+runSeed();

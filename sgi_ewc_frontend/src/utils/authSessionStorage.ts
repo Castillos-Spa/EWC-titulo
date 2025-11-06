@@ -26,12 +26,22 @@ export const loadAuthSession = (): ClientAuthSession | null => {
     if (!parsed || typeof parsed !== "object") {
       return null;
     }
+    const parsedTenantModules = Array.isArray(parsed.tenantModules)
+      ? parsed.tenantModules
+      : undefined;
+    const parsedModules = Array.isArray(parsed.modules) ? parsed.modules : [];
+    const resolvedTenantModules = parsedTenantModules ?? parsedModules;
     return {
       user: parsed.user,
       tenant: parsed.tenant ?? null,
       companyId: parsed.companyId ?? null,
       companies: Array.isArray(parsed.companies) ? parsed.companies : [],
-      modules: Array.isArray(parsed.modules) ? parsed.modules : [],
+      modules: parsedModules,
+      tenantModules: resolvedTenantModules,
+      restrictedModules: Array.isArray(parsed.restrictedModules)
+        ? parsed.restrictedModules
+        : [],
+      moduleMap: parsed.moduleMap ?? undefined,
     };
   } catch {
     storage.removeItem(STORAGE_KEY);
@@ -48,12 +58,23 @@ export const saveAuthSession = (session: ClientAuthSession | null): void => {
     storage.removeItem(STORAGE_KEY);
     return;
   }
+  const normalizedModules = Array.isArray(session.modules)
+    ? session.modules
+    : [];
+  const normalizedTenantModules = Array.isArray(session.tenantModules)
+    ? session.tenantModules
+    : normalizedModules;
   const payload: ClientAuthSession = {
     user: session.user,
     tenant: session.tenant ?? null,
     companyId: session.companyId ?? null,
     companies: Array.isArray(session.companies) ? session.companies : [],
-    modules: Array.isArray(session.modules) ? session.modules : [],
+    modules: normalizedModules,
+    tenantModules: normalizedTenantModules,
+    restrictedModules: Array.isArray(session.restrictedModules)
+      ? session.restrictedModules
+      : [],
+    moduleMap: session.moduleMap ?? undefined,
   };
   storage.setItem(STORAGE_KEY, JSON.stringify(payload));
 };

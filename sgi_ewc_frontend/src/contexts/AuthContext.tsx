@@ -37,6 +37,9 @@ const buildSessionFromProfile = (
   companyId: profile.companyId ?? base?.companyId ?? null,
   companies: base?.companies ?? [],
   modules: profile.modules ?? base?.modules ?? [],
+  tenantModules: profile.tenantModules ?? base?.tenantModules ?? base?.modules ?? [],
+  restrictedModules: profile.restrictedModules ?? base?.restrictedModules ?? [],
+  moduleMap: profile.moduleMap ?? base?.moduleMap ?? undefined,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -132,6 +135,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           companyId: responseCompanyId,
           companies,
           modules,
+          tenantModules,
+          restrictedModules,
+          moduleMap,
         } = await apiLogin(email, password, tenantSlug, requestedCompanyId);
 
         if (!access_token || !refresh_token || !loggedInUser) {
@@ -141,12 +147,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('authToken', access_token);
         localStorage.setItem('refreshToken', refresh_token);
 
+        let normalizedModules: BackendModuleKey[] = [];
+        if (Array.isArray(modules)) {
+          normalizedModules = modules;
+        } else if (Array.isArray(loggedInUser.modules)) {
+          normalizedModules = loggedInUser.modules;
+        }
+
+        let normalizedTenantModules: BackendModuleKey[] = [];
+        if (Array.isArray(tenantModules)) {
+          normalizedTenantModules = tenantModules;
+        } else if (Array.isArray(loggedInUser.tenantModules)) {
+          normalizedTenantModules = loggedInUser.tenantModules;
+        } else {
+          normalizedTenantModules = normalizedModules;
+        }
+
+        let normalizedRestrictedModules: BackendModuleKey[] = [];
+        if (Array.isArray(restrictedModules)) {
+          normalizedRestrictedModules = restrictedModules;
+        } else if (Array.isArray(loggedInUser.restrictedModules)) {
+          normalizedRestrictedModules = loggedInUser.restrictedModules;
+        }
+
         const nextSession: ClientAuthSession = {
           user: loggedInUser,
           tenant: tenant ?? null,
           companyId: responseCompanyId ?? requestedCompanyId ?? null,
           companies: Array.isArray(companies) ? companies : [],
-          modules: modules ?? loggedInUser.modules ?? [],
+          modules: normalizedModules,
+          tenantModules: normalizedTenantModules,
+          restrictedModules: normalizedRestrictedModules,
+          moduleMap: moduleMap ?? loggedInUser.moduleMap ?? undefined,
         };
 
         applySession(nextSession);
