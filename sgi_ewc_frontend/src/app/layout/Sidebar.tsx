@@ -16,6 +16,7 @@ import {
 	Car,
 	Sparkles,
 	Fuel,
+	Boxes,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -175,6 +176,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 		{ id: 'truck-assignments', labelKey: 'nav.assignments', icon: Car, areas: ['Transporte'] },
 		{ id: 'notifications', labelKey: 'nav.notifications', icon: Bell },
 		{ id: 'maintenance', labelKey: 'nav.maintenance', icon: Wrench, areas: ['Taller'] },
+		{ id: 'inventory', labelKey: 'nav.inventory', icon: Boxes, areas: ['Taller'] },
+		{ id: 'it-inventory', labelKey: 'nav.itInventory', icon: Boxes, areas: ['IT'] },
 		{ id: 'cleaning-reports', labelKey: 'nav.cleaningReports', icon: Sparkles, areas: ['Aseo'] },
 		{ id: 'civil-works', labelKey: 'nav.civilWorks', icon: HardHat, areas: ['Obras'] },
 		{ id: 'incidents', labelKey: 'nav.incidents', icon: AlertTriangle },
@@ -230,6 +233,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 						'fleet-registry':'flota',
 						'fuel-by-fleet':'combustible',
 						'maintenance':'mantenimiento',
+						'inventory':'inventario',
+						'it-inventory':'inventario-it',
 						'cleaning-reports':'aseo',
 						'civil-works':'obras-civiles',
 						'incidents':'incidentes',

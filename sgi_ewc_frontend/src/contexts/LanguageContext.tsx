@@ -56,7 +56,9 @@ const englishTranslations: Record<string, string> = {
     'login.invalidCredentials': 'Invalid credentials',
     
     // Navigation
-    'nav.dashboard': 'Dashboard',
+  'nav.dashboard': 'Dashboard',
+  'nav.inventory': 'Workshop Inventory',
+  'nav.itInventory': 'IT Inventory',
     'nav.tripReports': 'Trip Reports',
     'nav.routeManagement': 'Route Management',
     'nav.fleetRegistry': 'Fleet Registry',
@@ -252,7 +254,9 @@ const englishTranslations: Record<string, string> = {
     'login.invalidCredentials': 'Credenciales inválidas',
     
     // Navigation
-    'nav.dashboard': 'Panel Principal',
+  'nav.dashboard': 'Panel Principal',
+  'nav.inventory': 'Inventario Taller',
+  'nav.itInventory': 'Inventario IT',
     'nav.tripReports': 'Reportes de Viajes',
     'nav.routeManagement': 'Gestión de Rutas',
     'nav.fleetRegistry': 'Registro de Flota',

@@ -20,6 +20,13 @@ const NotificationsCenter = lazy(() => import('../features/notifications/pages/N
 const UserManagement = lazy(() => import('../features/users/pages/UserManagement'));
 const UserProfile = lazy(() => import('../features/profile/pages/UserProfile'));
 const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'));
+const InventoryPage = lazy(() => import('../features/inventory/pages/InventoryPage'));
+const ITInventoryPage = lazy(() => import('../features/it-inventory/pages/ITInventoryPage'));
+const ITInventoryDashboard = lazy(() => import('../features/it-inventory/pages/ITInventoryDashboard'));
+const ITInventoryAssets = lazy(() => import('../features/it-inventory/pages/ITInventoryAssets'));
+const ITInventoryLicenses = lazy(() => import('../features/it-inventory/pages/ITInventoryLicenses'));
+const ITInventoryMovements = lazy(() => import('../features/it-inventory/pages/ITInventoryMovements'));
+const ITInventoryCatalogs = lazy(() => import('../features/it-inventory/pages/ITInventoryCatalogs'));
 const Login = lazy(() => import('../features/auth/pages/Login'));
 const ForgotPassword = lazy(() => import('../features/auth/pages/ForgotPassword'));
 const UnderMaintenance = lazy(() => import('./pages/UnderMaintenance'));
@@ -74,7 +81,18 @@ export function AppRouter() {
         { path: 'tickets', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><EnhancedTicketSystem /></Suspense> },
         { path: 'usuarios', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><UserManagement /></Suspense> },
         { path: 'perfil', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><UserProfile /></Suspense> },
-        { path: 'ajustes', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><SettingsPage /></Suspense> },
+    { path: 'ajustes', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><SettingsPage /></Suspense> },
+  { path: 'inventario', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><InventoryPage /></Suspense> },
+    { path: 'inventario-it', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><ITInventoryPage /></Suspense>,
+      children: [
+        { index: true, element: <Navigate to="dashboard" replace /> },
+        { path: 'dashboard', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><ITInventoryDashboard /></Suspense> },
+        { path: 'assets', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><ITInventoryAssets /></Suspense> },
+        { path: 'licenses', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><ITInventoryLicenses /></Suspense> },
+        { path: 'movements', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><ITInventoryMovements /></Suspense> },
+        { path: 'catalogs', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><ITInventoryCatalogs /></Suspense> },
+      ]
+    },
         { path: 'truck-assignments', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><TruckAssignmentPage /></Suspense> },
       ],
     },

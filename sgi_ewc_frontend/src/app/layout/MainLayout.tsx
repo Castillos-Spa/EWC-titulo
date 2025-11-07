@@ -23,6 +23,8 @@ const titleMap: Record<string, string> = {
   '/usuarios': 'User Management',
   '/perfil': 'Mi Perfil',
   '/ajustes': 'Configuración',
+  '/inventario': 'Inventario de Taller',
+  '/inventario-it': 'Inventario IT',
   '/truck-assignments': 'Asignación de Camiones',
 };
 
@@ -100,6 +102,8 @@ export default function MainLayout() {
       '/usuarios': 'user-management',
       '/perfil': 'profile',
       '/ajustes': 'settings',
+      '/inventario': 'inventory',
+  '/inventario-it': 'it-inventory',
       '/truck-assignments': 'truck-assignments',
     };
     return map[pathname] || 'dashboard';
@@ -116,6 +120,8 @@ export default function MainLayout() {
             'fleet-registry': '/flota',
             'fuel-by-fleet': '/combustible',
             'maintenance': '/mantenimiento',
+            'inventory': '/inventario',
+            'it-inventory': '/inventario-it',
             'cleaning-reports': '/aseo',
             'civil-works': '/obras-civiles',
             'incidents': '/incidentes',
@@ -195,7 +201,9 @@ export default function MainLayout() {
                   localStorage.removeItem('demoMode');
                   localStorage.removeItem('autoStartTour');
                   localStorage.removeItem('demoTourState');
-                } catch {}
+                } catch (err) {
+                  console.warn('Preferencias demo: no se pudo leer localStorage', err);
+                }
                 await logout();
               }}
               className="px-2 py-0.5 text-xs border rounded-full border-amber-300/70 hover:bg-amber-200"
@@ -225,7 +233,9 @@ export default function MainLayout() {
                       const s = JSON.parse(raw) as { active: boolean; index: number; completed: boolean };
                       canResume = !s.active && !s.completed && (s.index ?? 0) > 0;
                     }
-                  } catch {}
+                  } catch (err) {
+                    console.warn('Tour demo: estado inválido en localStorage', err);
+                  }
                   return (
                     <div className="flex items-center justify-end gap-2">
                       <button type="button" onClick={() => setShowDemoHelp(false)} className="px-3 py-1.5 text-xs border rounded-full text-slate-700 hover:bg-slate-100 dark:text-white dark:border-white/10 dark:hover:bg-white/10">Cerrar</button>
