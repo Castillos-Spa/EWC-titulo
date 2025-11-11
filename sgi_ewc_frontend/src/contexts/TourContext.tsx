@@ -28,18 +28,18 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
   const location = useLocation();
   const steps: TourStep[] = useMemo(() => ([
-    { path: '/', title: 'Dashboard', description: 'Resumen con KPIs iniciales y accesos rápidos.', target: '[data-tour="dashboard"]' },
-    { path: '/rutas', title: 'Rutas', description: 'Gestión y asignación de rutas operativas.', target: '[data-tour="rutas"]' },
-    { path: '/flota', title: 'Flota', description: 'Registro de vehículos y su estado técnico.', target: '[data-tour="flota"]' },
-    { path: '/combustible', title: 'Combustible', description: 'Carga y análisis de consumo por vehículo.', target: '[data-tour="combustible"]' },
-    { path: '/mantenimiento', title: 'Mantenimiento', description: 'Órdenes de trabajo, estados y cierres con QA.', target: '[data-tour="mantenimiento"]' },
-    { path: '/obras-civiles', title: 'Obras Civiles', description: 'Seguimiento de avance, materiales y tareas.', target: '[data-tour="obras-civiles"]' },
-    { path: '/aseo', title: 'Aseo', description: 'Reportes de limpieza y conformidad.', target: '[data-tour="aseo"]' },
-    { path: '/incidentes', title: 'Incidentes', description: 'Registro y gestión de incidentes y su estado.', target: '[data-tour="incidentes"]' },
-    { path: '/notificaciones', title: 'Notificaciones', description: 'Avisos globales, por roles o por áreas.', target: '[data-tour="notificaciones"]' },
-    { path: '/tickets', title: 'Tickets', description: 'Mesa de ayuda con prioridades y aprobaciones.', target: '[data-tour="tickets"]' },
-    { path: '/usuarios', title: 'Usuarios', description: 'Gestión de usuarios y roles de acceso.', target: '[data-tour="usuarios"]' },
-    { path: '/ajustes', title: 'Configuración', description: 'Preferencias personales y opciones avanzadas.', target: '[data-tour="ajustes"]' },
+    { path: '/', title: 'Dashboard', description: 'Vista general: métricas clave, alertas y accesos rápidos para decidir prioridades.', target: '[data-tour="dashboard"]' },
+    { path: '/rutas', title: 'Rutas', description: 'Planifica y asigna recorridos diarios; visualiza estado y pendientes.', target: '[data-tour="rutas"]' },
+    { path: '/flota', title: 'Flota', description: 'Estado técnico, disponibilidad y próximos mantenimientos de cada vehículo.', target: '[data-tour="flota"]' },
+    { path: '/combustible', title: 'Combustible', description: 'Registra cargas y analiza consumo, costos y eficiencia de la flota.', target: '[data-tour="combustible"]' },
+    { path: '/mantenimiento', title: 'Mantenimiento', description: 'Control de órdenes: avance, costos estimados y cierre con verificación.', target: '[data-tour="mantenimiento"]' },
+    { path: '/obras-civiles', title: 'Obras Civiles', description: 'Monitorea proyectos: progreso, hitos, materiales y riesgos asociados.', target: '[data-tour="obras-civiles"]' },
+    { path: '/aseo', title: 'Aseo', description: 'Registro de jornadas de limpieza, tareas cumplidas y hallazgos relevantes.', target: '[data-tour="aseo"]' },
+    { path: '/incidentes', title: 'Incidentes', description: 'Reporta eventos operativos y sigue su tratamiento hasta la resolución.', target: '[data-tour="incidentes"]' },
+    { path: '/notificaciones', title: 'Notificaciones', description: 'Publica avisos segmentados por rol o área y fija los críticos.', target: '[data-tour="notificaciones"]' },
+    { path: '/tickets', title: 'Tickets', description: 'Solicitudes internas: priorización, asignación y confirmaciones de cierre.', target: '[data-tour="tickets"]' },
+    { path: '/usuarios', title: 'Usuarios', description: 'Administra cuentas, roles y especialidades habilitadas para operar.', target: '[data-tour="usuarios"]' },
+    { path: '/ajustes', title: 'Configuración', description: 'Configura idioma, tema y opciones avanzadas del entorno de trabajo.', target: '[data-tour="ajustes"]' },
   ]), []);
 
   const [state, setState] = useState<TourStateShape>(() => ({ active: false, index: 0, completed: false }));

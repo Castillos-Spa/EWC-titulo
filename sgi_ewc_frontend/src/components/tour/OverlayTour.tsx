@@ -54,8 +54,8 @@ export const OverlayTour: React.FC = () => {
 
   return createPortal(
     <div aria-live="polite" aria-label="Guía interactiva" className="pointer-events-none">
-      {/* Fondo oscurecido */}
-      <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm" />
+      {/* Fondo transparente (modo demo: permitir ver contenido subyacente) */}
+      <div className="fixed inset-0 z-[90]" />
       {box && (
         <div
           className="absolute z-[95] rounded-xl ring-2 ring-sky-400 shadow-2xl bg-white/5 dark:bg-white/10"
@@ -74,9 +74,6 @@ export const OverlayTour: React.FC = () => {
           </div>
           <button type="button" onClick={nextStep} className="rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500">{index === steps.length - 1 ? 'Finalizar' : 'Siguiente'}</button>
         </div>
-        {!highlight && (
-          <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">Elemento no visible aún; este paso muestra información general.</p>
-        )}
       </div>
     </div>,
     document.body
