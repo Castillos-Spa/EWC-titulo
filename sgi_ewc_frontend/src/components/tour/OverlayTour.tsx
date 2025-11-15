@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useTour } from '../../contexts/TourContext';
+import { useTour } from '../../contexts/useTour';
 
 interface Rect { top: number; left: number; width: number; height: number; }
 

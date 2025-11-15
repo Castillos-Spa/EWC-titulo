@@ -1,27 +1,16 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-
-interface TourStep { path: string; title: string; description: string; target?: string; }
-interface TourStateShape { active: boolean; index: number; completed: boolean; }
-interface TourContextValue {
-  steps: TourStep[];
-  active: boolean;
-  index: number;
-  completed: boolean;
-  startTour: () => void;
-  stopTour: () => void;
-  nextStep: () => void;
-  prevStep: () => void;
-  restartTour: () => void;
-  resumeTour: () => void;
-}
-
-const TourContext = createContext<TourContextValue | undefined>(undefined);
+import { TourContext, TourContextValue, TourStep, TourStateShape } from './tourContextStore';
 
 const LS_KEY = 'demoTourState';
 const isDemoActive = () => {
   const byEnv = String(import.meta.env.VITE_DEMO_MODE || 'false').toLowerCase() === 'true';
-  try { return byEnv || localStorage.getItem('demoMode') === 'true'; } catch { return byEnv; }
+  try {
+    return byEnv || localStorage.getItem('demoMode') === 'true';
+  } catch (e) {
+    console.warn('Tour demo: no se pudo leer demoMode desde localStorage', e);
+    return byEnv;
+  }
 };
 
 export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -33,6 +22,8 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     { path: '/flota', title: 'Flota', description: 'Estado técnico, disponibilidad y próximos mantenimientos de cada vehículo.', target: '[data-tour="flota"]' },
     { path: '/combustible', title: 'Combustible', description: 'Registra cargas y analiza consumo, costos y eficiencia de la flota.', target: '[data-tour="combustible"]' },
     { path: '/mantenimiento', title: 'Mantenimiento', description: 'Control de órdenes: avance, costos estimados y cierre con verificación.', target: '[data-tour="mantenimiento"]' },
+    { path: '/inventario', title: 'Inventario Taller', description: 'Control de stock de repuestos, consumibles y materiales del taller.', target: '[data-tour="inventario"]' },
+    { path: '/inventario-it/dashboard', title: 'Inventario IT', description: 'Visibilidad de activos tecnológicos: equipos, licencias y estados de ciclo de vida.', target: '[data-tour="inventario-it"]' },
     { path: '/obras-civiles', title: 'Obras Civiles', description: 'Monitorea proyectos: progreso, hitos, materiales y riesgos asociados.', target: '[data-tour="obras-civiles"]' },
     { path: '/aseo', title: 'Aseo', description: 'Registro de jornadas de limpieza, tareas cumplidas y hallazgos relevantes.', target: '[data-tour="aseo"]' },
     { path: '/incidentes', title: 'Incidentes', description: 'Reporta eventos operativos y sigue su tratamiento hasta la resolución.', target: '[data-tour="incidentes"]' },
@@ -54,26 +45,60 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // If tour was active previously, we allow resume via start button
         setState(parsed);
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Tour demo: estado inválido en localStorage', e);
+    }
   }, []);
 
   // Persist state when changes
   useEffect(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Tour demo: no se pudo persistir estado', e);
+    }
   }, [state]);
 
-  const startTour = () => setState({ active: true, index: 0, completed: false });
-  const stopTour = () => setState(s => ({ ...s, active: false, completed: s.index >= steps.length - 1 ? true : s.completed }));
-  const prevStep = () => setState(s => ({ ...s, index: Math.max(s.index - 1, 0) }));
-  const restartTour = () => setState({ active: true, index: 0, completed: false });
-  const resumeTour = () => setState(s => ({ ...s, active: true }));
+  const startTour = useCallback(() => {
+    setState({ active: true, index: 0, completed: false });
+  }, []);
+
+  const stopTour = useCallback(() => {
+    setState((s: TourStateShape) => ({
+      ...s,
+      active: false,
+      completed: s.index >= steps.length - 1 ? true : s.completed,
+    }));
+  }, [steps.length]);
+
+  const prevStep = useCallback(() => {
+    setState((s: TourStateShape) => ({ ...s, index: Math.max(s.index - 1, 0) }));
+  }, []);
+
+  const restartTour = useCallback(() => {
+    setState({ active: true, index: 0, completed: false });
+  }, []);
+
+  const resumeTour = useCallback(() => {
+    setState((s: TourStateShape) => ({ ...s, active: true }));
+  }, []);
 
   // Navigate on step change
   useEffect(() => {
-    if (state.active) {
-      const target = steps[state.index];
-      if (target && location.pathname !== target.path) navigate(target.path);
-    }
+    if (!state.active) return;
+
+    const target = steps[state.index];
+    if (!target) return;
+
+    const currentPath = location.pathname;
+
+    // Si el paso apunta al módulo de Inventario IT, permitir navegar entre sus subrutas
+    const isITInventoryModule = target.path.startsWith('/inventario-it/');
+    const isWithinITInventory = currentPath.startsWith('/inventario-it/');
+
+    if (isITInventoryModule && isWithinITInventory) return;
+
+    if (currentPath !== target.path) navigate(target.path);
   }, [state.active, state.index, steps, navigate, location.pathname]);
 
   // Global event compatibility
@@ -89,7 +114,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       globalThis.removeEventListener?.('demo:resumeTour', onResume as EventListener);
       globalThis.removeEventListener?.('demo:resetTour', onReset as EventListener);
     };
-  }, []);
+  }, [startTour, resumeTour, restartTour]);
 
   // Auto-start from login flag
   useEffect(() => {
@@ -100,7 +125,9 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('autoStartTour');
         setTimeout(() => startTour(), 120);
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Tour demo: no se pudo leer autoStartTour', e);
+    }
   }, [startTour]);
 
   const value: TourContextValue = useMemo(() => ({
@@ -111,7 +138,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startTour,
     stopTour,
     nextStep: () => {
-      setState(s => {
+      setState((s: TourStateShape) => {
         const next = Math.min(s.index + 1, steps.length - 1);
         const willComplete = next === steps.length - 1;
         return { active: !willComplete, index: next, completed: willComplete ? true : s.completed };
@@ -120,13 +147,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     prevStep,
     restartTour,
     resumeTour,
-  }), [steps, state.active, state.index, state.completed]);
+  }), [steps, state.active, state.index, state.completed, startTour, stopTour, prevStep, restartTour, resumeTour]);
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
 };
-
-export function useTour(): TourContextValue {
-  const ctx = useContext(TourContext);
-  if (!ctx) throw new Error('useTour debe usarse dentro de TourProvider');
-  return ctx;
-}

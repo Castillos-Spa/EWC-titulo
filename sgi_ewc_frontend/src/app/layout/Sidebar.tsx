@@ -164,6 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 	const { user, logout } = useAuth();
 	const { t, language } = useLanguage();
 	const compact = uiDensity === 'compact';
+	const isDemo = String(import.meta.env.VITE_DEMO_MODE || 'false').toLowerCase() === 'true';
 
 	const hasAreaAccess = (area: string) => Boolean(user?.isAdmin || user?.areas?.includes(area));
 
@@ -185,6 +186,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 	];
 
 	const visibleItemsUnique = viewDefinitions.filter((item) => {
+		// En modo demo mostramos todos los módulos sin restricción de áreas
+		if (isDemo) return true;
 		if (!item.areas || item.areas.length === 0) return true;
 		return item.areas.some(area => hasAreaAccess(area));
 	});

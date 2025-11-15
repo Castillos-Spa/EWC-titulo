@@ -13,7 +13,7 @@ import type { User as UserType } from '../../types/User';
 import type { AppNotification } from '../../types/Notification';
 import { useIntlFormat } from '../intl/format';
 import { useNavigate } from 'react-router-dom';
-import { useTour } from '../../contexts/TourContext';
+import { useTour } from '../../contexts/useTour';
 import OverlayTour from '../../components/tour/OverlayTour';
 import type { Vehiculo } from '../../types/Vehiculo';
 import type { OrdenTrabajo } from '../../types/OrdenTrabajo';
