@@ -1,6 +1,40 @@
 export type ITAssetStatus = 'EN_STOCK' | 'ASIGNADO' | 'EN_REPARACION' | 'RETIRADO';
 export type ITAssetCategory = 'Laptop' | 'Monitor' | 'Licencia' | 'Periférico' | 'Desktop' | 'Impresora' | 'Servidor';
 
+export type ITLocationType = 'OFICINA' | 'BODEGA' | 'REMOTO';
+
+export interface ITVendor {
+  id: string;
+  nombre: string;
+  contacto?: string;
+  telefono?: string;
+  email?: string;
+  notas?: string;
+  activo: boolean;
+}
+
+export interface ITLocation {
+  id: string;
+  nombre: string;
+  tipo: ITLocationType;
+  direccion?: string;
+  activo: boolean;
+}
+
+export interface ITBrand {
+  id: string;
+  nombre: string;
+  activo: boolean;
+}
+
+export interface ITModel {
+  id: string;
+  nombre: string;
+  marcaId: string;
+  categoria: ITAssetCategory;
+  activo: boolean;
+}
+
 export interface ITAsset {
   id: number;
   assetTag: string; // Etiqueta interna

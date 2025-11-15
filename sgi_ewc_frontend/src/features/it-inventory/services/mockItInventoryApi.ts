@@ -90,3 +90,26 @@ export async function changeStatus(id: number, estado: ITAssetStatus, detalle = 
 }
 
 export async function listMovements(assetId: number) { return delay(movements.filter(m => m.assetId === assetId).sort((a,b) => b.id - a.id)); }
+
+export async function assignAsset(id: number, usuarioAsignado: string, detalle = '') {
+  const found = assets.find(a => a.id === id);
+  if (!found) return delay(null);
+  found.asignadoA = usuarioAsignado;
+  found.estado = 'ASIGNADO';
+  found.updatedAt = nowISO();
+  const movimientoDetalle = detalle || `Asignado a ${usuarioAsignado}`;
+  movements.push({ id: movementSeq++, assetId: found.id, tipo: 'ASIGNACION', fecha: nowISO(), detalle: movimientoDetalle, usuario: 'mockUser' });
+  return delay(found);
+}
+
+export async function unassignAsset(id: number, detalle = '') {
+  const found = assets.find(a => a.id === id);
+  if (!found) return delay(null);
+  const previous = found.asignadoA;
+  found.asignadoA = undefined;
+  found.estado = 'EN_STOCK';
+  found.updatedAt = nowISO();
+  const movimientoDetalle = detalle || (previous ? `Devuelto por ${previous}` : 'Activo devuelto a stock');
+  movements.push({ id: movementSeq++, assetId: found.id, tipo: 'DEVOLUCION', fecha: nowISO(), detalle: movimientoDetalle, usuario: 'mockUser' });
+  return delay(found);
+}

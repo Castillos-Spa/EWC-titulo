@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Wrench } from 'lucide-react';
+import { Plus, Wrench, UserPlus } from 'lucide-react';
 import type { ITAsset, ITFilters, ITMovement, ITAssetCategory, ITAssetStatus } from '../types';
-import { listAssets, createAsset, listMovements, changeStatus } from '../services/mockItInventoryApi';
+import { listAssets, createAsset, listMovements, changeStatus, assignAsset, unassignAsset } from '../services/mockItInventoryApi';
 import ITInventoryFilters from '../components/ITInventoryFilters';
 import ITAssetsTable from '../components/ITAssetsTable';
 import ITAssetFormModal from '../components/ITAssetFormModal';
 import ITAssetDetail from '../components/ITAssetDetail';
+import AssetStatusModal from '../components/AssetStatusModal';
+import AssignAssetModal from '../components/AssignAssetModal';
 
 // Pestaña de Activos: contiene la lógica original del módulo antes de la refactorización a layout con tabs.
 export default function ITInventoryAssets() {
@@ -15,6 +17,8 @@ export default function ITInventoryAssets() {
   const [selected, setSelected] = useState<ITAsset | null>(null);
   const [movs, setMovs] = useState<ITMovement[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
   const categorias: ITAssetCategory[] = useMemo(() => {
     return Array.from(new Set(assets.map(a => a.categoria))).sort((a,b) => a.localeCompare(b));
@@ -32,19 +36,47 @@ export default function ITInventoryAssets() {
     listMovements(selected.id).then(setMovs);
   }, [selected]);
 
+  const reloadAssets = async (focusId?: number) => {
+    const targetId = focusId ?? selected?.id ?? null;
+    setLoading(true);
+    try {
+      const data = await listAssets(filters);
+      setAssets(data);
+      if (targetId) {
+        const updated = data.find(a => a.id === targetId) ?? null;
+        setSelected(updated);
+        if (!updated) setMovs([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreate = async (payload: Parameters<typeof createAsset>[0]) => {
     await createAsset(payload);
     setShowCreate(false);
-    setLoading(true);
-    listAssets(filters).then(setAssets).finally(() => setLoading(false));
+    await reloadAssets();
   };
 
-  const cycleStatus = async (asset: ITAsset) => {
-    const order: ITAssetStatus[] = ['EN_STOCK','ASIGNADO','EN_REPARACION','RETIRADO'];
-    const next = order[(order.indexOf(asset.estado) + 1) % order.length];
-    await changeStatus(asset.id, next, `Cambio de estado a ${next}`);
-    if (selected?.id === asset.id) listMovements(asset.id).then(setMovs);
-    setLoading(true); listAssets(filters).then(setAssets).finally(() => setLoading(false));
+  const handleStatusSubmit = async ({ estado, detalle }: { estado: ITAssetStatus; detalle: string }) => {
+    if (!selected) return;
+    await changeStatus(selected.id, estado, detalle || `Cambio manual a ${estado}`);
+    await reloadAssets(selected.id);
+    setShowStatusModal(false);
+  };
+
+  const handleAssignSubmit = async ({ usuario, detalle }: { usuario: string; detalle: string }) => {
+    if (!selected) return;
+    await assignAsset(selected.id, usuario, detalle || `Asignado a ${usuario}`);
+    await reloadAssets(selected.id);
+    setShowAssignModal(false);
+  };
+
+  const handleUnassignSubmit = async (detalle: string) => {
+    if (!selected) return;
+    await unassignAsset(selected.id, detalle);
+    await reloadAssets(selected.id);
+    setShowAssignModal(false);
   };
 
   return (
@@ -53,8 +85,11 @@ export default function ITInventoryAssets() {
         <button type="button" onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5">
           <Plus className="h-4 w-4" /> Nuevo activo
         </button>
-        <button type="button" disabled={!selected} onClick={() => selected && cycleStatus(selected)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg disabled:opacity-40">
-          <Wrench className="h-4 w-4" /> Ciclar estado
+        <button type="button" disabled={!selected} onClick={() => setShowStatusModal(true)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg disabled:opacity-40">
+          <Wrench className="h-4 w-4" /> Cambiar estado
+        </button>
+        <button type="button" disabled={!selected} onClick={() => setShowAssignModal(true)} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-emerald-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white shadow-lg disabled:opacity-40">
+          <UserPlus className="h-4 w-4" /> Asignar / liberar
         </button>
       </div>
 
@@ -70,6 +105,8 @@ export default function ITInventoryAssets() {
       </div>
 
       <ITAssetFormModal open={showCreate} onClose={() => setShowCreate(false)} onSubmit={handleCreate} />
+      <AssetStatusModal open={showStatusModal} asset={selected} onClose={() => setShowStatusModal(false)} onSubmit={handleStatusSubmit} />
+      <AssignAssetModal open={showAssignModal} asset={selected} onClose={() => setShowAssignModal(false)} onAssign={handleAssignSubmit} onUnassign={handleUnassignSubmit} />
     </div>
   );
 }
