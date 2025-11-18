@@ -17,7 +17,9 @@ export class CleaningService {
       data: {
         ...createCleaningDto,
         date: new Date(createCleaningDto.date),
-        createdBy: { connect: { id: createdById } },
+        // El modelo Aseo tiene el campo foráneo createdById y la relación se llama `User`.
+        // Para evitar errores de tipos, seteamos directamente el ID foráneo.
+        createdById: createdById,
       },
     });
 

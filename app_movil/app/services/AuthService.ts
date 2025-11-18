@@ -44,6 +44,25 @@ export interface AuthTokens {
 }
 
 class AuthServiceClass {
+  private ensureApiPrefix(url: string): string {
+    let out = url.replace(/\/+$/, '');
+    try {
+      const u = new URL(out);
+      const path = u.pathname.replace(/\/+$/, '');
+      const hasApi = /\/api(\/v\d+)?$/.test(path);
+      if (!hasApi) {
+        u.pathname = (path || '') + '/api/v1';
+        out = u.toString().replace(/\/+$/, '');
+      }
+    } catch {
+      if (!/\/api(\/v\d+)?$/.test(out)) {
+        out = out + '/api/v1';
+      }
+      out = out.replace(/\/+$/, '');
+    }
+    return out;
+  }
+
   private getBaseUrl(): string {
     const envUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL;
     const extra: any = Constants?.expoConfig?.extra;
@@ -67,21 +86,45 @@ class AuthServiceClass {
       }
     }
     if (url && url.length > 0) {
-      // Eliminar barra final para evitar //auth/login
-      url = url.replace(/\/+$/, '');
-      return url;
+      return this.ensureApiPrefix(url);
     }
     const local =
       Platform.OS === 'android'
         ? 'http://10.0.2.2:3000'
         : 'http://localhost:3000';
-    return local.replace(/\/+$/, '');
+    // Agregar /api/v1 por defecto
+    return this.ensureApiPrefix(local);
+  }
+
+  private async mapLoginError(res: any): Promise<string> {
+    let message = 'Error de autenticación';
+    let parsed: any = null;
+    let rawText: string | null = null;
+    try {
+      parsed = await res.json();
+      message = parsed?.message || message;
+    } catch {
+      try {
+        rawText = await res.text();
+      } catch {}
+    }
+
+    if (res?.status === 404 && (rawText?.includes('Cannot') || String(message).includes('Cannot'))) {
+      return 'Endpoint no encontrado. Verifica que la URL incluya /api/v1';
+    }
+    if (res?.status === 401 || res?.status === 400) {
+      return 'Email o contraseña incorrectos';
+    }
+    if (res?.status >= 500) {
+      return 'Error del servidor. Intenta más tarde.';
+    }
+    return typeof message === 'string' ? message : 'Error de autenticación';
   }
 
   // Helpers para normalizar campos desde el payload del backend
   private getAreasFromPayload(payload: any): string[] {
     if (Array.isArray(payload?.areas)) {
-      return payload.areas.map((a: string) => String(a));
+      return payload.areas.map(String);
     }
     if (payload?.area) return [String(payload.area)];
     return [];
@@ -92,7 +135,7 @@ class AuthServiceClass {
     return Object.values(rolesByArea)
       .map((v: any) => v?.specialty)
       .filter(Boolean)
-      .map((s: any) => String(s));
+      .map(String);
   }
 
   private derivePrimaryRole(roles: string[], areas: string[], specialties: string[]): User['role'] {
@@ -129,7 +172,7 @@ class AuthServiceClass {
 
     const id = String(payload?.userId ?? payload?.sub ?? payload?.id ?? '0');
     const permissions: string[] = Array.isArray(payload?.permissions)
-      ? payload.permissions.map((p: string) => String(p))
+      ? payload.permissions.map(String)
       : [];
 
     return {
@@ -159,14 +202,8 @@ class AuthServiceClass {
     });
 
     if (!res.ok) {
-      let message = 'Error de autenticación';
-      try {
-        const data = await res.json();
-        message = data?.message || message;
-      } catch {}
-      throw new Error(
-        typeof message === 'string' ? message : 'Email o contraseña incorrectos'
-      );
+      const message = await this.mapLoginError(res);
+      throw new Error(message);
     }
 
     const data = await res.json();

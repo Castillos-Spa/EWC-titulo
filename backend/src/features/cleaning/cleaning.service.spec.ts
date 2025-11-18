@@ -24,7 +24,7 @@ describe('CleaningService', () => {
       expect(prisma.aseo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            createdBy: { connect: { id: 5 } },
+            createdById: 5,
           }),
         }),
       );

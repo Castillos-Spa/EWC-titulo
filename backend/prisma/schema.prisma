@@ -18,6 +18,7 @@ model User {
   mustChangePassword   Boolean              @default(false)
   refreshToken         String?              @unique
   lastLogin            DateTime?            @map("last_login")
+  Aseo                 Aseo[]
   createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
   drivenFuelLogs       FuelLog[]            @relation("DriverFuelLogs")
   createdFuelLogs      FuelLog[]            @relation("UserFuelLogs")
@@ -39,7 +40,7 @@ model User {
 model UserRoleAssignment {
   id          Int          @id @default(autoincrement())
   userId      Int
-  area        String
+  area        Area
   role        Role
   specialty   Specialty?
   permissions Permission[] @default([])
@@ -63,7 +64,7 @@ model Ticket {
   updatedAt                  DateTime         @updatedAt
   createdById                Int
   assignedToId               Int?
-  recipientArea              String[]         @default([])
+  recipientArea              Area[]           @default([])
   recipientRole              Role[]
   assignedUserConfirmation   Boolean?         @default(false)
   requestingUserConfirmation Boolean?         @default(false)
@@ -81,6 +82,7 @@ model Vehiculo {
   patente             String            @unique
   capacidad           Float
   odometro            Int
+  tipo                String?
   estado              VehiculoStatus    @default(disponible)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -89,7 +91,6 @@ model Vehiculo {
   marca               String            @default("")
   modelo              String            @default("")
   codigo              String?           @unique
-  tipo                String?
   documentos          Documento[]
   fuelLogs            FuelLog[]
   ordenes             OrdenTrabajo[]
@@ -191,7 +192,7 @@ model TicketApproval {
   step         Int
   status       ApprovalStatus @default(Pendiente)
   approverRole Role
-  approverArea String
+  approverArea Area
   approvedById Int?
   approvedAt   DateTime?
   comments     String?
@@ -285,6 +286,10 @@ model Aseo {
   observations     String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  createdById      Int
+  User             User           @relation(fields: [createdById], references: [id])
+
+  @@index([createdById])
 }
 
 model CivilWork {
@@ -309,6 +314,16 @@ model CivilWork {
   createdBy                 User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([createdById])
+}
+
+model ApprovalWorkflow {
+  id        Int            @id @default(autoincrement())
+  name      String
+  area      Area
+  category  TicketCategory
+  steps     Json
+  createdAt DateTime       @default(now())
+  updatedAt DateTime
 }
 
 /// Enum de roles
@@ -442,4 +457,15 @@ enum RouteFrequency {
   Mensual
   Ocasional
   Adhoc
+}
+
+enum Area {
+  Admin
+  IT
+  Transporte
+  Obras
+  Aseo
+  RRHH
+  Finanzas
+  Prev_Riesgo
 }
