@@ -4,17 +4,23 @@ import { useThemeStore } from '@/app/stores/themeStore';
 
 type Props = {
   title: string;
+  subtitle?: string;
   actionLabel?: string;
   onActionPress?: () => void;
 };
 
 export function SectionHeader(props: Readonly<Props>) {
-  const { title, actionLabel, onActionPress } = props;
+  const { title, subtitle, actionLabel, onActionPress } = props;
   const { getColors } = useThemeStore();
   const colors = getColors();
   return (
     <View style={styles.row}>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <View style={styles.texts}>
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+        ) : null}
+      </View>
       {actionLabel && onActionPress ? (
         <TouchableOpacity onPress={onActionPress} style={styles.action}>
           <Text style={{ color: colors.textSecondary }}>{actionLabel}</Text>
@@ -31,9 +37,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  texts: {
+    flex: 1,
+  },
   title: {
     fontSize: 20,
     fontWeight: '700',
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
   action: {
     paddingHorizontal: 12,
