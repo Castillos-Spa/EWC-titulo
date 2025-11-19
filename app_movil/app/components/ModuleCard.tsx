@@ -73,6 +73,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
+    margin: 6,
   },
   gradientBg: {
     ...StyleSheet.absoluteFillObject,

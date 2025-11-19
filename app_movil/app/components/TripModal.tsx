@@ -18,8 +18,8 @@ import {
   Fuel,
   PenTool,
   Save,
-  MapPin,
   Clock,
+  Truck,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouteStore } from '../stores/routeStore';
@@ -43,7 +43,7 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currentStop = currentRoute?.stops.find(stop => stop.id === trip?.stopId);
+  const currentStop = undefined;
 
   const handleTakePhoto = async () => {
     try {
@@ -89,7 +89,7 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
     try {
       await completeTrip({
         id: trip.id,
-        fuelConsumption: fuelConsumption ? parseFloat(fuelConsumption) : undefined,
+        fuelConsumption: fuelConsumption ? Number.parseFloat(fuelConsumption) : undefined,
         recipient: recipient.trim(),
         notes: notes.trim(),
         signaturePath: signature,
@@ -127,19 +127,23 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Stop Info */}
-          {currentStop && (
-            <View style={[styles.stopInfo, { backgroundColor: colors.surface, borderLeftColor: colors.primary }]}>
+          {/* Route basic info instead of stop info (no real paradas) */}
+          {currentRoute && (
+            <View style={[styles.stopInfo, { backgroundColor: colors.surface, borderLeftColor: colors.primary }] }>
               <View style={styles.stopHeader}>
-                <MapPin size={20} color={colors.primary} />
-                <Text style={[styles.stopTitle, { color: colors.text }]}>{currentStop.clientName}</Text>
+                <Truck size={20} color={colors.primary} />
+                <Text style={[styles.stopTitle, { color: colors.text }]}>{currentRoute.vehiclePlate}</Text>
               </View>
-              <Text style={[styles.stopJob, { color: colors.textSecondary }]}>{currentStop.jobDescription}</Text>
+              <Text style={[styles.stopJob, { color: colors.textSecondary }]}>Conductor: {currentRoute.driverName}</Text>
               <View style={styles.stopDetails}>
                 <Clock size={16} color={colors.textSecondary} />
-                <Text style={[styles.stopTime, { color: colors.textSecondary }]}>{currentStop.timeSlot}</Text>
+                <Text style={[styles.stopTime, { color: colors.textSecondary }]}>{currentRoute.date}</Text>
               </View>
-              <Text style={[styles.stopAddress, { color: colors.textSecondary }]}>{currentStop.address}</Text>
+              {(currentRoute.origin || currentRoute.destination) && (
+                <Text style={[styles.stopAddress, { color: colors.textSecondary }]}>
+                  {(currentRoute.origin || 'Origen no definido')} → {(currentRoute.destination || 'Destino no definido')}
+                </Text>
+              )}
             </View>
           )}
 

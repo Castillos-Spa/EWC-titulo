@@ -732,6 +732,33 @@ class DatabaseServiceClass {
       status: row.status,
     }));
   }
+
+  async getRoutesByDate(date: string): Promise<any[]> {
+    if (!this.db) await this.init();
+    if (!this.db) return [];
+    try {
+      const rows = await this.db.getAllAsync('SELECT * FROM routes WHERE date = ?', [date]);
+      return rows.map((r: any) => {
+        try {
+          return JSON.parse(String(r.data));
+        } catch {
+          return {
+            id: r.id,
+            date: r.date,
+            vehicleId: r.vehicleId,
+            vehiclePlate: r.vehiclePlate,
+            driverName: r.driverName,
+            status: r.status,
+            stops: [],
+            trips: [],
+          };
+        }
+      });
+    } catch (e) {
+      console.warn('getRoutesByDate failed', e);
+      return [];
+    }
+  }
 }
 
 export const DatabaseService = new DatabaseServiceClass();

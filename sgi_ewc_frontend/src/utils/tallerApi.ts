@@ -334,6 +334,8 @@ type UsersApiDriverCandidate = {
   roleAssignments?: Array<{
     specialty?: string | null;
     isActive?: boolean | null;
+    area?: string | null;
+    role?: string | null;
   }> | null;
 };
 
@@ -350,43 +352,146 @@ const isDriverAssignment = (assignment: {
   return (assignment.specialty ?? "").toUpperCase() === "DRIVER";
 };
 
+const isTransportAreaAssignment = (assignment: {
+  isActive?: boolean | null;
+  area?: string | null;
+}) => {
+  if (!assignment) return false;
+  if (assignment.isActive === false) return false;
+  return (assignment.area ?? "") === "Transporte";
+};
+
+type UsersListResponse = {
+  items?: UsersApiDriverCandidate[] | null;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+} | UsersApiDriverCandidate[];
+
+const fetchUsersPage = async (
+  params: Record<string, string | number | undefined>
+): Promise<UsersListResponse> => {
+  const search = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v == null) continue;
+    search.set(k, String(v));
+  }
+  const qs = search.toString();
+  const url = qs ? `/users?${qs}` : "/users";
+  return apiFetch(url) as Promise<UsersListResponse>;
+};
+
+const extractUsersFromResponse = (res: UsersListResponse): UsersApiDriverCandidate[] => {
+  if (Array.isArray(res)) return res as UsersApiDriverCandidate[];
+  if (res && Array.isArray(res.items)) return res.items;
+  return [];
+};
+
 export async function getDrivers(
   forceRefresh = false
 ): Promise<TallerDriver[]> {
   return fetchWithCache(
     DRIVERS_CACHE_KEY,
     async () => {
-      const response = await apiFetch("/users?pageSize=200");
-      const candidates = normalizeUsersResponse(response);
+      try {
+        // 1) Traer todos los usuarios con specialty=DRIVER paginando al máximo (pageSize=100)
+        const driverCandidates: UsersApiDriverCandidate[] = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const res = await fetchUsersPage({ page, pageSize: 100, specialty: "DRIVER" });
+          const pageItems = extractUsersFromResponse(res);
+          driverCandidates.push(...pageItems);
+          totalPages = Array.isArray(res) ? 1 : res.totalPages ?? 1;
+          page += 1;
+        } while (page <= totalPages);
 
-      return candidates
-        .filter((candidate) =>
-          candidate.roleAssignments?.some(isDriverAssignment)
-        )
-        .map((candidate) => {
-          const id = candidate.id ?? null;
-          const firstName = candidate.firstName ?? undefined;
-          const lastName = candidate.lastName ?? undefined;
-          const username = candidate.username ?? undefined;
-          const email = candidate.email ?? undefined;
-          const nameParts = [
-            candidate.fullName,
-            firstName,
-            lastName,
-            username,
-            email,
-          ].filter(Boolean) as string[];
-          return {
-            id: id ?? undefined,
-            userId: id ?? undefined,
-            username,
-            email,
-            fullName: nameParts[0],
-            firstName,
-            lastName,
-            active: candidate.active ?? true,
-          } satisfies TallerDriver;
-        });
+        // 2) Fallback: incluir usuarios del área Transporte (activos) aunque no tengan specialty
+        const transportCandidates: UsersApiDriverCandidate[] = [];
+        let page2 = 1;
+        let totalPages2 = 1;
+        do {
+          const res = await fetchUsersPage({ page: page2, pageSize: 100 });
+          const pageItems = extractUsersFromResponse(res);
+          transportCandidates.push(
+            ...pageItems.filter((c) =>
+              (c.roleAssignments || []).some((a) => isTransportAreaAssignment(a))
+            )
+          );
+          totalPages2 = Array.isArray(res) ? 1 : res.totalPages ?? 1;
+          page2 += 1;
+        } while (page2 <= totalPages2);
+
+        // 3) Unificar y mapear
+        const all = new Map<number, UsersApiDriverCandidate>();
+        for (const c of [...driverCandidates, ...transportCandidates]) {
+          if (typeof c.id === "number") {
+            all.set(c.id, c);
+          }
+        }
+        const candidates = Array.from(all.values());
+
+        return candidates
+          .map((candidate) => {
+            const id = candidate.id ?? null;
+            const firstName = candidate.firstName ?? undefined;
+            const lastName = candidate.lastName ?? undefined;
+            const username = candidate.username ?? undefined;
+            const email = candidate.email ?? undefined;
+            const nameParts = [
+              candidate.fullName,
+              firstName && lastName ? `${firstName} ${lastName}` : undefined,
+              firstName,
+              lastName,
+              username,
+              email,
+            ].filter(Boolean) as string[];
+            return {
+              id: id ?? undefined,
+              userId: id ?? undefined,
+              username,
+              email,
+              fullName: nameParts[0],
+              firstName,
+              lastName,
+              active: candidate.active ?? true,
+            } satisfies TallerDriver;
+          })
+          .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+      } catch (err) {
+        console.warn('Fallo al paginar conductores, usando fallback simple', err);
+        // Fallback simple: consulta única y filtro por specialty DRIVER
+        const response = await apiFetch("/users?pageSize=100");
+        const candidates = normalizeUsersResponse(response);
+        return candidates
+          .filter((c) => (c.roleAssignments || []).some(isDriverAssignment) || (c.roleAssignments || []).some(isTransportAreaAssignment))
+          .map((candidate) => {
+            const id = candidate.id ?? null;
+            const firstName = candidate.firstName ?? undefined;
+            const lastName = candidate.lastName ?? undefined;
+            const username = candidate.username ?? undefined;
+            const email = candidate.email ?? undefined;
+            const nameParts = [
+              candidate.fullName,
+              firstName && lastName ? `${firstName} ${lastName}` : undefined,
+              firstName,
+              lastName,
+              username,
+              email,
+            ].filter(Boolean) as string[];
+            return {
+              id: id ?? undefined,
+              userId: id ?? undefined,
+              username,
+              email,
+              fullName: nameParts[0],
+              firstName,
+              lastName,
+              active: candidate.active ?? true,
+            } satisfies TallerDriver;
+          });
+      }
     },
     { force: forceRefresh }
   );

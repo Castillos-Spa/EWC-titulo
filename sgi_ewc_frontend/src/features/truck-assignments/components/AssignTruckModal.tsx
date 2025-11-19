@@ -206,11 +206,10 @@ const AssignTruckModal: React.FC<Props> = ({ open, onClose, truckId, refDay }) =
 									{existing ? 'Editar asignación' : 'Programar nuevo recorrido'}
 								</h3>
 								<p className="text-sm text-slate-600 dark:text-slate-300">
-									Coordina la agenda del camión
-									{' '}
-									<span className="font-semibold text-slate-900 dark:text-white">{truck?.code ?? '—'}</span>
-									{' '}para el
-									{' '}
+									Coordina la agenda del camión{' '}
+									<span className="font-semibold text-slate-900 dark:text-white">
+										{truck?.code ?? '—'}{truck?.name ? ` (${truck.name})` : ''}
+									</span>{' '}para el{' '}
 									<span className="font-mono tracking-widest">{formattedDay}</span>.
 									{' '}Selecciona conductor, rutas y volúmenes desde un mismo panel.
 								</p>

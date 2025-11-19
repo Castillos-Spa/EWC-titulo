@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,12 +22,8 @@ import { useNavigationStore } from '../stores/navigationStore';
 import { DashboardApi, type DaySummary } from '../services/DashboardApi';
 import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '../services/DashboardInsights';
 import { SafeStorage } from '../services/SafeStorage';
-import { DashboardTimelineCard } from '../components/DashboardTimelineCard';
 import { DashboardAlertsCard } from '../components/DashboardAlertsCard';
-import { buildPrioritizedAlerts, mapNotificationsToAlertSource, lastNDays, buildTimelineSeries, startOfWeekMonday, addDays, buildMaintenanceSeries, buildTicketsSeries } from '@/app/utils/dashboard';
-import { MaintenanceSeriesCard } from '../components/MaintenanceSeriesCard';
-import { TicketsSeriesCard } from '../components/TicketsSeriesCard';
-import { ModuleCard } from '../components/ModuleCard';
+import { buildPrioritizedAlerts, mapNotificationsToAlertSource } from '@/app/utils/dashboard';
 import { SectionHeader } from '../components/ui/SectionHeader';
 
 function getRoleDisplayName(role: string) {
@@ -42,38 +39,6 @@ function getRoleDisplayName(role: string) {
     finance: 'Finanzas',
   } as const;
   return (roles as any)[role] || role;
-}
-
-function TimelineRangeToggle({
-  colors,
-  value,
-  onChange,
-}: Readonly<{ colors: any; value: 7 | 14; onChange: (v: 7 | 14) => void }>) {
-  return (
-    <View style={styles.timelineToggleRow}>
-      <Text style={{ color: colors.textSecondary, marginRight: 8 }}>Rango</Text>
-      <TouchableOpacity
-        onPress={() => onChange(7)}
-        style={[
-          styles.toggleChip,
-          { backgroundColor: colors.background, borderColor: colors.border },
-          value === 7 && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
-        ]}
-      >
-        <Text style={{ color: value === 7 ? colors.primary : colors.textSecondary }}>7d</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => onChange(14)}
-        style={[
-          styles.toggleChip,
-          { backgroundColor: colors.background, borderColor: colors.border },
-          value === 14 && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
-        ]}
-      >
-        <Text style={{ color: value === 14 ? colors.primary : colors.textSecondary }}>14d</Text>
-      </TouchableOpacity>
-    </View>
-  );
 }
 
 function SummarySection({
@@ -219,9 +184,6 @@ type QuickAccessTile = {
   onPress: () => void;
 };
 
-type TimelineWindow = 7 | 14;
-type WeeksWindow = 4 | 8 | 12;
-
 function HeroHeader({
   paddingTop,
   colors,
@@ -232,6 +194,7 @@ function HeroHeader({
   onRefresh,
   loading,
   onOpenNotifications,
+  compact = false,
 }: Readonly<{
   paddingTop: number;
   colors: any;
@@ -242,18 +205,19 @@ function HeroHeader({
   onRefresh: () => void;
   loading: boolean;
   onOpenNotifications: () => void;
+  compact?: boolean;
 }>) {
   return (
-    <View style={[styles.heroWrapper, { paddingTop }]}> 
+    <View style={[styles.heroWrapper, { paddingTop }, compact && styles.heroWrapperCompact]}>
       <LinearGradient
         colors={[colors.primary + 'EE', colors.primary + 'AA', colors.background]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.heroGradient}
+        style={[styles.heroGradient, compact && styles.heroGradientCompact]}
       >
-        <View style={styles.heroHeaderRow}>
-          <View style={styles.heroUser}>
-            <View style={styles.heroAvatar}>
+        <View style={[styles.heroHeaderRow, compact && styles.heroHeaderRowCompact]}>
+          <View style={[styles.heroUser, compact && styles.heroUserCompact]}>
+            <View style={[styles.heroAvatar, compact && styles.heroAvatarCompact]}>
               <User size={20} color={colors.surface} />
             </View>
             <View style={styles.heroTexts}>
@@ -261,14 +225,21 @@ function HeroHeader({
               <Text style={[styles.heroRole, { color: colors.surface + 'CC' }]}>{roleLabel}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.heroLogout} onPress={onLogout}>
+          <TouchableOpacity style={[styles.heroLogout, compact && styles.heroLogoutCompact]} onPress={onLogout}>
             <LogOut size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statusRow}>
+        <View style={[styles.statusRow, compact && styles.statusRowCompact]}>
           {statusChips.map((chip) => (
-            <View key={chip.label} style={[styles.statusChip, { backgroundColor: colors.surface + '15', borderColor: chip.tone }]}>
+            <View
+              key={chip.label}
+              style={[
+                styles.statusChip,
+                compact && styles.statusChipCompact,
+                { backgroundColor: colors.surface + '15', borderColor: chip.tone },
+              ]}
+            >
               <Text style={[styles.statusChipLabel, { color: colors.surface + 'CC' }]}>{chip.label}</Text>
               <Text style={[styles.statusChipValue, { color: colors.surface }]}>{chip.value}</Text>
               <Text style={[styles.statusChipMeta, { color: colors.surface + 'AA' }]}>{chip.meta}</Text>
@@ -276,11 +247,24 @@ function HeroHeader({
           ))}
         </View>
 
-        <View style={styles.heroActionsRow}>
-          <TouchableOpacity style={[styles.heroButton, { backgroundColor: colors.surface }]} onPress={onRefresh}>
-            <Text style={[styles.heroButtonText, { color: colors.primary }]}>{loading ? 'Actualizando…' : 'Actualizar datos'}</Text>
+        <View style={[styles.heroActionsRow, compact && styles.heroActionsRowCompact]}>
+          <TouchableOpacity
+            style={[styles.heroButton, compact && styles.heroButtonCompact, { backgroundColor: colors.surface }]}
+            onPress={onRefresh}
+          >
+            <Text style={[styles.heroButtonText, { color: colors.primary }]}>
+              {loading ? 'Actualizando…' : 'Actualizar datos'}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.heroButton, { borderColor: colors.surface, borderWidth: 1 }]} onPress={onOpenNotifications}>
+          <TouchableOpacity
+            style={[
+              styles.heroButton,
+              compact && styles.heroButtonCompact,
+              compact && styles.heroButtonLastCompact,
+              { borderColor: colors.surface, borderWidth: 1 },
+            ]}
+            onPress={onOpenNotifications}
+          >
             <Text style={[styles.heroButtonText, { color: colors.surface }]}>Notificaciones</Text>
           </TouchableOpacity>
         </View>
@@ -289,13 +273,20 @@ function HeroHeader({
   );
 }
 
-function QuickPulseGrid({ colors, data }: Readonly<{ colors: any; data: { id: string; label: string; value: string; trend?: string }[] }>) {
+function QuickPulseGrid({ colors, data, compact }: Readonly<{ colors: any; data: { id: string; label: string; value: string; trend?: string }[]; compact?: boolean }>) {
   return (
-    <View style={styles.kpiGrid}>
+    <View style={[styles.kpiGrid, compact && styles.kpiGridCompact]}>
       {data.map((kpi) => (
-        <View key={kpi.id} style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        <View
+          key={kpi.id}
+          style={[
+            compact ? styles.kpiCardFullCompact : styles.kpiCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
         >
-          <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>{kpi.label}</Text>
+          <Text style={[styles.kpiLabel, { color: colors.textSecondary }]} numberOfLines={2}>
+            {kpi.label}
+          </Text>
           <Text style={[styles.kpiValue, { color: colors.text }]}>{kpi.value}</Text>
           {!!kpi.trend && <Text style={[styles.kpiTrend, { color: colors.textSecondary }]}>{kpi.trend}</Text>}
         </View>
@@ -304,98 +295,40 @@ function QuickPulseGrid({ colors, data }: Readonly<{ colors: any; data: { id: st
   );
 }
 
-function QuickAccessCarousel({ colors, tiles }: Readonly<{ colors: any; tiles: QuickAccessTile[] }>) {
+function QuickAccessCarousel({ colors, tiles, compact }: Readonly<{ colors: any; tiles: QuickAccessTile[]; compact?: boolean }>) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickAccessScroll}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[styles.quickAccessScroll, compact && styles.quickAccessScrollCompact]}
+    >
       {tiles.map((tile) => (
         <TouchableOpacity
           key={`qa-${tile.title}`}
-          style={[styles.quickAccessChip, { backgroundColor: tile.bgColor }]}
+          style={[styles.quickAccessChip, compact && styles.quickAccessChipCompact, { backgroundColor: tile.bgColor }]}
           onPress={tile.onPress}
           activeOpacity={0.85}
         >
-          <View style={styles.quickAccessIcon}>
+          <View style={[styles.quickAccessIcon, compact && styles.quickAccessIconCompact]}>
             <tile.icon size={22} color={tile.color} />
           </View>
           <View>
-            <Text style={[styles.quickAccessTitle, { color: colors.text }]}>{tile.title}</Text>
-            <Text style={[styles.quickAccessSubtitle, { color: colors.textSecondary }]}>{tile.subtitle}</Text>
+            <Text
+              style={[styles.quickAccessTitle, compact && styles.quickAccessTitleCompact, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {tile.title}
+            </Text>
+            <Text
+              style={[styles.quickAccessSubtitle, compact && styles.quickAccessSubtitleCompact, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {tile.subtitle}
+            </Text>
           </View>
         </TouchableOpacity>
       ))}
     </ScrollView>
-  );
-}
-
-function OperationsSection({
-  visible,
-  colors,
-  timelineDays,
-  onTimelineChange,
-  cacheLabel,
-  cacheTone,
-  timelineData,
-  insights,
-  insightsLoading,
-  maintenanceWeeks,
-  onMaintenanceChange,
-  maintenanceTotals,
-  maintenanceSeriesArr,
-  ticketsWeeks,
-  onTicketsChange,
-  ticketsTotals,
-  ticketsSeriesArr,
-}: Readonly<{
-  visible: boolean;
-  colors: any;
-  timelineDays: TimelineWindow;
-  onTimelineChange: (value: TimelineWindow) => void;
-  cacheLabel: string | null;
-  cacheTone: string;
-  timelineData: any[];
-  insights: DashboardInsightData | null;
-  insightsLoading: boolean;
-  maintenanceWeeks: WeeksWindow;
-  onMaintenanceChange: (value: WeeksWindow) => void;
-  maintenanceTotals: any;
-  maintenanceSeriesArr: any;
-  ticketsWeeks: WeeksWindow;
-  onTicketsChange: (value: WeeksWindow) => void;
-  ticketsTotals: any;
-  ticketsSeriesArr: any;
-}>) {
-  if (!visible) return null;
-  return (
-    <View style={styles.section}>
-      <SectionHeader title="Operaciones" subtitle="Tendencias y backlog" />
-      <View style={[styles.cardSurface, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <TimelineRangeToggle colors={colors} value={timelineDays} onChange={onTimelineChange} />
-        {!!cacheLabel && (
-          <Text style={[styles.cacheBadge, { color: cacheTone }]}>{cacheLabel}</Text>
-        )}
-        <DashboardTimelineCard data={timelineData} loading={insightsLoading} colors={colors} />
-        {insights && (
-          <View style={styles.analyticsStack}>
-            <MaintenanceSeriesCard
-              colors={colors}
-              weeks={maintenanceWeeks}
-              onWeeksChange={onMaintenanceChange}
-              totals={maintenanceTotals}
-              series={maintenanceSeriesArr}
-              loading={insightsLoading}
-            />
-            <TicketsSeriesCard
-              colors={colors}
-              weeks={ticketsWeeks}
-              onWeeksChange={onTicketsChange}
-              totals={ticketsTotals}
-              series={ticketsSeriesArr}
-              loading={insightsLoading}
-            />
-          </View>
-        )}
-      </View>
-    </View>
   );
 }
 
@@ -406,6 +339,8 @@ function AlertsSection({
   loading,
   filter,
   onFilterChange,
+  compact,
+  sectionStyle,
 }: Readonly<{
   colors: any;
   alerts: any[];
@@ -413,11 +348,19 @@ function AlertsSection({
   loading: boolean;
   filter: 'critical' | 'all';
   onFilterChange: (v: 'critical' | 'all') => void;
+  compact?: boolean;
+  sectionStyle?: any;
 }>) {
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, sectionStyle]}>
       <SectionHeader title="Alertas priorizadas" subtitle="Incidentes, tickets y OTs críticos" />
-      <View style={[styles.cardSurface, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View
+        style={[
+          styles.cardSurface,
+          compact && styles.cardSurfaceCompact,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
         <DashboardAlertsCard
           alerts={alerts}
           secondary={secondary}
@@ -431,98 +374,9 @@ function AlertsSection({
   );
 }
 
-type ModuleSectionProps = {
-  colors: any;
-  insights: DashboardInsightData;
-  canRoutes: boolean;
-  canMaintenance: boolean;
-  canCleaning: boolean;
-  canCivilWorks: boolean;
-  canTickets: boolean;
-  markUsed: (route: string) => void;
-  navigateToTab: (tab: string) => void;
-};
-
-function ModulesSection({
-  colors,
-  insights,
-  canRoutes,
-  canMaintenance,
-  canCleaning,
-  canCivilWorks,
-  canTickets,
-  markUsed,
-  navigateToTab,
-}: Readonly<ModuleSectionProps>) {
-  const modules = [
-    canRoutes && insights.modules.transport && {
-      key: 'routes',
-      title: 'Transporte',
-      highlights: insights.modules.transport.highlights,
-      icon: Map,
-      gradientFrom: '#3B82F6',
-      gradientTo: '#93C5FD',
-    },
-    canMaintenance && insights.modules.maintenance && {
-      key: 'maintenance',
-      title: 'Mantenimiento',
-      highlights: insights.modules.maintenance.highlights,
-      icon: Wrench,
-      gradientFrom: '#6366F1',
-      gradientTo: '#A5B4FC',
-    },
-    canCleaning && insights.modules.cleaning && {
-      key: 'cleaning',
-      title: 'Aseo',
-      highlights: insights.modules.cleaning.highlights,
-      icon: Cleaning,
-      gradientFrom: '#06B6D4',
-      gradientTo: '#67E8F9',
-    },
-    canCivilWorks && insights.modules.civilWorks && {
-      key: 'civil-works',
-      title: 'Obras Civiles',
-      highlights: insights.modules.civilWorks.highlights,
-      icon: HardHat,
-      gradientFrom: '#F59E0B',
-      gradientTo: '#FDE68A',
-    },
-    canTickets && insights.modules.tickets && {
-      key: 'work',
-      title: 'Tickets',
-      highlights: insights.modules.tickets.highlights,
-      icon: Ticket,
-      gradientFrom: '#8B5CF6',
-      gradientTo: '#C4B5FD',
-    },
-  ].filter(Boolean) as { key: string; title: string; highlights: any; icon: any; gradientFrom: string; gradientTo: string }[];
-
-  if (modules.length === 0) return null;
-
+function NotificationsPanel({ colors, notifications, onOpenDrawer, sectionStyle }: Readonly<{ colors: any; notifications: any[]; onOpenDrawer: () => void; sectionStyle?: any }>) {
   return (
-    <View style={styles.section}>
-      <SectionHeader title="Módulos" subtitle="Visión rápida por área" />
-      <View style={styles.modulesGrid}>
-        {modules.map((module) => (
-          <ModuleCard
-            key={module.key}
-            title={module.title}
-            highlights={module.highlights}
-            colors={colors}
-            onPress={() => { markUsed(module.key); navigateToTab(module.key); }}
-            icon={module.icon}
-            gradientFrom={module.gradientFrom}
-            gradientTo={module.gradientTo}
-          />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function NotificationsPanel({ colors, notifications, onOpenDrawer }: Readonly<{ colors: any; notifications: any[]; onOpenDrawer: () => void }>) {
-  return (
-    <View style={styles.section}>
+    <View style={[styles.section, sectionStyle]}>
       <SectionHeader title="Notificaciones recientes" subtitle="Sincronizadas con el centro web" />
       <View style={[styles.notificationsList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {notifications.length === 0 ? (
@@ -566,8 +420,11 @@ export default function HomeScreen() { // NOSONAR
   const { getColors } = useThemeStore();
   const insets = useSafeAreaInsets();
   const { items: notifications } = useNotificationsStore();
+  const { width } = useWindowDimensions();
+  const isCompactScreen = width < 380;
 
   const colors = getColors();
+  const sectionSpacingStyle = isCompactScreen ? styles.sectionCompact : undefined;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { online, lastApiOk, syncing, checkNow, dbOk } = useSyncStore();
   const [summary, setSummary] = useState<DaySummary | null>(null);
@@ -575,12 +432,8 @@ export default function HomeScreen() { // NOSONAR
   const [insights, setInsights] = useState<DashboardInsightData | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [alertsFilter, setAlertsFilter] = useState<'critical' | 'all'>('critical');
-  const [timelineDays, setTimelineDays] = useState<TimelineWindow>(7);
-  const [maintenanceWeeks, setMaintenanceWeeks] = useState<WeeksWindow>(4);
-  const [ticketsWeeks, setTicketsWeeks] = useState<WeeksWindow>(4);
   const [cacheTs, setCacheTs] = useState<number | null>(null);
   const [usingCache, setUsingCache] = useState(false);
-  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
   const loadInsights = useCallback(async () => {
     try {
@@ -749,49 +602,6 @@ export default function HomeScreen() { // NOSONAR
     });
   }, [insights, notifications]);
 
-  const timelineData = useMemo(() => {
-    if (!insights) return [] as { label: string; workload: number; alerts: number }[];
-    const days = lastNDays(timelineDays);
-    return buildTimelineSeries(days, {
-      tickets: insights.alertSources.tickets,
-      ots: insights.alertSources.ots,
-      aseos: insights.alertSources.aseos,
-      incidents: insights.alertSources.incidents,
-    });
-  }, [insights, timelineDays]);
-
-  const { maintenanceSeriesArr, maintenanceTotals } = useMemo(() => {
-    if (!insights) return { programado: 0, completado: 0, label: '' };
-    const today = new Date();
-    const thisWeekStart = startOfWeekMonday(today);
-    const weekStarts: Date[] = Array.from({ length: maintenanceWeeks }).map((_, idx) => addDays(thisWeekStart, -7 * ((maintenanceWeeks - 1) - idx)));
-    const ranges = weekStarts.map((ws, idx) => ({ label: `W-${(weekStarts.length - 1) - idx}`, start: ws, end: addDays(ws, 7) }));
-    const completedOts = insights.alertSources.ots.filter(o => o.estado === 'completado' || o.estado === 'Cerrada');
-    const series = buildMaintenanceSeries(ranges, insights.alertSources.ots, completedOts);
-    const programado = series.reduce((a, s) => a + s.programado, 0);
-    const completado = series.reduce((a, s) => a + s.completado, 0);
-    return { 
-      maintenanceSeriesArr: series,
-      maintenanceTotals: { programado, completado, label: `${maintenanceWeeks} semanas` },
-    };
-  }, [insights, maintenanceWeeks]);
-
-  const { ticketsSeriesArr, ticketsTotals } = useMemo(() => {
-    if (!insights) return { abiertos: 0, resueltos: 0, label: '' };
-    const today = new Date();
-    const thisWeekStart = startOfWeekMonday(today);
-    const weekStarts: Date[] = Array.from({ length: ticketsWeeks }).map((_, idx) => addDays(thisWeekStart, -7 * ((ticketsWeeks - 1) - idx)));
-    const ranges = weekStarts.map((ws, idx) => ({ label: `W-${(weekStarts.length - 1) - idx}`, start: ws, end: addDays(ws, 7) }));
-    const resolvedTickets = insights.alertSources.tickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
-    const series = buildTicketsSeries(ranges, insights.alertSources.tickets, resolvedTickets);
-    const abiertos = series.reduce((a, s) => a + s.abiertos, 0);
-    const resueltos = series.reduce((a, s) => a + s.resueltos, 0);
-    return {
-      ticketsSeriesArr: series,
-      ticketsTotals: { abiertos, resueltos, label: `${ticketsWeeks} semanas` },
-    };
-  }, [insights, ticketsWeeks]);
-
   let dbStatusLabel = '—';
   if (dbOk === true) dbStatusLabel = 'OK';
   else if (dbOk === false) dbStatusLabel = 'Error';
@@ -850,17 +660,8 @@ export default function HomeScreen() { // NOSONAR
     onPress: () => { markUsed(r.name as string); navigateToTab(r.name as string); },
   })));
 
-  let cacheLabel: string | null = null;
-  let cacheTone = colors.textSecondary;
-  if (cacheTs && usingCache) {
-    const stale = (Date.now() - cacheTs) > CACHE_TTL_MS;
-    cacheLabel = stale ? 'Datos en caché (obsoleto)' : 'Datos desde caché';
-    cacheTone = stale ? colors.warning : colors.textSecondary;
-  }
-
   const greeting = `Hola, ${user?.name?.split(' ')[0] || 'equipo'}`;
   const roleLabel = getRoleDisplayName(user?.role || '');
-  const showOperations = Boolean(insightsLoading || insights);
 
   return (
     <ScrollView
@@ -878,44 +679,31 @@ export default function HomeScreen() { // NOSONAR
         onRefresh={handleRefresh}
         loading={syncing || summaryLoading}
         onOpenNotifications={() => setDrawerOpen(true)}
+        compact={isCompactScreen}
       />
 
-      <View style={styles.section}>
+      <View style={[styles.section, sectionSpacingStyle]}>
         <SectionHeader title="Indicadores clave" subtitle="Métricas alineadas al panel web" />
-        <QuickPulseGrid colors={colors} data={quickPulse} />
+        <QuickPulseGrid colors={colors} data={quickPulse} compact={isCompactScreen} />
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, sectionSpacingStyle]}>
         <SectionHeader title="Resumen del día" subtitle="Actividad personalizada por rol" />
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.summaryCard,
+            isCompactScreen && styles.cardSurfaceCompact,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
           <SummarySection role={user?.role} colors={colors} summary={summary} loading={summaryLoading} />
         </View>
       </View>
 
-      <View style={styles.section}>
+      <View style={[styles.section, sectionSpacingStyle]}>
         <SectionHeader title="Accesos rápidos" subtitle="Tus módulos prioritarios" />
-        <QuickAccessCarousel colors={colors} tiles={quickAccessTiles} />
+        <QuickAccessCarousel colors={colors} tiles={quickAccessTiles} compact={isCompactScreen} />
       </View>
-
-      <OperationsSection
-        visible={showOperations}
-        colors={colors}
-        timelineDays={timelineDays}
-        onTimelineChange={setTimelineDays}
-        cacheLabel={cacheLabel}
-        cacheTone={cacheTone}
-        timelineData={timelineData}
-        insights={insights}
-        insightsLoading={insightsLoading}
-        maintenanceWeeks={maintenanceWeeks}
-        onMaintenanceChange={setMaintenanceWeeks}
-        maintenanceTotals={maintenanceTotals}
-        maintenanceSeriesArr={maintenanceSeriesArr}
-        ticketsWeeks={ticketsWeeks}
-        onTicketsChange={setTicketsWeeks}
-        ticketsTotals={ticketsTotals}
-        ticketsSeriesArr={ticketsSeriesArr}
-      />
 
       <AlertsSection
         colors={colors}
@@ -924,30 +712,23 @@ export default function HomeScreen() { // NOSONAR
         loading={insightsLoading}
         filter={alertsFilter}
         onFilterChange={setAlertsFilter}
+        compact={isCompactScreen}
+        sectionStyle={sectionSpacingStyle}
       />
 
-      {insights && (
-        <ModulesSection
-          colors={colors}
-          insights={insights}
-          canRoutes={canRoutes}
-          canMaintenance={canMaintenance}
-          canCleaning={canCleaning}
-          canCivilWorks={canCivilWorks}
-          canTickets={canTickets}
-          markUsed={markUsed}
-          navigateToTab={navigateToTab}
-        />
-      )}
-
-      <NotificationsPanel colors={colors} notifications={notifications} onOpenDrawer={() => setDrawerOpen(true)} />
+      <NotificationsPanel
+        colors={colors}
+        notifications={notifications}
+        onOpenDrawer={() => setDrawerOpen(true)}
+        sectionStyle={sectionSpacingStyle}
+      />
 
       <NotificationsDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles: any = StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -1014,6 +795,7 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     marginBottom: 20,
     marginHorizontal: -6,
+    flexWrap: 'wrap',
   },
   statusChip: {
     flex: 1,
@@ -1021,6 +803,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12,
     marginHorizontal: 6,
+    marginBottom: 12,
+    minWidth: 150,
   },
   statusChipLabel: {
     fontSize: 12,
@@ -1327,8 +1111,7 @@ const styles = StyleSheet.create({
   modulesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    rowGap: 12,
+    marginHorizontal: -6,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -1391,4 +1174,81 @@ const styles = StyleSheet.create({
   notificationTime: {
     fontSize: 12,
   },
+  sectionCompact: {
+    paddingHorizontal: 16,
+  },
+  heroWrapperCompact: {
+    paddingHorizontal: 16,
+  },
+  heroGradientCompact: {
+    padding: 16,
+  },
+  heroHeaderRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  heroUserCompact: {
+    width: '100%',
+    marginBottom: 12,
+  },
+  heroAvatarCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  heroLogoutCompact: {
+    marginLeft: 0,
+    alignSelf: 'flex-start',
+  },
+  statusRowCompact: {
+    marginHorizontal: 0,
+  },
+  statusChipCompact: {
+    width: '100%',
+    marginHorizontal: 0,
+  },
+  heroActionsRowCompact: {
+    flexDirection: 'column',
+    marginHorizontal: 0,
+  },
+  heroButtonCompact: {
+    width: '100%',
+    marginHorizontal: 0,
+    marginBottom: 10,
+  },
+  heroButtonLastCompact: {
+    marginBottom: 0,
+  },
+  kpiGridCompact: {
+    flexDirection: 'column',
+  },
+  kpiCardFullCompact: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  quickAccessScrollCompact: {
+    paddingHorizontal: 16,
+  },
+  quickAccessChipCompact: {
+    minWidth: 180,
+    paddingVertical: 12,
+  },
+  quickAccessIconCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  quickAccessTitleCompact: {
+    fontSize: 14,
+  },
+  quickAccessSubtitleCompact: {
+    fontSize: 12,
+  },
+  cardSurfaceCompact: {
+    padding: 16,
+  },
 });
+

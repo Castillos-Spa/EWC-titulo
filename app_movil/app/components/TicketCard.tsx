@@ -80,14 +80,15 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
   };
 
   const getStatusLabel = (status: string) => {
+    // Alinear con labels del frontend web
     const labels = {
-      assigned: 'Asignado',
+      assigned: 'Pendiente',
       in_progress: 'En Progreso',
-      on_hold: 'En Espera',
-      completed: 'Completado',
-      cancelled: 'Cancelado',
-    };
-    return labels[status as keyof typeof labels] || status;
+      completed: 'Resuelto',
+      cancelled: 'Cerrado',
+      on_hold: 'Pendiente',
+    } as const;
+    return (labels as any)[status] || status;
   };
 
   const formatDuration = (minutes: number) => {
@@ -131,9 +132,19 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
   const progress = getProgress();
 
   return (
-    <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
       {/* Header */}
-      <View style={styles.cardHeader}>
+      <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}> 
         <View style={styles.ticketInfo}>
           <View style={styles.typeSection}>
             <TypeIcon size={20} color="#2563EB" />
@@ -143,12 +154,12 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
         </View>
         
         <View style={styles.badgesSection}>
-          <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15` }]}>
+          <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15`, borderColor: `${priorityColor}33` }]}> 
             <Text style={[styles.priorityText, { color: priorityColor }]}>
               {getPriorityLabel(ticket.priority)}
             </Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
+          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15`, borderColor: `${statusColor}33` }]}> 
             <StatusIcon size={16} color={statusColor} />
             <Text style={[styles.statusText, { color: statusColor }]}>
               {getStatusLabel(ticket.status)}
@@ -160,7 +171,7 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
       {/* Content */}
       <View style={styles.cardContent}>
         <Text style={[styles.ticketTitle, { color: colors.text }]} numberOfLines={2}>
-          <Text style={[styles.ticketTitle, { color: colors.text }]}>{ticket.title}</Text>
+          {ticket.title}
         </Text>
         
         {ticket.clientName && (
@@ -176,7 +187,7 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
                 style={[
                   styles.progressFill, 
                   { 
-                    width: `${(parseInt(progress.split('/')[0]) / parseInt(progress.split('/')[1])) * 100}%`,
+                    width: `${(Number.parseInt(progress.split('/')[0]) / Number.parseInt(progress.split('/')[1])) * 100}%`,
                     backgroundColor: statusColor 
                   }
                 ]} 
@@ -213,7 +224,7 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
             <View style={styles.photosIndicator}>
               <Camera size={14} color="#16A34A" />
               <Text style={styles.photosText}>
-                {ticket.photos.length} foto{ticket.photos.length !== 1 ? 's' : ''}
+                {ticket.photos.length} foto{ticket.photos.length === 1 ? '' : 's'}
               </Text>
             </View>
           )}
@@ -222,7 +233,7 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
             <View style={styles.materialsIndicator}>
               <Package size={14} color="#2563EB" />
               <Text style={styles.materialsText}>
-                {ticket.materials.length} material{ticket.materials.length !== 1 ? 'es' : ''}
+                {ticket.materials.length} material{ticket.materials.length === 1 ? '' : 'es'}
               </Text>
             </View>
           )}
@@ -242,13 +253,9 @@ export function TicketCard({ ticket, onPress }: TicketCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderRadius: 16,
+    marginBottom: 14,
+    borderWidth: 1,
     position: 'relative',
   },
   cardHeader: {
@@ -258,7 +265,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   ticketInfo: {
     flex: 1,
@@ -290,9 +296,10 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   priorityBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 9999,
+    borderWidth: 1,
   },
   priorityText: {
     fontSize: 12,
@@ -305,7 +312,8 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 9999,
+    borderWidth: 1,
   },
   statusText: {
     fontSize: 12,

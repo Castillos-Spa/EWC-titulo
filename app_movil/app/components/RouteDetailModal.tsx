@@ -8,37 +8,21 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { X, MapPin, Clock, CircleCheck as CheckCircle, Circle, Play, Truck, ChevronRight } from 'lucide-react-native';
+import { X, Clock, Play, Truck } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
-import { useRouteStore } from '../stores/routeStore';
+import { useRouteStore, Route } from '../stores/routeStore';
 
 interface RouteDetailModalProps {
-  readonly route: any;
+  readonly route: Route;
   readonly visible: boolean;
   readonly onClose: () => void;
 }
 
 export default function RouteDetailModal({ route, visible, onClose }: RouteDetailModalProps) {
   const { startTrip, setSelectedTrip } = useRouteStore();
-  const [startingStopId, setStartingStopId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const { getColors } = useThemeStore();
   const colors = getColors();
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return colors.success;
-      case 'in_progress': return colors.warning;
-      default: return colors.textSecondary;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return CheckCircle;
-      case 'in_progress': return Play;
-      default: return Circle;
-    }
-  };
 
   const getStatusText = (status: string) => {
     switch (status) {
@@ -48,12 +32,11 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
     }
   };
 
-  const handleStartTrip = async (stopId: string) => {
-    setStartingStopId(stopId);
+  const handleStartRouteTrip = async () => {
+    setStarting(true);
     try {
-      await startTrip(stopId);
-      // Find the created trip and open it
-      const trip = route.trips.find((t: any) => t.stopId === stopId);
+      await startTrip('');
+      const trip = route.trips[0];
       if (trip) {
         setSelectedTrip(trip);
       }
@@ -61,25 +44,7 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
       console.error('Error al iniciar el viaje', error);
       Alert.alert('Error', 'No se pudo iniciar el viaje');
     } finally {
-      setStartingStopId(null);
-    }
-  };
-
-  const handleStopPress = (stop: any) => {
-    if (stop.status === 'planned') {
-      Alert.alert(
-        'Iniciar Viaje',
-        `¿Deseas iniciar el viaje a ${stop.clientName}?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Iniciar', onPress: () => { void handleStartTrip(stop.id); } },
-        ]
-      );
-    } else if (stop.status === 'in_progress') {
-      const trip = route.trips.find((t: any) => t.stopId === stop.id);
-      if (trip) {
-        setSelectedTrip(trip);
-      }
+      setStarting(false);
     }
   };
 
@@ -108,85 +73,56 @@ export default function RouteDetailModal({ route, visible, onClose }: RouteDetai
             
             <View style={styles.routeStats}>
               <View style={styles.stat}>
-                <Text style={[styles.statValue, { color: colors.primary }]}>{route.stops.length}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Paradas</Text>
+                {(() => {
+                  let symbol = '●';
+                  if (route.status === 'completed') symbol = '✔';
+                  else if (route.status === 'in_progress') symbol = '▶';
+                  return (
+                    <Text style={[styles.statValue, { color: colors.primary }]}>
+                      {symbol}
+                    </Text>
+                  );
+                })()}
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{getStatusText(route.status)}</Text>
               </View>
               <View style={styles.stat}>
-                <Text style={[styles.statValue, { color: colors.primary }]}>
-                  {route.stops.filter((s: any) => s.status === 'completed').length}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completadas</Text>
+                <Text style={[styles.statValue, { color: colors.primary }]}>{route.code || '-'}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Código</Text>
               </View>
               <View style={styles.stat}>
-                <Text style={[styles.statValue, { color: colors.primary }]}>
-                  {route.stops.filter((s: any) => s.status === 'in_progress').length}
-                </Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>En Progreso</Text>
+                <Text style={[styles.statValue, { color: colors.primary }]}>{route.date}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Fecha</Text>
               </View>
             </View>
           </View>
 
-          {/* Stops List */}
+          {/* Route actions */}
           <View style={styles.stopsSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Paradas Programadas</Text>
-            
-            {route.stops.map((stop: any, index: number) => {
-              const StatusIcon = getStatusIcon(stop.status);
-              const statusColor = getStatusColor(stop.status);
-              const isStartingForThisStop = startingStopId === stop.id;
-
-              return (
-                <TouchableOpacity
-                  key={stop.id}
-                  style={[
-                    styles.stopCard,
-                    stop.status === 'in_progress' && styles.stopCardActive,
-                  ]}
-                  onPress={() => handleStopPress(stop)}
-                  disabled={isStartingForThisStop}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.stopCardHeader}>
-                    <View style={styles.stopOrder}>
-                      <Text style={styles.stopOrderText}>{index + 1}</Text>
-                    </View>
-                    <View style={styles.stopMainInfo}>
-                      <Text style={[styles.stopClient, { color: colors.text }]}>{stop.clientName}</Text>
-                      <Text style={[styles.stopJob, { color: colors.textSecondary }]}>{stop.jobDescription}</Text>
-                    </View>
-                    <View style={[styles.stopStatus, { backgroundColor: `${statusColor}15` }]}>
-                      <StatusIcon size={16} color={statusColor} />
-                    </View>
-                  </View>
-
-                  <View style={styles.stopCardContent}>
-                    <View style={styles.stopTime}>
-                      <Clock size={16} color={colors.textSecondary} />
-                      <Text style={[styles.stopTimeText, { color: colors.textSecondary }]}>{stop.timeSlot}</Text>
-                    </View>
-                    <View style={styles.stopAddress}>
-                      <MapPin size={16} color={colors.textSecondary} />
-                      <Text style={[styles.stopAddressText, { color: colors.textSecondary }]}>{stop.address}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.stopCardFooter}>
-                    <Text style={[styles.stopStatusText, { color: statusColor }]}>
-                      {getStatusText(stop.status)}
-                    </Text>
-                    {stop.status !== 'completed' && (
-                      <ChevronRight size={16} color={colors.textSecondary} />
-                    )}
-                  </View>
-
-                  {isStartingForThisStop && (
-                    <View style={[styles.loadingOverlay, { backgroundColor: `${colors.background}E6` }]}>
-                      <Text style={[styles.loadingText, { color: colors.primary }]}>Iniciando...</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Acciones</Text>
+            {(route.status === 'planned' || (route.status === 'in_progress' && route.trips.length === 0)) && (
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                onPress={() => { void handleStartRouteTrip(); }}
+                disabled={starting}
+                activeOpacity={0.7}
+              >
+                <Play size={18} color="#FFFFFF" />
+                <Text style={styles.primaryButtonText}>{starting ? 'Iniciando...' : 'Iniciar viaje'}</Text>
+              </TouchableOpacity>
+            )}
+            {route.status === 'in_progress' && route.trips.length > 0 && (
+              <TouchableOpacity
+                style={[styles.secondaryButton, { borderColor: colors.primary }]}
+                onPress={() => setSelectedTrip(route.trips[0])}
+                activeOpacity={0.7}
+              >
+                <Clock size={18} color={colors.primary} />
+                <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Continuar viaje</Text>
+              </TouchableOpacity>
+            )}
+            {route.status === 'completed' && (
+              <Text style={[styles.completedText, { color: colors.success }]}>Viaje completado</Text>
+            )}
           </View>
         </ScrollView>
       </View>

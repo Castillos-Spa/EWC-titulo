@@ -8,6 +8,7 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Ticket as TicketIcon,
@@ -35,20 +36,74 @@ import { TicketDetailModal } from '../components/TicketDetailModal';
 import { useKanbanStore } from '../stores/kanbanStore';
 import { KanbanColumn } from '../components/KanbanColumn';
 import { TaskDetailModal } from '../components/TaskDetailModal';
+import { CreateITTicketModal } from '../components/CreateITTicketModal';
 
 type ViewMode = 'list' | 'kanban';
 
 function ticketFilterStatusLabel(value: string) {
   switch (value) {
     case 'assigned':
-      return 'Asignados';
+      return 'Pendientes';
     case 'in_progress':
       return 'En Progreso';
     case 'completed':
-      return 'Completados';
+      return 'Resueltos';
     default:
       return 'Tickets';
   }
+}
+
+function TicketsHeroHeader({
+  total,
+  onCreate,
+  onRefresh,
+  colors,
+}: Readonly<{ total: number; onCreate: () => void; onRefresh: () => void; colors: any }>) {
+  return (
+    <View style={styles.ticketsHeroWrapper}>
+      <LinearGradient
+        colors={[`${colors.primary}1F`, '#ffffff', `${colors.primary}12`]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.ticketsHeroGradient}
+      >
+        <View style={styles.ticketsHeroHeaderRow}>
+          <View style={styles.ticketsHeroTexts}>
+            <View style={styles.ticketsHeroBadge}>
+              <TicketIcon size={14} color={colors.primary} />
+              <Text style={[styles.ticketsHeroBadgeText, { color: colors.textSecondary }]}>Helpdesk</Text>
+            </View>
+            <Text style={[styles.ticketsHeroTitle, { color: colors.text }]}>Tickets y solicitudes</Text>
+            <Text style={[styles.ticketsHeroSub, { color: colors.textSecondary }]}>
+              Gestiona y da seguimiento a tickets y requerimientos
+            </Text>
+            <View style={[styles.ticketsHeroCountPill, { borderColor: colors.border, backgroundColor: colors.surface }]}> 
+              <Text style={[styles.ticketsHeroCountText, { color: colors.textSecondary }]}>
+                {new Intl.NumberFormat().format(total)} activos
+              </Text>
+            </View>
+          </View>
+          <View style={styles.ticketsHeroActions}>
+            <TouchableOpacity
+              onPress={onCreate}
+              style={[styles.ticketsHeroButton, { backgroundColor: colors.primary }]}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.ticketsHeroButtonText}>Nuevo ticket</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onRefresh}
+              style={[styles.ticketsHeroButtonAlt, { borderColor: colors.border }]}
+              activeOpacity={0.9}
+            >
+              <RefreshCw size={16} color={colors.textSecondary} />
+              <Text style={[styles.ticketsHeroButtonAltText, { color: colors.textSecondary }]}>Refrescar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </LinearGradient>
+    </View>
+  );
 }
 
 // Presentational subcomponents
@@ -104,7 +159,7 @@ function TicketStats({ stats, colors }: Readonly<{ stats: { total: number; assig
       </View>
       <View style={styles.stat}>
         <Text style={[styles.statValue, { color: '#6B7280' }]}>{stats.assigned}</Text>
-        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Asignados</Text>
+        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Pendientes</Text>
       </View>
       <View style={styles.stat}>
         <Text style={[styles.statValue, { color: '#2563EB' }]}>{stats.inProgress}</Text>
@@ -112,7 +167,7 @@ function TicketStats({ stats, colors }: Readonly<{ stats: { total: number; assig
       </View>
       <View style={styles.stat}>
         <Text style={[styles.statValue, { color: '#16A34A' }]}>{stats.completed}</Text>
-        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completados</Text>
+        <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Resueltos</Text>
       </View>
     </View>
   );
@@ -192,9 +247,9 @@ function TicketFilters({ status, setStatus, priority, setPriority, category, set
           <View style={styles.filterRow}>
             {[
               { value: 'all', label: 'Todos' },
-              { value: 'assigned', label: 'Asignados' },
+              { value: 'assigned', label: 'Pendientes' },
               { value: 'in_progress', label: 'En Progreso' },
-              { value: 'completed', label: 'Completados' },
+              { value: 'completed', label: 'Resueltos' },
             ].map((filter) => (
               <TouchableOpacity
                 key={filter.value}
@@ -472,6 +527,7 @@ export default function WorkScreen() {
 
   const { viewMode, setViewMode } = useUIStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
 
   const { onRefresh } = useWorkData(viewMode, {
     user,
@@ -484,9 +540,9 @@ export default function WorkScreen() {
   const filteredTickets = useMemo(() => {
     const q = ticketSearch.trim().toLowerCase();
     return tickets
-      .filter((t) => (ticketFilterPriority !== 'all' ? t.priority === ticketFilterPriority : true))
-      .filter((t) => (ticketFilterCategory !== 'all' ? (t.category || '').toString() === ticketFilterCategory : true))
-      .filter((t) => (!q ? true : (t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) || String(t.id).includes(q))));
+      .filter((t) => (ticketFilterPriority === 'all' || t.priority === ticketFilterPriority))
+      .filter((t) => (ticketFilterCategory === 'all' || (t.category || '').toString() === ticketFilterCategory))
+      .filter((t) => (q.length === 0 || (t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) || String(t.id).includes(q))));
   }, [tickets, ticketFilterPriority, ticketFilterCategory, ticketSearch]);
 
   const ticketStats = useMemo(() => {
@@ -574,35 +630,28 @@ export default function WorkScreen() {
   return (
     <AccessGuard allowed={allowed}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Header (alineado con Apps: una sola fila con icono + título y acciones) */}
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerTitle}>
-              {viewMode === 'list' ? (
-                <TicketIcon size={28} color={colors.primary} />
-              ) : (
-                <KanbanIcon size={28} color={colors.primary} />
-              )}
-              <Text style={[styles.title, { color: colors.text }]}>Solicitudes</Text>
-            </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} accessibilityLabel="Refrescar">
-                <RefreshCw size={24} color={colors.primary} />
-              </TouchableOpacity>
-              <FiltersButton
-                mode={viewMode}
-                showListFilters={showFilters}
-                showKanbanFilters={showKanbanFilters}
-                onToggle={() => (viewMode === 'list' ? setShowListFilters(!showFilters) : setShowKanbanFilters(!showKanbanFilters))}
-                badgeCount={viewMode === 'list' ? activeFiltersCount : activeKanbanFiltersCount}
-              />
-            </View>
-          </View>
-        </View>
+        {/* Hero Tickets (paridad con web) */}
+        <TicketsHeroHeader
+          total={tickets.length}
+          onCreate={() => setOpenCreate(true)}
+          onRefresh={onRefresh}
+          colors={colors}
+        />
 
-        {/* Contenido superior debajo del header: toggle, KPIs y filtros */}
-        <View style={styles.headerBody}> 
-          <ViewToggle mode={viewMode} setMode={setViewMode} />
+        {/* Controles: Toggle + Filtros */}
+        <View style={styles.headerBody}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <View style={{ flex: 1 }}>
+              <ViewToggle mode={viewMode} setMode={setViewMode} />
+            </View>
+            <FiltersButton
+              mode={viewMode}
+              showListFilters={showFilters}
+              showKanbanFilters={showKanbanFilters}
+              onToggle={() => (viewMode === 'list' ? setShowListFilters(!showFilters) : setShowKanbanFilters(!showKanbanFilters))}
+              badgeCount={viewMode === 'list' ? activeFiltersCount : activeKanbanFiltersCount}
+            />
+          </View>
 
           {viewMode === 'list' ? (
             <>
@@ -703,6 +752,7 @@ export default function WorkScreen() {
             }}
           />
         )}
+        <CreateITTicketModal visible={openCreate} onClose={() => setOpenCreate(false)} />
         {currentTask && (
           <TaskDetailModal
             task={currentTask}
@@ -734,6 +784,93 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  ticketsHeroWrapper: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  ticketsHeroGradient: {
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  ticketsHeroHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  ticketsHeroTexts: {
+    flex: 1,
+    gap: 8,
+  },
+  ticketsHeroBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 9999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFFCC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  ticketsHeroBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  ticketsHeroTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  ticketsHeroSub: {
+    fontSize: 13,
+  },
+  ticketsHeroCountPill: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  ticketsHeroCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  ticketsHeroActions: {
+    gap: 8,
+    alignItems: 'flex-end',
+  },
+  ticketsHeroButton: {
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  ticketsHeroButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  ticketsHeroButtonAlt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFFCC',
+  },
+  ticketsHeroButtonAltText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#FFFFFF',

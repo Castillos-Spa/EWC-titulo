@@ -96,11 +96,11 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      assigned: 'Asignado',
+      assigned: 'Pendiente',
       in_progress: 'En Progreso',
-      on_hold: 'En Espera',
-      completed: 'Completado',
-      cancelled: 'Cancelado',
+      on_hold: 'Pendiente',
+      completed: 'Resuelto',
+      cancelled: 'Cerrado',
     };
     return labels[status as keyof typeof labels] || status;
   };
@@ -230,7 +230,7 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
 
   const handleMaterialUpdate = (materialId: string, used: string) => {
     try {
-      const usedAmount = parseFloat(used) || 0;
+      const usedAmount = Number.parseFloat(used) || 0;
       updateMaterialUsage(ticket.id, materialId, usedAmount);
     } catch (error) {
       console.error('Error updating material usage:', error);
@@ -278,12 +278,12 @@ export function TicketDetailModal({ ticket, visible, onClose }: TicketDetailModa
               </View>
               
               <View style={styles.ticketBadges}>
-                <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15` }]}>
+                <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15`, borderColor: `${priorityColor}33` }]}>
                   <Text style={[styles.priorityText, { color: priorityColor }]}>
                     {getPriorityLabel(ticket.priority || 'low')}
                   </Text>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
+                <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15`, borderColor: `${statusColor}33` }]}>
                   <Text style={[styles.statusText, { color: statusColor }]}>
                     {getStatusLabel(ticket.status || 'assigned')}
                   </Text>
@@ -694,6 +694,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
+    borderWidth: 1,
   },
   priorityText: {
     fontSize: 12,
@@ -704,6 +705,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
+    borderWidth: 1,
   },
   statusText: {
     fontSize: 12,

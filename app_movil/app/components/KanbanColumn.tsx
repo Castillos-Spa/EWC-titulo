@@ -21,8 +21,14 @@ export function KanbanColumn({ title, status, tasks, onTaskPress, color }: Kanba
   const colors = getColors();
 
   return (
-    <View style={[styles.column, { backgroundColor: colors.background }]}>
-      <View style={[styles.columnHeader, { borderTopColor: color, backgroundColor: colors.surface }]}>
+    <View style={[
+      styles.column,
+      {
+        backgroundColor: colors.surface,
+        borderColor: colors.border,
+      },
+    ]}>
+      <View style={[styles.columnHeader, { borderTopColor: color, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Text style={[styles.columnTitle, { color: colors.text }]}>{title}</Text>
         <View style={[styles.taskCount, { backgroundColor: `${color}15` }]}>
           <Text style={[styles.taskCountText, { color }]}>{tasks.length}</Text>
@@ -55,10 +61,11 @@ export function KanbanColumn({ title, status, tasks, onTaskPress, color }: Kanba
 const styles = StyleSheet.create({
   column: {
     width: 280,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     marginRight: 16,
     maxHeight: 600,
+    borderWidth: 1,
   },
   columnHeader: {
     flexDirection: 'row',
@@ -66,11 +73,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     borderTopWidth: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
   columnTitle: {
     fontSize: 16,
@@ -80,7 +86,7 @@ const styles = StyleSheet.create({
   taskCount: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 9999,
     minWidth: 24,
     alignItems: 'center',
   },

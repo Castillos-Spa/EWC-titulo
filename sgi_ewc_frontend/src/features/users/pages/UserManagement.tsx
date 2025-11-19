@@ -4,6 +4,7 @@ import { getUsers, createUser, updateUser, deleteUser, getTempPassword } from '.
 import { User as UserType, Role } from '../../../types/User';
 import UserForm from '../components/UserForm';
 import { useIntlFormat } from '../../../app/intl/format';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // Tipos y helpers reutilizables a nivel de archivo
 // Tipos para filtros (si se reactivan)
@@ -192,6 +193,7 @@ const UserManagement: React.FC = () => {
   // Filtros avanzados deshabilitados por ahora
   const [currentPage, setCurrentPage] = useState(1);
   const { formatDateTime, formatDate } = useIntlFormat();
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     getUsers().then(setUsers);
@@ -229,10 +231,34 @@ const UserManagement: React.FC = () => {
 
   const handleEdit = async (data: Partial<UserType>) => {
     if (!editingUser) return;
-    const updated = await updateUser(editingUser.id, data);
-    setUsers(prev => prev.map(user => (user.id === updated.id ? updated : user)));
-    setEditingUser(null);
-    setShowForm(false);
+    try {
+      const updated = await updateUser(editingUser.id, data);
+      const ra = (updated as any).roleAssignments ?? [];
+      const rolesArr: string[] = Array.from(new Set(ra.map((r: any) => r?.role).filter(Boolean)));
+      const areasArr: string[] = Array.from(new Set(ra.map((r: any) => r?.area).filter(Boolean)));
+      const rolesByArea = ra.reduce((acc: Record<string, { role: string; specialty?: string | null; permissions: string[] }>, r: any) => {
+        if (!r?.area) return acc;
+        let permissions: string[] = [];
+        if (Array.isArray(r?.additionalPermissions)) {
+          permissions = r.additionalPermissions as string[];
+        } else if (Array.isArray(r?.permissions)) {
+          permissions = r.permissions as string[];
+        }
+        acc[r.area] = { role: r.role, specialty: r.specialty ?? null, permissions };
+        return acc;
+      }, {} as Record<string, { role: string; specialty?: string | null; permissions: string[] }>);
+      const updatedWithDerived = { ...updated, roles: rolesArr, areas: areasArr, rolesByArea } as UserType;
+      setUsers(prev => prev.map(user => (user.id === updatedWithDerived.id ? updatedWithDerived : user)));
+      if (currentUser?.id === updatedWithDerived.id) {
+        try { localStorage.setItem('userData', JSON.stringify(updatedWithDerived)); } catch {}
+        globalThis.dispatchEvent?.(new CustomEvent('session-refreshed', { detail: updatedWithDerived }));
+      }
+      setEditingUser(null);
+      setShowForm(false);
+    } catch (error) {
+      console.error('No se pudo actualizar el usuario', error);
+      alert(`No se pudieron guardar los cambios: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
   };
 
   const handleDelete = async (id: number) => {

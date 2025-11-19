@@ -7,7 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onCreate: (payload: { message: string; type: string; target: 'global' | 'areas'; areas?: string[] }) => Promise<void>;
+  onCreate: (payload: { title: string; message: string; priority: 'low' | 'normal' | 'high'; target: { scope: 'global' | 'areas'; areas?: string[] } }) => Promise<void>;
 };
 
 export function CreateNotificationModal({ visible, onClose, onCreate }: Readonly<Props>) {
@@ -17,13 +17,14 @@ export function CreateNotificationModal({ visible, onClose, onCreate }: Readonly
 
   const availableAreas = useMemo(() => user?.areaIds ?? [], [user?.areaIds]);
 
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [type, setType] = useState<'info' | 'warning' | 'alert'>('info');
+  const [priority, setPriority] = useState<'low' | 'normal' | 'high'>('normal');
   const [target, setTarget] = useState<'global' | 'areas'>('global');
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = message.trim().length > 0 && (target === 'global' || selectedAreas.length > 0);
+  const canSubmit = title.trim().length > 0 && message.trim().length > 0 && (target === 'global' || selectedAreas.length > 0);
 
   const toggleArea = (id: string) => {
     setSelectedAreas((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
@@ -33,10 +34,16 @@ export function CreateNotificationModal({ visible, onClose, onCreate }: Readonly
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await onCreate({ message: message.trim(), type, target, areas: target === 'areas' ? selectedAreas : undefined });
+      await onCreate({
+        title: title.trim(),
+        message: message.trim(),
+        priority,
+        target: target === 'areas' ? { scope: 'areas', areas: selectedAreas } : { scope: 'global' },
+      });
       // limpiar y cerrar
+      setTitle('');
       setMessage('');
-      setType('info');
+      setPriority('normal');
       setTarget('global');
       setSelectedAreas([]);
       onClose();
@@ -60,19 +67,28 @@ export function CreateNotificationModal({ visible, onClose, onCreate }: Readonly
           </View>
 
           <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Tipo</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Título</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, color: colors.text, marginBottom: 12 }]}
+              placeholder="Título de la notificación"
+              placeholderTextColor="#94A3B8"
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Prioridad</Text>
             <View style={styles.row}>
               {[
-                { v: 'info', l: 'Info' },
-                { v: 'warning', l: 'Advertencia' },
-                { v: 'alert', l: 'Alerta' },
+                { v: 'low', l: 'Baja' },
+                { v: 'normal', l: 'Normal' },
+                { v: 'high', l: 'Alta' },
               ].map((opt) => (
                 <TouchableOpacity
                   key={opt.v}
-                  style={[styles.chip, type === opt.v && [styles.chipActive, { backgroundColor: colors.primary }]]}
-                  onPress={() => setType(opt.v as any)}
+                  style={[styles.chip, priority === opt.v && [styles.chipActive, { backgroundColor: colors.primary }]]}
+                  onPress={() => setPriority(opt.v as any)}
                 >
-                  <Text style={[styles.chipText, type === opt.v && styles.chipTextActive]}>{opt.l}</Text>
+                  <Text style={[styles.chipText, priority === opt.v && styles.chipTextActive]}>{opt.l}</Text>
                 </TouchableOpacity>
               ))}
             </View>

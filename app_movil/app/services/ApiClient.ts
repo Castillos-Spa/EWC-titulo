@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { SafeStorage } from './SafeStorage';
 import { useAuthStore } from '../stores/authStore';
 import { useSyncStore } from '../stores/syncStore';
+import { TimeoutError, mapStatusToError } from './errors';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -26,9 +27,17 @@ class ApiClientClass {
       if (Platform.OS === 'android' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) {
         u.hostname = '10.0.2.2';
       }
-      return u.toString().replace(/\/+$/, '');
+      let base = u.toString().replace(/\/+$/, '');
+      if (!/\/api\/v\d+$/i.test(base)) {
+        base = `${base}/api/v1`;
+      }
+      return base.replace(/\/+$/, '');
     } catch {
-      return url.replace('://localhost', '://10.0.2.2').replace(/\/+$/, '');
+      let base = url.replace('://localhost', '://10.0.2.2').replace(/\/+$/, '');
+      if (!/\/api\/v\d+$/i.test(base)) {
+        base = `${base}/api/v1`;
+      }
+      return base.replace(/\/+$/, '');
     }
   }
 
@@ -49,12 +58,10 @@ class ApiClientClass {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), init?.timeoutMs ?? 15000);
     try {
-      return await fetch(url, { ...(init || {}), headers, signal: controller.signal });
+      return await fetch(url, { ...init, headers, signal: controller.signal });
     } catch (err: any) {
       if (err?.name === 'AbortError') {
-        const toErr = new Error('La solicitud excedió el tiempo máximo. Intenta nuevamente.');
-        (toErr as any).code = 'ETIMEOUT';
-        throw toErr;
+        throw new TimeoutError('La solicitud excedió el tiempo máximo. Intenta nuevamente.');
       }
       throw err;
     } finally {
@@ -74,23 +81,21 @@ class ApiClientClass {
         const auth = useAuthStore.getState();
         await auth.refreshAuth();
         res = await this.doFetch(url, init);
-      } catch (refreshErr) {
-        // Si falla el refresh o el reintento, forzar logout y propagar error 401 amigable
-        try { await useAuthStore.getState().logout(); } catch { /* ignore */ }
-        const err = new Error('Sesión expirada. Inicia sesión nuevamente.');
-        (err as any).status = 401;
-        (err as any).cause = refreshErr;
-        throw err;
+      } catch (error_) {
+        // Fallback: cerrar sesión segura y propagar error controlado
+        // Intentar logout; si falla simplemente continuamos.
+        await useAuthStore.getState().logout().catch(() => {});
+        const mapped = mapStatusToError(401, 'Sesión expirada. Inicia sesión nuevamente.');
+        (mapped as any).cause = error_;
+        throw mapped;
       }
     }
 
   const text = await res.text();
     const data = text ? (() => { try { return JSON.parse(text); } catch { return text as any; } })() : null;
     if (!res.ok) {
-      const err = new Error((data && (data.message || data.error)) || res.statusText);
-      (err as any).status = res.status;
-      (err as any).body = data;
-      throw err;
+      const message = (data && (data.message || data.error)) || res.statusText;
+      throw mapStatusToError(res.status, message, data);
     }
     // marcar éxito de API para el estado de sincronización
     try { useSyncStore.getState().markApiOk(); } catch {}

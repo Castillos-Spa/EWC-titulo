@@ -6,6 +6,8 @@ import type { Vehiculo } from '../../../types/Vehiculo';
 export interface Truck {
 	id: string;
 	code: string; // Código del camión
+	name?: string;
+	plate: string;
 	capacityTons?: number;
 	active: boolean;
 }
@@ -92,12 +94,33 @@ const sameDay = (a: Date, b: Date) => {
 const toTruck = (vehiculo: Vehiculo): Truck => {
 	const rawCode = (vehiculo.codigo ?? vehiculo.patente ?? '').trim();
 	const code = (rawCode.length > 0 ? rawCode : `VEH-${vehiculo.id}`).toUpperCase();
+	const nameRaw = [vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ').trim();
+	const name = nameRaw.length > 0 ? nameRaw : undefined;
 	return {
 		id: String(vehiculo.id),
 		code,
+		name,
+		plate: String(vehiculo.patente ?? '').toUpperCase(),
 		capacityTons: Number.isFinite(vehiculo.capacidad) ? vehiculo.capacidad : undefined,
 		active: (vehiculo.estado ?? 'disponible') !== 'inactivo',
 	};
+};
+
+const isTruck = (vehiculo: Vehiculo): boolean => {
+	const raw = vehiculo.tipo ?? '';
+	if (!raw) return false;
+	const t = raw
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, ''); // quita acentos
+
+	// Denegar tipos claramente no-camión (contienen "camioneta", "pickup", etc.)
+	const deny = ['camioneta', 'pick-up', 'pickup', 'ute', 'van', 'minivan', 'auto', 'automovil', 'car', 'carro', 'furgon', 'furgoneta', 'suv'];
+	if (deny.some(word => t.includes(word))) return false;
+
+	// Aceptar tipos de camión comunes
+	const allow = ['camion', 'truck', 'tractocamion', 'tracto', 'volquete', 'tolva', 'cabezal', 'remolcador'];
+	return allow.some(word => t.includes(word));
 };
 
 const toDriver = (wire: TallerDriver): Driver => {
@@ -133,17 +156,31 @@ export const TruckAssignmentProvider: React.FC<{ children: React.ReactNode }> = 
 
 	useEffect(() => {
 		const load = async () => {
-			try {
-						const [vehiculos, choferes, backendAssignments] = await Promise.all([
-							getVehiculos(),
-					getDrivers(),
-					getAssignments(),
-				]);
-				setTrucks((vehiculos ?? []).map(toTruck));
-				setDrivers((choferes ?? []).map(toDriver));
-				setAssignments((backendAssignments ?? []).map(toAssignment));
-			} catch (err) {
-				console.error('Error cargando datos iniciales', err);
+			const [vehiculosRes, choferesRes, assignmentsRes] = await Promise.allSettled([
+				getVehiculos(),
+				getDrivers(),
+				getAssignments(),
+			]);
+
+			if (vehiculosRes.status === 'fulfilled') {
+				setTrucks((vehiculosRes.value ?? []).filter(isTruck).map(toTruck));
+			} else {
+				console.warn('No se pudieron cargar vehículos', vehiculosRes.reason);
+				setTrucks([]);
+			}
+
+			if (choferesRes.status === 'fulfilled') {
+				setDrivers((choferesRes.value ?? []).map(toDriver));
+			} else {
+				console.warn('No se pudieron cargar conductores', choferesRes.reason);
+				setDrivers([]);
+			}
+
+			if (assignmentsRes.status === 'fulfilled') {
+				setAssignments((assignmentsRes.value ?? []).map(toAssignment));
+			} else {
+				console.warn('No se pudieron cargar asignaciones', assignmentsRes.reason);
+				setAssignments([]);
 			}
 		};
 		void load();

@@ -47,6 +47,16 @@ export function KanbanTaskCard({ task, onPress }: KanbanTaskCardProps) {
     }
   };
 
+  const getPriorityLabel = (priority: string) => {
+    const map: Record<string, string> = {
+      low: 'Baja',
+      medium: 'Media',
+      high: 'Alta',
+      urgent: 'Urgente',
+    };
+    return map[priority] ?? priority;
+  };
+
   const formatDueDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -67,15 +77,25 @@ export function KanbanTaskCard({ task, onPress }: KanbanTaskCardProps) {
   const priorityColor = getPriorityColor(task.priority);
 
   return (
-    <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
       {/* Header */}
       <View style={styles.cardHeader}>
         <View style={[styles.typeIcon, { backgroundColor: `${typeColor}15` }]}>
           <TypeIcon size={16} color={typeColor} />
         </View>
-        <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15` }]}>
+        <View style={[styles.priorityBadge, { backgroundColor: `${priorityColor}15`, borderColor: `${priorityColor}33` }]}>
           <Text style={[styles.priorityText, { color: priorityColor }]}>
-            {task.priority.toUpperCase()}
+            {getPriorityLabel(task.priority)}
           </Text>
         </View>
       </View>
@@ -153,13 +173,9 @@ export function KanbanTaskCard({ task, onPress }: KanbanTaskCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 14,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -173,9 +189,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   priorityBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 9999,
+    borderWidth: 1,
   },
   priorityText: {
     fontSize: 10,

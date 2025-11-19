@@ -5,11 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { Truck, MapPin, Clock, CircleCheck as CheckCircle, Circle, Play, ChevronRight } from 'lucide-react-native';
+import { Truck, MapPin, Clock, CircleCheck as CheckCircle, Circle, Play, ChevronRight, Navigation2 } from 'lucide-react-native';
 import { useThemeStore } from '../stores/themeStore';
 
+import { Route } from '../stores/routeStore';
+
 interface RouteCardProps {
-  readonly route: any;
+  readonly route: Route;
   readonly onPress: () => void;
   readonly progress: string;
 }
@@ -45,12 +47,18 @@ export function RouteCard({ route, onPress, progress }: RouteCardProps) {
     }
   };
 
+  const headerLabel = (route.code && route.code.trim().length > 0) ? route.code.trim() : route.vehiclePlate;
+  const hasStops = route.stops && route.stops.length > 0;
+  const progressParts = progress.split('/');
+  const done = Number.parseInt(progressParts[0], 10) || 0;
+  const total = Number.parseInt(progressParts[1], 10) || 0;
+
   return (
     <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
         <View style={styles.vehicleInfo}>
-          <Truck size={24} color={colors.primary} />
-          <Text style={[styles.vehiclePlate, { color: colors.text }]}>{route.vehiclePlate}</Text>
+          <Navigation2 size={24} color={colors.primary} />
+          <Text style={[styles.vehiclePlate, { color: colors.text }]}>{headerLabel}</Text>
         </View>
         <ChevronRight size={20} color={colors.textSecondary} />
       </View>
@@ -59,33 +67,44 @@ export function RouteCard({ route, onPress, progress }: RouteCardProps) {
         <View style={styles.statusSection}>
           <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
             <StatusIcon size={16} color={statusColor} />
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {getStatusText(route.status)}
-            </Text>
+            <Text style={[styles.statusText, { color: statusColor }]}>{getStatusText(route.status)}</Text>
           </View>
-          <Text style={styles.progressText}>{progress} paradas</Text>
+          {hasStops ? (
+            <Text style={styles.progressText}>{done}/{total} paradas</Text>
+          ) : (
+            <Text style={styles.progressText}>Sin paradas</Text>
+          )}
         </View>
 
-        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { 
-                width: `${(parseInt(progress.split('/')[0]) / parseInt(progress.split('/')[1])) * 100}%`,
-                backgroundColor: statusColor 
-              }
-            ]} 
-          />
-        </View>
+        {hasStops && (
+          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${total > 0 ? (done / total) * 100 : 0}%`,
+                  backgroundColor: statusColor,
+                },
+              ]}
+            />
+          </View>
+        )}
+
+        {(route.origin || route.destination) && (
+          <View style={styles.odRow}>
+            <Truck size={16} color={colors.textSecondary} />
+            <Text style={[styles.odText, { color: colors.textSecondary }]}> {(route.origin || '¿Origen?')} → {(route.destination || '¿Destino?')} </Text>
+          </View>
+        )}
 
         <View style={styles.stopsInfo}>
           <MapPin size={16} color={colors.textSecondary} />
           <Text style={[styles.stopsCount, { color: colors.textSecondary }]}>
-            {route.stops.length} paradas programadas
+            {hasStops ? `${route.stops.length} paradas programadas` : 'No hay paradas programadas'}
           </Text>
         </View>
 
-        {route.stops.slice(0, 1).map((stop: any) => (
+        {hasStops && route.stops.slice(0, 1).map((stop) => (
           <View key={stop.id} style={styles.nextStop}>
             <Text style={[styles.nextStopLabel, { color: colors.textSecondary }]}>Próxima parada:</Text>
             <Text style={[styles.nextStopClient, { color: colors.text }]}>{stop.clientName}</Text>
@@ -173,6 +192,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
+  },
+  odRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  odText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   stopsCount: {
     fontSize: 14,

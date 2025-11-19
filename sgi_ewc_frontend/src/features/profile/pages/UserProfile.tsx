@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   User,
   Lock,
@@ -16,7 +16,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { changePassword as apiChangePassword } from '../../../utils/userApi';
+import { changePassword as apiChangePassword, updateUser as apiUpdateUser } from '../../../utils/userApi';
 import { useIntlFormat } from '../../../app/intl/format';
 
 const UserProfile: React.FC = () => {
@@ -27,6 +27,7 @@ const UserProfile: React.FC = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     name: user?.username || '',
@@ -70,11 +71,46 @@ const UserProfile: React.FC = () => {
     }));
   };
 
-  const handleSavePersonal = (event: React.FormEvent) => {
+  const handleSavePersonal = async (event: React.FormEvent) => {
     event.preventDefault();
-    console.log('Guardando datos personales:', formData);
-    setIsEditing(false);
+    if (!user) {
+      alert('Error: No se pudo identificar al usuario.');
+      return;
+    }
+    try {
+      setIsSaving(true);
+      const payload = {
+        username: formData.name?.trim() || user.username,
+        email: formData.email?.trim() || user.email,
+      } as const;
+      const updated = await apiUpdateUser(user.id, payload);
+      try {
+        localStorage.setItem('userData', JSON.stringify(updated));
+      } catch {}
+      globalThis.dispatchEvent?.(new CustomEvent('session-refreshed', { detail: updated }));
+      setFormData(prev => ({
+        ...prev,
+        name: updated.username ?? prev.name,
+        email: updated.email ?? prev.email,
+      }));
+      alert('Perfil actualizado correctamente.');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error al actualizar el perfil:', error);
+      alert(`No se pudieron guardar los cambios: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  // Mantener el formulario sincronizado con cambios del usuario (p.ej., tras guardar o refresh de sesión)
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      name: user?.username || '',
+      email: user?.email || '',
+    }));
+  }, [user?.username, user?.email]);
 
   const handleChangePassword = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -390,15 +426,17 @@ const UserProfile: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setIsEditing(false)}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:text-rose-600 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                        disabled={isSaving}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
                       >
                         Cancelar
                       </button>
                       <button
                         type="submit"
-                        className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5"
+                        disabled={isSaving}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-sky-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/40 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <Save className="h-4 w-4" /> Guardar cambios
+                        <Save className="h-4 w-4" /> {isSaving ? 'Guardando…' : 'Guardar cambios'}
                       </button>
                     </div>
                   )}
