@@ -5,6 +5,7 @@ import {
 	Home,
 	Wrench,
 	Users,
+	BadgeInfo,
 	ChevronLeft,
 	ChevronRight,
 	LogOut,
@@ -183,6 +184,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 		{ id: 'civil-works', labelKey: 'nav.civilWorks', icon: HardHat, areas: ['Obras'] },
 		{ id: 'incidents', labelKey: 'nav.incidents', icon: AlertTriangle },
 		{ id: 'user-management', labelKey: 'nav.userManagement', icon: Users, areas: ['Admin', 'RRHH'] },
+		{ id: 'buk-users', labelKey: 'nav.bukUsers', icon: BadgeInfo, areas: ['Admin', 'RRHH'] },
 	];
 
 	const visibleItemsUnique = viewDefinitions.filter((item) => {
@@ -243,6 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 						'incidents':'incidentes',
 						'notifications':'notificaciones',
 						'user-management':'usuarios',
+						'buk-users':'buk',
 						'settings':'ajustes'
 					};
 					return map[item.id] || undefined;

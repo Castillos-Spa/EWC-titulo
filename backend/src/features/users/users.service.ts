@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CacheService } from '@/common/cache.service';
 import { User, Role, Permission, Prisma, Specialty, Area } from '@prisma/client';
@@ -17,6 +17,8 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
   ) {}
+
+  private readonly logger = new Logger(UsersService.name);
 
   private readonly userInclude = {
     roleAssignments: true,
@@ -44,6 +46,35 @@ export class UsersService {
 
   async findByEmail(email: string): Promise<Prisma.UserGetPayload<{ include: { roleAssignments: true } }> | null> {
     return this.findUser({ email });
+  }
+
+  async findExistingEmails(emails: string[]): Promise<Set<string>> {
+    const uniqueEmails = Array.from(
+      new Set(emails.map(email => email?.toLowerCase().trim()).filter((email): email is string => Boolean(email))),
+    );
+
+    if (uniqueEmails.length === 0) {
+      return new Set();
+    }
+
+    const matches = await this.prisma.user.findMany({
+      where: {
+        email: {
+          in: uniqueEmails,
+        },
+      },
+      select: {
+        email: true,
+      },
+    });
+
+    this.logger.log(
+      `findExistingEmails requested=${uniqueEmails.length} matched=${matches.length} emails=${JSON.stringify(
+        matches.map(match => match.email),
+      )}`,
+    );
+
+    return new Set(matches.map(match => match.email.toLowerCase()));
   }
 
   async findById(id: number): Promise<Prisma.UserGetPayload<{ include: { roleAssignments: true } }> | null> {
@@ -107,6 +138,8 @@ export class UsersService {
     if (!result) {
       throw new NotFoundException('No se pudo crear el usuario.');
     }
+
+    this.logger.log(`register created userId=${result.id} email=${result.email}`);
 
     // Notificar a todos los usuarios del área 'Admin' sobre la creación del nuevo usuario.
     const message = `El usuario ${result.username} fue creado exitosamente.`;

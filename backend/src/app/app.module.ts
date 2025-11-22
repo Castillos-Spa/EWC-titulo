@@ -23,6 +23,7 @@ import { RoutesModule } from '@/features/routes/routes.module';
 import { VehicleModule } from '@/features/vehicle/vehicle.module';
 import { CoreModule } from './core/core.module';
 import { DashboardModule } from '@/features/dashboard/dashboard.module';
+import { BukModule } from '@/features/buk/buk.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DashboardModule } from '@/features/dashboard/dashboard.module';
     RoutesModule,
     VehicleModule,
     DashboardModule,
+    BukModule,
     CoreModule,
   ],
 

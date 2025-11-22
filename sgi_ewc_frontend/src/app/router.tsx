@@ -18,6 +18,7 @@ const CivilWorks = lazy(() => import('../features/civil-works/pages/CivilWorksPa
 const Incidents = lazy(() => import('../features/incidents/pages/IncidentsPage'));
 const NotificationsCenter = lazy(() => import('../features/notifications/pages/NotificationsPage'));
 const UserManagement = lazy(() => import('../features/users/pages/UserManagement'));
+const BukUsersPage = lazy(() => import('../features/buk/pages/UserBukPage'));
 const UserProfile = lazy(() => import('../features/profile/pages/UserProfile'));
 const SettingsPage = lazy(() => import('../features/settings/pages/SettingsPage'));
 const InventoryPage = lazy(() => import('../features/inventory/pages/InventoryPage'));
@@ -80,6 +81,7 @@ export function AppRouter() {
         { path: 'notificaciones', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><NotificationsCenter /></Suspense> },
         { path: 'tickets', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><EnhancedTicketSystem /></Suspense> },
         { path: 'usuarios', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><UserManagement /></Suspense> },
+        { path: 'buk', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><BukUsersPage /></Suspense> },
         { path: 'perfil', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><UserProfile /></Suspense> },
     { path: 'ajustes', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><SettingsPage /></Suspense> },
   { path: 'inventario', element: <Suspense fallback={<div className="p-8">Cargando…</div>}><InventoryPage /></Suspense> },
