@@ -295,6 +295,65 @@ async function main() {
   console.log('✅ Lector General creado:', lectorGeneral.username);
 
   // ============================================
+  // 16. INVENTARIO IT (Activos iniciales)
+  // ============================================
+  console.log('\n💻 Poblando inventario IT...');
+  const itAssetsSeed = [
+    {
+      assetTag: 'IT-NTB-0001',
+      serialNumber: 'SN123NTB',
+      nombre: 'Dell Latitude 7420',
+      categoria: 'Laptop',
+      ubicacion: 'Bodega IT',
+      proveedor: 'DELL',
+      fechaCompra: new Date('2024-01-10T00:00:00Z'),
+      garantiaHasta: new Date('2027-01-10T00:00:00Z'),
+      notas: 'Equipo de respaldo para nuevas incorporaciones',
+    },
+    {
+      assetTag: 'IT-MON-0001',
+      serialNumber: 'SNM123',
+      nombre: 'Samsung 24"',
+      categoria: 'Monitor',
+      ubicacion: 'Bodega IT',
+      proveedor: 'Samsung',
+    },
+    {
+      assetTag: 'IT-LIC-0001',
+      nombre: 'Licencia Microsoft 365 Business',
+      categoria: 'Licencia',
+      ubicacion: 'Pool licencias',
+      proveedor: 'Microsoft',
+      notas: 'Disponible para nuevas cuentas',
+    },
+  ];
+
+  const prismaIt = prisma as unknown as {
+    iTAsset: {
+      upsert: (args: any) => Promise<unknown>;
+    };
+  };
+
+  for (const assetSeed of itAssetsSeed) {
+    await prismaIt.iTAsset.upsert({
+      where: { assetTag: assetSeed.assetTag },
+      update: {},
+      create: {
+        ...assetSeed,
+        estado: 'EN_STOCK',
+        movimientos: {
+          create: {
+            tipo: 'ALTA',
+            detalle: 'Alta inicial (seed)',
+            usuario: 'seed',
+          },
+        },
+      },
+    });
+  }
+  console.log(`✅ Activos IT iniciales: ${itAssetsSeed.length}`);
+
+  // ============================================
   // MOSTRAR RESUMEN
   // ============================================
   console.log('\n📊 RESUMEN DE USUARIOS CREADOS:');

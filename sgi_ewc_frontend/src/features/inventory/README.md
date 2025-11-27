@@ -1,14 +1,17 @@
-# Módulo Inventario Taller (Mock)
+# Módulo Inventario Taller
 
-Este módulo es un mock de UI para gestionar artículos de inventario del área de **Taller** (repuestos, lubricantes, consumibles). No realiza llamadas reales al backend; usa un servicio en memoria (`mockInventoryApi.ts`).
+Este módulo consume el API real de inventario expuesto por el backend NestJS (`/inventory/items`). El servicio en memoria (`mockInventoryApi.ts`) se conserva únicamente como referencia de diseño y datos de prueba históricos.
 
 ## Objetivos
+
 - Dar al backend una referencia clara de las pantallas y flujos previstos.
 - Permitir probar interacción básica (crear ítem, ajustar stock, ver movimientos) sin persistencia.
 - Definir contratos de API sugeridos.
 
 ## Entidades
+
 ### InventoryItem
+
 ```ts
 {
   id: number;
@@ -27,11 +30,12 @@ Este módulo es un mock de UI para gestionar artículos de inventario del área 
 ```
 
 ### StockMovement
+
 ```ts
 {
   id: number;
   itemId: number;
-  tipo: 'INGRESO' | 'EGRESO' | 'AJUSTE';
+  tipo: "INGRESO" | "EGRESO" | "AJUSTE";
   cantidad: number; // siempre positivo
   motivo: string;
   usuario: string;
@@ -41,17 +45,19 @@ Este módulo es un mock de UI para gestionar artículos de inventario del área 
 ```
 
 ## Contratos API sugeridos (REST)
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/inventory/items?search=&categoria=&estado=` | Listado con filtros básicos |
-| GET | `/inventory/items/:id` | Detalle de ítem |
-| POST | `/inventory/items` | Crear nuevo artículo |
-| PUT | `/inventory/items/:id` | Actualizar datos del artículo |
-| POST | `/inventory/items/:id/adjust-stock` | Ajustar stock (ingreso/egreso) |
-| GET | `/inventory/items/:id/movements` | Listar movimientos recientes |
-| POST | `/inventory/items/:id/deactivate` | Marcar artículo como INACTIVO |
+
+| Método | Endpoint                                      | Descripción                    |
+| ------ | --------------------------------------------- | ------------------------------ |
+| GET    | `/inventory/items?search=&categoria=&estado=` | Listado con filtros básicos    |
+| GET    | `/inventory/items/:id`                        | Detalle de ítem                |
+| POST   | `/inventory/items`                            | Crear nuevo artículo           |
+| PUT    | `/inventory/items/:id`                        | Actualizar datos del artículo  |
+| POST   | `/inventory/items/:id/adjust-stock`           | Ajustar stock (ingreso/egreso) |
+| GET    | `/inventory/items/:id/movements`              | Listar movimientos recientes   |
+| POST   | `/inventory/items/:id/deactivate`             | Marcar artículo como INACTIVO  |
 
 ### Ejemplo: Crear ítem
+
 ```json
 POST /inventory/items
 {
@@ -65,7 +71,9 @@ POST /inventory/items
   "descripcion": "Lubricante semi-sintético."
 }
 ```
+
 Respuesta:
+
 ```json
 201 Created
 {
@@ -85,6 +93,7 @@ Respuesta:
 ```
 
 ### Ejemplo: Ajuste de stock
+
 ```json
 POST /inventory/items/123/adjust-stock
 {
@@ -92,7 +101,9 @@ POST /inventory/items/123/adjust-stock
   "motivo": "Consumo en orden de trabajo 456"
 }
 ```
+
 Respuesta:
+
 ```json
 200 OK
 {
@@ -114,15 +125,18 @@ Respuesta:
 ```
 
 ## Consideraciones backend
+
 - Validar que un ajuste no deje stock negativo; si ocurre, retornar 422 con detalle.
 - Control de concurrencia simple vía versión (etag) opcional: header `If-Match`.
 - Auditar movimientos (usuario, timestamp) para trazabilidad.
 - Posible endpoint adicional para bajas lógicas masivas o clasificación.
 
 ## Extensiones futuras
+
 - Soporte para lotes y fechas de vencimiento.
 - Reportes de rotación y proyección de quiebres de stock.
 - Integración con módulo de mantenimiento para consumo automático.
 
 ## Estado actual
+
 UI lista como mock, sin persistencia. Ajustar naming si backend decide otro esquema.

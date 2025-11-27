@@ -113,7 +113,9 @@ export class BukService {
     try {
       const response = await firstValueFrom(
         this.httpService.get<unknown>(url, {
-          headers: this.buildHeaders(),
+          headers: this.buildFetchHeaders(),
+          params: this.buildFetchParams(),
+          responseType: 'json',
         }),
       );
       return response.data;
@@ -148,10 +150,28 @@ export class BukService {
     this.logger.log(`Buk register response status=${status} payload=${this.formatForLog(payload)}`);
   }
 
+  private buildFetchHeaders(): Record<string, string> | undefined {
+    const token = this.configService.get<string>('BUK_API_TOKEN');
+    if (!token) {
+      this.logger.warn('BUK API token is not configured; request will be sent without authentication header');
+      return undefined;
+    }
+    return {
+      auth_token: token,
+      Accept: 'application/json',
+    };
+  }
+
+  private buildFetchParams(): Record<string, string> | undefined {
+    const token = this.configService.get<string>('BUK_API_TOKEN');
+    if (!token) return undefined;
+    return { auth_token: token };
+  }
+
   private buildHeaders(): Record<string, string> | undefined {
-    const headerValue = this.configService.get<string>('BUK_WEBHOOK_HEADER_VALUE') ?? 'asd123';
-    const headerName = this.configService.get<string>('BUK_WEBHOOK_HEADER_NAME') ?? 'backend';
+    const headerValue = this.configService.get<string>('BUK_WEBHOOK_HEADER_VALUE');
     if (!headerValue) return undefined;
+    const headerName = this.configService.get<string>('BUK_WEBHOOK_HEADER_NAME') ?? 'backend';
     return { [headerName]: headerValue };
   }
 
