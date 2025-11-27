@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, ShieldAlert } from 'lucide-react';
 import type { Incident, IncidentSeverity, IncidentStatus, IncidentType } from '../../../types/Incident';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -12,7 +12,7 @@ import IncidentsFilters from '../components/IncidentsFilters';
 
 const IncidentsPageInner: React.FC = () => {
   const { user } = useAuth();
-  const { items, create, update } = useIncidents();
+  const { items, create, update, loadPhotos } = useIncidents();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | IncidentStatus>('all');
   const [severityFilter, setSeverityFilter] = useState<'all' | IncidentSeverity>('all');
@@ -73,17 +73,21 @@ const IncidentsPageInner: React.FC = () => {
     });
   }, [items, search, statusFilter, severityFilter, typeFilter, areaFilter]);
 
-  const handleCreate = async (data: Pick<Incident, 'area' | 'type' | 'severity' | 'title' | 'description' | 'location'>) => {
+  const handleCreate = async (
+    data: Pick<Incident, 'area' | 'type' | 'severity' | 'title' | 'description' | 'location'>,
+    attachments: File[],
+  ) => {
     try {
       await create({
         ...data,
         reportedBy: user?.username || 'Usuario',
         reportedAt: new Date().toISOString(),
         status: 'reported',
-      });
+      }, attachments);
     } catch (err) {
       console.error('No se pudo crear el incidente', err);
       alert('No se pudo crear el incidente en el servidor');
+      throw err;
     }
   };
 
@@ -120,6 +124,28 @@ const IncidentsPageInner: React.FC = () => {
     setTypeFilter('all');
     setAreaFilter('all');
   };
+
+  const handleOpenDetail = useCallback((incident: Incident) => {
+    setDetail(incident);
+    if (!incident.photos || incident.photos.length === 0) {
+      loadPhotos(incident.id)
+        .then((photos) => {
+          if (!photos.length) return;
+          setDetail((current) => (current && current.id === incident.id ? { ...current, photos } : current));
+        })
+        .catch((err) => {
+          console.error('No se pudieron cargar las fotografías del incidente', err);
+        });
+    }
+  }, [loadPhotos]);
+
+  useEffect(() => {
+    if (!detail) return;
+    const refreshed = items.find((i) => i.id === detail.id);
+    if (refreshed && refreshed !== detail) {
+      setDetail(refreshed);
+    }
+  }, [items, detail]);
 
   return (
     <div className="space-y-10 text-slate-800 dark:text-slate-100">
@@ -170,7 +196,7 @@ const IncidentsPageInner: React.FC = () => {
           <IncidentCard
             key={incident.id}
             incident={incident}
-            onClick={() => setDetail(incident)}
+            onClick={() => handleOpenDetail(incident)}
             onQuickResolve={handleAdvanceStatus}
             updatingId={updatingId}
           />
