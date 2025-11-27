@@ -12,8 +12,11 @@ import {
   NotFoundException,
   ValidationPipe,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { TicketService } from './ticket.service';
+import type { TicketAttachmentsResponse } from './ticket.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Role } from '@prisma/client';
@@ -22,6 +25,9 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApproveStepDto } from './dto/approve-step.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import type { Express } from 'express';
 
 @Controller('tickets')
 @UseGuards(JwtAuthGuard)
@@ -78,5 +84,21 @@ export class TicketController {
   ) {
     const userId = req.user.userId;
     return this.ticketsService.approveStep(ticketId, approvalId, userId, approveStepDto);
+  }
+
+  @Post(':id/attachments')
+  @Roles(Role.Admin, Role.Jefe, Role.Supervisor, Role.Especialista, Role.Trabajador)
+  @UseGuards(RolesGuard)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      limits: { fileSize: 7 * 1024 * 1024 },
+    }),
+  )
+  uploadAttachments(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<TicketAttachmentsResponse> {
+    return this.ticketsService.addAttachments(id, files);
   }
 }

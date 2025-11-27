@@ -1,7 +1,13 @@
 //
-const DEMO_MODE: boolean = String(import.meta.env.VITE_DEMO_MODE || "false").toLowerCase() === "true";
-const DEMO_API_URL: string | undefined = import.meta.env.VITE_DEMO_API_URL as string | undefined;
-const API_BASE = (DEMO_MODE && DEMO_API_URL) ? DEMO_API_URL : (import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1");
+const DEMO_MODE: boolean =
+  String(import.meta.env.VITE_DEMO_MODE || "false").toLowerCase() === "true";
+const DEMO_API_URL: string | undefined = import.meta.env.VITE_DEMO_API_URL as
+  | string
+  | undefined;
+const API_BASE =
+  DEMO_MODE && DEMO_API_URL
+    ? DEMO_API_URL
+    : import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
 
 let isRefreshing = false;
 type PendingRequest = {
@@ -48,19 +54,30 @@ const parseJsonResponse = async (response: Response) => {
 
 // Helpers para modo demo y refresco de token, para reducir complejidad en apiFetch
 const isRuntimeDemoActive = (): boolean => {
-  try { return globalThis?.localStorage?.getItem("demoMode") === "true"; } catch { return false; }
+  try {
+    return globalThis?.localStorage?.getItem("demoMode") === "true";
+  } catch {
+    return false;
+  }
 };
 
 const isForcedDemoLogin = (path: string, options?: RequestInit): boolean => {
-  const p = typeof path === 'string' ? path : '';
-  const clean = p.startsWith('/') ? p : `/${p}`;
+  const p = typeof path === "string" ? path : "";
+  const clean = p.startsWith("/") ? p : `/${p}`;
   const hasQueryDemo = /\bdemo=1\b/.test(clean);
-  const hasHeaderDemo = !!(options?.headers && (options.headers as Record<string, string>)["X-Demo-Login"]);
-  const isLoginPath = clean.replace(/\?.*$/, '') === '/auth/login';
+  const hasHeaderDemo = !!(
+    options?.headers &&
+    (options.headers as Record<string, string>)["X-Demo-Login"]
+  );
+  const isLoginPath = clean.replace(/\?.*$/, "") === "/auth/login";
   return isLoginPath && (hasQueryDemo || hasHeaderDemo);
 };
 
-async function refreshAndRetry(url: string, init: RequestInit, headers: Record<string, string>) {
+async function refreshAndRetry(
+  url: string,
+  init: RequestInit,
+  headers: Record<string, string>
+) {
   const refreshToken = localStorage.getItem("refreshToken");
   if (!refreshToken) {
     handleLogout();
@@ -91,12 +108,15 @@ async function refreshAndRetry(url: string, init: RequestInit, headers: Record<s
 
     if (!refreshRes.ok) throw new Error("Session expired");
 
-    const { access_token: newAccessToken, user: refreshedUser } = await refreshRes.json();
+    const { access_token: newAccessToken, user: refreshedUser } =
+      await refreshRes.json();
     if (!newAccessToken) throw new Error("Session expired");
     localStorage.setItem("authToken", newAccessToken);
     if (refreshedUser) {
       localStorage.setItem("userData", JSON.stringify(refreshedUser));
-      globalThis.dispatchEvent?.(new CustomEvent("session-refreshed", { detail: refreshedUser }));
+      globalThis.dispatchEvent?.(
+        new CustomEvent("session-refreshed", { detail: refreshedUser })
+      );
     }
     headers["Authorization"] = `Bearer ${newAccessToken}`;
     processQueue(null, newAccessToken);
@@ -121,11 +141,17 @@ async function apiFetch(path: string, options?: RequestInit) {
     return demoHandle(path, options);
   }
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const isFormData = options?.body instanceof FormData;
+  const headers: Record<string, string> = {};
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
   if (options?.headers) {
     Object.assign(headers, options.headers as Record<string, string>);
+  }
+
+  if (isFormData && headers["Content-Type"]?.includes("application/json")) {
+    delete headers["Content-Type"];
   }
 
   const token = localStorage.getItem("authToken");

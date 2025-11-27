@@ -69,6 +69,7 @@ model Ticket {
   assignedUserConfirmation   Boolean?         @default(false)
   requestingUserConfirmation Boolean?         @default(false)
   tags                       String[]         @default([])
+  attachmentUrls             String[]         @default([])
   ordenTrabajoId             Int?             @unique
   attachments                Documento[]
   assignedTo                 User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])

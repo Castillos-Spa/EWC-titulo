@@ -26,6 +26,7 @@ import { DashboardModule } from '@/features/dashboard/dashboard.module';
 import { BukModule } from '@/features/buk/buk.module';
 import { InventoryModule } from '@/features/inventory/inventory.module';
 import { ItInventoryModule } from '@/features/it-inventory/it-inventory.module';
+import { StorageModule } from '@/app/storage/storage.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ItInventoryModule } from '@/features/it-inventory/it-inventory.module';
     BukModule,
     InventoryModule,
     ItInventoryModule,
+    StorageModule,
     CoreModule,
   ],
 
