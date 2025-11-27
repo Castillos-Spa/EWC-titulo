@@ -496,6 +496,8 @@ export function CleaningDetailModal({ report, visible, onClose }: CleaningDetail
   );
 }
 
+export default CleaningDetailModal;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

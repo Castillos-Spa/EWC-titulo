@@ -329,5 +329,7 @@ class AuthServiceClass {
     return [];
   }
 }
+const AuthService = new AuthServiceClass();
 
-export const AuthService = new AuthServiceClass();
+export default AuthService;
+export { AuthService };

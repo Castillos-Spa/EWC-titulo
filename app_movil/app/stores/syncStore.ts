@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ApiClient } from '../services/ApiClient';
+import ApiClient, { registerApiSuccessCallback } from '../services/ApiClient';
 import { DatabaseService } from '../services/DatabaseService';
 
 interface SyncState {
@@ -56,3 +56,14 @@ export const useSyncStore = create<SyncState>((set) => ({
     return false;
   },
 }));
+
+// Registrar callback de éxito de API sin crear un ciclo de imports.
+registerApiSuccessCallback(() => {
+  try {
+    useSyncStore.getState().markApiOk();
+  } catch {
+    // ignorar errores para no romper el flujo de red
+  }
+});
+
+export default useSyncStore;

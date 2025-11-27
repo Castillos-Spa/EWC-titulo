@@ -20,3 +20,4 @@ export function AccessGuard({ allowed, children, message }: Props) {
     </View>
   );
 }
+export default AccessGuard;

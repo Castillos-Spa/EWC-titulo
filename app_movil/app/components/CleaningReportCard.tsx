@@ -175,6 +175,8 @@ export function CleaningReportCard({ report, onPress }: CleaningReportCardProps)
   );
 }
 
+export default CleaningReportCard;
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',

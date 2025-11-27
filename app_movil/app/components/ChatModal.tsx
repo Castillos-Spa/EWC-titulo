@@ -331,6 +331,8 @@ export function ChatModal({
   );
 }
 
+export default ChatModal;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

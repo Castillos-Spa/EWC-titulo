@@ -2,7 +2,9 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { SafeStorage } from './SafeStorage';
 import { useAuthStore } from '../stores/authStore';
-import { useSyncStore } from '../stores/syncStore';
+// Nota: evitamos importar directamente el store de sincronización aquí para no
+// crear un ciclo de dependencias. En su lugar, permitimos que el store se
+// registre opcionalmente a través de una función de callback.
 import { TimeoutError, mapStatusToError } from './errors';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -12,6 +14,15 @@ export interface ApiRequestInit extends RequestInit {
   authenticate?: boolean; // si true, adjunta Bearer y auto-refresh en 401
   timeoutMs?: number; // tiempo máximo antes de abortar la solicitud
 }
+
+// Callback opcional para notificar éxito de llamadas API sin crear ciclos.
+export type ApiSuccessCallback = () => void;
+
+let onApiSuccess: ApiSuccessCallback | undefined;
+
+export const registerApiSuccessCallback = (cb: ApiSuccessCallback) => {
+  onApiSuccess = cb;
+};
 
 class ApiClientClass {
   private getBaseUrl(): string {
@@ -97,8 +108,8 @@ class ApiClientClass {
       const message = (data && (data.message || data.error)) || res.statusText;
       throw mapStatusToError(res.status, message, data);
     }
-    // marcar éxito de API para el estado de sincronización
-    try { useSyncStore.getState().markApiOk(); } catch {}
+    // marcar éxito de API para el estado de sincronización sin dependencias cíclicas
+    try { onApiSuccess?.(); } catch {}
     return data as T;
   }
 
@@ -119,4 +130,7 @@ class ApiClientClass {
   }
 }
 
-export const ApiClient = new ApiClientClass();
+const ApiClient = new ApiClientClass();
+
+export default ApiClient;
+export { ApiClient };
