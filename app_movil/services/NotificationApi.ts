@@ -9,7 +9,41 @@ class NotificationApiClass {
     totalPages: number;
   }> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-    return ApiClient.get(`/notification?${params.toString()}`, true);
+    const response: any = await ApiClient.get(`/notification?${params.toString()}`, true);
+
+    if (Array.isArray(response)) {
+      const items = response;
+      return {
+        items,
+        total: items.length,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(items.length / pageSize)),
+      };
+    }
+
+    const itemsCandidate = Array.isArray(response?.items)
+      ? response.items
+      : Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.results)
+          ? response.results
+          : [];
+
+    const totalCandidate = typeof response?.total === 'number' ? response.total : itemsCandidate.length;
+    const effectivePageSize = typeof response?.pageSize === 'number' ? response.pageSize : pageSize;
+    const effectivePage = typeof response?.page === 'number' ? response.page : page;
+    const totalPagesCandidate = typeof response?.totalPages === 'number'
+      ? response.totalPages
+      : Math.max(1, Math.ceil(totalCandidate / effectivePageSize));
+
+    return {
+      items: itemsCandidate,
+      total: totalCandidate,
+      page: effectivePage,
+      pageSize: effectivePageSize,
+      totalPages: totalPagesCandidate,
+    };
   }
 
   async markAsRead(id: number | string): Promise<void> {

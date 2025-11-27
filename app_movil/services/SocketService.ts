@@ -10,10 +10,22 @@ export type NotificationWire = {
   read?: boolean;
 };
 
+export type NotificationInitPayload =
+  | NotificationWire[]
+  | {
+      items?: NotificationWire[];
+      data?: NotificationWire[];
+      results?: NotificationWire[];
+      total?: number;
+      page?: number;
+      pageSize?: number;
+      totalPages?: number;
+    };
+
 type ServerToClientEvents = {
   notification: (data: NotificationWire) => void;
   message: (data: { id?: string | number; content?: string }) => void;
-  'notifications:init': (list: NotificationWire[]) => void;
+  'notifications:init': (list: NotificationInitPayload) => void;
   'notifications:error': (e: { message: string }) => void;
 };
 
