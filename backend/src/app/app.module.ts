@@ -24,6 +24,8 @@ import { VehicleModule } from '@/features/vehicle/vehicle.module';
 import { CoreModule } from './core/core.module';
 import { DashboardModule } from '@/features/dashboard/dashboard.module';
 import { BukModule } from '@/features/buk/buk.module';
+import { InventoryModule } from '@/features/inventory/inventory.module';
+import { ItInventoryModule } from '@/features/it-inventory/it-inventory.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { BukModule } from '@/features/buk/buk.module';
     VehicleModule,
     DashboardModule,
     BukModule,
+    InventoryModule,
+    ItInventoryModule,
     CoreModule,
   ],
 

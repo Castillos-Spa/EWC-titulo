@@ -159,6 +159,67 @@ model Repuesto {
   solicitudCompra   SolicitudCompra? @relation(fields: [solicitudCompraId], references: [id])
 }
 
+model InventoryItem {
+  id           Int                 @id @default(autoincrement())
+  sku          String              @unique
+  nombre       String
+  categoria    String
+  ubicacion    String
+  stockActual  Int                 @default(0)
+  stockMinimo  Int                 @default(0)
+  unidadMedida String
+  estado       InventoryItemStatus @default(ACTIVO)
+  descripcion  String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  movements    InventoryMovement[]
+}
+
+model InventoryMovement {
+  id             Int                   @id @default(autoincrement())
+  itemId         Int
+  tipo           InventoryMovementType
+  cantidad       Int
+  motivo         String
+  usuario        String
+  fecha          DateTime              @default(now())
+  saldoAnterior  Int
+  saldoPosterior Int
+  item           InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, fecha])
+}
+
+model ITAsset {
+  id            Int               @id @default(autoincrement())
+  assetTag      String            @unique
+  serialNumber  String?
+  nombre        String
+  categoria     String
+  ubicacion     String
+  estado        ITAssetStatus     @default(EN_STOCK)
+  asignadoA     String?
+  proveedor     String?
+  fechaCompra   DateTime?
+  garantiaHasta DateTime?
+  notas         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  movimientos   ITAssetMovement[]
+}
+
+model ITAssetMovement {
+  id      Int                 @id @default(autoincrement())
+  assetId Int
+  tipo    ITAssetMovementType
+  fecha   DateTime            @default(now())
+  detalle String
+  usuario String
+  asset   ITAsset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, fecha])
+}
+
 model Notification {
   id          Int                @id @default(autoincrement())
   title       String
@@ -407,6 +468,17 @@ enum ApprovalStatus {
   Rechazado
 }
 
+enum InventoryItemStatus {
+  ACTIVO
+  INACTIVO
+}
+
+enum InventoryMovementType {
+  INGRESO
+  EGRESO
+  AJUSTE
+}
+
 enum IncidentSeverity {
   CRITICAL
   HIGH
@@ -468,4 +540,19 @@ enum Area {
   RRHH
   Finanzas
   Prev_Riesgo
+}
+
+enum ITAssetStatus {
+  EN_STOCK
+  ASIGNADO
+  EN_REPARACION
+  RETIRADO
+}
+
+enum ITAssetMovementType {
+  ALTA
+  ASIGNACION
+  DEVOLUCION
+  REPARACION
+  BAJA
 }
