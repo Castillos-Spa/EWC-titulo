@@ -1,8 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Ticket, TicketStatus, TicketPriority } from '../../../types/Ticket';
-import { getTickets, createTicket, updateTicket, approveTicketStep, CreateTicketPayload } from '../../../utils/ticketApi';
+import { getTickets, createTicket, updateTicket, approveTicketStep, CreateTicketPayload, uploadTicketAttachments } from '../../../utils/ticketApi';
 import { getUsers } from '../../../utils/userApi';
 import { User } from '../../../types/User';
+import { getTicketCategoryEnum } from '../utils/category';
 
 export type ViewMode = 'kanban' | 'list';
 export interface TicketsState {
@@ -26,9 +27,10 @@ export interface TicketsContextValue extends TicketsState {
   setStatus: (s: TicketsState['status']) => void;
   setCategory: (c: string) => void;
   setPriority: (p: TicketsState['priority']) => void;
-  create: (payload: CreateTicketPayload) => Promise<void>;
+  create: (payload: CreateTicketPayload, attachments?: File[]) => Promise<void>;
   update: (id: number, patch: UpdatePatch) => Promise<void>;
   approve: (ticketId: number, approvalId: number, approved: boolean, comments?: string) => Promise<void>;
+  uploadAttachments: (id: number, files: File[]) => Promise<string[]>;
 }
 
 const TicketsContext = createContext<TicketsContextValue | undefined>(undefined);
@@ -77,9 +79,34 @@ export function TicketsProvider({ children }: Readonly<{ children: React.ReactNo
   const setCategory = (category: TicketsState['category']) => setState((s) => ({ ...s, category }));
   const setPriority = (priority: TicketsState['priority']) => setState((s) => ({ ...s, priority }));
 
-  const create = useCallback(async (payload: CreateTicketPayload) => {
-    await createTicket(payload);
-    await refresh();
+  const create = useCallback(async (payload: CreateTicketPayload, attachments?: File[]) => {
+    const categoryEnum = getTicketCategoryEnum(payload.category);
+    if (!categoryEnum) {
+      throw new Error('INVALID_TICKET_CATEGORY');
+    }
+
+    try {
+      const ticket = await createTicket({
+        ...payload,
+        category: payload.category.trim(),
+      });
+      if (attachments && attachments.length) {
+        await uploadTicketAttachments(ticket.id, attachments);
+      }
+      await refresh();
+    } catch (error) {
+      // Surface backend error payload for easier debugging in dev tools.
+      console.error('ticket:create failed', error);
+      console.error('ticket:create payload', {
+        originalCategory: payload.category,
+        normalizedCategory: categoryEnum,
+        recipientArea: payload.recipientArea,
+      });
+      if (error && typeof error === 'object' && 'body' in error) {
+        console.error('ticket:create error body', (error as { body?: unknown }).body);
+      }
+      throw error;
+    }
   }, [refresh]);
 
   const update = useCallback(async (id: number, patch: UpdatePatch) => {
@@ -90,6 +117,15 @@ export function TicketsProvider({ children }: Readonly<{ children: React.ReactNo
   const approve = useCallback(async (ticketId: number, approvalId: number, approved: boolean, comments?: string) => {
     const updated = await approveTicketStep(ticketId, approvalId, { approved, comments });
     setState((s) => ({ ...s, items: s.items.map((t) => (t.id === updated.id ? updated : t)) }));
+  }, []);
+
+  const uploadAttachments = useCallback(async (id: number, files: File[]) => {
+    const { attachments } = await uploadTicketAttachments(id, files);
+    setState((s) => ({
+      ...s,
+      items: s.items.map((t) => (t.id === id ? { ...t, attachmentUrls: attachments } : t)),
+    }));
+    return attachments;
   }, []);
 
   const value = useMemo<TicketsContextValue>(() => ({
@@ -103,7 +139,8 @@ export function TicketsProvider({ children }: Readonly<{ children: React.ReactNo
     create,
     update,
     approve,
-  }), [state, refresh, create, update, approve]);
+    uploadAttachments,
+  }), [state, refresh, create, update, approve, uploadAttachments]);
 
   return <TicketsContext.Provider value={value}>{children}</TicketsContext.Provider>;
 }

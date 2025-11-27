@@ -166,6 +166,9 @@ const englishTranslations: Record<string, string> = {
   'tickets.detail.tags': 'Tags',
   'tickets.detail.createdAt': 'Created:',
   'tickets.detail.updatedAt': 'Updated:',
+  'tickets.detail.attachments': 'Attachments',
+  'tickets.detail.openAttachment': 'Open attachment',
+  'tickets.detail.attachmentAlt': 'Ticket attachment',
   // Tickets - enums
   'tickets.status.Pendiente': 'Pending',
   'tickets.status.EnProgreso': 'In Progress',
@@ -379,6 +382,9 @@ const englishTranslations: Record<string, string> = {
   'tickets.detail.tags': 'Tags',
   'tickets.detail.createdAt': 'Creado:',
   'tickets.detail.updatedAt': 'Actualizado:',
+  'tickets.detail.attachments': 'Adjuntos',
+  'tickets.detail.openAttachment': 'Abrir adjunto',
+  'tickets.detail.attachmentAlt': 'Adjunto del ticket',
   // Tickets - enums
   'tickets.status.Pendiente': 'Pendiente',
   'tickets.status.EnProgreso': 'En Progreso',

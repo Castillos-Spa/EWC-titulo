@@ -1,9 +1,10 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Check, Laptop2, Package, ShieldAlert, Sparkles, Wrench, X } from 'lucide-react';
+import { Check, Laptop2, Package, Paperclip, ShieldAlert, Sparkles, Trash2, Wrench, X } from 'lucide-react';
 import { TicketPriority } from '../../../types/Ticket';
 import { useTicketsContext } from '../context/TicketsContext';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { getTicketCategoryEnum } from '../utils/category';
 
 type Props = Readonly<{
   open: boolean;
@@ -18,6 +19,20 @@ type CategoryOption = {
   readonly description: string;
   readonly accent: string;
   readonly icon: LucideIcon;
+};
+
+const formatFileSize = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const rounded = value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1);
+  return `${rounded} ${units[unitIndex]}`;
 };
 
 const PRESET_CATEGORY_OPTIONS: readonly CategoryOption[] = [
@@ -57,20 +72,22 @@ const AREA_LABELS: Record<string, string> = {
   Obras: 'Obras',
   Aseo: 'Aseo',
   RRHH: 'RRHH',
-  Finanza: 'Finanzas',
-  P_Riesgo: 'Prev. Riesgo',
+  Finanzas: 'Finanzas',
+  Prev_Riesgo: 'Prev. Riesgo',
 };
 
 export default function CreateTicketModal({ open, onClose }: Props) {
   const { create, items } = useTicketsContext();
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [priority, setPriority] = useState<TicketPriority>(DEFAULT_PRIORITY);
   const [recipientArea, setRecipientArea] = useState<string[]>([]);
   const [tags, setTags] = useState<string>('');
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
   const titleId = useId();
@@ -79,6 +96,7 @@ export default function CreateTicketModal({ open, onClose }: Props) {
   const priorityId = useId();
   const areasFieldsetId = useId();
   const tagsId = useId();
+  const attachmentsId = useId();
 
   const categoriesFromTickets = useMemo(() => {
     return items
@@ -145,21 +163,47 @@ export default function CreateTicketModal({ open, onClose }: Props) {
     setRecipientArea((prev) => prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]);
   };
 
-  const validate = () => title.trim().length >= 3 && category.trim().length >= 2;
+  const handleAttachmentsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { files } = event.currentTarget;
+    if (!files) return;
+    const incoming = Array.from(files);
+    setAttachments((prev) => {
+      const next = [...prev];
+      incoming.forEach((file) => {
+        const exists = next.some((existing) => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified);
+        if (!exists) next.push(file);
+      });
+      return next;
+    });
+    event.currentTarget.value = '';
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const categoryEnumValue = getTicketCategoryEnum(category);
+  const categoryIsValid = category.trim().length >= 2 && !!categoryEnumValue;
+
+  const validate = () => title.trim().length >= 3 && categoryIsValid;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     try {
       setSubmitting(true);
+      if (!categoryEnumValue) {
+        return;
+      }
+
       await create({
         title: title.trim(),
         description: description.trim() || undefined,
-        category: category.trim(),
+        category: categoryEnumValue,
         priority,
         recipientArea: recipientArea.length ? recipientArea : undefined,
         tags: tags.split(',').map((s) => s.trim()).filter(Boolean),
-      });
+      }, attachments);
       // limpiar y cerrar
       setTitle('');
       setDescription('');
@@ -168,6 +212,10 @@ export default function CreateTicketModal({ open, onClose }: Props) {
       setRecipientArea([]);
       setTags('');
       setCustomCategory('');
+      setAttachments([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       dialogRef.current?.close();
     } finally {
       setSubmitting(false);
@@ -190,7 +238,7 @@ export default function CreateTicketModal({ open, onClose }: Props) {
     };
   }, [open, onClose]);
 
-  const allAreas = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanza', 'P_Riesgo'] as const;
+  const allAreas = ['IT', 'Transporte', 'Obras', 'Aseo', 'RRHH', 'Finanzas', 'Prev_Riesgo'] as const;
 
   return (
     <dialog ref={dialogRef} aria-labelledby="create-ticket-title" className="relative w-full max-w-5xl max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-slate-200/60 bg-white p-0 shadow-2xl shadow-slate-900/30 backdrop:backdrop-blur-sm dark:border-white/10 dark:bg-slate-950">
@@ -290,6 +338,48 @@ export default function CreateTicketModal({ open, onClose }: Props) {
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-inner shadow-slate-200/60 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-none dark:focus:border-indigo-400 dark:focus:ring-indigo-500/30"
                     />
                   </div>
+                  <div>
+                    <span className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Evidencias (opcional)</span>
+                    <input
+                      id={attachmentsId}
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleAttachmentsChange}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor={attachmentsId}
+                      className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 shadow-inner shadow-slate-200/40 transition hover:border-indigo-400 hover:text-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:shadow-none dark:hover:border-indigo-400/80"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                      <span>Adjunta imágenes o evidencia (máx. 10 MB c/u)</span>
+                    </label>
+                    {attachments.length > 0 && (
+                      <ul className="mt-3 space-y-2">
+                        {attachments.map((file, index) => (
+                          <li
+                            key={`${file.name}-${file.lastModified}`}
+                            className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium" title={file.name}>{file.name}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">{formatFileSize(file.size)}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAttachment(index)}
+                              className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 transition hover:border-rose-500 hover:text-rose-600 dark:border-slate-600 dark:text-slate-300 dark:hover:border-rose-400 dark:hover:text-rose-300"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Quitar
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
               </section>
 
@@ -346,6 +436,9 @@ export default function CreateTicketModal({ open, onClose }: Props) {
                         placeholder="Personaliza si no aparece en la lista"
                         className="w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-400 dark:focus:ring-indigo-500/30"
                       />
+                      {customCategory && !categoryIsValid && (
+                        <p className="mt-1 text-xs text-rose-500">Selecciona una categoría válida de la lista.</p>
+                      )}
                     </div>
                     <div>
                       <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200" htmlFor={priorityId}>Prioridad</label>
@@ -377,26 +470,20 @@ export default function CreateTicketModal({ open, onClose }: Props) {
                   <legend id={areasFieldsetId} className="text-sm font-medium text-slate-700 dark:text-slate-200">Áreas destinatarias</legend>
                   <div className="flex flex-wrap gap-2">
                     {allAreas.map((area) => {
-                      const checkboxId = `${areasFieldsetId}-${area}`;
                       const selected = recipientArea.includes(area);
                       return (
-                        <label
+                        <button
                           key={area}
-                          htmlFor={checkboxId}
+                          type="button"
+                          onClick={() => toggleArea(area)}
                           className={`group inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
                             selected
                               ? 'border-indigo-500 bg-indigo-50 text-indigo-600 shadow-sm dark:border-indigo-400 dark:bg-indigo-500/10 dark:text-indigo-200'
                               : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
                           }`}
+                          aria-pressed={selected}
                           aria-label={AREA_LABELS[area] ?? area}
                         >
-                          <input
-                            id={checkboxId}
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => toggleArea(area)}
-                            className="sr-only"
-                          />
                           <span className="inline-flex items-center gap-2">
                             <span
                               className={`flex h-5 w-5 items-center justify-center rounded-full border transition ${
@@ -409,7 +496,7 @@ export default function CreateTicketModal({ open, onClose }: Props) {
                             </span>
                             <span>{AREA_LABELS[area] ?? area}</span>
                           </span>
-                        </label>
+                        </button>
                       );
                     })}
                   </div>
