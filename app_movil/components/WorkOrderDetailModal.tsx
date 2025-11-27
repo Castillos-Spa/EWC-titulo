@@ -252,7 +252,8 @@ export function WorkOrderDetailModal({ workOrder, visible, onClose }: WorkOrderD
   };
 
   const handleMaterialUpdate = (materialId: string, used: string) => {
-    const usedAmount = parseFloat(used) || 0;
+    const parsedAmount = Number.parseFloat(used);
+    const usedAmount = Number.isNaN(parsedAmount) ? 0 : parsedAmount;
     updateMaterialUsage(workOrder.id, materialId, usedAmount);
     setMaterialUsage(prev => ({ ...prev, [materialId]: used }));
   };

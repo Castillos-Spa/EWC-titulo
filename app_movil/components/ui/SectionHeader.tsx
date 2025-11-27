@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useThemeStore } from '@/app/stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 
 type Props = {
   title: string;

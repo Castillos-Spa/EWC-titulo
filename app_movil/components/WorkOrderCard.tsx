@@ -106,6 +106,8 @@ export function WorkOrderCard({ workOrder, onPress }: WorkOrderCardProps) {
   const StatusIcon = getStatusIcon(workOrder.status);
   const TypeIcon = getTypeIcon(workOrder.type);
   const safetyProgress = getSafetyProgress();
+  const photosSuffix = workOrder.progressPhotos.length === 1 ? '' : 's';
+  const materialsSuffix = workOrder.materials.length === 1 ? '' : 'es';
   const getSafetyProgressColor = (p: number) => {
     if (p >= 80) return '#16A34A';
     if (p >= 50) return '#F59E0B';
@@ -196,7 +198,7 @@ export function WorkOrderCard({ workOrder, onPress }: WorkOrderCardProps) {
             <View style={styles.photosIndicator}>
               <Camera size={14} color="#16A34A" />
               <Text style={styles.photosText}>
-                {workOrder.progressPhotos.length} foto{workOrder.progressPhotos.length !== 1 ? 's' : ''}
+                {workOrder.progressPhotos.length} foto{photosSuffix}
               </Text>
             </View>
           )}
@@ -205,7 +207,7 @@ export function WorkOrderCard({ workOrder, onPress }: WorkOrderCardProps) {
             <View style={styles.materialsIndicator}>
               <Package size={14} color="#F59E0B" />
               <Text style={styles.materialsText}>
-                {workOrder.materials.length} material{workOrder.materials.length !== 1 ? 'es' : ''}
+                {workOrder.materials.length} material{materialsSuffix}
               </Text>
             </View>
           )}

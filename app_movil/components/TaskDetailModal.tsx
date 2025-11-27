@@ -142,7 +142,8 @@ export function TaskDetailModal({ task, visible, onClose }: TaskDetailModalProps
   };
 
   const handleProgressUpdate = async () => {
-    const progress = parseInt(progressValue) || 0;
+    const parsedProgress = Number.parseInt(progressValue, 10);
+    const progress = Number.isNaN(parsedProgress) ? 0 : parsedProgress;
     if (progress < 0 || progress > 100) {
       Alert.alert('Error', 'El progreso debe estar entre 0 y 100');
       return;

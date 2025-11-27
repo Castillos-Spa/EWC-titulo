@@ -28,9 +28,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
       route: r,
       score: (usage[r]?.count || 0) * 10 + (usage[r]?.lastVisited || 0),
     }));
-    return scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(0, limit))
-      .map((s) => s.route);
+    const sorted = [...scored].sort((a, b) => b.score - a.score);
+    return sorted.slice(0, Math.max(0, limit)).map((s) => s.route);
   },
 }));

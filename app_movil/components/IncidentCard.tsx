@@ -81,6 +81,7 @@ export function IncidentCard({ incident, onPress }: IncidentCardProps) {
   const statusColor = getStatusColor(incident.status);
   const StatusIcon = getStatusIcon(incident.status);
   const photos: string[] = Array.isArray(incident.photos) ? incident.photos : [];
+  const photoSuffix = photos.length === 1 ? '' : 's';
   const loc = incident.location as
     | { latitude?: number; longitude?: number; address?: string }
     | undefined;
@@ -148,7 +149,7 @@ export function IncidentCard({ incident, onPress }: IncidentCardProps) {
           <View style={styles.photosSection}>
             <Camera size={16} color="#64748B" />
             <Text style={[styles.photosText, { color: colors.textSecondary }]}>
-              {photos.length} foto{photos.length !== 1 ? 's' : ''}
+              {photos.length} foto{photoSuffix}
             </Text>
             {photos.slice(0, 3).map((photo: string) => (
               <Image key={photo} source={{ uri: photo }} style={styles.photoThumbnail} />

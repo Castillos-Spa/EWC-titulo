@@ -108,8 +108,8 @@ export const useUIStore = create<UIState>((set) => ({
         SecureStore.getItemAsync(FILTER_CATEGORY_KEY),
         SecureStore.getItemAsync(FILTER_SEARCH_KEY),
       ]);
-      const list = listRaw !== null ? JSON.parse(listRaw) : false;
-      const kanban = kanbanRaw !== null ? JSON.parse(kanbanRaw) : false;
+      const list = listRaw === null ? false : JSON.parse(listRaw);
+      const kanban = kanbanRaw === null ? false : JSON.parse(kanbanRaw);
       const viewMode = modeRaw === 'kanban' ? 'kanban' : 'list';
       set({
         showListFilters: !!list,

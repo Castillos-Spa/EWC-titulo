@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useThemeStore } from '@/app/stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 
 type Props = {
   children: React.ReactNode;

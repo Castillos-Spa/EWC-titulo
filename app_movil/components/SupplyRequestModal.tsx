@@ -212,7 +212,10 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
                     <TextInput
                       style={[styles.numberInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                       value={item.quantity.toString()}
-                      onChangeText={(value) => updateItem(item.id, 'quantity', parseInt(value) || 1)}
+                      onChangeText={(value) => {
+                        const parsed = Number.parseInt(value, 10);
+                        updateItem(item.id, 'quantity', Number.isNaN(parsed) ? 1 : parsed);
+                      }}
                       keyboardType="numeric"
                       placeholder="1"
                       placeholderTextColor={colors.textSecondary}
@@ -281,7 +284,10 @@ export function SupplyRequestModal({ visible, onClose }: SupplyRequestModalProps
                     <TextInput
                       style={[styles.priceInputField, { color: colors.text }]}
                       value={item.estimatedPrice?.toString() || ''}
-                      onChangeText={(value) => updateItem(item.id, 'estimatedPrice', parseFloat(value) || undefined)}
+                      onChangeText={(value) => {
+                        const parsed = Number.parseFloat(value);
+                        updateItem(item.id, 'estimatedPrice', Number.isNaN(parsed) ? undefined : parsed);
+                      }}
                       keyboardType="numeric"
                       placeholder="0.00"
                       placeholderTextColor={colors.textSecondary}

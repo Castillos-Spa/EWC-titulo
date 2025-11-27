@@ -21,9 +21,9 @@ export function MaintenanceDetailModal({ ot, visible, onClose }: Props) {
   const [users, setUsers] = useState<{ id: number; username: string }[]>([]);
   const [userQuery, setUserQuery] = useState('');
 
-  const strip = useCallback((s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''), []);
+  const strip = useCallback((s: string) => s.normalize('NFD').replaceAll(/[\u0300-\u036f]/g, ''), []);
   const isMechanic = useCallback((u: AppUser) => {
-    if (!u.roleAssignments || !u.roleAssignments.length) return false;
+    if (!u.roleAssignments?.length) return false;
     return u.roleAssignments.some(r => {
       const role = (r.role || '').toLowerCase();
       const spec = (r.specialty || '').toLowerCase();

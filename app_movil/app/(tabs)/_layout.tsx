@@ -1,9 +1,9 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, useWindowDimensions } from 'react-native';
-import { useThemeStore } from '../stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { useAuthz } from '@/hooks/useAuthz';
-import { useNavigationStore } from '../stores/navigationStore';
+import { useNavigationStore } from '@/stores/navigationStore';
 import {
   Home,
   Ticket,

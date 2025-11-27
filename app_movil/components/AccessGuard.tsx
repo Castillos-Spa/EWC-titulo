@@ -2,13 +2,13 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { useThemeStore } from '@/stores/themeStore';
 
-type Props = {
-  allowed: boolean;
-  children: React.ReactNode;
-  message?: string;
-};
+interface AccessGuardProps {
+  readonly allowed: boolean;
+  readonly children: React.ReactNode;
+  readonly message?: string;
+}
 
-export function AccessGuard({ allowed, children, message }: Props) {
+export function AccessGuard({ allowed, children, message }: AccessGuardProps) {
   const { getColors } = useThemeStore();
   const colors = getColors();
   if (allowed) return <>{children}</>;

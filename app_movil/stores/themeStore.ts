@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { getBrandPalette } from '@/app/theme/palette';
+import { getBrandPalette } from '@/theme/palette';
 
 interface ThemeState {
   isDarkMode: boolean;

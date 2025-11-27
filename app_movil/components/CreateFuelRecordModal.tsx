@@ -117,12 +117,14 @@ export function CreateFuelRecordModal({
   };
 
   const handleSubmit = async () => {
-    if (!amount.trim() || isNaN(parseFloat(amount))) {
+    const parsedAmount = Number.parseFloat(amount);
+    if (!amount.trim() || Number.isNaN(parsedAmount)) {
       Alert.alert('Error', 'Ingresa una cantidad válida de combustible');
       return;
     }
 
-    if (!odometer.trim() || isNaN(parseInt(odometer))) {
+    const parsedOdometer = Number.parseInt(odometer, 10);
+    if (!odometer.trim() || Number.isNaN(parsedOdometer)) {
       Alert.alert('Error', 'Ingresa un kilometraje válido');
       return;
     }
@@ -144,8 +146,8 @@ export function CreateFuelRecordModal({
         driverId: user?.id || '1',
         driverName: user?.name || 'Usuario',
         type,
-        amount: parseFloat(amount),
-        odometer: parseInt(odometer),
+        amount: parsedAmount,
+        odometer: parsedOdometer,
         location,
         stationName: stationName.trim() || undefined,
         receiptPhoto: receiptPhoto || undefined,

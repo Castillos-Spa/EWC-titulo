@@ -43,8 +43,6 @@ export default function TripModal({ trip, visible, onClose }: TripModalProps) {
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currentStop = undefined;
-
   const handleTakePhoto = async () => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();

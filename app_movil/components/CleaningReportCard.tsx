@@ -66,6 +66,9 @@ export function CleaningReportCard({ report, onPress }: CleaningReportCardProps)
   const statusColor = getStatusColor(report.status);
   const StatusIcon = getStatusIcon(report.status);
   const { completed, total } = getTaskProgress();
+  const areaSuffix = report.areas.length === 1 ? '' : 's';
+  const photoSuffix = report.photos.length === 1 ? '' : 's';
+  const supplySuffix = report.supplies.length === 1 ? '' : 's';
 
   return (
     <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
@@ -115,7 +118,7 @@ export function CleaningReportCard({ report, onPress }: CleaningReportCardProps)
         <View style={styles.areasSection}>
           <MapPin size={16} color="#64748B" />
           <Text style={[styles.areasText, { color: colors.textSecondary }]}>
-            {report.areas.length} área{report.areas.length !== 1 ? 's' : ''} asignada{report.areas.length !== 1 ? 's' : ''}
+            {report.areas.length} área{areaSuffix} asignada{areaSuffix}
           </Text>
         </View>
 
@@ -142,7 +145,7 @@ export function CleaningReportCard({ report, onPress }: CleaningReportCardProps)
             <View style={styles.photosIndicator}>
               <Camera size={14} color="#16A34A" />
               <Text style={styles.photosText}>
-                {report.photos.length} foto{report.photos.length !== 1 ? 's' : ''}
+                {report.photos.length} foto{photoSuffix}
               </Text>
             </View>
           )}
@@ -151,7 +154,7 @@ export function CleaningReportCard({ report, onPress }: CleaningReportCardProps)
             <View style={styles.suppliesIndicator}>
               <Package size={14} color="#06B6D4" />
               <Text style={styles.suppliesText}>
-                {report.supplies.length} insumo{report.supplies.length !== 1 ? 's' : ''}
+                {report.supplies.length} insumo{supplySuffix}
               </Text>
             </View>
           )}

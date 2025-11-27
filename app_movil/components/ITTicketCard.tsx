@@ -110,6 +110,10 @@ export function ITTicketCard({ ticket, onPress }: ITTicketCardProps) {
   const statusColor = getStatusColor(ticket.status);
   const StatusIcon = getStatusIcon(ticket.status);
   const CategoryIcon = getCategoryIcon(ticket.category);
+  const commentCount = ticket.comments.length;
+  const attachmentCount = ticket.attachments.length;
+  const commentSuffix = commentCount === 1 ? '' : 's';
+  const attachmentSuffix = attachmentCount === 1 ? '' : 's';
 
   return (
     <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
@@ -174,20 +178,20 @@ export function ITTicketCard({ ticket, onPress }: ITTicketCardProps) {
 
         {/* Additional Info */}
         <View style={styles.additionalInfo}>
-          {ticket.comments.length > 0 && (
+          {commentCount > 0 && (
             <View style={styles.commentsIndicator}>
               <MessageCircle size={14} color="#8B5CF6" />
               <Text style={styles.commentsText}>
-                {ticket.comments.length} comentario{ticket.comments.length !== 1 ? 's' : ''}
+                {commentCount} comentario{commentSuffix}
               </Text>
             </View>
           )}
           
-          {ticket.attachments.length > 0 && (
+          {attachmentCount > 0 && (
             <View style={styles.attachmentsIndicator}>
               <Paperclip size={14} color="#64748B" />
               <Text style={styles.attachmentsText}>
-                {ticket.attachments.length} archivo{ticket.attachments.length !== 1 ? 's' : ''}
+                {attachmentCount} archivo{attachmentSuffix}
               </Text>
             </View>
           )}
@@ -195,13 +199,12 @@ export function ITTicketCard({ ticket, onPress }: ITTicketCardProps) {
           {ticket.assignedTo && (
             <View style={styles.assignedIndicator}>
               <User size={14} color="#2563EB" />
-              <Text style={styles.assignedText}>Asignado</Text>
+              <Text style={styles.assignedText}>Asignado a {ticket.assignedTo}</Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Sync Status Indicator */}
       {ticket.syncStatus === 'pending' && (
         <View style={styles.syncIndicator}>
           <View style={styles.syncDot} />

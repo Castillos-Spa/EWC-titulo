@@ -117,7 +117,11 @@ export function NotificationsDrawer({ visible, onClose }: Props) {
             <Pressable
               onPress={() => {
                 // Marcar todos como leídos (optimista)
-                items.filter(i => !i.read).forEach(i => markAsRead(i.id));
+                for (const notification of items) {
+                  if (!notification.read) {
+                    markAsRead(notification.id);
+                  }
+                }
               }}
               style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background }}
             >

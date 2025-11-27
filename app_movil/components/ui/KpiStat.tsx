@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { TrendTone } from '@/app/utils/dashboard';
-import { useThemeStore } from '@/app/stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 
 type Props = {
   label: string;

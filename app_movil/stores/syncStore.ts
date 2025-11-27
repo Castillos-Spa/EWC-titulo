@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import ApiClient, { registerApiSuccessCallback } from '../services/ApiClient';
+import apiClient, { registerApiSuccessCallback } from '../services/ApiClient';
 import { DatabaseService } from '../services/DatabaseService';
 
 interface SyncState {
@@ -30,7 +30,7 @@ export const useSyncStore = create<SyncState>((set) => ({
     try {
       set({ syncing: true });
       // consulta rápida autenticada; si no hay token válido fallará
-      await ApiClient.get('/auth/profile', true);
+      await apiClient.get('/auth/profile', true);
       const db = await DatabaseService.healthCheck();
       set({ online: true, lastChecked: Date.now(), error: undefined, syncing: false, dbOk: db.ok, lastDbOk: db.ok ? Date.now() : undefined, dbMessage: db.message });
       return true;

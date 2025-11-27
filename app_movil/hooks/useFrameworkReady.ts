@@ -8,6 +8,6 @@ declare global {
 
 export function useFrameworkReady() {
   useEffect(() => {
-    window.frameworkReady?.();
+    globalThis.window?.frameworkReady?.();
   });
 }
