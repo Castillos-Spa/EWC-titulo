@@ -41,61 +41,160 @@ const newId = (() => {
   return () => `${Date.now().toString(36)}-${(seq++).toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 })();
 
-const resolveMessage = (input: any): string => {
-  const rawMessage = typeof input?.message === 'string' ? input.message.trim() : '';
+type UnknownRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is UnknownRecord => typeof value === 'object' && value !== null;
+
+const toTrimmedString = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+const toOptionalTrimmedString = (value: unknown): string | undefined => {
+  const trimmed = toTrimmedString(value);
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const toStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const sanitized = value.filter((entry): entry is string => typeof entry === 'string');
+  return sanitized.length > 0 ? sanitized : undefined;
+};
+
+const toIsoString = (value: unknown): string => {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string' && value.length > 0) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+  return new Date().toISOString();
+};
+
+const toOptionalIsoString = (value: unknown): string | undefined => {
+  if (value === null || value === undefined) return undefined;
+  return toIsoString(value);
+};
+
+const resolveMessage = (input: unknown): string => {
+  if (!isRecord(input)) return 'Notificación';
+  const rawMessage = toTrimmedString(input.message);
   if (rawMessage.length > 0) return rawMessage;
-  const rawTitle = typeof input?.title === 'string' ? input.title.trim() : '';
+  const rawTitle = toTrimmedString(input.title);
   if (rawTitle.length > 0) return rawTitle;
-  const rawType = typeof input?.type === 'string' ? input.type.trim() : '';
+  const rawType = toTrimmedString(input.type);
   return rawType.length > 0 ? rawType : 'Notificación';
 };
 
-const toAppNotification = (input: any): AppNotification | null => {
-  if (!input || typeof input !== 'object') return null;
+const resolveRead = (record: UnknownRecord): boolean => {
+  if (typeof record.read === 'boolean') return record.read;
+  if (Array.isArray(record.readBy)) {
+    return record.readBy.some((entry) => isRecord(entry) && Boolean(entry.read));
+  }
+  return false;
+};
 
-  const idSource = (input as any).id ?? (input as any)._id;
-  const id = idSource ? String(idSource) : newId();
-  const typeRaw = typeof (input as any).type === 'string' ? (input as any).type.trim() : '';
-  const titleRaw = typeof (input as any).title === 'string' ? (input as any).title.trim() : '';
-  const timestampSource = (input as any).createdAt ?? (input as any).timestamp;
-  const readField = (input as any).read;
-  const readByField = (input as any).readBy;
-  const priorityRaw = typeof (input as any).priority === 'string' ? (input as any).priority : undefined;
-  const scopeRaw = (input as any).target?.scope;
+const toPriority = (value: unknown): AppNotification['priority'] | undefined => {
+  const normalized = toTrimmedString(value);
+  return normalized === 'low' || normalized === 'normal' || normalized === 'high' ? normalized : undefined;
+};
 
-  const validPriorities: AppNotification['priority'][] = ['low', 'normal', 'high'];
-  const priority = priorityRaw && validPriorities.includes(priorityRaw as AppNotification['priority'])
-    ? (priorityRaw as AppNotification['priority'])
-    : undefined;
+const toScope = (value: unknown): AppNotification['targetScope'] | undefined => {
+  const normalized = toTrimmedString(value);
+  return normalized === 'global' || normalized === 'areas' || normalized === 'roles' ? normalized : undefined;
+};
 
-  const validScopes: AppNotification['targetScope'][] = ['global', 'areas', 'roles'];
-  const targetScope = typeof scopeRaw === 'string' && validScopes.includes(scopeRaw as AppNotification['targetScope'])
-    ? (scopeRaw as AppNotification['targetScope'])
-    : undefined;
+const toAppNotification = (input: unknown): AppNotification | null => {
+  if (!isRecord(input)) return null;
 
-  const read = typeof readField === 'boolean'
-    ? readField
-    : Array.isArray(readByField)
-      ? readByField.some((entry: any) => Boolean(entry?.read))
-      : false;
+  const idSource = input.id ?? input._id;
+  const id = typeof idSource === 'string' || typeof idSource === 'number' ? String(idSource) : newId();
+  const targetRecord = isRecord(input.target) ? input.target : undefined;
 
   return {
     id,
-    type: typeRaw.length > 0 ? typeRaw : 'info',
-    title: titleRaw.length > 0 ? titleRaw : undefined,
+    type: toTrimmedString(input.type) || 'info',
+    title: toOptionalTrimmedString(input.title),
     message: resolveMessage(input),
-    timestamp: timestampSource ? new Date(timestampSource).toISOString() : new Date().toISOString(),
-    read,
-    priority,
-    targetScope,
-    targetAreas: Array.isArray((input as any).target?.areas)
-      ? (input as any).target.areas
-      : Array.isArray((input as any).areas)
-        ? (input as any).areas
-        : undefined,
-    pinned: typeof (input as any).pinned === 'boolean' ? (input as any).pinned : undefined,
-    scheduledAt: (input as any).scheduledAt ? new Date((input as any).scheduledAt).toISOString() : undefined,
+    timestamp: toIsoString(input.createdAt ?? input.timestamp),
+    read: resolveRead(input),
+    priority: toPriority(input.priority),
+    targetScope: toScope(targetRecord?.scope),
+    targetAreas: toStringArray(targetRecord?.areas) ?? toStringArray(input.areas),
+    pinned: typeof input.pinned === 'boolean' ? input.pinned : undefined,
+    scheduledAt: toOptionalIsoString(input.scheduledAt) ?? undefined,
   };
+};
+
+type ErrorInfo = {
+  status?: number;
+  code?: string;
+  message?: string;
+};
+
+const getErrorInfo = (error: unknown): ErrorInfo => {
+  if (!isRecord(error)) return {};
+  const status = typeof error.status === 'number' ? error.status : undefined;
+  const code = typeof error.code === 'string' ? error.code : undefined;
+  const message = typeof error.message === 'string' ? error.message : undefined;
+  return { status, code, message };
+};
+
+const mergeNotifications = (
+  current: AppNotification[],
+  incoming: AppNotification[],
+  options?: { limit?: number; pruneEmpty?: boolean },
+): AppNotification[] => {
+  if (incoming.length === 0) {
+    const baseline = options?.pruneEmpty ? current.filter((item) => Boolean(item.id) && Boolean(item.message)) : current;
+    const sorted = [...baseline].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return typeof options?.limit === 'number' ? sorted.slice(0, options.limit) : sorted;
+  }
+
+  const map = new Map<string, AppNotification>();
+  for (const item of current) {
+    map.set(item.id, item);
+  }
+  for (const item of incoming) {
+    map.set(item.id, item);
+  }
+
+  let merged = Array.from(map.values());
+  if (options?.pruneEmpty) {
+    merged = merged.filter((item) => Boolean(item.id) && Boolean(item.message));
+  }
+  merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  return typeof options?.limit === 'number' ? merged.slice(0, options.limit) : merged;
+};
+
+const valueToArray = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) return value;
+  return value !== null && value !== undefined ? [value] : [];
+};
+
+const extractInitPayload = (payload: unknown): { items: AppNotification[]; page: number; totalPages: number } => {
+  const asRecord = isRecord(payload) ? payload : undefined;
+  const page = typeof asRecord?.page === 'number' ? asRecord.page : 1;
+  const totalPages = typeof asRecord?.totalPages === 'number' ? asRecord.totalPages : 1;
+
+  let candidates: unknown[] = [];
+  if (Array.isArray(payload)) {
+    candidates = payload;
+  } else if (asRecord) {
+    if (Array.isArray(asRecord.items)) {
+      candidates = asRecord.items;
+    } else if (Array.isArray(asRecord.data)) {
+      candidates = asRecord.data;
+    } else if (Array.isArray(asRecord.results)) {
+      candidates = asRecord.results;
+    } else {
+      candidates = [asRecord];
+    }
+  }
+
+  const items = candidates
+    .map(toAppNotification)
+    .filter((notification): notification is AppNotification => notification !== null);
+
+  return { items, page, totalPages };
 };
 
 export const useNotificationsStore = create<NotificationsState>((set, get) => ({
@@ -119,28 +218,14 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       });
 
       socket.on('connect', () => set({ connected: true, error: null }));
-      socket.on('connect_error', (err: any) => set({ error: err?.message ?? 'Error de conexión', loading: false }));
+      socket.on('connect_error', (err) => {
+        const { message } = getErrorInfo(err);
+        set({ error: message ?? 'Error de conexión', loading: false });
+      });
       socket.on('disconnect', () => set({ connected: false }));
 
       socket.on('notifications:init', (payload) => {
-        const rawItems: any[] = Array.isArray(payload)
-          ? payload
-          : Array.isArray((payload as any)?.items)
-            ? (payload as any).items
-            : Array.isArray((payload as any)?.data)
-              ? (payload as any).data
-              : Array.isArray((payload as any)?.results)
-                ? (payload as any).results
-                : payload != null && !Array.isArray(payload)
-                  ? [payload]
-                  : [];
-
-        const page = typeof (payload as any)?.page === 'number' ? (payload as any).page : 1;
-        const totalPages = typeof (payload as any)?.totalPages === 'number' ? (payload as any).totalPages : 1;
-
-        const mapped = rawItems
-          .map(toAppNotification)
-          .filter((n): n is AppNotification => n !== null);
+        const { items: mapped, page, totalPages } = extractInitPayload(payload);
 
         if (mapped.length === 0) {
           return set({
@@ -154,60 +239,39 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
           });
         }
 
-        set((state) => {
-          const mergedMap = new Map<string, AppNotification>();
-          for (const existing of state.items) {
-            mergedMap.set(existing.id, existing);
-          }
-          for (const notification of mapped) {
-            mergedMap.set(notification.id, notification);
-          }
-          const merged = Array.from(mergedMap.values())
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-            .slice(0, 20);
-          return {
-            items: merged,
-            page,
-            totalPages,
-            hasMore: page < totalPages,
-            loading: false,
-            error: null,
-            lastUpdated: Date.now(),
-          };
-        });
+        set((state) => ({
+          items: mergeNotifications(state.items, mapped, { limit: 20 }),
+          page,
+          totalPages,
+          hasMore: page < totalPages,
+          loading: false,
+          error: null,
+          lastUpdated: Date.now(),
+        }));
       });
 
       socket.on('notification', async (data) => {
-        const payloadArray = Array.isArray(data) ? data : [data];
-        const items = payloadArray
+        const items = valueToArray(data)
           .map(toAppNotification)
-          .filter((n): n is AppNotification => n !== null);
+          .filter((notification): notification is AppNotification => notification !== null);
         if (items.length === 0) return;
 
-        set((state) => {
-          const mergedMap = new Map<string, AppNotification>();
-          for (const item of items) {
-            mergedMap.set(item.id, item);
-          }
-          for (const existing of state.items) {
-            if (!mergedMap.has(existing.id)) {
-              mergedMap.set(existing.id, existing);
-            }
-          }
-          const merged = Array.from(mergedMap.values())
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-            .slice(0, 20);
-          return { items: merged, lastUpdated: Date.now() };
-        });
+        set((state) => ({
+          items: mergeNotifications(state.items, items, { limit: 20 }),
+          lastUpdated: Date.now(),
+        }));
 
         const first = items[0];
         await NotificationService.scheduleNotification('Nueva notificación', first.message, { id: first.id });
       });
 
-      socket.on('notifications:error', (e) => set({ error: e?.message ?? 'Error', loading: false }));
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'No se pudo conectar';
-      set({ error: msg, loading: false });
+      socket.on('notifications:error', (e) => {
+        const { message } = getErrorInfo(e);
+        set({ error: message ?? 'Error', loading: false });
+      });
+    } catch (error) {
+      const { message } = getErrorInfo(error);
+      set({ error: message ?? 'No se pudo conectar', loading: false });
     }
   },
 
@@ -241,28 +305,17 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         .map(toAppNotification)
         .filter((item): item is AppNotification => item !== null);
 
-      set((state) => {
-        const mergedMap = new Map<string, AppNotification>();
-        for (const item of state.items) {
-          mergedMap.set(item.id, item);
-        }
-        for (const item of mapped) {
-          mergedMap.set(item.id, item);
-        }
-        const merged = Array.from(mergedMap.values())
-          .filter((item) => Boolean(item.id) && Boolean(item.message))
-          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        return {
-          items: merged,
-          page: res.page ?? 1,
-          totalPages: res.totalPages ?? 1,
-          hasMore: (res.page ?? 1) < (res.totalPages ?? 1),
-          loading: false,
-          lastUpdated: Date.now(),
-        };
-      });
-    } catch (error: any) {
-      set({ error: error?.message || 'No se pudieron cargar las notificaciones', loading: false });
+      set((state) => ({
+        items: mergeNotifications(state.items, mapped, { pruneEmpty: true }),
+        page: res.page ?? 1,
+        totalPages: res.totalPages ?? 1,
+        hasMore: (res.page ?? 1) < (res.totalPages ?? 1),
+        loading: false,
+        lastUpdated: Date.now(),
+      }));
+    } catch (error) {
+      const { message } = getErrorInfo(error);
+      set({ error: message ?? 'No se pudieron cargar las notificaciones', loading: false });
       throw error;
     }
   },
@@ -280,10 +333,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       const mapped = (res.items ?? [])
         .map(toAppNotification)
         .filter((item): item is AppNotification => item !== null);
-      // Evitar duplicados por id
-      const existing = new Set(items.map(n => n.id));
-      const merged = [...items, ...mapped.filter(n => !existing.has(n.id))]
-        .filter((item) => Boolean(item.id) && Boolean(item.message));
+      const merged = mergeNotifications(items, mapped, { pruneEmpty: true });
       set({
         items: merged,
         page: res.page ?? nextPage,
@@ -292,8 +342,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         loading: false,
         lastUpdated: Date.now(),
       });
-    } catch (error: any) {
-      set({ error: error?.message || 'No se pudieron cargar las notificaciones', loading: false });
+    } catch (error) {
+      const { message } = getErrorInfo(error);
+      set({ error: message ?? 'No se pudieron cargar las notificaciones', loading: false });
       throw error;
     }
   },
@@ -309,14 +360,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       if (Number.isFinite(n)) {
         await NotificationApi.markAsRead(n);
       }
-    } catch (e) {
+    } catch (error) {
       // revertir si falla
       set({ items: prev });
-      if (e?.status === 403 || e?.code === 'E_PERM') {
-        set({ error: e.message || 'Permiso denegado.' });
+      const { status, code, message } = getErrorInfo(error);
+      if (status === 403 || code === 'E_PERM') {
+        set({ error: message ?? 'Permiso denegado.' });
         return;
       }
-      set({ error: e?.message || 'Error al marcar notificación.' });
+      set({ error: message ?? 'Error al marcar notificación.' });
     }
   },
 }));

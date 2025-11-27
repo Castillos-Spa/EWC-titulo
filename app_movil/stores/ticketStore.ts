@@ -121,7 +121,13 @@ function applyMaterialToTickets(tickets: Ticket[], ticketId: string, materialId:
 }
 
 const extractNumericTicketId = (ticketId: string): number => {
-  const digits = ticketId.replaceAll(/\D/g, '');
+  type ReplaceAllFn = (this: string, searchValue: RegExp | string, replaceValue: string) => string;
+  const replaceAllFn = (String.prototype as unknown as { replaceAll?: ReplaceAllFn }).replaceAll;
+
+  const digits = typeof replaceAllFn === 'function'
+    ? replaceAllFn.call(ticketId, /\D/g, '')
+    : ticketId.split(/\D+/).join('');
+
   const parsed = Number.parseInt(digits, 10);
   if (!Number.isNaN(parsed)) {
     return parsed;

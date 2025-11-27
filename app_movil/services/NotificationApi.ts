@@ -22,20 +22,25 @@ class NotificationApiClass {
       };
     }
 
-    const itemsCandidate = Array.isArray(response?.items)
-      ? response.items
-      : Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response?.results)
-          ? response.results
-          : [];
+    let itemsCandidate: any[] = [];
+    if (Array.isArray(response?.items)) {
+      itemsCandidate = response.items;
+    } else if (Array.isArray(response?.data)) {
+      itemsCandidate = response.data;
+    } else if (Array.isArray(response?.results)) {
+      itemsCandidate = response.results;
+    }
 
     const totalCandidate = typeof response?.total === 'number' ? response.total : itemsCandidate.length;
     const effectivePageSize = typeof response?.pageSize === 'number' ? response.pageSize : pageSize;
     const effectivePage = typeof response?.page === 'number' ? response.page : page;
-    const totalPagesCandidate = typeof response?.totalPages === 'number'
-      ? response.totalPages
-      : Math.max(1, Math.ceil(totalCandidate / effectivePageSize));
+
+    let totalPagesCandidate: number;
+    if (typeof response?.totalPages === 'number') {
+      totalPagesCandidate = response.totalPages;
+    } else {
+      totalPagesCandidate = Math.max(1, Math.ceil(totalCandidate / effectivePageSize));
+    }
 
     return {
       items: itemsCandidate,

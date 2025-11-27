@@ -5,11 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/services/NotificationApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/NotificationApi.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/services/SocketService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/SocketService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/DashboardAlertsCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/DashboardAlertsCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/DashboardTimelineCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/DashboardTimelineCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/MaintenanceDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/MaintenanceDetailModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/ModuleCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/ModuleCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/ui/KpiStat.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/ui/KpiStat.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/stores/notificationsStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/notificationsStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/backend/prisma/schema.prisma" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

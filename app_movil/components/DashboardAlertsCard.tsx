@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
-import type { ModuleAlert } from '@/app/utils/dashboard';
+import type { ModuleAlert } from '@/utils/dashboard';
 
 type ThemePalette = {
   surface: string;

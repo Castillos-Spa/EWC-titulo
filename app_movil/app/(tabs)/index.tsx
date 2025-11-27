@@ -331,52 +331,66 @@ function QuickAccessCarousel({ colors, tiles, compact }: Readonly<{ colors: any;
 }
 
 function NotificationsPanel({ colors, notifications, onOpenDrawer, sectionStyle, loading, error, onReload }: Readonly<{ colors: any; notifications: any[]; onOpenDrawer: () => void; sectionStyle?: any; loading: boolean; error: string | null; onReload: () => void }>) {
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Cargando notificaciones…</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
+            <Bell size={16} color={colors.error || '#DC2626'} />
+          </View>
+          <Text style={[styles.notificationTitle, { color: colors.error || '#DC2626', marginTop: 8 }]}>No se pudieron cargar las notificaciones</Text>
+          <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
+            <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (notifications.length === 0) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
+            <Bell size={16} color={colors.textSecondary} />
+          </View>
+          <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Sin notificaciones recientes</Text>
+          <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
+            <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Actualizar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return notifications.slice(0, 5).map((n) => (
+      <View key={n.id} style={styles.notificationItem}>
+        <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
+          <Bell size={16} color={colors.primary} />
+        </View>
+        <View style={styles.notificationContent}>
+          <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
+            {n.message || n.type || 'Notificación'}
+          </Text>
+          <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
+            {new Date(n.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+      </View>
+    ));
+  };
+
   return (
     <View style={[styles.section, sectionStyle]}>
       <SectionHeader title="Notificaciones recientes" subtitle="Sincronizadas con el centro web" />
       <View style={[styles.notificationsList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        {loading ? (
-          <View style={styles.notificationEmptyState}>
-            <ActivityIndicator color={colors.primary} size="small" />
-            <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Cargando notificaciones…</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.notificationEmptyState}>
-            <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
-              <Bell size={16} color={colors.error || '#DC2626'} />
-            </View>
-            <Text style={[styles.notificationTitle, { color: colors.error || '#DC2626', marginTop: 8 }]}>No se pudieron cargar las notificaciones</Text>
-            <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
-              <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Reintentar</Text>
-            </TouchableOpacity>
-          </View>
-        ) : notifications.length === 0 ? (
-          <View style={styles.notificationEmptyState}>
-            <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
-              <Bell size={16} color={colors.textSecondary} />
-            </View>
-            <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Sin notificaciones recientes</Text>
-            <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
-              <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Actualizar</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          notifications.slice(0, 5).map((n) => (
-            <View key={n.id} style={styles.notificationItem}>
-              <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Bell size={16} color={colors.primary} />
-              </View>
-              <View style={styles.notificationContent}>
-                <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
-                  {n.message || n.type || 'Notificación'}
-                </Text>
-                <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
-                  {new Date(n.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-            </View>
-          ))
-        )}
+        {renderContent()}
       </View>
       <TouchableOpacity onPress={onOpenDrawer} style={styles.notificationsButton}>
         <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Ver todas</Text>

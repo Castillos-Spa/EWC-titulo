@@ -9,6 +9,20 @@ import type { AppUser } from '@/services/UserApi';
 
 type Props = Readonly<{ ot: OrdenTrabajoDto | null; visible: boolean; onClose: () => void }>;
 
+const stripDiacritics = (() => {
+  const pattern = /[\u0300-\u036f]/g;
+  type ReplaceAllFn = (this: string, searchValue: RegExp | string, replaceValue: string) => string;
+  const replaceAllFn = (String.prototype as unknown as { replaceAll?: ReplaceAllFn }).replaceAll;
+
+  return (value: string): string => {
+    const normalized = value.normalize('NFD');
+    if (typeof replaceAllFn === 'function') {
+      return replaceAllFn.call(normalized, pattern, '');
+    }
+    return normalized.split(pattern).join('');
+  };
+})();
+
 export function MaintenanceDetailModal({ ot, visible, onClose }: Props) {
   const { getColors } = useThemeStore();
   const colors = getColors();
@@ -21,7 +35,7 @@ export function MaintenanceDetailModal({ ot, visible, onClose }: Props) {
   const [users, setUsers] = useState<{ id: number; username: string }[]>([]);
   const [userQuery, setUserQuery] = useState('');
 
-  const strip = useCallback((s: string) => s.normalize('NFD').replaceAll(/[\u0300-\u036f]/g, ''), []);
+  const strip = useCallback((s: string) => stripDiacritics(s), []);
   const isMechanic = useCallback((u: AppUser) => {
     if (!u.roleAssignments?.length) return false;
     return u.roleAssignments.some(r => {

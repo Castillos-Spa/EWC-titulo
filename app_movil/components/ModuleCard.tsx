@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ModuleHighlight } from '@/app/utils/dashboard';
+import type { ModuleHighlight } from '@/utils/dashboard';
 
 export type ThemePalette = {
   surface: string;

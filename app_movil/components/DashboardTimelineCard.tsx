@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import type { TimelinePoint } from '@/app/services/DashboardInsights';
+import type { TimelinePoint } from '@/services/DashboardInsights';
 
 type ThemePalette = {
   surface: string;
