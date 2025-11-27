@@ -47,6 +47,7 @@ export default function TabLayout() {
   // Breakpoints básicos
   const isSmall = width < 400;
   const isTablet = width >= 768;
+  const showTabLabels = width >= 400;
 
   // Altura y labels según tamaño (sin ternarios anidados)
   let baseHeight = 64;
@@ -74,8 +75,8 @@ export default function TabLayout() {
           left: 0,
           right: 0,
         },
-        tabBarShowLabel: !isSmall,
-        tabBarLabelStyle: !isSmall
+        tabBarShowLabel: showTabLabels,
+        tabBarLabelStyle: showTabLabels
           ? {
               fontSize: isTablet ? 12 : 11,
               fontWeight: '600',

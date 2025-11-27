@@ -9,11 +9,11 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TriangleAlert as AlertTriangle, Plus, Filter, RefreshCw, FileText } from 'lucide-react-native';
-import { useIncidentStore } from '../stores/incidentStore';
-import { useThemeStore } from '../stores/themeStore';
-import { IncidentCard } from '../components/IncidentCard';
-import { CreateIncidentModal } from '../components/CreateIncidentModal';
-import { IncidentDetailModal } from '../components/IncidentDetailModal';
+import { useIncidentStore } from '@/stores/incidentStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { IncidentCard } from '@/components/IncidentCard';
+import { CreateIncidentModal } from '@/components/CreateIncidentModal';
+import { IncidentDetailModal } from '@/components/IncidentDetailModal';
  
 
 export default function IncidentsScreen() {

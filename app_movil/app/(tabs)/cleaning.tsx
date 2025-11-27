@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sparkles as Cleaning, Plus, Filter, RefreshCw, Calendar, FileText, Package } from 'lucide-react-native';
-import { useCleaningStore } from '../stores/cleaningStore';
-import { useThemeStore } from '../stores/themeStore';
-import { CleaningReportCard } from '../components/CleaningReportCard';
-import { CreateCleaningReportModal } from '../components/CreateCleaningReportModal';
-import { CleaningDetailModal } from '../components/CleaningDetailModal';
-import { SupplyRequestModal } from '../components/SupplyRequestModal';
-import { AccessGuard } from '../components/AccessGuard';
+import { useCleaningStore } from '@/stores/cleaningStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { CleaningReportCard } from '@/components/CleaningReportCard';
+import { CreateCleaningReportModal } from '@/components/CreateCleaningReportModal';
+import { CleaningDetailModal } from '@/components/CleaningDetailModal';
+import { SupplyRequestModal } from '@/components/SupplyRequestModal';
+import { AccessGuard } from '@/components/AccessGuard';
 import { useAuthz } from '@/hooks/useAuthz';
 
 export default function CleaningScreen() {

@@ -11,20 +11,20 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useAuthStore } from '../stores/authStore';
-import { useThemeStore } from '../stores/themeStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Map, Car, Wrench, Settings } from 'lucide-react-native';
-import { useNotificationsStore } from '../stores/notificationsStore';
-import { NotificationsDrawer } from '../components/NotificationsDrawer';
-import { useSyncStore } from '../stores/syncStore';
+import { useNotificationsStore } from '@/stores/notificationsStore';
+import { NotificationsDrawer } from '@/components/NotificationsDrawer';
+import { useSyncStore } from '@/stores/syncStore';
 import { useAuthz } from '@/hooks/useAuthz';
-import { useNavigationStore } from '../stores/navigationStore';
-import { DashboardApi, type DaySummary } from '../services/DashboardApi';
-import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '../services/DashboardInsights';
-import { SafeStorage } from '../services/SafeStorage';
-import { DashboardAlertsCard } from '../components/DashboardAlertsCard';
-import { buildPrioritizedAlerts, mapNotificationsToAlertSource } from '@/app/utils/dashboard';
-import { SectionHeader } from '../components/ui/SectionHeader';
+import { useNavigationStore } from '@/stores/navigationStore';
+import { DashboardApi, type DaySummary } from '@/services/DashboardApi';
+import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '@/services/DashboardInsights';
+import { SafeStorage } from '@/services/SafeStorage';
+import { DashboardAlertsCard } from '@/components/DashboardAlertsCard';
+import { buildPrioritizedAlerts, mapNotificationsToAlertSource } from '@/utils/dashboard';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 
 function getRoleDisplayName(role: string) {
   const roles = {

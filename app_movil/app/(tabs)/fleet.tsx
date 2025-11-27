@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Truck, RefreshCw, Plus, AlertTriangle } from 'lucide-react-native';
-import { useThemeStore } from '../stores/themeStore';
-import { useFleetStore } from '../stores/fleetStore';
-import { FleetVehicleCard } from '../components/FleetVehicleCard';
-import { VehicleDetailModal } from '../components/VehicleDetailModal';
-import { CreateVehicleModal } from '../components/CreateVehicleModal';
-import { AccessGuard } from '../components/AccessGuard';
+import { useThemeStore } from '@/stores/themeStore';
+import { useFleetStore } from '@/stores/fleetStore';
+import { FleetVehicleCard } from '@/components/FleetVehicleCard';
+import { VehicleDetailModal } from '@/components/VehicleDetailModal';
+import { CreateVehicleModal } from '@/components/CreateVehicleModal';
+import { AccessGuard } from '@/components/AccessGuard';
 import { useAuthz } from '@/hooks/useAuthz';
 
 export default function FleetScreen() {

@@ -4,23 +4,7 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/android/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/android/app/src/main/res/values/colors.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/android/app/src/main/res/values/colors.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/android/app/src/main/res/values/strings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/android/app/src/main/res/values/strings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/android/app/src/main/res/values/styles.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/android/app/src/main/res/values/styles.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/android/gradle.properties" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/android/gradle.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/AccessGuard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/AccessGuard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/ChatModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/ChatModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/CleaningDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/CleaningDetailModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/CleaningReportCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/CleaningReportCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/ApiClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/ApiClient.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/AuthService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/AuthService.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/authStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/authStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/syncStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/syncStore.ts" afterDir="false" />
-    </list>
+    <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

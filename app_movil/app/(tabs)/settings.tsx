@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Settings, User, Shield, Fingerprint, Bell, Moon, Globe, CircleHelp as HelpCircle, LogOut, ChevronRight, Lock, Info } from 'lucide-react-native';
-import { useAuthStore } from '../stores/authStore';
-import { AuthService } from '../services/AuthService';
-import { useThemeStore } from '../stores/themeStore';
-import { BiometricService } from '../services/BiometricService';
+import { useAuthStore } from '@/stores/authStore';
+import { AuthService } from '@/services/AuthService';
+import { useThemeStore } from '@/stores/themeStore';
+import { BiometricService } from '@/services/BiometricService';
 import * as LocalAuthentication from 'expo-local-authentication';
 
 export default function SettingsScreen() {

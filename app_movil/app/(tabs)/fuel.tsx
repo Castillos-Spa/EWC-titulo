@@ -9,14 +9,14 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fuel, Filter, RefreshCw, TrendingUp, TrendingDown, ChartBar as BarChart3, Calendar } from 'lucide-react-native';
-import { useFuelStore } from '../stores/fuelStore';
-import { useThemeStore } from '../stores/themeStore';
-import { FuelCard } from '../components/FuelCard';
-import { CreateFuelRecordModal } from '../components/CreateFuelRecordModal';
-import { FuelDetailModal } from '../components/FuelDetailModal';
-import { FuelAnalytics } from '../components/FuelAnalytics';
-import { AccessGuard } from '../components/AccessGuard';
-import { useFleetStore } from '../stores/fleetStore';
+import { useFuelStore } from '@/stores/fuelStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { FuelCard } from '@/components/FuelCard';
+import { CreateFuelRecordModal } from '@/components/CreateFuelRecordModal';
+import { FuelDetailModal } from '@/components/FuelDetailModal';
+import { FuelAnalytics } from '@/components/FuelAnalytics';
+import { AccessGuard } from '@/components/AccessGuard';
+import { useFleetStore } from '@/stores/fleetStore';
 import { useRouter } from 'expo-router';
 import { useAuthz } from '@/hooks/useAuthz';
 

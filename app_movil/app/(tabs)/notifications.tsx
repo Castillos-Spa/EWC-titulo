@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { Bell, RefreshCw, CheckCircle, FileText, Plus, ShieldCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useThemeStore } from '../stores/themeStore';
-import { useNotificationsStore } from '../stores/notificationsStore';
-import { CreateNotificationModal } from '../components/CreateNotificationModal';
-import { NotificationApi } from '../services/NotificationApi';
+import { useThemeStore } from '@/stores/themeStore';
+import { useNotificationsStore } from '@/stores/notificationsStore';
+import { CreateNotificationModal } from '@/components/CreateNotificationModal';
+import { NotificationApi } from '@/services/NotificationApi';
 import { useAuthz } from '@/hooks/useAuthz';
 
 type Prio = 'low' | 'normal' | 'high';
