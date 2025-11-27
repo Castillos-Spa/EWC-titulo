@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   ValidationPipe,
+  UploadedFiles,
 } from '@nestjs/common';
 import { IncidentService } from './incident.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
@@ -22,6 +23,9 @@ import { Roles } from '@/features/auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { SimpleCacheInterceptor } from '@/common/simple-cache.interceptor';
 import { CacheTTL } from '@/common/cache-ttl.decorator';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import type { Express } from 'express';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('incident')
@@ -53,15 +57,26 @@ export class IncidentController {
 
   @Get(':id/photos')
   async getPhotos(@Param('id') id: string) {
-    const incident = await this.incidentService.findOne(Number(id));
-    // Return only the photos field to avoid large payloads elsewhere
-    return { id: incident.id, photos: incident.photos || [] };
+    const photos = await this.incidentService.getSignedPhotos(Number(id));
+    return { id: Number(id), photos };
   }
 
   @Patch(':id')
   @Roles(Role.Admin, Role.Supervisor, Role.Jefe)
   update(@Param('id') id: string, @Body() updateIncidentDto: UpdateIncidentDto) {
     return this.incidentService.update(Number(id), updateIncidentDto);
+  }
+
+  @Post(':id/photos')
+  @Roles(Role.Admin, Role.Supervisor, Role.Jefe)
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      limits: { fileSize: 7 * 1024 * 1024 },
+    }),
+  )
+  uploadPhotos(@Param('id') id: string, @UploadedFiles() files: Express.Multer.File[]) {
+    return this.incidentService.addPhotos(Number(id), files);
   }
 
   @Delete(':id')
