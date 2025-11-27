@@ -44,3 +44,7 @@ CREATE INDEX "ITAssetMovement_assetId_fecha_idx" ON "public"."ITAssetMovement"("
 
 -- AddForeignKey
 ALTER TABLE "public"."ITAssetMovement" ADD CONSTRAINT "ITAssetMovement_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "public"."ITAsset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AlterTable
+ALTER TABLE "public"."Ticket"
+ADD COLUMN IF NOT EXISTS "attachmentUrls" TEXT[] DEFAULT ARRAY[]::TEXT[];
