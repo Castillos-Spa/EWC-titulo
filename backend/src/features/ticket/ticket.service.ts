@@ -157,22 +157,17 @@ export class TicketService {
     const { page = 1, pageSize = 20 } = paginationQuery;
     const skip = (page - 1) * Number(pageSize);
 
-    const [items, total] = await Promise.all([
+    const [rawItems, total] = await Promise.all([
       this.prisma.ticket.findMany({
         skip,
         take: pageSize,
         orderBy: { id: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          category: true,
-          createdAt: true,
-          createdBy: { select: { id: true, username: true } },
-        },
+        include: ticketInclude,
       }),
       this.prisma.ticket.count(),
     ]);
+
+    const items = await Promise.all(rawItems.map(item => this.withSignedAttachments(item)));
 
     const totalPages = Math.ceil(total / pageSize);
 
