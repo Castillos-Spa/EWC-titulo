@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { X, Sparkles, MapPin, CalendarDays, CalendarClock, ClipboardList, Layers, Package, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Sparkles, MapPin, CalendarDays, CalendarClock, ClipboardList, Layers, Package, AlertTriangle, Paperclip, Trash2, ImageOff } from 'lucide-react';
 import type { CivilWorkType, CivilWorkStatus, CreateCivilWorkPayload } from '../../../types/CivilWork';
 import { useCivilWorks } from '../hooks/useCivilWorks';
 
@@ -21,8 +21,23 @@ export const CreateCivilWorkModal: React.FC<{ onClose: () => void }> = ({ onClos
   const { create } = useCivilWorks();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const submitLabel = useMemo(() => (submitting ? 'Guardando…' : 'Crear proyecto'), [submitting]);
+
+  const getAttachmentKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
+
+  const attachmentPreviews = useMemo(() => {
+    return attachments.reduce<Map<string, string>>((acc, file) => {
+      acc.set(getAttachmentKey(file), URL.createObjectURL(file));
+      return acc;
+    }, new Map());
+  }, [attachments]);
+
+  useEffect(() => () => {
+    attachmentPreviews.forEach(url => URL.revokeObjectURL(url));
+  }, [attachmentPreviews]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -73,7 +88,7 @@ export const CreateCivilWorkModal: React.FC<{ onClose: () => void }> = ({ onClos
       ? staffText.split(',').map(value => value.trim()).filter(Boolean)
       : [];
     const tasks = tasksText
-      ? tasksText.split(',').map(value => value.trim()).filter(Boolean).map(name => ({ name, completed: false }))
+      ? tasksText.split(',').map(value => value.trim()).filter(Boolean)
       : [];
     const issues = issuesText
       ? issuesText.split('\n').map(value => value.trim()).filter(Boolean)
@@ -89,12 +104,11 @@ export const CreateCivilWorkModal: React.FC<{ onClose: () => void }> = ({ onClos
       startDate,
       estimatedEndDate,
       workType,
-      tasks,
+      ...(tasks.length ? { tasks } : {}),
       progress: 0,
       status,
       observations,
       issues,
-      photos: [],
       responsibleStaffUsernames,
       materialsUsed,
     };
@@ -102,8 +116,12 @@ export const CreateCivilWorkModal: React.FC<{ onClose: () => void }> = ({ onClos
     try {
       setSubmitting(true);
       setError(null);
-      await create(payload);
+      await create(payload, attachments);
       form.reset();
+      setAttachments([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       onClose();
     } catch (err) {
       console.error(err);
@@ -111,6 +129,25 @@ export const CreateCivilWorkModal: React.FC<{ onClose: () => void }> = ({ onClos
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleAttachmentsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { files } = event.currentTarget;
+    if (!files) return;
+    const incoming = Array.from(files);
+    setAttachments(prev => {
+      const next = [...prev];
+      incoming.forEach(file => {
+        const exists = next.some(existing => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified);
+        if (!exists) next.push(file);
+      });
+      return next;
+    });
+    event.currentTarget.value = '';
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -277,6 +314,70 @@ export const CreateCivilWorkModal: React.FC<{ onClose: () => void }> = ({ onClos
                 className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
             </label>
+
+            <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+              <div className="flex items-center justify-between gap-4">
+                <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <Paperclip className="h-4 w-4" /> Adjuntos visuales
+                </p>
+                <>
+                  <input
+                    ref={fileInputRef}
+                    id="civil-work-attachments"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="sr-only"
+                    onChange={handleAttachmentsChange}
+                  />
+                  <label
+                    htmlFor="civil-work-attachments"
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-800 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+                  >
+                    <Paperclip className="h-4 w-4" /> Añadir archivos
+                  </label>
+                </>
+              </div>
+
+              {attachments.length > 0 ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {attachments.map((file, index) => {
+                    const key = getAttachmentKey(file);
+                    const preview = attachmentPreviews.get(key);
+                    return (
+                      <figure
+                        key={key}
+                        className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm dark:border-white/10 dark:bg-white/10"
+                      >
+                        {preview ? (
+                          <img src={preview} alt={file.name} className="h-36 w-full object-cover" draggable={false} />
+                        ) : (
+                          <div className="flex h-36 w-full items-center justify-center bg-slate-100 text-slate-400 dark:bg-slate-800/70">
+                            <ImageOff className="h-6 w-6" />
+                          </div>
+                        )}
+                        <figcaption className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-slate-600 dark:text-blue-100">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold" title={file.name}>{file.name}</p>
+                            <p className="text-[11px] text-slate-400 dark:text-blue-200/70">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttachment(index)}
+                            className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-500 transition hover:border-rose-400 hover:text-rose-500 dark:border-white/10 dark:text-blue-100"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Quitar
+                          </button>
+                        </figcaption>
+                      </figure>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-4 text-xs text-slate-500 dark:text-blue-200/70">Agrega imágenes de referencia del avance o hallazgos relevantes.</p>
+              )}
+            </section>
 
             {error && (
               <div className="rounded-2xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm text-rose-600 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-100">

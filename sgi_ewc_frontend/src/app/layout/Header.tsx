@@ -13,6 +13,8 @@ import type { User as UserType } from '../../types/User';
 import type { AppNotification } from '../../types/Notification';
 import { useIntlFormat } from '../intl/format';
 import { useNavigate } from 'react-router-dom';
+import { useTour } from '../../contexts/useTour';
+import OverlayTour from '../../components/tour/OverlayTour';
 import type { Vehiculo } from '../../types/Vehiculo';
 import type { OrdenTrabajo } from '../../types/OrdenTrabajo';
 import type { Incident } from '../../types/Incident';
@@ -26,6 +28,10 @@ interface Notification {
 }
 
 type UiDensity = 'comfortable' | 'compact';
+const DEMO_MODE = (() => {
+	const byEnv = String(import.meta.env.VITE_DEMO_MODE || 'false').toLowerCase() === 'true';
+	try { return byEnv || globalThis?.localStorage?.getItem('demoMode') === 'true'; } catch { return byEnv; }
+})();
 
 interface HeaderProps {
 	title: string;
@@ -147,6 +153,10 @@ const buildFlatResults = (
 const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick, uiDensity }) => {
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
+	// Tour: usar el contexto con persistencia y navegación
+	const { active: tourActive, index: tourIndex, startTour, resumeTour } = useTour();
+
+	// El TourContext ya maneja eventos globales y navegación entre pasos
 	const { formatTime } = useIntlFormat();
 	const mapAppNotification = useMemo(() => makeMapAppNotification(formatTime), [formatTime]);
 	const mapWireNotification = useMemo(() => makeMapWireNotification(formatTime), [formatTime]);
@@ -177,6 +187,19 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 		const flatResults = useMemo(() => buildFlatResults(user?.isAdmin, searchResults), [user?.isAdmin, searchResults]);
 	const areaCount = Array.isArray(user?.areas) ? user?.areas?.length ?? 0 : 0;
 	const areaBadgeLabel = areaCount > 0 ? `${areaCount} áreas` : user?.email ?? 'Sesión activa';
+	const profileDisplayName = useMemo(
+		() => (user?.fullName && user.fullName.trim().length > 0 ? user.fullName : user?.username ?? 'Usuario'),
+		[user?.fullName, user?.username],
+	);
+	const profileInitials = useMemo(() => {
+		const base = (user?.fullName || user?.username || '').trim();
+		if (!base) return 'U';
+		const segments = base.split(' ').filter(Boolean);
+		if (segments.length >= 2) {
+			return `${segments[0].charAt(0)}${segments[1].charAt(0)}`.toUpperCase();
+		}
+		return base.slice(0, 2).toUpperCase();
+	}, [user?.fullName, user?.username]);
 	const unreadDisplay = unreadCount > 9 ? '9+' : String(unreadCount);
 	const density: UiDensity = uiDensity ?? 'comfortable';
 	const headerPadding = density === 'compact' ? 'px-5 py-3' : 'px-6 py-4';
@@ -185,6 +208,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	const searchPadding = density === 'compact' ? 'py-1.5' : 'py-2';
 
 	useEffect(() => {
+				// Carga de notificaciones iniciales
 		if (!user?.id) return;
 		let cancelled = false;
 
@@ -345,7 +369,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	useEffect(() => {
 		if (!user?.id) return;
 		const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000/api/v1';
-		let socketOrigin = rawApiUrl;
+		let socketOrigin: string;
 		try {
 			const parsed = new URL(rawApiUrl);
 			socketOrigin = `${parsed.protocol}//${parsed.host}`;
@@ -547,22 +571,38 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 	};
 
 	return (
+		<>
 		<header className={`relative border-b border-slate-200/60 bg-gradient-to-r from-blue-100 via-white to-indigo-100 ${headerPadding} text-slate-800 shadow-lg dark:border-white/10 dark:from-blue-900 dark:via-slate-950 dark:to-slate-950 dark:text-white`}>
 			<div className="flex flex-wrap items-center w-full gap-6">
 				<div className="flex flex-col min-w-0 gap-2">
 					<span className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-600/70 drop-shadow-sm dark:text-blue-200/80">Operaciones EWC</span>
 					<div className="flex flex-wrap items-center gap-3">
-						<h1 className="text-2xl font-semibold leading-tight text-slate-900 drop-shadow-sm dark:text-white">{getTitle(title)}</h1>
+						<h1 className="text-2xl font-semibold leading-tight text-slate-900 drop-shadow-sm dark:text-white" data-tour="page-title">{getTitle(title)}</h1>
 						<span className="px-3 py-1 text-xs font-medium border rounded-full shadow-sm border-white/70 bg-white/80 text-slate-700 backdrop-blur dark:border-white/10 dark:bg-white/10 dark:text-white">
 							{areaBadgeLabel}
 						</span>
 					</div>
-					<p className="text-sm text-slate-500 dark:text-blue-100/80">Bienvenido, {user?.username}</p>
+					<p className="text-sm text-slate-500 dark:text-blue-100/80">Bienvenido, {profileDisplayName}</p>
 				</div>
 
 	<div className={`ml-auto flex items-center ${actionGap}`}>
+					{DEMO_MODE && (
+						<button
+							type="button"
+							onClick={() => {
+								if (!tourActive && tourIndex > 0) {
+									resumeTour();
+								} else {
+									startTour();
+								}
+							}}
+							className="hidden md:inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm hover:bg-amber-200"
+						>
+							{!tourActive && tourIndex > 0 ? 'Reanudar tour' : 'Iniciar tour'}
+						</button>
+					)}
 		{/* Search */}
-					<div className="relative hidden md:block" ref={searchRef}>
+					<div className="relative hidden md:block" ref={searchRef} data-tour="global-search">
 						<Search className="absolute w-4 h-4 -translate-y-1/2 pointer-events-none left-4 top-1/2 text-slate-500 dark:text-blue-200/80" />
 						<input
 							type="text"
@@ -831,7 +871,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 					</div>
 
 					{/* Notifications */}
-					<div className="relative" ref={notifRef}>
+					<div className="relative" ref={notifRef} data-tour="notifications-button">
 						<button
 							type="button"
 							onClick={() => setShowNotifications(prev => !prev)}
@@ -884,16 +924,20 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 					</div>
 
 					{/* Profile */}
-					<div className="relative" ref={menuRef}>
+					<div className="relative" ref={menuRef} data-tour="profile-button">
 						<button
 							type="button"
 							onClick={() => setShowProfileMenu(prev => !prev)}
 							className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-700 shadow-sm backdrop-blur hover:border-sky-300 hover:bg-sky-50 dark:border-white/10 dark:bg-white/10 dark:text-blue-100 dark:hover:border-white/20 dark:hover:bg-white/20"
 						>
-							<span className="inline-flex items-center justify-center w-8 h-8 text-blue-700 rounded-full shadow-inner bg-gradient-to-br from-blue-500/20 to-indigo-500/30 dark:from-blue-500/25 dark:to-indigo-500/20 dark:text-blue-100">
-								{user?.username?.charAt(0) || 'U'}
+							<span className="inline-flex items-center justify-center w-8 h-8 overflow-hidden text-blue-700 rounded-full shadow-inner bg-gradient-to-br from-blue-500/20 to-indigo-500/30 dark:from-blue-500/25 dark:to-indigo-500/20 dark:text-blue-100">
+								{user?.avatarUrl ? (
+									<img src={user.avatarUrl} alt="Avatar del usuario" className="object-cover w-full h-full" />
+								) : (
+									<span>{profileInitials}</span>
+								)}
 							</span>
-							<span className="hidden sm:inline">{user?.username}</span>
+							<span className="hidden sm:inline">{profileDisplayName}</span>
 							<ChevronDown className="w-4 h-4" />
 						</button>
 
@@ -928,6 +972,8 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 				</div>
 			</div>
 		</header>
+		<OverlayTour />
+		</>
 	);
 };
 

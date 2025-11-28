@@ -28,30 +28,8 @@ async function bootstrap() {
 
   app.useGlobalFilters(new PrismaExceptionFilter());
 
-  const corsEnv = configService.get<string>('CORS_ORIGINS') ?? '';
-  const allowedOrigins = corsEnv
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean);
-
   app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      const localhostRegex = /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/;
-      const lan = /^https?:\/\/(192\.168|10\.|172\.(1[6-9]|2\d|3[0-1]))\.[0-9.]+(?::\d+)?$/;
-      if (localhostRegex.test(origin) || lan.test(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error('Not allowed by CORS'));
-    },
+    origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: false,
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -68,7 +46,7 @@ async function bootstrap() {
   });
 
   const port = configService.get<number>('PORT') ?? 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   // Optional memory usage logging for diagnosing memory pressure. Enable by setting ENABLE_MEM_LOG=1
   if (process.env.ENABLE_MEM_LOG === '1') {
     setInterval(() => {

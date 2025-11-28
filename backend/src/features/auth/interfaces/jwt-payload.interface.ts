@@ -1,4 +1,4 @@
-import { ModuleKey, Permission, Role, Specialty } from '@prisma/client';
+import { Permission, Role, Specialty } from '@prisma/client';
 
 export interface RolesByArea {
   [area: string]: {
@@ -11,13 +11,6 @@ export interface RolesByArea {
 
 export interface JwtPayload {
   sub: number;
-  tenantId: number;
-  tenantSlug: string;
-  companyId?: number | null;
-  companyIds?: number[];
-  modules?: ModuleKey[];
-  tenantModules?: ModuleKey[];
-  restrictedModules?: ModuleKey[];
   email: string;
   username: string;
   areas: string[];
@@ -27,4 +20,10 @@ export interface JwtPayload {
   isAdmin: boolean;
   mustChangePassword?: boolean;
   active?: boolean;
+  fullName?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  jobTitle?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
 }

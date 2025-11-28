@@ -1,24 +1,21 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
-import { TenantContextService } from '@/app/core/tenant-context.service';
+import { NotificationService } from '@/features/notification/notification.service';
 
 @Injectable()
 export class RoutesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantContext: TenantContextService,
+    @Inject(forwardRef(() => NotificationService))
+    private readonly notifications: NotificationService,
   ) {}
 
   async create(createTransportRouteDto: CreateRouteDto) {
-    const tenantId = this.resolveTenantId();
     return this.prisma.transportRoute.create({
-      data: {
-        ...createTransportRouteDto,
-        tenantId,
-      },
+      data: createTransportRouteDto,
     });
   }
 
@@ -64,16 +61,43 @@ export class RoutesService {
   }
 
   async createAssignment(data: any) {
-    const tenantId = this.resolveTenantId();
-    return this.prisma.truckAssignment.create({
+    const created = await this.prisma.truckAssignment.create({
       data: {
         ...data,
         truckId: Number(data.truckId),
         routeId: Number(data.routeId),
         driverId: Number(data.driverId),
-        tenantId,
+      },
+      include: {
+        truck: true,
+        route: true,
+        driver: true,
       },
     });
+
+    // Enviar notificación al conductor asignado por cada ruta
+    try {
+      const truck = created.truck as any;
+      const route = created.route as any;
+      const code = (truck?.codigo ?? truck?.patente ?? `VEH-${created.truckId}`).toString().toUpperCase();
+      const brandModel = [truck?.marca, truck?.modelo].filter(Boolean).join(' ').trim();
+      const routeLabel = route?.code ? `${route.code} — ${route.origin} → ${route.destination}` : `Ruta #${created.routeId}`;
+      const day = new Date(created.date).toISOString().slice(0, 10);
+
+      await this.notifications.createNotification({
+        title: 'Nueva asignación de ruta',
+        message: `Se te asignó la ruta ${routeLabel} para el día ${day} con el camión ${brandModel} [${code}].`,
+        type: 'route_assignment',
+        createdById: created.driverId, // Fallback: conductor como originador; idealmente, pasar el usuario real
+        userId: created.driverId,
+      });
+    } catch (e) {
+      // No bloquear el flujo por errores de notificación
+      // eslint-disable-next-line no-console
+      console.warn('No se pudo enviar notificación de asignación de ruta', e);
+    }
+
+    return created;
   }
 
   async removeAssignment(id: number) {
@@ -103,13 +127,5 @@ export class RoutesService {
     return this.prisma.transportRoute.delete({
       where: { id },
     });
-  }
-
-  private resolveTenantId(): number {
-    const tenantId = this.tenantContext.tenantId;
-    if (!tenantId) {
-      throw new UnauthorizedException('Tenant no especificado en la operación.');
-    }
-    return tenantId;
   }
 }

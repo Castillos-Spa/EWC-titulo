@@ -1,8 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { NotificationModule } from '@/features/notification/notification.module';
 import { PrismaModule } from 'prisma/prisma.module';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { TenantContextService } from './tenant-context.service';
 
 @Global() // Hace que los providers exportados estén disponibles en toda la app sin importar el módulo
 @Module({
@@ -12,12 +12,10 @@ import { TenantContextService } from './tenant-context.service';
     PrismaModule,
     NotificationModule,
   ],
-  providers: [TenantContextService],
   exports: [
     // Exportamos los módulos para que otros módulos puedan usar sus providers
     PrismaModule,
     NotificationModule,
-    TenantContextService,
   ],
 })
 export class CoreModule {}

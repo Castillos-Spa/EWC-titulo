@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { CleaningApi, type CleaningRecord, type CreateCleaningInput } from '../services/CleaningApi';
-import { useAuthStore } from './authStore';
+import { CleaningApi, type CleaningRecord, type CreateCleaningInput } from '@/services/CleaningApi';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface CleaningArea {
   id: string;
@@ -138,7 +138,7 @@ const addPhotoToCurrentReport = (
   reportId: string,
   photoUri: string
 ): CleaningReport | null => {
-  if (!current || current.id !== reportId) return current;
+  if (current?.id !== reportId) return current;
   return { ...current, photos: [...current.photos, photoUri] };
 };
 

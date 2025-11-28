@@ -13,26 +13,25 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { RequirePermissions } from './decorators/permissions.decorator';
+import { Role, Permission } from '@prisma/client';
 import { RolesGuard } from './guards/roles.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { RegisterDto } from './dtos/register.dto';
 import { OptionalAuth } from './decorators/optional-auth.decorator';
-import type { Request as ExpressRequest } from 'express';
-import type { AuthSession } from './auth.service';
-import { DiscoverAccessDto } from './dtos/discover-access.dto';
-
-type AuthenticatedRequest = ExpressRequest & { user: AuthSession };
-type JwtRequestUser = { userId: number } & Record<string, unknown>;
-type MaybeAuthenticatedRequest = ExpressRequest & { user?: AuthSession | JwtRequestUser };
+import { UsersService } from '../users/users.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Public()
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req: AuthenticatedRequest) {
+  async login(@Request() req) {
     return this.authService.login(req.user);
   }
 
@@ -45,7 +44,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @OptionalAuth()
-  async logout(@Request() req: MaybeAuthenticatedRequest) {
+  async logout(@Request() req) {
     const userId = req.user?.userId;
     if (userId) {
       // req.user contiene el payload del JWT validado por el guard global
@@ -64,8 +63,8 @@ export class AuthController {
   }
 
   @Get('profile')
-  getProfile(@Request() req: MaybeAuthenticatedRequest) {
-    return req.user;
+  async getProfile(@Request() req) {
+    return this.usersService.getProfile(req.user.userId);
   }
 
   @Roles(Role.Admin)

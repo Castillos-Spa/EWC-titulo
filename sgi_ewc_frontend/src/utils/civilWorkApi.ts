@@ -13,6 +13,11 @@ import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
 export type UpdateCivilWorkPayload = Partial<Omit<CivilWork, "id">>;
 
+export interface CivilWorkPhotosResponse {
+  id: number;
+  photos: string[];
+}
+
 const CIVIL_WORK_CACHE_PREFIX = "civil-work:list";
 const CIVIL_WORK_ITEM_PREFIX = "civil-work:item";
 
@@ -63,6 +68,45 @@ export async function createCivilWork(
   }
   invalidateDashboardOverviewCache();
   return created;
+}
+
+export async function uploadCivilWorkPhotos(
+  id: number,
+  files: File[]
+): Promise<CivilWorkPhotosResponse> {
+  if (!files.length) {
+    return { id, photos: [] };
+  }
+
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const response = await apiFetch(`/civil-work/${id}/photos`, {
+    method: "POST",
+    body: formData,
+  });
+
+  invalidateCacheByPrefix(CIVIL_WORK_CACHE_PREFIX);
+  invalidateCache(`${CIVIL_WORK_ITEM_PREFIX}:${id}`);
+  invalidateDashboardOverviewCache();
+
+  return response as CivilWorkPhotosResponse;
+}
+
+export async function getCivilWorkPhotos(id: number): Promise<string[]> {
+  const response = await apiFetch(`/civil-work/${id}/photos`, {
+    method: "GET",
+  });
+  if (
+    response &&
+    typeof response === "object" &&
+    Array.isArray((response as Record<string, unknown>).photos)
+  ) {
+    return (response as { photos: string[] }).photos;
+  }
+  return [];
 }
 
 /**

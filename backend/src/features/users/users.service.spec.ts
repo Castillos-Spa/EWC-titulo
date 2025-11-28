@@ -4,7 +4,6 @@ import { NotificationService } from '@/features/notification/notification.servic
 import { CacheService } from '@/common/cache.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
 import { Role, Permission, Area } from '@prisma/client';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
@@ -21,16 +20,11 @@ describe('UsersService', () => {
     del: jest.fn(),
     delPrefix: jest.fn(),
   } as unknown as jest.Mocked<CacheService>;
-  const tenantContext = {
-    get tenantId() {
-      return 77;
-    },
-  } as unknown as TenantContextService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = createPrismaMock();
-    service = new UsersService(notificationService, prisma as any, cacheService, tenantContext);
+    service = new UsersService(notificationService, prisma, cacheService);
   });
 
   afterEach(() => {
@@ -54,12 +48,7 @@ describe('UsersService', () => {
       (prisma.$transaction as jest.Mock).mockImplementation(async (fn: any) => fn(prisma));
       (prisma.user.create as jest.Mock).mockResolvedValueOnce(createdUser);
       (prisma.userRoleAssignment.createMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
-      (prisma.user.findFirst as jest.Mock).mockResolvedValueOnce({
-        ...createdUser,
-        tenant: { id: 77, slug: 'tenant-1' },
-        userCompanies: [],
-        roleAssignments: [],
-      });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(createdUser);
 
       const result = await service.register({
         username: 'newuser',

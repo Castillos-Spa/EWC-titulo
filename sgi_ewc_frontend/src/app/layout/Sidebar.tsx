@@ -5,6 +5,7 @@ import {
 	Home,
 	Wrench,
 	Users,
+	BadgeInfo,
 	ChevronLeft,
 	ChevronRight,
 	LogOut,
@@ -16,6 +17,7 @@ import {
 	Car,
 	Sparkles,
 	Fuel,
+	Boxes,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { BackendModuleKey } from '../../types/User';
@@ -204,16 +206,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 	const { user, logout, modules } = useAuth();
 	const { t, language } = useLanguage();
 	const compact = uiDensity === 'compact';
-	const moduleSet = useMemo(() => new Set(modules ?? []), [modules]);
-
-	const sectionLabels = useMemo(
-		() => ({
-			general: t('sidebar.section.general'),
-			operations: t('sidebar.section.operations'),
-			management: t('sidebar.section.management'),
-		}),
-		[t],
-	);
+	const isDemo = String(import.meta.env.VITE_DEMO_MODE || 'false').toLowerCase() === 'true';
 
 	const hasAreaAccess = (area: string) => Boolean(user?.isAdmin || user?.areas?.includes(area));
 
@@ -252,88 +245,26 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 	};
 
 	const viewDefinitions: ViewDefinition[] = [
-		{ id: 'dashboard', labelKey: 'nav.dashboard', icon: Home, moduleKey: 'DASHBOARD', sectionKey: 'general' },
-		{ id: 'notifications', labelKey: 'nav.notifications', icon: Bell, moduleKey: 'NOTIFICATIONS', sectionKey: 'general' },
-		{ id: 'tickets', labelKey: 'nav.tickets', icon: Ticket, moduleKey: 'TICKETS', sectionKey: 'general' },
-		{ id: 'incidents', labelKey: 'nav.incidents', icon: AlertTriangle, moduleKey: 'INCIDENTS', sectionKey: 'general' },
-		{
-			id: 'transport-routes',
-			labelKey: 'nav.routes',
-			icon: Map,
-			areas: ['Transporte'],
-			moduleKey: 'ROUTES',
-			sectionKey: 'operations',
-			moduleBadgeKey: 'module.badge.transport',
-		},
-		{
-			id: 'fleet-registry',
-			labelKey: 'nav.fleetRegistry',
-			icon: Car,
-			areas: ['Transporte'],
-			moduleKey: 'FLEET',
-			sectionKey: 'operations',
-			moduleBadgeKey: 'module.badge.transport',
-		},
-		{
-			id: 'fuel-by-fleet',
-			labelKey: 'nav.fuel',
-			icon: Fuel,
-			areas: ['Transporte'],
-			moduleKey: 'FUEL',
-			sectionKey: 'operations',
-			moduleBadgeKey: 'module.badge.transport',
-		},
-		{
-			id: 'truck-assignments',
-			labelKey: 'nav.assignments',
-			icon: Car,
-			areas: ['Transporte'],
-			moduleKey: 'ROUTES',
-			sectionKey: 'operations',
-			moduleBadgeKey: 'module.badge.transport',
-		},
-		{
-			id: 'maintenance',
-			labelKey: 'nav.maintenance',
-			icon: Wrench,
-			areas: ['Taller'],
-			moduleKey: 'MAINTENANCE',
-			sectionKey: 'operations',
-			moduleBadgeKey: 'module.badge.maintenance',
-		},
-		{
-			id: 'cleaning-reports',
-			labelKey: 'nav.cleaningReports',
-			icon: Sparkles,
-			areas: ['Aseo'],
-			moduleKey: 'CLEANING',
-			sectionKey: 'operations',
-			moduleBadgeKey: 'module.badge.cleaning',
-		},
-		{
-			id: 'civil-works',
-			labelKey: 'nav.civilWorks',
-			icon: HardHat,
-			areas: ['Obras'],
-			moduleKey: 'CIVIL_WORK',
-			sectionKey: 'operations',
-			moduleBadgeKey: 'module.badge.civil',
-		},
-		{
-			id: 'user-management',
-			labelKey: 'nav.userManagement',
-			icon: Users,
-			areas: ['Admin', 'RRHH'],
-			moduleKey: 'USERS',
-			sectionKey: 'management',
-			moduleBadgeKey: 'module.badge.management',
-		},
+		{ id: 'dashboard', labelKey: 'nav.dashboard', icon: Home },
+		{ id: 'tickets', labelKey: 'nav.tickets', icon: Ticket },
+		{ id: 'transport-routes', labelKey: 'nav.routes', icon: Map, areas: ['Transporte'] },
+		{ id: 'fleet-registry', labelKey: 'nav.fleetRegistry', icon: Car, areas: ['Transporte'] },
+		{ id: 'fuel-by-fleet', labelKey: 'nav.fuel', icon: Fuel, areas: ['Transporte'] },
+		{ id: 'truck-assignments', labelKey: 'nav.assignments', icon: Car, areas: ['Transporte'] },
+		{ id: 'notifications', labelKey: 'nav.notifications', icon: Bell },
+		{ id: 'maintenance', labelKey: 'nav.maintenance', icon: Wrench, areas: ['Taller'] },
+		{ id: 'inventory', labelKey: 'nav.inventory', icon: Boxes, areas: ['Taller'] },
+		{ id: 'it-inventory', labelKey: 'nav.itInventory', icon: Boxes, areas: ['IT'] },
+		{ id: 'cleaning-reports', labelKey: 'nav.cleaningReports', icon: Sparkles, areas: ['Aseo'] },
+		{ id: 'civil-works', labelKey: 'nav.civilWorks', icon: HardHat, areas: ['Obras'] },
+		{ id: 'incidents', labelKey: 'nav.incidents', icon: AlertTriangle },
+		{ id: 'user-management', labelKey: 'nav.userManagement', icon: Users, areas: ['Admin', 'RRHH'] },
+		{ id: 'buk-users', labelKey: 'nav.bukUsers', icon: BadgeInfo, areas: ['Admin', 'RRHH'] },
 	];
 
 	const visibleItemsUnique = viewDefinitions.filter((item) => {
-		if (!hasModuleAccess(item.moduleKey)) {
-			return false;
-		}
+		// En modo demo mostramos todos los módulos sin restricción de áreas
+		if (isDemo) return true;
 		if (!item.areas || item.areas.length === 0) return true;
 		return item.areas.some(area => hasAreaAccess(area));
 	});
@@ -377,27 +308,36 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, uiDensity 
 			lastModuleGroupKey = item.moduleBadgeKey;
 		}
 		return (
-			<React.Fragment key={item.id}>
-				{sectionChanged && (
-					<SidebarSectionHeader
-						label={sectionLabels[item.sectionKey] ?? item.sectionKey}
-						collapsed={isCollapsed}
-						compact={compact}
-					/>
-				)}
-				{shouldRenderModuleHeader && moduleLabel && (
-					<SidebarModuleGroupHeader label={moduleLabel} compact={compact} />
-				)}
-				<SidebarNavButton
-					item={item}
-					label={t(item.labelKey)}
-					collapsed={isCollapsed}
-					compact={compact}
-					isActive={currentPage === item.id}
-					onClick={onPageChange}
-					moduleLabel={isCollapsed ? moduleLabel : undefined}
-				/>
-			</React.Fragment>
+			<SidebarNavButton
+				key={item.id}
+				item={item}
+				label={label}
+				collapsed={isCollapsed}
+				compact={compact}
+				isActive={currentPage === item.id}
+				onClick={onPageChange}
+				// Atributo para tour
+				data-tour={(() => {
+					const map: Record<string,string> = {
+						'dashboard':'dashboard',
+						'tickets':'tickets',
+						'transport-routes':'rutas',
+						'fleet-registry':'flota',
+						'fuel-by-fleet':'combustible',
+						'maintenance':'mantenimiento',
+						'inventory':'inventario',
+						'it-inventory':'inventario-it',
+						'cleaning-reports':'aseo',
+						'civil-works':'obras-civiles',
+						'incidents':'incidentes',
+						'notifications':'notificaciones',
+						'user-management':'usuarios',
+						'buk-users':'buk',
+						'settings':'ajustes'
+					};
+					return map[item.id] || undefined;
+				})()}
+			/>
 		);
 	});
 

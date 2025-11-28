@@ -1,27 +1,25 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateCleaningDto } from './dto/create-cleaning.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { UpdateCleaningDto } from './dto/update-cleaning.dto';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class CleaningService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly tenantContext: TenantContextService,
   ) {}
 
   async create(createCleaningDto: CreateCleaningDto, createdById: number) {
-    const tenantId = this.resolveTenantId();
     const newReport = await this.prisma.aseo.create({
       data: {
         ...createCleaningDto,
         date: new Date(createCleaningDto.date),
-        createdBy: { connect: { id: createdById } },
-        tenant: { connect: { id: tenantId } },
+        // El modelo Aseo tiene el campo foráneo createdById y la relación se llama `User`.
+        // Para evitar errores de tipos, seteamos directamente el ID foráneo.
+        createdById: createdById,
       },
     });
 
@@ -81,13 +79,5 @@ export class CleaningService {
   async remove(id: number) {
     await this.findOne(id);
     return this.prisma.aseo.delete({ where: { id } });
-  }
-
-  private resolveTenantId(): number {
-    const tenantId = this.tenantContext.tenantId;
-    if (!tenantId) {
-      throw new UnauthorizedException('Tenant no especificado en la operación.');
-    }
-    return tenantId;
   }
 }

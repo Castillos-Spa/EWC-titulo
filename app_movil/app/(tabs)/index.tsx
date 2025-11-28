@@ -6,29 +6,23 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useAuthStore } from '../stores/authStore';
-import { useThemeStore } from '../stores/themeStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Map, Car, Wrench, Settings } from 'lucide-react-native';
-import { useNotificationsStore } from '../stores/notificationsStore';
-import { NotificationsDrawer } from '../components/NotificationsDrawer';
-import { useSyncStore } from '../stores/syncStore';
+import { useNotificationsStore } from '@/stores/notificationsStore';
+import { NotificationsDrawer } from '@/components/NotificationsDrawer';
+import { useSyncStore } from '@/stores/syncStore';
 import { useAuthz } from '@/hooks/useAuthz';
-import { useNavigationStore } from '../stores/navigationStore';
-import { DashboardApi, type DaySummary } from '../services/DashboardApi';
-import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '../services/DashboardInsights';
-import { SafeStorage } from '../services/SafeStorage';
-import { DashboardTimelineCard } from '../components/DashboardTimelineCard';
-import { DashboardAlertsCard } from '../components/DashboardAlertsCard';
-import { buildPrioritizedAlerts, mapNotificationsToAlertSource, lastNDays, buildTimelineSeries, startOfWeekMonday, addDays, buildMaintenanceSeries, buildTicketsSeries } from '@/app/utils/dashboard';
-import { MaintenanceSeriesCard } from '../components/MaintenanceSeriesCard';
-import { TicketsSeriesCard } from '../components/TicketsSeriesCard';
-import { ModuleCard } from '../components/ModuleCard';
-import { Card } from '../components/ui/Card';
-import { SectionHeader } from '../components/ui/SectionHeader';
-import { KpiStat } from '../components/ui/KpiStat';
+import { useNavigationStore } from '@/stores/navigationStore';
+import { DashboardApi, type DaySummary } from '@/services/DashboardApi';
+import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '@/services/DashboardInsights';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 
 function getRoleDisplayName(role: string) {
   const roles = {
@@ -43,38 +37,6 @@ function getRoleDisplayName(role: string) {
     finance: 'Finanzas',
   } as const;
   return (roles as any)[role] || role;
-}
-
-function TimelineRangeToggle({
-  colors,
-  value,
-  onChange,
-}: Readonly<{ colors: any; value: 7 | 14; onChange: (v: 7 | 14) => void }>) {
-  return (
-    <View style={styles.timelineToggleRow}>
-      <Text style={{ color: colors.textSecondary, marginRight: 8 }}>Rango</Text>
-      <TouchableOpacity
-        onPress={() => onChange(7)}
-        style={[
-          styles.toggleChip,
-          { backgroundColor: colors.background, borderColor: colors.border },
-          value === 7 && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
-        ]}
-      >
-        <Text style={{ color: value === 7 ? colors.primary : colors.textSecondary }}>7d</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => onChange(14)}
-        style={[
-          styles.toggleChip,
-          { backgroundColor: colors.background, borderColor: colors.border },
-          value === 14 && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
-        ]}
-      >
-        <Text style={{ color: value === 14 ? colors.primary : colors.textSecondary }}>14d</Text>
-      </TouchableOpacity>
-    </View>
-  );
 }
 
 function SummarySection({
@@ -204,38 +166,270 @@ function SummarySection({
   );
 }
 
-export default function HomeScreen() {
+type StatusChipInfo = {
+  label: string;
+  value: string;
+  tone: string;
+  meta: string;
+};
+
+type QuickAccessTile = {
+  title: string;
+  subtitle: string;
+  icon: React.ComponentType<{ size: number; color: string }>;
+  color: string;
+  bgColor: string;
+  onPress: () => void;
+};
+
+function HeroHeader({
+  paddingTop,
+  colors,
+  statusChips,
+  greeting,
+  roleLabel,
+  onLogout,
+  onRefresh,
+  loading,
+  onOpenNotifications,
+  compact = false,
+}: Readonly<{
+  paddingTop: number;
+  colors: any;
+  statusChips: StatusChipInfo[];
+  greeting: string;
+  roleLabel: string;
+  onLogout: () => void;
+  onRefresh: () => void;
+  loading: boolean;
+  onOpenNotifications: () => void;
+  compact?: boolean;
+}>) {
+  return (
+    <View style={[styles.heroWrapper, { paddingTop }, compact && styles.heroWrapperCompact]}>
+      <LinearGradient
+        colors={[colors.primary + 'EE', colors.primary + 'AA', colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.heroGradient, compact && styles.heroGradientCompact]}
+      >
+        <View style={[styles.heroHeaderRow, compact && styles.heroHeaderRowCompact]}>
+          <View style={[styles.heroUser, compact && styles.heroUserCompact]}>
+            <View style={[styles.heroAvatar, compact && styles.heroAvatarCompact]}>
+              <User size={20} color={colors.surface} />
+            </View>
+            <View style={styles.heroTexts}>
+              <Text style={[styles.heroGreeting, { color: colors.surface }]}>{greeting}</Text>
+              <Text style={[styles.heroRole, { color: colors.surface + 'CC' }]}>{roleLabel}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={[styles.heroLogout, compact && styles.heroLogoutCompact]} onPress={onLogout}>
+            <LogOut size={18} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.statusRow, compact && styles.statusRowCompact]}>
+          {statusChips.map((chip) => (
+            <View
+              key={chip.label}
+              style={[
+                styles.statusChip,
+                compact && styles.statusChipCompact,
+                { backgroundColor: colors.surface + '15', borderColor: chip.tone },
+              ]}
+            >
+              <Text style={[styles.statusChipLabel, { color: colors.surface + 'CC' }]}>{chip.label}</Text>
+              <Text style={[styles.statusChipValue, { color: colors.surface }]}>{chip.value}</Text>
+              <Text style={[styles.statusChipMeta, { color: colors.surface + 'AA' }]}>{chip.meta}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={[styles.heroActionsRow, compact && styles.heroActionsRowCompact]}>
+          <TouchableOpacity
+            style={[styles.heroButton, compact && styles.heroButtonCompact, { backgroundColor: colors.surface }]}
+            onPress={onRefresh}
+          >
+            <Text style={[styles.heroButtonText, { color: colors.primary }]}>
+              {loading ? 'Actualizando…' : 'Actualizar datos'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.heroButton,
+              compact && styles.heroButtonCompact,
+              compact && styles.heroButtonLastCompact,
+              { borderColor: colors.surface, borderWidth: 1 },
+            ]}
+            onPress={onOpenNotifications}
+          >
+            <Text style={[styles.heroButtonText, { color: colors.surface }]}>Notificaciones</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    </View>
+  );
+}
+
+function QuickPulseGrid({ colors, data, compact }: Readonly<{ colors: any; data: { id: string; label: string; value: string; trend?: string }[]; compact?: boolean }>) {
+  return (
+    <View style={[styles.kpiGrid, compact && styles.kpiGridCompact]}>
+      {data.map((kpi) => (
+        <View
+          key={kpi.id}
+          style={[
+            compact ? styles.kpiCardFullCompact : styles.kpiCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.kpiLabel, { color: colors.textSecondary }]} numberOfLines={2}>
+            {kpi.label}
+          </Text>
+          <Text style={[styles.kpiValue, { color: colors.text }]}>{kpi.value}</Text>
+          {!!kpi.trend && <Text style={[styles.kpiTrend, { color: colors.textSecondary }]}>{kpi.trend}</Text>}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function QuickAccessCarousel({ colors, tiles, compact }: Readonly<{ colors: any; tiles: QuickAccessTile[]; compact?: boolean }>) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[styles.quickAccessScroll, compact && styles.quickAccessScrollCompact]}
+    >
+      {tiles.map((tile) => (
+        <TouchableOpacity
+          key={`qa-${tile.title}`}
+          style={[styles.quickAccessChip, compact && styles.quickAccessChipCompact, { backgroundColor: tile.bgColor }]}
+          onPress={tile.onPress}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.quickAccessIcon, compact && styles.quickAccessIconCompact]}>
+            <tile.icon size={22} color={tile.color} />
+          </View>
+          <View>
+            <Text
+              style={[styles.quickAccessTitle, compact && styles.quickAccessTitleCompact, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {tile.title}
+            </Text>
+            <Text
+              style={[styles.quickAccessSubtitle, compact && styles.quickAccessSubtitleCompact, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {tile.subtitle}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+}
+
+function NotificationsPanel({ colors, notifications, onOpenDrawer, sectionStyle, loading, error, onReload }: Readonly<{ colors: any; notifications: any[]; onOpenDrawer: () => void; sectionStyle?: any; loading: boolean; error: string | null; onReload: () => void }>) {
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Cargando notificaciones…</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
+            <Bell size={16} color={colors.error || '#DC2626'} />
+          </View>
+          <Text style={[styles.notificationTitle, { color: colors.error || '#DC2626', marginTop: 8 }]}>No se pudieron cargar las notificaciones</Text>
+          <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
+            <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (notifications.length === 0) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
+            <Bell size={16} color={colors.textSecondary} />
+          </View>
+          <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Sin notificaciones recientes</Text>
+          <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
+            <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Actualizar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return notifications.slice(0, 5).map((n) => (
+      <View key={n.id} style={styles.notificationItem}>
+        <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
+          <Bell size={16} color={colors.primary} />
+        </View>
+        <View style={styles.notificationContent}>
+          <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
+            {n.message || n.type || 'Notificación'}
+          </Text>
+          <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
+            {new Date(n.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+      </View>
+    ));
+  };
+
+  return (
+    <View style={[styles.section, sectionStyle]}>
+      <SectionHeader title="Notificaciones recientes" subtitle="Sincronizadas con el centro web" />
+      <View style={[styles.notificationsList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {renderContent()}
+      </View>
+      <TouchableOpacity onPress={onOpenDrawer} style={styles.notificationsButton}>
+        <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Ver todas</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// NOTE: pendiente dividir en hooks dedicados cuando la arquitectura del dashboard móvil esté estable.
+export default function HomeScreen() { // NOSONAR
   const { user, logout } = useAuthStore();
   const { getColors } = useThemeStore();
   const insets = useSafeAreaInsets();
-  const { items: notifications } = useNotificationsStore();
+  const {
+    items: notifications,
+    loading: notificationsLoading,
+    error: notificationsError,
+    hydrateFromApi: hydrateNotifications,
+  } = useNotificationsStore();
+  const { width } = useWindowDimensions();
+  const isCompactScreen = width < 380;
 
   const colors = getColors();
+  const sectionSpacingStyle = isCompactScreen ? styles.sectionCompact : undefined;
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { online, lastApiOk, syncing, checkNow, dbOk, checkDb } = useSyncStore();
-  const [dbChecking, setDbChecking] = useState(false);
+  const { online, lastApiOk, syncing, checkNow, dbOk } = useSyncStore();
   const [summary, setSummary] = useState<DaySummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [insights, setInsights] = useState<DashboardInsightData | null>(null);
-  const [insightsLoading, setInsightsLoading] = useState(false);
-  const [alertsFilter, setAlertsFilter] = useState<'critical' | 'all'>('critical');
-  const [timelineDays, setTimelineDays] = useState<7 | 14>(7);
-  const [maintenanceWeeks, setMaintenanceWeeks] = useState<4 | 8 | 12>(4);
-  const [ticketsWeeks, setTicketsWeeks] = useState<4 | 8 | 12>(4);
   const [cacheTs, setCacheTs] = useState<number | null>(null);
   const [usingCache, setUsingCache] = useState(false);
-  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
   const loadInsights = useCallback(async () => {
     try {
-      setInsightsLoading(true);
       const data = await fetchDashboardInsights();
       setInsights(data);
       setUsingCache(false);
     } catch (err) {
       console.warn('dashboard insights load failed', err);
-    } finally {
-      setInsightsLoading(false);
     }
   }, []);
 
@@ -254,35 +448,25 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Conectar WS al montar o cuando cambia el usuario
-    useNotificationsStore.getState().connect();
-    // Chequear estado de sincronización al entrar
+    if (!user?.id) return;
+    const notificationsStore = useNotificationsStore.getState();
+
+    notificationsStore.connect();
+
+    (async () => {
+      try {
+        await notificationsStore.hydrateFromApi(1);
+      } catch (error) {
+        console.warn('notifications hydrate failed', error);
+      }
+    })();
+
     useSyncStore.getState().checkNow();
+
     return () => {
-      useNotificationsStore.getState().disconnect();
+      notificationsStore.disconnect();
     };
   }, [user?.id]);
-
-  // Cargar preferencia de filtro de alertas (persistencia)
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const saved = await SafeStorage.getItem('dashboard_alerts_filter');
-        if (!cancelled && (saved === 'critical' || saved === 'all')) {
-          setAlertsFilter(saved);
-        }
-      } catch {}
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Guardar preferencia cuando cambie
-  useEffect(() => {
-    void SafeStorage.setItem('dashboard_alerts_filter', alertsFilter).catch(() => {});
-  }, [alertsFilter]);
-
   useEffect(() => {
     // cargar resumen del día cuando haya usuario
     const load = async () => {
@@ -323,6 +507,10 @@ export default function HomeScreen() {
       setSummaryLoading(false);
     }
   };
+
+  const handleNotificationsReload = useCallback(() => {
+    void hydrateNotifications(1);
+  }, [hydrateNotifications]);
 
   // Acciones rápidas: atajos a módulos visibles para el usuario que NO están en la barra de navegación
   const {
@@ -378,303 +566,300 @@ export default function HomeScreen() {
 
   const generalHighlights = useMemo(() => insights?.modules.general?.highlights ?? [], [insights]);
 
-  const prioritizedAlerts = useMemo(() => {
-    if (!insights) {
-      return { critical: [], all: [] };
-    }
-    const notificationsSource = mapNotificationsToAlertSource(notifications);
-    return buildPrioritizedAlerts({
-      tickets: insights.alertSources.tickets,
-      ots: insights.alertSources.ots,
-      incidents: insights.alertSources.incidents,
-      civil: insights.alertSources.civil,
-      aseos: insights.alertSources.aseos,
-      notifications: notificationsSource,
-    });
-  }, [insights, notifications]);
-
-  const timelineData = useMemo(() => {
-    if (!insights) return [] as { label: string; workload: number; alerts: number }[];
-    const days = lastNDays(timelineDays);
-    return buildTimelineSeries(days, {
-      tickets: insights.alertSources.tickets,
-      ots: insights.alertSources.ots,
-      aseos: insights.alertSources.aseos,
-      incidents: insights.alertSources.incidents,
-    });
-  }, [insights, timelineDays]);
-
-  const { maintenanceSeriesArr, maintenanceTotals } = useMemo(() => {
-    if (!insights) return { programado: 0, completado: 0, label: '' };
-    const today = new Date();
-    const thisWeekStart = startOfWeekMonday(today);
-    const weekStarts: Date[] = Array.from({ length: maintenanceWeeks }).map((_, idx) => addDays(thisWeekStart, -7 * ((maintenanceWeeks - 1) - idx)));
-    const ranges = weekStarts.map((ws, idx) => ({ label: `W-${(weekStarts.length - 1) - idx}`, start: ws, end: addDays(ws, 7) }));
-    const completedOts = insights.alertSources.ots.filter(o => o.estado === 'completado' || o.estado === 'Cerrada');
-    const series = buildMaintenanceSeries(ranges, insights.alertSources.ots, completedOts);
-    const programado = series.reduce((a, s) => a + s.programado, 0);
-    const completado = series.reduce((a, s) => a + s.completado, 0);
-    return { 
-      maintenanceSeriesArr: series,
-      maintenanceTotals: { programado, completado, label: `${maintenanceWeeks} semanas` },
-    };
-  }, [insights, maintenanceWeeks]);
-
-  const { ticketsSeriesArr, ticketsTotals } = useMemo(() => {
-    if (!insights) return { abiertos: 0, resueltos: 0, label: '' };
-    const today = new Date();
-    const thisWeekStart = startOfWeekMonday(today);
-    const weekStarts: Date[] = Array.from({ length: ticketsWeeks }).map((_, idx) => addDays(thisWeekStart, -7 * ((ticketsWeeks - 1) - idx)));
-    const ranges = weekStarts.map((ws, idx) => ({ label: `W-${(weekStarts.length - 1) - idx}`, start: ws, end: addDays(ws, 7) }));
-    const resolvedTickets = insights.alertSources.tickets.filter(t => t.status === 'Resuelto' || t.status === 'Cerrado');
-    const series = buildTicketsSeries(ranges, insights.alertSources.tickets, resolvedTickets);
-    const abiertos = series.reduce((a, s) => a + s.abiertos, 0);
-    const resueltos = series.reduce((a, s) => a + s.resueltos, 0);
-    return {
-      ticketsSeriesArr: series,
-      ticketsTotals: { abiertos, resueltos, label: `${ticketsWeeks} semanas` },
-    };
-  }, [insights, ticketsWeeks]);
-
   let dbStatusLabel = '—';
   if (dbOk === true) dbStatusLabel = 'OK';
   else if (dbOk === false) dbStatusLabel = 'Error';
+
+  const apiMeta = lastApiOk
+    ? `Últ. ${new Date(lastApiOk).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+    : 'Sin datos';
+  let dbMeta = 'Sin verificación';
+  if (dbOk === false) dbMeta = 'Revisar replicación';
+  else if (dbOk === true) dbMeta = 'Sincronizada';
+  let syncMeta = '—';
+  if (cacheTs) {
+    syncMeta = usingCache ? 'Datos desde caché' : 'Datos online';
+  }
+
+  const statusChips: StatusChipInfo[] = [
+    {
+      label: 'API',
+      value: online ? 'Online' : 'Offline',
+      tone: online ? colors.success : colors.warning,
+      meta: apiMeta,
+    },
+    {
+      label: 'Base de datos',
+      value: dbStatusLabel,
+      tone: dbOk === false ? colors.warning : colors.success,
+      meta: dbMeta,
+    },
+    {
+      label: 'Sincronización',
+      value: syncing ? 'En curso' : 'Al día',
+      tone: syncing ? colors.warning : colors.success,
+      meta: syncMeta,
+    },
+  ];
+
+  const quickPulse = (generalHighlights.length > 0 ? generalHighlights.slice(0, 4) : [
+    { label: 'Incidentes abiertos', value: `${summary?.incidentsOpen ?? 0}`, trend: summaryLoading ? 'Actualizando…' : 'Hoy', trendTone: summary?.incidentsOpen ? 'negative' : 'positive' },
+    { label: 'Rutas completadas', value: `${summary?.routesCompleted ?? 0}/${summary?.routesAssigned ?? 0}`, trend: 'Operación diaria', trendTone: 'neutral' },
+    { label: 'Tickets asignados', value: `${summary?.ticketsAssigned ?? 0}`, trend: 'Últimas 24h', trendTone: 'neutral' },
+    { label: 'Checklist aseo', value: `${summary?.checklistCompletion ?? 0}%`, trend: 'Cumplimiento', trendTone: 'neutral' },
+  ]).map((item, idx) => ({
+    id: `${item.label}-${idx}`,
+    label: item.label,
+    value: item.value,
+    trend: item.trend,
+    trendTone: item.trendTone ?? 'neutral',
+  }));
+
+  const quickAccessTiles: QuickAccessTile[] = (recentModules.length > 0 ? recentModules : nonPrimaryVisible.slice(0, 5).map((r) => ({
+    title: r.title,
+    subtitle: 'Disponible',
+    icon: r.icon,
+    color: colors.primary,
+    bgColor: colors.primary + '12',
+    onPress: () => { markUsed(r.name as string); navigateToTab(r.name as string); },
+  })));
+
+  const greeting = `Hola, ${user?.name?.split(' ')[0] || 'equipo'}`;
+  const roleLabel = getRoleDisplayName(user?.role || '');
+
   return (
-    <ScrollView 
+    <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 100 }]}
+      contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 80 }]}
+      showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.userSection}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatar}>
-              <User size={20} color="#2563EB" />
-            </View>
-            <View style={styles.userDetails}>
-              <Text style={[styles.userName, { color: colors.text }]}>{user?.name}</Text>
-              <Text style={[styles.userRole, { color: colors.primary }]}>{getRoleDisplayName(user?.role || '')}</Text>
-            </View>
-          </View>
-          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.background }]} onPress={handleLogout}>
-            <LogOut size={18} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
+      <HeroHeader
+        paddingTop={insets.top + 16}
+        colors={colors}
+        statusChips={statusChips}
+        greeting={greeting}
+        roleLabel={roleLabel}
+        onLogout={handleLogout}
+        onRefresh={handleRefresh}
+        loading={syncing || summaryLoading}
+        onOpenNotifications={() => setDrawerOpen(true)}
+        compact={isCompactScreen}
+      />
+
+      <View style={[styles.section, sectionSpacingStyle]}>
+        <SectionHeader title="Indicadores clave" subtitle="Métricas alineadas al panel web" />
+        <QuickPulseGrid colors={colors} data={quickPulse} compact={isCompactScreen} />
       </View>
 
-      {/* Estado de sincronización */}
-      <View style={[styles.syncStatus, { backgroundColor: (online ? colors.success : colors.warning) + '15', borderBottomColor: colors.border }]}> 
-        <View style={[styles.syncIndicator, { backgroundColor: online ? '#16A34A' : '#EA580C' }]} />
-        <Text style={[styles.syncText, { color: online ? colors.success : colors.warning }]}> 
-          {online ? 'API: Online' : 'API: Offline'} • Últ. API: {lastApiOk ? new Date(lastApiOk).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—'}
-          {'  '}• BD: {dbStatusLabel}
-        </Text>
-        <TouchableOpacity onPress={handleRefresh} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background, marginRight: 8 }}>
-          <Text style={{ color: colors.textSecondary }}>{(syncing || summaryLoading) ? 'Actualizando…' : 'Actualizar'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={async () => { setDbChecking(true); await checkDb().catch(() => {}); setDbChecking(false); }} 
-          style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background }}
+      <View style={[styles.section, sectionSpacingStyle]}>
+        <SectionHeader title="Resumen del día" subtitle="Actividad personalizada por rol" />
+        <View
+          style={[
+            styles.summaryCard,
+            isCompactScreen && styles.cardSurfaceCompact,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
         >
-          <Text style={{ color: colors.textSecondary }}>{dbChecking ? 'Chequeando BD…' : 'BD'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Recientes */}
-      <View style={styles.quickActions}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recientes</Text>
-        <View style={styles.actionsGrid}>
-          {recentModules.length === 0 ? (
-            <View style={[styles.actionCard, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }]}>
-              <Text style={{ color: colors.textSecondary }}>Aún no hay módulos recientes</Text>
-            </View>
-          ) : recentModules.map((action) => (
-            <TouchableOpacity key={`qa-${action.title}`} style={[styles.actionCard, { backgroundColor: action.bgColor }]} onPress={action.onPress}>
-              <View style={styles.actionIcon}>
-                <action.icon size={28} color={action.color} strokeWidth={2} />
-              </View>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>{action.title}</Text>
-              <Text style={[styles.actionSubtitle, { color: colors.textSecondary }]}>{action.subtitle}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Resumen del día conectado */}
-      <View style={styles.dailySummary}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumen del Día</Text>
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <SummarySection role={user?.role} colors={colors} summary={summary} loading={summaryLoading} />
         </View>
       </View>
 
-      {generalHighlights.length > 0 && (
-        <View style={styles.operationalSection}>
-          <SectionHeader title="Pulso Operativo" />
-          <Card>
-            <View style={styles.insightsGrid}>
-              {generalHighlights.slice(0, 3).map((h) => (
-                <KpiStat key={`kpi-${h.label}`} label={h.label} value={h.value} trend={h.trend} tone={h.trendTone} />
-              ))}
-            </View>
-          </Card>
-        </View>
-      )}
-
-      {(insightsLoading || insights) && (
-        <View style={styles.analyticsSection}>
-          <View>
-            <TimelineRangeToggle colors={colors} value={timelineDays} onChange={setTimelineDays} />
-            {!!cacheTs && usingCache && (
-              <Text style={{ color: (Date.now() - cacheTs) > CACHE_TTL_MS ? '#EA580C' : colors.textSecondary, fontSize: 12, textAlign: 'right' }}>
-                {(Date.now() - cacheTs) > CACHE_TTL_MS ? 'Datos en caché (obsoleto)' : 'Datos desde caché'}
-              </Text>
-            )}
-          </View>
-          <DashboardTimelineCard data={timelineData} loading={insightsLoading} colors={colors} />
-          {insights && (
-            <View style={{ gap: 12, marginTop: 12 }}>
-              <MaintenanceSeriesCard
-                colors={colors}
-                weeks={maintenanceWeeks}
-                onWeeksChange={setMaintenanceWeeks}
-                totals={maintenanceTotals as any}
-                series={maintenanceSeriesArr as any}
-                loading={insightsLoading}
-              />
-              <TicketsSeriesCard
-                colors={colors}
-                weeks={ticketsWeeks}
-                onWeeksChange={setTicketsWeeks}
-                totals={ticketsTotals as any}
-                series={ticketsSeriesArr as any}
-                loading={insightsLoading}
-              />
-            </View>
-          )}
-          <DashboardAlertsCard
-            alerts={prioritizedAlerts.critical}
-            secondary={prioritizedAlerts.all}
-            loading={insightsLoading}
-            filter={alertsFilter}
-            onFilterChange={setAlertsFilter}
-            colors={colors}
-          />
-        </View>
-      )}
-
-      {insights && (
-        <View style={styles.modulesSection}>
-          <SectionHeader title="Módulos" />
-          <View style={styles.modulesGrid}>
-            {canRoutes && insights.modules.transport && (
-              <ModuleCard
-                title="Transporte"
-                highlights={insights.modules.transport.highlights}
-                colors={colors}
-                onPress={() => { markUsed('routes'); navigateToTab('routes'); }}
-                icon={Map}
-                gradientFrom="#3B82F6"
-                gradientTo="#93C5FD"
-              />
-            )}
-            {canMaintenance && insights.modules.maintenance && (
-              <ModuleCard
-                title="Mantenimiento"
-                highlights={insights.modules.maintenance.highlights}
-                colors={colors}
-                onPress={() => { markUsed('maintenance'); navigateToTab('maintenance'); }}
-                icon={Wrench}
-                gradientFrom="#6366F1"
-                gradientTo="#A5B4FC"
-              />
-            )}
-            {canCleaning && insights.modules.cleaning && (
-              <ModuleCard
-                title="Aseo"
-                highlights={insights.modules.cleaning.highlights}
-                colors={colors}
-                onPress={() => { markUsed('cleaning'); navigateToTab('cleaning'); }}
-                icon={Cleaning}
-                gradientFrom="#06B6D4"
-                gradientTo="#67E8F9"
-              />
-            )}
-            {canCivilWorks && insights.modules.civilWorks && (
-              <ModuleCard
-                title="Obras Civiles"
-                highlights={insights.modules.civilWorks.highlights}
-                colors={colors}
-                onPress={() => { markUsed('civil-works'); navigateToTab('civil-works'); }}
-                icon={HardHat}
-                gradientFrom="#F59E0B"
-                gradientTo="#FDE68A"
-              />
-            )}
-            {canTickets && insights.modules.tickets && (
-              <ModuleCard
-                title="Tickets"
-                highlights={insights.modules.tickets.highlights}
-                colors={colors}
-                onPress={() => { markUsed('work'); navigateToTab('work'); }}
-                icon={Ticket}
-                gradientFrom="#8B5CF6"
-                gradientTo="#C4B5FD"
-              />
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* Notificaciones recientes */}
-      <View style={styles.notificationsSection}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Notificaciones Recientes</Text>
-          <TouchableOpacity onPress={() => setDrawerOpen(true)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.background }}>
-            <Text style={{ color: colors.textSecondary }}>Ver todas</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={[styles.notificationsList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {notifications.length === 0 ? (
-            <View style={[styles.notificationItem, { borderBottomWidth: 0 }]}>
-              <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
-                <Bell size={16} color={colors.textSecondary} />
-              </View>
-              <View style={styles.notificationContent}>
-                <Text style={[styles.notificationText, { color: colors.textSecondary }]}>Sin notificaciones recientes</Text>
-              </View>
-            </View>
-          ) : (
-            notifications.slice(0, 5).map((n) => (
-              <View key={n.id} style={styles.notificationItem}>
-                <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
-                  <Bell size={16} color={colors.primary} />
-                </View>
-                <View style={styles.notificationContent}>
-                  <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
-                    {n.message || n.type || 'Notificación'}
-                  </Text>
-                  <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
-                    {new Date(n.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
+      <View style={[styles.section, sectionSpacingStyle]}>
+        <SectionHeader title="Accesos rápidos" subtitle="Tus módulos prioritarios" />
+        <QuickAccessCarousel colors={colors} tiles={quickAccessTiles} compact={isCompactScreen} />
       </View>
+
+      <NotificationsPanel
+        colors={colors}
+        notifications={notifications}
+        loading={notificationsLoading}
+        error={notificationsError}
+        onReload={handleNotificationsReload}
+        onOpenDrawer={() => setDrawerOpen(true)}
+        sectionStyle={sectionSpacingStyle}
+      />
 
       <NotificationsDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles: any = StyleSheet.create({
   container: {
     flex: 1,
   },
   contentContainer: {
     flexGrow: 1,
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+  },
+  heroWrapper: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  heroGradient: {
+    borderRadius: 28,
+    padding: 20,
+  },
+  heroHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  heroUser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+  heroAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  heroTexts: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroGreeting: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  heroRole: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  heroLogout: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 16,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginBottom: 20,
+    marginHorizontal: -6,
+    flexWrap: 'wrap',
+  },
+  statusChip: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    marginHorizontal: 6,
+    marginBottom: 12,
+    minWidth: 150,
+  },
+  statusChipLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  statusChipValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statusChipMeta: {
+    fontSize: 12,
+  },
+  heroActionsRow: {
+    flexDirection: 'row',
+    marginHorizontal: -6,
+  },
+  heroButton: {
+    flex: 1,
+    borderRadius: 9999,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 6,
+  },
+  heroButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  kpiCard: {
+    width: '48%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  kpiLabel: {
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  kpiValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  kpiTrend: {
+    fontSize: 12,
+    marginTop: 6,
+  },
+  quickAccessScroll: {
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+  },
+  quickAccessChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    marginRight: 12,
+    minWidth: 220,
+  },
+  quickAccessIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  quickAccessTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  quickAccessSubtitle: {
+    fontSize: 13,
+  },
+  cacheBadge: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  analyticsStack: {
+    marginTop: 20,
+  },
+  notificationsButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 12,
+  },
+  notificationsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   header: {
     paddingHorizontal: 20,
@@ -877,8 +1062,7 @@ const styles = StyleSheet.create({
   modulesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    rowGap: 12,
+    marginHorizontal: -6,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -911,6 +1095,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
   },
+  notificationEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    gap: 8,
+  },
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -941,4 +1132,81 @@ const styles = StyleSheet.create({
   notificationTime: {
     fontSize: 12,
   },
+  sectionCompact: {
+    paddingHorizontal: 16,
+  },
+  heroWrapperCompact: {
+    paddingHorizontal: 16,
+  },
+  heroGradientCompact: {
+    padding: 16,
+  },
+  heroHeaderRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  heroUserCompact: {
+    width: '100%',
+    marginBottom: 12,
+  },
+  heroAvatarCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  heroLogoutCompact: {
+    marginLeft: 0,
+    alignSelf: 'flex-start',
+  },
+  statusRowCompact: {
+    marginHorizontal: 0,
+  },
+  statusChipCompact: {
+    width: '100%',
+    marginHorizontal: 0,
+  },
+  heroActionsRowCompact: {
+    flexDirection: 'column',
+    marginHorizontal: 0,
+  },
+  heroButtonCompact: {
+    width: '100%',
+    marginHorizontal: 0,
+    marginBottom: 10,
+  },
+  heroButtonLastCompact: {
+    marginBottom: 0,
+  },
+  kpiGridCompact: {
+    flexDirection: 'column',
+  },
+  kpiCardFullCompact: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  quickAccessScrollCompact: {
+    paddingHorizontal: 16,
+  },
+  quickAccessChipCompact: {
+    minWidth: 180,
+    paddingVertical: 12,
+  },
+  quickAccessIconCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  quickAccessTitleCompact: {
+    fontSize: 14,
+  },
+  quickAccessSubtitleCompact: {
+    fontSize: 12,
+  },
+  cardSurfaceCompact: {
+    padding: 16,
+  },
 });
+

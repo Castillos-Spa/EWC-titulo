@@ -74,7 +74,10 @@ const TruckAssignmentCards: React.FC<Props> = ({ refDay }) => {
 		const normalizedRoute = routeQuery.trim().toLowerCase();
 		return dailyGroups.filter(group => {
 			const matchesTruck =
-				normalizedTruck === '' || group.truck.code.toLowerCase().includes(normalizedTruck);
+				normalizedTruck === '' ||
+				group.truck.code.toLowerCase().includes(normalizedTruck) ||
+				(group.truck.name ? group.truck.name.toLowerCase().includes(normalizedTruck) : false) ||
+				group.truck.plate.toLowerCase().includes(normalizedTruck);
 
 			let matchesDriver = true;
 			if (driverFilter === 'none') {
@@ -131,7 +134,7 @@ const TruckAssignmentCards: React.FC<Props> = ({ refDay }) => {
 							<input
 								value={truckQuery}
 								onChange={event => setTruckQuery(event.target.value)}
-								placeholder="Buscar por código de camión"
+								placeholder="Buscar por camión (código o nombre)"
 								className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none dark:text-slate-100"
 							/>
 						</label>
@@ -214,7 +217,12 @@ const TruckAssignmentCards: React.FC<Props> = ({ refDay }) => {
 												<Truck className="h-4 w-4" />
 												{truck.code}
 											</div>
-											<h3 className="text-xl font-semibold tracking-tight">Agenda del {refDay.toISOString().slice(0, 10)}</h3>
+												{truck.name && (
+													<div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+														{truck.name}
+													</div>
+												)}
+											<h3 className="text-xl font-semibold tracking-tight">{truck.plate}</h3>
 											<div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-blue-200/70">
 												<span className="inline-flex items-center gap-1 rounded-full bg-slate-200/80 px-2 py-1 font-medium dark:bg-white/10">
 													<Wrench className="h-3.5 w-3.5" />

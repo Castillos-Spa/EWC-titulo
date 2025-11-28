@@ -3,9 +3,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { useAuthStore } from './stores/authStore';
-import { useThemeStore } from './stores/themeStore';
-import LoginScreen from './screens/LoginScreen';
+import { useAuthStore } from '@/stores/authStore';
+import { useThemeStore } from '@/stores/themeStore';
+import LoginScreen from '@/screens/LoginScreen';
 
 export default function RootLayout() {
   useFrameworkReady();

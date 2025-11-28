@@ -1,20 +1,18 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateFuelLogDto } from './dto/create-fuel-log.dto';
+import { Role } from '@prisma/client';
 import { UsersService } from '@/features/users/users.service';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class FuelService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
-    private readonly tenantContext: TenantContextService,
   ) {}
 
   async createFuelLog(createFuelLogDto: CreateFuelLogDto, driverId: number) {
-    const tenantId = this.resolveTenantId();
     const { vehiculoId, ...rest } = createFuelLogDto;
 
     const vehiculo = await this.prisma.vehiculo.findUnique({
@@ -31,7 +29,6 @@ export class FuelService {
         date: new Date(createFuelLogDto.date),
         vehiculo: { connect: { id: vehiculoId } },
         driver: { connect: { id: driverId } },
-        tenant: { connect: { id: tenantId } },
       },
     });
   }
@@ -41,6 +38,11 @@ export class FuelService {
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
     }
+
+    const isDriver = user.roleAssignments.some(ra => ra.role === Role.Especialista && ra.specialty === 'DRIVER');
+    const isAdminOrSupervisor =
+      user.roleAssignments.some(ra => ra.role === Role.Admin) ||
+      user.roleAssignments.some(ra => ra.area === 'Transporte' && ra.role === Role.Supervisor);
 
     const vehicle = await this.prisma.vehiculo.findUnique({
       where: { id: vehiculoId },
@@ -76,9 +78,15 @@ export class FuelService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
+    const isAdminOrSupervisor =
+      user.roleAssignments.some(ra => ra.role === Role.Admin) ||
+      user.roleAssignments.some(ra => ra.area === 'Transporte' && ra.role === Role.Supervisor);
+
     let vehicleWhereClause = {};
 
-    // Nota: ajustar la lógica de filtrado cuando se reactive la asignación de conductores.
+    // Si el usuario NO es admin o supervisor, se asume que es un conductor y solo ve su vehículo asignado.
+    // Si ES admin o supervisor, el where clause queda vacío para traer TODOS los vehículos.
+    // TODO: Re-evaluar la lógica de filtrado si es necesario ahora que no hay conductorId
 
     const { page = 1, pageSize = 20 } = paginationQuery;
     const skip = (page - 1) * pageSize;
@@ -107,13 +115,5 @@ export class FuelService {
 
     const totalPages = Math.ceil(total / pageSize);
     return { items, total, page, pageSize, totalPages };
-  }
-
-  private resolveTenantId(): number {
-    const tenantId = this.tenantContext.tenantId;
-    if (!tenantId) {
-      throw new UnauthorizedException('Tenant no especificado en la operación.');
-    }
-    return tenantId;
   }
 }

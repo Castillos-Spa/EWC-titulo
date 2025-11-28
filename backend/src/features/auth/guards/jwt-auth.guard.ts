@@ -3,14 +3,10 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { OPTIONAL_AUTH_KEY } from '../decorators/optional-auth.decorator';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(
-    private readonly reflector: Reflector,
-    private readonly tenantContext: TenantContextService,
-  ) {
+  constructor(private readonly reflector: Reflector) {
     super();
   }
 
@@ -40,21 +36,5 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     return super.canActivate(context);
-  }
-
-  handleRequest(err: unknown, user: any, info: unknown, context: ExecutionContext) {
-    const result = super.handleRequest(err, user, info, context);
-
-    if (result) {
-      this.tenantContext.setContext({
-        tenantId: result.tenantId ?? null,
-        tenantSlug: result.tenantSlug ?? null,
-        companyId: result.companyId ?? null,
-        companyIds: result.companyIds ?? [],
-        modules: result.modules ?? [],
-      });
-    }
-
-    return result;
   }
 }

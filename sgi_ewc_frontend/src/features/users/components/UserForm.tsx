@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { User, RoleAssignment, Role } from '../../../types/User';
 import { Plus, Trash2 } from 'lucide-react';
+import Modal from '../../../components/ui/Modal';
 
 interface UserFormProps {
+  open?: boolean;
   initialData?: Partial<User>;
   onSubmit: (data: Partial<User>) => void;
   onCancel: () => void;
@@ -12,9 +14,11 @@ interface UserFormProps {
 const roleOptions: Role[] = ["Admin", "Jefe", "Supervisor", "Especialista", "Trabajador", "Lector"];
 const areaOptions = ["Admin", "IT", "Transporte", "Taller", "Obras", "Aseo", "RRHH", "Finanza", "P_Riesgo"];
 
-const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCancel }) => {
+const UserForm: React.FC<UserFormProps> = ({ open = true, initialData = {}, onSubmit, onCancel }) => {
   const [form, setForm] = useState<Partial<User>>({ active: true, ...initialData });
   const editing = Boolean(initialData?.id);
+  const title = useMemo(() => editing ? 'Editar usuario' : 'Registrar usuario', [editing]);
+  const subtitle = 'Completa los datos del usuario y sus asignaciones de rol y área.';
 
   useEffect(() => {
     // Si no hay asignaciones iniciales, agregar una vacía para empezar
@@ -23,12 +27,7 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
     }
   }, [form.roleAssignments]);
 
-  // Cerrar con Escape para consistencia con otros modales
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
-    globalThis.addEventListener('keydown', handler);
-    return () => globalThis.removeEventListener('keydown', handler);
-  }, [onCancel]);
+  // El componente Modal maneja Escape y backdrop; aquí no es necesario duplicarlo
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -52,35 +51,38 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      ...form,
-      active: form.active === true,
+    const username = (form.username ?? '').toString().trim();
+    const email = (form.email ?? '').toString().trim();
+    const active = form.active === true;
+    const roleAssignments = (form.roleAssignments || [])
+      .filter(ra => (ra.area || '').toString().trim() && (ra.role || '').toString().trim())
+      .map(ra => ({
+        area: (ra.area || '').toString().trim(),
+        role: ra.role,
+        ...(ra.specialty ? { specialty: ra.specialty } : {}),
+        ...(Array.isArray(ra.additionalPermissions) && ra.additionalPermissions.length > 0
+          ? { additionalPermissions: ra.additionalPermissions.filter(Boolean) }
+          : {}),
+      }));
+
+    const payload: Partial<User> & {
+      roleAssignments?: { area: string; role: Role; specialty?: any; additionalPermissions?: string[] }[];
+    } = {
+      ...(username ? { username } : {}),
+      ...(email ? { email } : {}),
+      active,
+      ...(roleAssignments.length > 0 ? { roleAssignments } : {}),
     };
-    onSubmit(data);
+
+    onSubmit(payload);
   };
 
   const labelCls = 'mb-2 block text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70';
   const inputCls = 'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-blue-200/60 dark:focus:ring-sky-500';
 
   return (
-    <dialog open className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur" aria-labelledby="user-form-title">
-      <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-slate-800 shadow-2xl shadow-slate-300/50 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-100">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-400 dark:text-blue-200/60">{editing ? 'Actualización' : 'Nuevo registro'}</p>
-            <h2 id="user-form-title" className="mt-2 text-2xl font-semibold tracking-tight">{editing ? 'Editar usuario' : 'Registrar usuario'}</h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-blue-200/70">Completa los datos del usuario y sus asignaciones de rol y área.</p>
-          </div>
-          <button
-            onClick={onCancel}
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-blue-100"
-            aria-label="Cerrar"
-          >
-            ×
-          </button>
-        </div>
-
-        <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
+    <Modal open={open} title={title} subtitle={subtitle} onClose={onCancel} size="lg">
+        <form className="mt-2 space-y-6" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="user-username" className={labelCls}>Nombre completo</label>
             <input
@@ -196,7 +198,7 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
             </div>
           </div>
 
-          <footer className="flex flex-col gap-3 border-t border-slate-200/70 pt-4 text-sm dark:border-white/10 md:flex-row md:items-center md:justify-end md:space-x-3">
+          <footer className="flex flex-col gap-3 pt-2 text-sm md:flex-row md:items-center md:justify-end md:space-x-3">
             <button
               type="button"
               onClick={onCancel}
@@ -212,8 +214,7 @@ const UserForm: React.FC<UserFormProps> = ({ initialData = {}, onSubmit, onCance
             </button>
           </footer>
         </form>
-      </div>
-    </dialog>
+    </Modal>
   );
 };
 

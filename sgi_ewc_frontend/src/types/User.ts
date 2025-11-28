@@ -45,6 +45,7 @@ export interface RoleAssignment {
   role: Role;
   specialty?: Specialty | null;
   additionalPermissions?: string[];
+  permissions?: string[];
   isActive?: boolean;
   companyId?: number | null;
 }
@@ -61,9 +62,16 @@ export interface RolesByArea {
 export interface User {
   id: number;
   username: string;
+  fullName?: string | null;
   email: string;
+  phone?: string | null;
+  address?: string | null;
+  jobTitle?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
   areas: string[];
   roles: Role[];
+  permissions?: string[];
   roleAssignments: RoleAssignment[];
   rolesByArea: RolesByArea;
   isAdmin: boolean;

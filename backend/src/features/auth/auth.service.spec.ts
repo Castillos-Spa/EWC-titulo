@@ -1,11 +1,9 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { AuthService, AuthSession, ModuleAccessSnapshot } from './auth.service';
+import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
-import { ModuleKey, ModuleStatus, Role, TenantStatus } from '@prisma/client';
-import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
-import { PrismaService } from 'prisma/prisma.service';
+import { Role } from '@prisma/client';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -17,7 +15,6 @@ import * as crypto from 'node:crypto';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let prisma: PrismaMock;
   const usersService = {
     findByEmail: jest.fn(),
     setRefreshToken: jest.fn(),
@@ -42,29 +39,6 @@ describe('AuthService', () => {
     get: jest.fn(),
   } as unknown as jest.Mocked<ConfigService>;
 
-  const tenant = {
-    id: 77,
-    slug: 'tenant-1',
-    name: 'Tenant One',
-    status: TenantStatus.ACTIVE,
-    contactEmail: null,
-    metadata: {},
-    createdAt: new Date('2024-01-01T00:00:00Z'),
-    updatedAt: new Date('2024-01-02T00:00:00Z'),
-    modules: [
-      {
-        id: 1,
-        tenantId: 77,
-        module: ModuleKey.DASHBOARD,
-        status: ModuleStatus.ACTIVE,
-        createdAt: new Date('2024-01-01T00:00:00Z'),
-        updatedAt: new Date('2024-01-02T00:00:00Z'),
-        trialEndsAt: null,
-      },
-    ],
-    companies: [],
-  } as any;
-
   const baseUser = {
     id: 1,
     email: 'test@example.com',
@@ -72,8 +46,6 @@ describe('AuthService', () => {
     password: 'hashed',
     mustChangePassword: false,
     active: true,
-    tenantId: tenant.id,
-    primaryCompanyId: null,
     roleAssignments: [
       {
         id: 1,
@@ -84,116 +56,45 @@ describe('AuthService', () => {
         specialty: null,
       },
     ],
-    userCompanies: [],
-    refreshToken: null,
   } as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma = createPrismaMock();
-    service = new AuthService(usersService, jwtService, configService, prisma as unknown as PrismaService);
+    service = new AuthService(usersService, jwtService, configService);
   });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  const moduleMap: ModuleAccessSnapshot = {
-    tenant: {
-      active: [ModuleKey.DASHBOARD],
-      trial: [],
-      inactive: [],
-      pending: [],
-      enabled: [ModuleKey.DASHBOARD],
-      disabled: [],
-    },
-    user: {
-      enabled: [ModuleKey.DASHBOARD],
-      restricted: [],
-    },
-  };
-
-  const mockSession = {
-    userId: baseUser.id,
-    user: (({ password: _pw, ...rest }) => rest)(baseUser),
-    tenant,
-    modules: [ModuleKey.DASHBOARD],
-    tenantModules: [ModuleKey.DASHBOARD],
-    companies: [],
-    companyId: null,
-    payload: {
-      sub: baseUser.id,
-      tenantId: tenant.id,
-      tenantSlug: tenant.slug,
-      companyId: null,
-      companyIds: [],
-      modules: [ModuleKey.DASHBOARD],
-      tenantModules: [ModuleKey.DASHBOARD],
-      restrictedModules: [],
-      email: baseUser.email,
-      username: baseUser.username,
-      areas: [],
-      roles: [],
-      permissions: [],
-      rolesByArea: {},
-      isAdmin: false,
-      mustChangePassword: baseUser.mustChangePassword,
-      active: baseUser.active,
-    },
-    userDetails: {
-      id: baseUser.id,
-      username: baseUser.username,
-      email: baseUser.email,
-      areas: [],
-      roles: [],
-      rolesByArea: {},
-      isAdmin: false,
-      mustChangePassword: baseUser.mustChangePassword,
-      active: baseUser.active,
-      tenantId: tenant.id,
-      tenantSlug: tenant.slug,
-      companyId: null,
-      companyIds: [],
-      modules: [ModuleKey.DASHBOARD],
-      tenantModules: [ModuleKey.DASHBOARD],
-      restrictedModules: [],
-    },
-    moduleMap,
-  } as AuthSession;
 
   describe('validateUser', () => {
     it('returns null when user does not exist', async () => {
-      (prisma.tenant.findUnique as jest.Mock).mockResolvedValueOnce(tenant);
       usersService.findByEmail.mockResolvedValueOnce(null as any);
 
-      const result = await service.validateUser('missing@example.com', 'secret', tenant.slug);
+      const result = await service.validateUser('missing@example.com', 'secret');
 
       expect(result).toBeNull();
-      expect(usersService.findByEmail).toHaveBeenCalledWith('missing@example.com', tenant.id);
+      expect(usersService.findByEmail).toHaveBeenCalledWith('missing@example.com');
     });
 
-    it('returns session when credentials are valid', async () => {
-      (prisma.tenant.findUnique as jest.Mock).mockResolvedValueOnce(tenant);
+    it('returns user data without password when credentials are valid', async () => {
       usersService.findByEmail.mockResolvedValueOnce(baseUser);
       (bcryptCompare as jest.Mock).mockResolvedValueOnce(true);
-      const buildSessionSpy = jest
-        .spyOn<any, any>(service as any, 'buildSessionContext')
-        .mockReturnValueOnce(mockSession);
 
-      const result = await service.validateUser(baseUser.email, 'secret', tenant.slug);
+      const result = await service.validateUser(baseUser.email, 'secret');
 
       expect(bcryptCompare).toHaveBeenCalledWith('secret', baseUser.password);
-      expect(buildSessionSpy).toHaveBeenCalledWith(
-        expect.not.objectContaining({ password: expect.anything() }),
-        tenant,
-        undefined,
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: baseUser.id,
+          email: baseUser.email,
+          username: baseUser.username,
+        }),
       );
-      expect(result).toBe(mockSession);
+      expect(result).not.toHaveProperty('password');
     });
   });
 
   describe('login', () => {
     it('issues tokens and stores refresh token hash', async () => {
+      const { password, ...userWithoutPassword } = baseUser;
+
       jwtService.sign.mockReturnValueOnce('access-token').mockReturnValueOnce('refresh-token');
 
       configService.get.mockImplementation(key => {
@@ -203,23 +104,18 @@ describe('AuthService', () => {
         return undefined;
       });
 
-      const response = await service.login(mockSession);
+      const response = await service.login(userWithoutPassword);
 
       const expectedHash = crypto.createHmac('sha256', 'refresh-hmac').update('refresh-token').digest('hex');
 
-      expect(jwtService.sign).toHaveBeenNthCalledWith(1, mockSession.payload);
+      expect(jwtService.sign).toHaveBeenNthCalledWith(1, expect.objectContaining({ sub: baseUser.id }));
       expect(jwtService.sign).toHaveBeenNthCalledWith(
         2,
-        {
-          sub: mockSession.userId,
-          email: mockSession.user.email,
-          tenantId: mockSession.payload.tenantId,
-          companyId: mockSession.companyId,
-        },
+        { sub: baseUser.id, email: baseUser.email },
         expect.objectContaining({ expiresIn: '7d', secret: 'refresh-secret' }),
       );
-      expect(usersService.setRefreshToken).toHaveBeenCalledWith(mockSession.userId, expectedHash);
-      expect(usersService.updateLastLogin).toHaveBeenCalledWith(mockSession.userId);
+      expect(usersService.setRefreshToken).toHaveBeenCalledWith(baseUser.id, expectedHash);
+      expect(usersService.updateLastLogin).toHaveBeenCalledWith(baseUser.id);
       expect(response).toEqual(
         expect.objectContaining({ access_token: 'access-token', refresh_token: 'refresh-token' }),
       );
@@ -256,12 +152,8 @@ describe('AuthService', () => {
         return undefined;
       });
 
-      jwtService.verify.mockReturnValueOnce({ sub: baseUser.id, tenantId: tenant.id });
-      usersService.findById.mockResolvedValueOnce({ ...baseUser, refreshToken: hashed, active: true });
-      (prisma.tenant.findUnique as jest.Mock).mockResolvedValueOnce(tenant);
-      jest
-        .spyOn<any, any>(service as any, 'buildSessionContext')
-        .mockReturnValueOnce({ ...mockSession, payload: { ...mockSession.payload } });
+      jwtService.verify.mockReturnValueOnce({ sub: baseUser.id });
+      usersService.findById.mockResolvedValueOnce({ ...baseUser, refreshToken: hashed });
       jwtService.sign.mockReturnValueOnce('new-access-token');
 
       const result = await service.refreshToken(refreshToken);
@@ -269,10 +161,9 @@ describe('AuthService', () => {
       expect(result).toEqual(
         expect.objectContaining({
           access_token: 'new-access-token',
-          user: mockSession.userDetails,
+          user: expect.objectContaining({ id: baseUser.id }),
         }),
       );
-      expect(usersService.findById).toHaveBeenCalledWith(baseUser.id, tenant.id);
     });
 
     it('throws when refresh token hash mismatches', async () => {
@@ -285,9 +176,8 @@ describe('AuthService', () => {
         return undefined;
       });
 
-      jwtService.verify.mockReturnValueOnce({ sub: baseUser.id, tenantId: tenant.id });
-      usersService.findById.mockResolvedValueOnce({ ...baseUser, refreshToken: hashed, active: true });
-      (prisma.tenant.findUnique as jest.Mock).mockResolvedValueOnce(tenant);
+      jwtService.verify.mockReturnValueOnce({ sub: baseUser.id });
+      usersService.findById.mockResolvedValueOnce({ ...baseUser, refreshToken: hashed });
 
       await expect(service.refreshToken(refreshToken)).rejects.toBeInstanceOf(UnauthorizedException);
     });

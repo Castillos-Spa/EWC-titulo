@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeStore } from '../stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { useAuthz } from '@/hooks/useAuthz';
 import { router } from 'expo-router';
-import { useNavigationStore } from '../stores/navigationStore';
+import { useNavigationStore } from '@/stores/navigationStore';
 import {
   Home,
   Ticket,

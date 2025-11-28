@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { DatabaseService } from '../services/DatabaseService';
-import { TicketApi, BackendTicket, BackendTicketPriority, BackendTicketStatus } from '../services/TicketApi';
+import { DatabaseService } from '@/services/DatabaseService';
+import { TicketApi, BackendTicket, BackendTicketPriority, BackendTicketStatus } from '@/services/TicketApi';
 
 export interface Ticket {
   id: string; // keep as string for mobile UI; backend id is number
@@ -120,6 +120,16 @@ function applyMaterialToTickets(tickets: Ticket[], ticketId: string, materialId:
   return tickets.map((t) => (t.id === ticketId ? updateMaterialInTicket(t, materialId, used) : t));
 }
 
+const extractNumericTicketId = (ticketId: string): number => {
+  const digits = ticketId.replaceAll(/\D/g, '');
+  const parsed = Number.parseInt(digits, 10);
+  if (!Number.isNaN(parsed)) {
+    return parsed;
+  }
+  const fallback = Number(ticketId);
+  return Number.isNaN(fallback) ? parsed : fallback;
+};
+
 export const useTicketStore = create<TicketState>((set, get) => ({
   tickets: [],
   currentTicket: null,
@@ -198,7 +208,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
     try {
       // Mapear estado a backend y enviar
       const backendStatus = mapStatusToBackend(status);
-      const numericId = parseInt(ticketId.replace(/\D/g, ''), 10) || Number(ticketId);
+      const numericId = extractNumericTicketId(ticketId);
       const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: backendStatus });
       const mapped = mapFromBackend(updatedFromBackend);
       try {
@@ -219,7 +229,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
 
   startTicket: async (ticketId: string) => {
     try {
-      const numericId = parseInt(ticketId.replace(/\D/g, ''), 10) || Number(ticketId);
+      const numericId = extractNumericTicketId(ticketId);
       const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: 'EnProgreso' });
       const mapped = mapFromBackend(updatedFromBackend);
       const startTime = new Date().toISOString();
@@ -249,7 +259,7 @@ export const useTicketStore = create<TicketState>((set, get) => ({
         ? Math.round((Date.now() - new Date(ticket.startTime).getTime()) / (1000 * 60))
         : undefined;
 
-      const numericId = parseInt(ticketId.replace(/\D/g, ''), 10) || Number(ticketId);
+      const numericId = extractNumericTicketId(ticketId);
       const updatedFromBackend = await TicketApi.updateTicket(numericId, { status: 'Resuelto' });
       const mapped = mapFromBackend(updatedFromBackend);
       const endTime = new Date().toISOString();

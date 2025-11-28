@@ -144,7 +144,7 @@ const FleetVehicleModal: React.FC = () => {
                 />
                 <span className="inline-flex items-center gap-2">
                   <Truck className="h-4 w-4" />
-                  Camión cisterna
+                  Camión
                 </span>
               </label>
               <label className={`flex items-center gap-3 rounded-2xl border px-4 py-2 text-sm font-semibold text-slate-600 transition ${vehicleType === 'camioneta' ? 'border-sky-300 bg-white/90 shadow-sm shadow-sky-200/40 dark:border-sky-500/40 dark:bg-white/10 dark:text-white' : 'border-slate-200 bg-white/60 dark:border-white/10 dark:bg-white/5 dark:text-blue-100'}`}>
@@ -158,7 +158,7 @@ const FleetVehicleModal: React.FC = () => {
                 />
                 <span className="inline-flex items-center gap-2">
                   <Car className="h-4 w-4" />
-                  Camioneta de apoyo
+                  Camioneta
                 </span>
               </label>
             </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HardHat, Filter, RefreshCw, FileText, TriangleAlert as AlertTriangle, Shield } from 'lucide-react-native';
-import { useCivilWorksStore } from '../stores/civilWorksStore';
-import { useThemeStore } from '../stores/themeStore';
-import { WorkOrderCard } from '../components/WorkOrderCard';
-import { WorkOrderDetailModal } from '../components/WorkOrderDetailModal';
-import { SafetyChecklistModal } from '../components/SafetyChecklistModal';
-import { AccessGuard } from '../components/AccessGuard';
+import { useCivilWorksStore } from '@/stores/civilWorksStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { WorkOrderCard } from '@/components/WorkOrderCard';
+import { WorkOrderDetailModal } from '@/components/WorkOrderDetailModal';
+import { SafetyChecklistModal } from '@/components/SafetyChecklistModal';
+import { AccessGuard } from '@/components/AccessGuard';
 import { useAuthz } from '@/hooks/useAuthz';
 
 export default function CivilWorksScreen() {
@@ -58,8 +58,10 @@ export default function CivilWorksScreen() {
     setShowDetailModal(true);
   };
 
+  const currentStatusFilter = filterStatus === 'all' ? undefined : filterStatus;
+
   const filteredWorkOrders = workOrders.filter(order => {
-    if (filterStatus !== 'all' && order.status !== filterStatus) return false;
+    if (currentStatusFilter && order.status !== currentStatusFilter) return false;
     if (filterPriority !== 'all' && order.priority !== filterPriority) return false;
     if (search.trim().length > 0) {
       const q = search.toLowerCase();
@@ -234,7 +236,7 @@ export default function CivilWorksScreen() {
         )}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         onEndReachedThreshold={0.4}
-        onEndReached={() => { void loadMoreWorkOrders(filterStatus !== 'all' ? filterStatus : undefined); }}
+        onEndReached={() => { void loadMoreWorkOrders(currentStatusFilter); }}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <FileText size={64} color="#9CA3AF" />

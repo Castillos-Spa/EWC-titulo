@@ -1,17 +1,17 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter'; // Import Prisma from the @prisma/client package
 import { Prisma as PrismaClient } from '@prisma/client';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
-import { TenantContextService } from '@/app/core/tenant-context.service';
 
 export enum WorkOrderStatus {
   OPEN = 'abierta',
+  IN_PROGRESS = 'en_progreso',
   UNDER_REVIEW = 'pendiente_revision',
-  CLOSED = 'Cerrada',
-  // ... additional statuses
+  COMPLETED = 'completado',
+  LEGACY_CLOSED = 'Cerrada',
 }
 
 @Injectable()
@@ -19,7 +19,6 @@ export class WorkOrderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly tenantContext: TenantContextService,
   ) {}
 
   private readonly workOrderInclude = {
@@ -28,7 +27,6 @@ export class WorkOrderService {
   } satisfies PrismaClient.OrdenTrabajoInclude;
 
   async create(createWorkOrderDto: CreateWorkOrderDto) {
-    const tenantId = this.resolveTenantId();
     const { vehiculoId, ...restOfDto } = createWorkOrderDto;
 
     // Use a transaction to ensure both creating the work order and updating the vehicle succeed together.
@@ -41,7 +39,6 @@ export class WorkOrderService {
           scheduledDate: restOfDto.scheduledDate ? new Date(restOfDto.scheduledDate) : undefined,
           nextServiceDate: restOfDto.nextServiceDate ? new Date(restOfDto.nextServiceDate) : undefined,
           estado: WorkOrderStatus.OPEN,
-          tenant: { connect: { id: tenantId } },
         },
       });
 
@@ -50,9 +47,11 @@ export class WorkOrderService {
         data: { lastMaintenanceDate: new Date() },
       });
 
-      this.eventEmitter.emit('ot.created', newWorkOrder);
+      const normalizedWorkOrder = this.normalizeWorkOrder(newWorkOrder);
 
-      return newWorkOrder;
+      this.eventEmitter.emit('ot.created', normalizedWorkOrder);
+
+      return normalizedWorkOrder;
     });
   }
 
@@ -72,7 +71,9 @@ export class WorkOrderService {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    return { items, total, page, pageSize, totalPages };
+    const normalizedItems = items.map(item => this.normalizeWorkOrder(item));
+
+    return { items: normalizedItems, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number) {
@@ -80,7 +81,7 @@ export class WorkOrderService {
     if (!workOrder) {
       throw new NotFoundException(`Work order with ID ${id} not found`);
     }
-    return workOrder;
+    return this.normalizeWorkOrder(workOrder);
   }
 
   async updateStatus(id: number, status: WorkOrderStatus) {
@@ -90,11 +91,13 @@ export class WorkOrderService {
       include: { vehiculo: true },
     });
 
+    const normalizedWorkOrder = this.normalizeWorkOrder(updatedWorkOrder);
+
     if (status === WorkOrderStatus.UNDER_REVIEW && updatedWorkOrder) {
-      this.eventEmitter.emit('orden_trabajo.pendiente_revision', updatedWorkOrder);
+      this.eventEmitter.emit('orden_trabajo.pendiente_revision', normalizedWorkOrder);
     }
 
-    return updatedWorkOrder;
+    return normalizedWorkOrder;
   }
 
   async update(id: number, updateWorkOrderDto: UpdateWorkOrderDto) {
@@ -115,13 +118,13 @@ export class WorkOrderService {
     await this.findOne(id);
 
     const updatedWorkOrder = await this.prisma.ordenTrabajo.update({ where: { id }, data });
-    this.eventEmitter.emit('ot.updated', updatedWorkOrder);
-    return updatedWorkOrder;
+    const normalizedWorkOrder = this.normalizeWorkOrder(updatedWorkOrder);
+    this.eventEmitter.emit('ot.updated', normalizedWorkOrder);
+    return normalizedWorkOrder;
   }
 
   // Cerrar una orden de trabajo y crear un registro en QA
   async cerrarOT(id: number, checklist: string, resultado: string) {
-    const tenantId = this.resolveTenantId();
     return this.prisma.$transaction(async prisma => {
       const workOrder = await prisma.ordenTrabajo.findUnique({ where: { id } });
       if (!workOrder) {
@@ -130,15 +133,14 @@ export class WorkOrderService {
 
       await prisma.ordenTrabajo.update({
         where: { id },
-        data: { estado: WorkOrderStatus.CLOSED },
+        data: { estado: WorkOrderStatus.COMPLETED },
       });
 
       return prisma.qA.create({
         data: {
-          ot: { connect: { id } },
+          otId: id,
           checklist: checklist,
           resultado: resultado,
-          tenant: { connect: { id: tenantId } },
         },
       });
     });
@@ -159,11 +161,12 @@ export class WorkOrderService {
     });
   }
 
-  private resolveTenantId(): number {
-    const tenantId = this.tenantContext.tenantId;
-    if (!tenantId) {
-      throw new UnauthorizedException('Tenant no especificado en la operación.');
-    }
-    return tenantId;
+  private normalizeWorkOrder<T extends { estado: string }>(workOrder: T): T & { estado: WorkOrderStatus } {
+    const normalizedStatus =
+      workOrder.estado === WorkOrderStatus.LEGACY_CLOSED
+        ? WorkOrderStatus.COMPLETED
+        : (workOrder.estado as WorkOrderStatus);
+
+    return { ...workOrder, estado: normalizedStatus };
   }
 }

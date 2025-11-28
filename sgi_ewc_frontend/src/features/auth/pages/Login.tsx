@@ -128,6 +128,10 @@ const renderTenantInput = ({
 };
 
 const Login: React.FC = () => {
+  const DEMO_MODE = (() => {
+    const byEnv = String(import.meta.env.VITE_DEMO_MODE || 'false').toLowerCase() === 'true';
+    try { return byEnv || globalThis?.localStorage?.getItem('demoMode') === 'true'; } catch { return byEnv; }
+  })();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [tenantSlug, setTenantSlug] = useState('');
@@ -281,6 +285,40 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleDemo = async () => {
+    setError('');
+    const isValidEmail = /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
+    if (!isValidEmail) {
+      setError('Ingresa un correo válido para continuar con la demo');
+      return;
+    }
+    try {
+      // Activa modo demo en runtime y solicita login normal (será interceptado)
+      try {
+        globalThis.localStorage?.setItem('demoMode', 'true');
+        globalThis.localStorage?.setItem('autoStartTour', 'true');
+      } catch {}
+      const success = await login(email, 'demo');
+      if (success) {
+        // Calcular ruta preferida con datos del usuario en localStorage si Auth aún no se actualiza
+        let next = '/';
+        try {
+          const raw = globalThis.localStorage?.getItem('userData');
+          if (raw) {
+            const u = JSON.parse(raw);
+            next = getPreferredRoute(u);
+          }
+        } catch {}
+        navigate(next, { replace: true });
+      } else {
+        setError('No se pudo iniciar la demo');
+      }
+    } catch (err) {
+      console.error('Demo login error', err);
+      setError('No se pudo iniciar la demo');
+    }
+  };
+
   useEffect(() => {
     if (!globalThis?.document) return;
     const root = globalThis.document.documentElement;
@@ -376,6 +414,19 @@ const Login: React.FC = () => {
 
           <section className="flex items-center justify-center flex-1 w-full max-w-xl px-6 py-10 lg:px-12 lg:py-16">
             <div className={styles.card}>
+              {DEMO_MODE && (
+                <div className="mb-4 rounded-2xl border border-amber-300/40 bg-amber-100/70 px-4 py-3 text-sm text-amber-900">
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                    <div>
+                      <strong className="block">Modo demo activo</strong>
+                      <p>
+                        Puedes ingresar con cualquier correo y contraseña. Las acciones de creación/edición se simulan y no persisten.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="space-y-3 text-center lg:text-left">
                 <div className={styles.cardIcon}>
                   <Lock className="w-6 h-6" />
@@ -528,6 +579,17 @@ const Login: React.FC = () => {
                 >
                   {submitLabel}
                 </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={handleDemo}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-300/60 bg-amber-100/70 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-900 shadow-sm hover:bg-amber-200/80"
+                    data-cy="login-demo"
+                  >
+                    Probar demo
+                  </button>
+                </div>
               </form>
 
               <div className={styles.footer}>

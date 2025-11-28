@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import {
@@ -12,7 +12,6 @@ import {
 import { AuthModule } from '@/features/auth/auth.module';
 import { UsersModule } from '@/features/users/users.module';
 import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
-import { TenantModuleGuard } from '@/features/auth/guards/tenant-module.guard';
 import { WorkshopModule } from '@/features/workshop/workshop.module';
 import { TicketModule } from '@/features/ticket/ticket.module';
 import { NotificationModule } from '@/features/notification/notification.module';
@@ -24,7 +23,10 @@ import { RoutesModule } from '@/features/routes/routes.module';
 import { VehicleModule } from '@/features/vehicle/vehicle.module';
 import { CoreModule } from './core/core.module';
 import { DashboardModule } from '@/features/dashboard/dashboard.module';
-import { TenantContextMiddleware } from './core/tenant-context.middleware';
+import { BukModule } from '@/features/buk/buk.module';
+import { InventoryModule } from '@/features/inventory/inventory.module';
+import { ItInventoryModule } from '@/features/it-inventory/it-inventory.module';
+import { StorageModule } from '@/app/storage/storage.module';
 
 @Module({
   imports: [
@@ -51,6 +53,10 @@ import { TenantContextMiddleware } from './core/tenant-context.middleware';
     RoutesModule,
     VehicleModule,
     DashboardModule,
+    BukModule,
+    InventoryModule,
+    ItInventoryModule,
+    StorageModule,
     CoreModule,
   ],
 
@@ -62,11 +68,6 @@ import { TenantContextMiddleware } from './core/tenant-context.middleware';
       inject: [getOptionsToken(), getStorageToken()],
     },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: TenantModuleGuard },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantContextMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}
