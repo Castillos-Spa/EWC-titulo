@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { 
   X, 
@@ -23,14 +24,16 @@ import {
   Zap 
 } from 'lucide-react-native';
 import { useThemeStore } from '@/stores/themeStore';
+import type { Incident } from '@/stores/incidentStore';
 
 interface IncidentDetailModalProps {
-  readonly incident: any;
+  readonly incident: Incident | null;
   readonly visible: boolean;
+  readonly isLoading?: boolean;
   readonly onClose: () => void;
 }
 
-export function IncidentDetailModal({ incident, visible, onClose }: IncidentDetailModalProps) {
+export function IncidentDetailModal({ incident, visible, isLoading = false, onClose }: IncidentDetailModalProps) {
   const { getColors } = useThemeStore();
   const colors = getColors();
   // Validación de props para evitar crashes
@@ -109,11 +112,23 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
     });
   };
 
+  const locationInfo = useMemo(() => {
+    if (!incident.location) {
+      return { address: null as string | null, latitude: null as number | null, longitude: null as number | null };
+    }
+    const { address, latitude, longitude } = incident.location;
+    return {
+      address: address ?? null,
+      latitude: typeof latitude === 'number' ? latitude : null,
+      longitude: typeof longitude === 'number' ? longitude : null,
+    };
+  }, [incident.location]);
+
   const openInMaps = () => {
-    if (!incident.location || typeof incident.location.latitude !== 'number' || typeof incident.location.longitude !== 'number') {
+    if (locationInfo.latitude === null || locationInfo.longitude === null) {
       return;
     }
-    const { latitude, longitude } = incident.location;
+    const { latitude, longitude } = locationInfo;
     const url = `https://maps.google.com/?q=${latitude},${longitude}`;
     void Linking.openURL(url).catch((err) => {
       console.error('Error opening maps:', err);
@@ -126,6 +141,7 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
 
   // Validar que photos sea un array
   const photos = Array.isArray(incident.photos) ? incident.photos : [];
+  const areaLabel = typeof incident.area === 'string' && incident.area.trim().length ? incident.area.trim() : 'Sin área';
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -155,6 +171,10 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
                 {getStatusLabel(incident.status || 'reported')}
               </Text>
             </View>
+          </View>
+
+          <View style={[styles.areaBadge, { borderColor: `${colors.primary}33`, backgroundColor: `${colors.primary}12` }]}> 
+            <Text style={[styles.areaBadgeText, { color: colors.primary }]}>Área {areaLabel}</Text>
           </View>
 
           {/* Main Info */}
@@ -194,7 +214,7 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
           </View>
 
           {/* Location */}
-          {incident.location && (
+          {(locationInfo.address || locationInfo.latitude !== null) && (
             <View style={styles.locationSection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Ubicación</Text>
               <View style={[styles.locationCard, { backgroundColor: colors.surface }]}>
@@ -202,17 +222,17 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
                   <MapPin size={20} color="#2563EB" />
                   <View style={styles.locationDetails}>
                     <Text style={[styles.locationAddress, { color: colors.text }]}>
-                      {incident.location.address || 'Ubicación GPS'}
+                      {locationInfo.address || 'Ubicación GPS'}
                     </Text>
                     <Text style={[styles.locationCoords, { color: colors.textSecondary }]}>
-                      {typeof incident.location.latitude === 'number' && typeof incident.location.longitude === 'number'
-                        ? `${incident.location.latitude.toFixed(6)}, ${incident.location.longitude.toFixed(6)}`
+                      {locationInfo.latitude !== null && locationInfo.longitude !== null
+                        ? `${locationInfo.latitude.toFixed(6)}, ${locationInfo.longitude.toFixed(6)}`
                         : 'Coordenadas no disponibles'
                       }
                     </Text>
                   </View>
                 </View>
-                {typeof incident.location.latitude === 'number' && typeof incident.location.longitude === 'number' && (
+                {locationInfo.latitude !== null && locationInfo.longitude !== null && (
                   <TouchableOpacity style={styles.mapsButton} onPress={openInMaps}>
                     <Navigation size={20} color="#2563EB" />
                     <Text style={styles.mapsButtonText}>Ver en Mapas</Text>
@@ -223,7 +243,14 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
           )}
 
           {/* Photos */}
-          {photos.length > 0 && (
+          {isLoading ? (
+            <View style={styles.loadingSection}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Cargando detalle...</Text>
+            </View>
+          ) : null}
+
+          {photos.length > 0 && !isLoading && (
             <View style={styles.photosSection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 <Camera size={20} color="#374151" /> Evidencia Fotográfica
@@ -248,18 +275,24 @@ export function IncidentDetailModal({ incident, visible, onClose }: IncidentDeta
           )}
 
           {/* Sync Status */}
-          <View style={styles.syncSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Estado de Sincronización</Text>
-            <View style={[styles.syncCard, { backgroundColor: colors.surface }]}>
-              <View style={[
-                styles.syncIndicator,
-                { backgroundColor: (incident.syncStatus === 'synced') ? '#16A34A' : '#F59E0B' }
-              ]} />
-              <Text style={[styles.syncText, { color: colors.textSecondary }]}>
-                {(incident.syncStatus === 'synced') ? 'Sincronizado' : 'Pendiente de sincronización'}
-              </Text>
+          {incident.syncStatus !== 'synced' && (
+            <View style={styles.syncSection}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Estado de sincronización</Text>
+              <View style={[styles.syncCard, { backgroundColor: colors.surface }]}> 
+                <View
+                  style={[
+                    styles.syncIndicator,
+                    { backgroundColor: incident.syncStatus === 'failed' ? colors.error : '#F59E0B' },
+                  ]}
+                />
+                <Text style={[styles.syncText, { color: colors.textSecondary }]}>
+                  {incident.syncStatus === 'failed'
+                    ? 'Error al sincronizar. Reintenta cuando haya conexión.'
+                    : 'Pendiente de sincronización'}
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
         </ScrollView>
       </View>
     </Modal>
@@ -343,6 +376,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     flexShrink: 1,
+  },
+  areaBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  areaBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   mainInfo: {
     backgroundColor: '#FFFFFF',
@@ -459,6 +506,17 @@ const styles = StyleSheet.create({
   },
   photosSection: {
     marginBottom: 20,
+  },
+  loadingSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 20,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   photosRow: {
     flexDirection: 'row',

@@ -1,29 +1,83 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  ActivityIndicator,
   RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TriangleAlert as AlertTriangle, Plus, Filter, RefreshCw, FileText } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AlertTriangle, Camera, Plus, RefreshCw, Search, Shield } from 'lucide-react-native';
 import { useIncidentStore } from '@/stores/incidentStore';
+import type { Incident, IncidentSeverity, IncidentStatus } from '@/stores/incidentStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { IncidentCard } from '@/components/IncidentCard';
 import { CreateIncidentModal } from '@/components/CreateIncidentModal';
 import { IncidentDetailModal } from '@/components/IncidentDetailModal';
- 
+
+type StatusFilter = 'all' | IncidentStatus;
+type SeverityFilter = 'all' | IncidentSeverity;
+
+const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'reported', label: 'Reportados' },
+  { value: 'acknowledged', label: 'Reconocidos' },
+  { value: 'in_progress', label: 'En progreso' },
+  { value: 'resolved', label: 'Resueltos' },
+];
+
+const SEVERITY_FILTERS: Array<{ value: SeverityFilter; label: string }> = [
+  { value: 'all', label: 'Todas' },
+  { value: 'low', label: 'Baja' },
+  { value: 'medium', label: 'Media' },
+  { value: 'high', label: 'Alta' },
+  { value: 'critical', label: 'Crítica' },
+];
+
+const NEXT_STATUS: Record<IncidentStatus, IncidentStatus | null> = {
+  reported: 'acknowledged',
+  acknowledged: 'in_progress',
+  in_progress: 'resolved',
+  resolved: null,
+};
+
+const SEVERITY_COLOR: Record<IncidentSeverity, string> = {
+  low: '#16A34A',
+  medium: '#D97706',
+  high: '#EA580C',
+  critical: '#DC2626',
+};
+
+function computeLayout(width: number) {
+  const isCompact = width < 360;
+  const isWide = width > 768;
+  const horizontalPadding = isCompact ? 16 : isWide ? 28 : 20;
+  const heroTitleSize = isCompact ? 22 : isWide ? 28 : 24;
+  const statValueSize = isCompact ? 18 : 20;
+  const sectionGap = isCompact ? 12 : 16;
+  return { horizontalPadding, heroTitleSize, statValueSize, sectionGap };
+}
 
 export default function IncidentsScreen() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const layout = useMemo(() => computeLayout(width), [width]);
   const { getColors } = useThemeStore();
+  const colors = getColors();
   const {
     incidents,
     currentIncident,
     error,
+    isLoading,
+    isDetailLoading,
     loadIncidents,
+    loadIncidentDetail,
+    updateIncidentStatus,
     setCurrentIncident,
     clearError,
   } = useIncidentStore();
@@ -31,160 +85,271 @@ export default function IncidentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
+  const [onlyWithPhotos, setOnlyWithPhotos] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [advancingMap, setAdvancingMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    loadIncidents();
+    void loadIncidents();
   }, [loadIncidents]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadIncidents();
-    setRefreshing(false);
+    try {
+      await loadIncidents();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const handleIncidentPress = (incident: any) => {
+  const handleIncidentPress = (incident: Incident) => {
     setCurrentIncident(incident);
     setShowDetailModal(true);
+    void loadIncidentDetail(incident.id);
   };
 
-  const handleCreateIncident = () => {
-    setShowCreateModal(true);
+  const handleAdvanceStatus = async (incident: Incident) => {
+    const nextStatus = NEXT_STATUS[incident.status];
+    if (!nextStatus || advancingMap[incident.id]) {
+      return;
+    }
+    setAdvancingMap((prev) => ({ ...prev, [incident.id]: true }));
+    try {
+      await updateIncidentStatus(incident.id, nextStatus);
+    } finally {
+      setAdvancingMap((prev) => {
+        const clone = { ...prev };
+        delete clone[incident.id];
+        return clone;
+      });
+    }
   };
 
-  const filteredIncidents = incidents.filter(incident => {
-    if (filterStatus === 'all') return true;
-    return incident.status === filterStatus;
-  });
-
-  const getIncidentStats = () => {
+  const stats = useMemo(() => {
     const total = incidents.length;
-    const pending = incidents.filter(i => i.status === 'reported').length;
-    const inProgress = incidents.filter(i => i.status === 'in_progress').length;
-    const resolved = incidents.filter(i => i.status === 'resolved').length;
-    
-    return { total, pending, inProgress, resolved };
+    const reported = incidents.filter((item) => item.status === 'reported').length;
+    const acknowledged = incidents.filter((item) => item.status === 'acknowledged').length;
+    const inProgress = incidents.filter((item) => item.status === 'in_progress').length;
+    const resolved = incidents.filter((item) => item.status === 'resolved').length;
+    const withPhotos = incidents.filter((item) => Array.isArray(item.photos) && item.photos.length > 0).length;
+    return {
+      total,
+      open: reported + acknowledged,
+      inProgress,
+      resolved,
+      withPhotos,
+    };
+  }, [incidents]);
+
+  const filteredIncidents = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return incidents.filter((incident) => {
+      if (statusFilter !== 'all' && incident.status !== statusFilter) {
+        return false;
+      }
+      if (severityFilter !== 'all' && incident.severity !== severityFilter) {
+        return false;
+      }
+      if (onlyWithPhotos && (!incident.photos || incident.photos.length === 0)) {
+        return false;
+      }
+      if (!term) {
+        return true;
+      }
+      const haystack = [incident.title, incident.description, incident.area]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+  }, [incidents, statusFilter, severityFilter, onlyWithPhotos, searchTerm]);
+
+  const hasActiveFilters =
+    statusFilter !== 'all' || severityFilter !== 'all' || onlyWithPhotos || searchTerm.trim().length > 0;
+
+  const clearFiltersState = () => {
+    setStatusFilter('all');
+    setSeverityFilter('all');
+    setOnlyWithPhotos(false);
+    setSearchTerm('');
   };
-
-  const stats = getIncidentStats();
-
-  const colors = getColors();
-
-  if (error) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
-          <AlertTriangle size={64} color="#DC2626" />
-          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={clearError}>
-            <Text style={[styles.retryButtonText, { color: '#FFFFFF' }]}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}> 
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerTitle}>
-            <AlertTriangle size={28} color={colors.error} />
-            <Text style={[styles.title, { color: colors.text }]}>Incidentes</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient
+        colors={[colors.primary + '22', '#00000000']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.heroGradient}
+      />
+      <View pointerEvents="none" style={styles.halosContainer}>
+        <View style={[styles.haloTop, { backgroundColor: colors.primary + '33' }]} />
+        <View style={[styles.haloBottom, { backgroundColor: colors.secondary + '2A' }]} />
+      </View>
+
+      <View
+        style={[styles.heroSection, {
+          paddingHorizontal: layout.horizontalPadding,
+          paddingTop: insets.top + 16,
+          gap: layout.sectionGap,
+        }]}
+      >
+        <View style={[styles.heroBadge, { backgroundColor: colors.surface + 'AA', borderColor: colors.border }]}>
+          <Shield size={16} color={colors.primary} />
+          <Text style={[styles.heroBadgeText, { color: colors.primary }]}>Comando de incidentes</Text>
+        </View>
+
+        <View style={styles.heroHeaderRow}>
+          <View style={[styles.heroIconBox, { backgroundColor: colors.error + '20' }]}>
+            <AlertTriangle size={24} color={colors.error} />
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-              <RefreshCw size={24} color={colors.primary} />
+          <View style={styles.heroTextColumn}>
+            <Text style={[styles.heroTitle, { color: colors.text, fontSize: layout.heroTitleSize }]}>Incidentes</Text>
+            <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>Monitorea, prioriza y resuelve los incidentes operacionales desde un panel unificado.</Text>
+          </View>
+          <View style={styles.heroActions}>
+            <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.surface }]} onPress={handleRefresh}>
+              <RefreshCw size={20} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.createButton, { backgroundColor: colors.primary }]} onPress={handleCreateIncident}>
-              <Plus size={24} color="#FFFFFF" />
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+              onPress={() => setShowCreateModal(true)}
+            >
+              <Plus size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
+      </View>
 
-        {/* Stats */}
+      <View
+        style={[styles.summaryCard, {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          marginHorizontal: layout.horizontalPadding,
+          marginTop: layout.sectionGap,
+        }]}
+      >
         <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: colors.text }]}>{stats.total}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total</Text>
+          <View style={styles.statBlock}>
+            <Text style={[styles.statValue, { color: colors.text, fontSize: layout.statValueSize }]}>{stats.total}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Reportes totales</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: '#DC2626' }]}>{stats.pending}</Text>
+          <View style={styles.statBlock}>
+            <Text style={[styles.statValue, { color: colors.error, fontSize: layout.statValueSize }]}>{stats.open}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Pendientes</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: '#2563EB' }]}>{stats.inProgress}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>En Progreso</Text>
+          <View style={styles.statBlock}>
+            <Text style={[styles.statValue, { color: '#2563EB', fontSize: layout.statValueSize }]}>{stats.inProgress}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>En progreso</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: '#16A34A' }]}>{stats.resolved}</Text>
+          <View style={styles.statBlock}>
+            <Text style={[styles.statValue, { color: '#16A34A', fontSize: layout.statValueSize }]}>{stats.resolved}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Resueltos</Text>
           </View>
         </View>
 
-        {/* Filter */}
-        <View style={styles.filterSection}>
-          <Filter size={20} color="#64748B" />
+        <View style={[styles.filterSection, { borderTopColor: colors.border }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.filterRow}>
-              {[
-                { value: 'all', label: 'Todos' },
-                { value: 'reported', label: 'Reportados' },
-                { value: 'acknowledged', label: 'Reconocidos' },
-                { value: 'in_progress', label: 'En Progreso' },
-                { value: 'resolved', label: 'Resueltos' },
-              ].map((filter) => (
+              {STATUS_FILTERS.map((filter) => (
                 <TouchableOpacity
                   key={filter.value}
-                  style={[
-                    styles.filterButton,
-                    filterStatus === filter.value && styles.filterButtonActive,
-                  ]}
-                  onPress={() => setFilterStatus(filter.value)}
+                  style={[styles.filterChip, filter.value === statusFilter && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={() => setStatusFilter(filter.value)}
                 >
-                  <Text style={[
-                    styles.filterButtonText,
-                    filterStatus === filter.value && styles.filterButtonTextActive,
-                  ]}>
+                  <Text style={[styles.filterChipText, filter.value === statusFilter && { color: '#FFFFFF' }]}>
                     {filter.label}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </ScrollView>
+          {hasActiveFilters ? (
+            <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFiltersState}>
+              <Text style={styles.clearFiltersText}>Limpiar</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <View style={styles.severityRow}>
+          {SEVERITY_FILTERS.map((filter) => {
+            const isActive = filter.value === severityFilter;
+            const tone = filter.value === 'all' ? colors.textSecondary : SEVERITY_COLOR[filter.value as IncidentSeverity];
+            return (
+              <TouchableOpacity
+                key={filter.value}
+                style={[styles.severityChip, { borderColor: filter.value === 'all' ? colors.border : tone + '66' }, isActive && { backgroundColor: tone + '1A' }]}
+                onPress={() => setSeverityFilter(filter.value)}
+              >
+                <Text style={[styles.severityChipText, { color: isActive ? tone : colors.textSecondary }]}>{filter.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBox, { backgroundColor: colors.background, borderColor: colors.border }]}> 
+            <Search size={18} color={colors.textSecondary} />
+            <TextInput
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholder="Buscar por título, descripción o área"
+              placeholderTextColor={colors.textSecondary}
+              style={[styles.searchInput, { color: colors.text }]}
+              autoCorrect={false}
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.toggleChip, onlyWithPhotos && { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}
+            onPress={() => setOnlyWithPhotos((prev) => !prev)}
+          >
+            <Camera size={16} color={onlyWithPhotos ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.toggleChipText, { color: onlyWithPhotos ? colors.primary : colors.textSecondary }]}>
+              Solo con fotos ({stats.withPhotos})
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Incidents List */}
+      {error ? (
+        <View style={[styles.errorBanner, {
+          backgroundColor: colors.error + '15',
+          borderColor: colors.error + '40',
+          marginHorizontal: layout.horizontalPadding,
+        }]}
+        >
+          <Text style={[styles.errorBannerText, { color: colors.error }]}>{error}</Text>
+          <TouchableOpacity onPress={clearError}>
+            <Text style={[styles.errorBannerLink, { color: colors.error }]}>Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <ScrollView
-        style={styles.content}
-        contentContainerStyle={[
-          styles.contentContainer,
-          { paddingBottom: insets.bottom + 100 } // Extra space for tab bar
-        ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        style={[styles.list, { paddingHorizontal: layout.horizontalPadding }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        showsVerticalScrollIndicator={false}
       >
-        {filteredIncidents.length === 0 ? (
+        {isLoading && incidents.length === 0 ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Cargando incidentes</Text>
+          </View>
+        ) : filteredIncidents.length === 0 ? (
           <View style={styles.emptyState}>
-            <FileText size={64} color="#9CA3AF" />
-            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
-              {filterStatus === 'all' ? 'No hay incidentes' : 'No hay incidentes con este filtro'}
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              {filterStatus === 'all' 
-                ? 'Los incidentes reportados aparecerán aquí'
-                : 'Cambia el filtro para ver otros incidentes'
-              }
-            </Text>
-            {filterStatus === 'all' && (
-              <TouchableOpacity style={[styles.emptyButton, { backgroundColor: colors.error }]} onPress={handleCreateIncident}>
-                <Plus size={20} color="#FFFFFF" />
-                <Text style={[styles.emptyButtonText, { color: '#FFFFFF' }]}>Reportar Incidente</Text>
-              </TouchableOpacity>
-            )}
+            <AlertTriangle size={48} color={colors.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No encontramos incidentes</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Ajusta los filtros o registra un nuevo reporte.</Text>
+            <TouchableOpacity
+              style={[styles.emptyAction, { backgroundColor: colors.primary }]}
+              onPress={() => setShowCreateModal(true)}
+            >
+              <Plus size={18} color="#FFFFFF" />
+              <Text style={styles.emptyActionText}>Reportar incidente</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           filteredIncidents.map((incident) => (
@@ -192,22 +357,20 @@ export default function IncidentsScreen() {
               key={incident.id}
               incident={incident}
               onPress={() => handleIncidentPress(incident)}
+              onAdvanceStatus={() => handleAdvanceStatus(incident)}
+              advancing={Boolean(advancingMap[incident.id])}
             />
           ))
         )}
       </ScrollView>
 
-      {/* Create Incident Modal */}
-      <CreateIncidentModal
-        visible={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-      />
+      <CreateIncidentModal visible={showCreateModal} onClose={() => setShowCreateModal(false)} />
 
-      {/* Incident Detail Modal */}
       {currentIncident && (
         <IncidentDetailModal
           incident={currentIncident}
           visible={showDetailModal}
+          isLoading={isDetailLoading}
           onClose={() => {
             setShowDetailModal(false);
             setCurrentIncident(null);
@@ -219,178 +382,51 @@ export default function IncidentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  contentContainer: {
-    flexGrow: 1,
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  refreshButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-    minHeight: 48,
-    minWidth: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  createButton: {
-    backgroundColor: '#DC2626',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    marginBottom: 16,
-  },
-  stat: {
-    alignItems: 'center',
-    minWidth: 60,
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  filterSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    minHeight: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterButtonActive: {
-    backgroundColor: '#2563EB',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  filterButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#94A3B8',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#DC2626',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
-    minHeight: 56,
-  },
-  emptyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#DC2626',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-    lineHeight: 26,
-  },
-  retryButton: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minHeight: 56,
-    justifyContent: 'center',
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1 },
+  heroGradient: { position: 'absolute', left: 0, right: 0, top: 0, height: 220 },
+  halosContainer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
+  haloTop: { position: 'absolute', top: -60, left: -40, width: 220, height: 220, borderRadius: 9999, opacity: 0.5 },
+  haloBottom: { position: 'absolute', bottom: -80, right: -60, width: 260, height: 260, borderRadius: 9999, opacity: 0.4 },
+  heroSection: { paddingBottom: 12 },
+  heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  heroBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+  heroHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  heroIconBox: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  heroTextColumn: { flex: 1, gap: 6 },
+  heroTitle: { fontWeight: '700', lineHeight: 30 },
+  heroSubtitle: { fontSize: 14, lineHeight: 20 },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingHorizontal: 16, height: 44 },
+  summaryCard: { borderWidth: 1, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16, shadowColor: '#000000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 2 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 },
+  statBlock: { flexShrink: 0 },
+  statValue: { fontWeight: '700' },
+  statLabel: { fontSize: 12, fontWeight: '600' },
+  filterSection: { borderTopWidth: 1, paddingTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  filterRow: { flexDirection: 'row', gap: 8, paddingRight: 12 },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  clearFiltersButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#E2E8F0' },
+  clearFiltersText: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
+  severityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
+  severityChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, backgroundColor: '#F8FAFC' },
+  severityChipText: { fontSize: 12, fontWeight: '700' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 },
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 },
+  searchInput: { flex: 1, fontSize: 14 },
+  toggleChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF' },
+  toggleChipText: { fontSize: 13, fontWeight: '600' },
+  errorBanner: { borderWidth: 1, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, marginTop: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  errorBannerText: { fontSize: 13, fontWeight: '600' },
+  errorBannerLink: { fontSize: 12, fontWeight: '700' },
+  list: { flex: 1, paddingTop: 20 },
+  listContent: { paddingBottom: 120 },
+  loadingState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
+  loadingText: { fontSize: 14, fontWeight: '600' },
+  emptyState: { alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 80 },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptySubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  emptyAction: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14 },
+  emptyActionText: { color: '#FFFFFF', fontWeight: '700' },
 });

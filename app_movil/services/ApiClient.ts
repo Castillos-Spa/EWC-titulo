@@ -53,15 +53,33 @@ class ApiClientClass {
   }
 
   private async buildHeaders(init?: ApiRequestInit): Promise<Record<string, string>> {
-    const base: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(init?.headers as Record<string, string> | undefined),
-    };
+    const headers: Record<string, string> = {};
+
+    const source = init?.headers;
+    if (source instanceof Headers) {
+      source.forEach((value, key) => {
+        headers[key] = value;
+      });
+    } else if (Array.isArray(source)) {
+      for (const [key, value] of source) {
+        headers[String(key)] = String(value);
+      }
+    } else if (source && typeof source === 'object') {
+      Object.assign(headers, source as Record<string, string>);
+    }
+
+    const hasContentType = Object.keys(headers).some((key) => key.toLowerCase() === 'content-type');
+    const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData;
+    if (!hasContentType && !isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+
     if (init?.authenticate) {
       const token = await SafeStorage.getItem('accessToken');
-      if (token) base['Authorization'] = `Bearer ${token}`;
+      if (token) headers['Authorization'] = `Bearer ${token}`;
     }
-    return base;
+
+    return headers;
   }
 
   private async doFetch(url: string, init?: ApiRequestInit): Promise<Response> {
@@ -118,6 +136,9 @@ class ApiClientClass {
   }
   post<T>(path: string, body?: any, authenticate = true): Promise<T> {
     return this.request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined, authenticate });
+  }
+  upload<T>(path: string, formData: FormData, authenticate = true): Promise<T> {
+    return this.request<T>(path, { method: 'POST', body: formData, authenticate });
   }
   patch<T>(path: string, body?: any, authenticate = true): Promise<T> {
     return this.request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined, authenticate });

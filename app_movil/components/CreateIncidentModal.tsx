@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { X, Camera, MapPin, Save, Navigation } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useIncidentStore } from '@/stores/incidentStore';
-import type { Incident } from '@/stores/incidentStore';
+import type { Incident, IncidentLocation, CapturedPhoto } from '@/stores/incidentStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
 
@@ -31,10 +31,11 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
   
   const [type, setType] = useState<Incident['type']>('other');
   const [severity, setSeverity] = useState<Incident['severity']>('medium');
+  const [area, setArea] = useState<string | undefined>(undefined);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [location, setLocation] = useState<any>(null);
+  const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const [location, setLocation] = useState<IncidentLocation | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   const incidentTypes: readonly { value: Incident['type']; label: string; icon: string }[] = [
@@ -53,11 +54,32 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
     { value: 'critical', label: 'Crítico', color: '#DC2626' },
   ];
 
+  const areaOptions = useMemo(() => {
+    const unique = new Set<string>();
+    if (Array.isArray(user?.areaIds)) {
+      for (const value of user.areaIds) {
+        if (typeof value === 'string' && value.trim().length) {
+          unique.add(value.trim());
+        }
+      }
+    }
+    ['Transporte', 'Aseo', 'Obras', 'IT', 'Admin', 'Finanzas', 'Prev_Riesgo'].forEach((fallback) => unique.add(fallback));
+    return Array.from(unique);
+  }, [user]);
+
+  const primaryArea = areaOptions[0];
+
   useEffect(() => {
     if (visible) {
       getCurrentLocation();
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (visible && primaryArea && !area) {
+      setArea(primaryArea);
+    }
+  }, [visible, primaryArea, area]);
 
   const getCurrentLocation = async () => {
     setIsGettingLocation(true);
@@ -119,7 +141,17 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
       });
 
       if (!result.canceled && result.assets[0]) {
-        setPhotos(prev => [...prev, result.assets[0].uri]);
+        const asset = result.assets[0];
+        const guessedName = asset.fileName ?? asset.uri.split('/').pop() ?? `incidente-${Date.now()}.jpg`;
+        const guessedType = asset.mimeType ?? (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
+        setPhotos((prev) => [
+          ...prev,
+          {
+            uri: asset.uri,
+            name: guessedName,
+            type: guessedType,
+          },
+        ]);
       }
     } catch (error) {
       console.error('Error al acceder a la cámara', error);
@@ -150,24 +182,23 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
 
     try {
       await createIncident({
+        area,
         type,
         severity,
         title: title.trim(),
         description: description.trim(),
-        location,
-        photos,
-        reportedBy: user?.name || 'Usuario',
-        status: 'reported',
+        location: location ?? undefined,
+        attachments: photos,
       });
 
-      // Reset form
       setType('other');
       setSeverity('medium');
+      setArea(primaryArea);
       setTitle('');
       setDescription('');
       setPhotos([]);
       setLocation(null);
-      
+
       onClose();
       Alert.alert('Éxito', 'Incidente reportado correctamente');
     } catch (error) {
@@ -222,6 +253,34 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+
+          {/* Area Selection */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Área responsable</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.areaRow}>
+                {areaOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.areaChip,
+                      { borderColor: colors.border, backgroundColor: colors.surface },
+                      area === option && styles.areaChipActive,
+                      area === option && { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
+                    ]}
+                    onPress={() => setArea(option)}
+                  >
+                    <Text style={[styles.areaChipText, { color: area === option ? colors.primary : colors.textSecondary }]}>
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            <Text style={[styles.areaHelper, { color: colors.textSecondary }]}>
+              Selecciona el área que gestionará el incidente. Se preselecciona tu área principal.
+            </Text>
           </View>
 
           {/* Severity Selection */}
@@ -302,7 +361,9 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
                           {location.address || 'Ubicación capturada'}
                         </Text>
                         <Text style={[styles.locationCoords, { color: colors.textSecondary }]}>
-                          {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                          {typeof location.latitude === 'number' && typeof location.longitude === 'number'
+                            ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
+                            : 'Coordenadas no disponibles'}
                         </Text>
                       </View>
                     </View>
@@ -333,8 +394,8 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
             {photos.length > 0 && (
               <View style={styles.photoGrid}>
                 {photos.map((photo, index) => (
-                  <View key={photo} style={styles.photoContainer}>
-                    <Image source={{ uri: photo }} style={styles.photo} />
+                  <View key={photo.uri} style={styles.photoContainer}>
+                    <Image source={{ uri: photo.uri }} style={styles.photo} />
                     <TouchableOpacity
                       style={styles.removePhotoButton}
                       onPress={() => removePhoto(index)}
@@ -455,6 +516,35 @@ const styles = StyleSheet.create({
   },
   typeLabelSelected: {
     color: '#2563EB',
+  },
+  areaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  areaChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  areaChipActive: {
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  areaChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  areaHelper: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 8,
+    lineHeight: 18,
   },
   severityGrid: {
     flexDirection: 'row',

@@ -1,56 +1,228 @@
 import { create } from 'zustand';
-import { IncidentApi, type Incident as ApiIncident, type CreateIncidentInput } from '../services/IncidentApi';
+import {
+  IncidentApi,
+  type BackIncident,
+  type BackIncidentSeverity,
+  type BackIncidentStatus,
+  type BackIncidentType,
+  type CreateIncidentInput,
+  type IncidentFilePayload,
+} from '../services/IncidentApi';
 import { useAuthStore } from './authStore';
+import type { User } from './authStore';
+
+export type IncidentType = 'vehicle_breakdown' | 'accident' | 'traffic_delay' | 'weather' | 'security' | 'other';
+export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type IncidentStatus = 'reported' | 'acknowledged' | 'in_progress' | 'resolved';
+
+export interface IncidentLocation {
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+}
 
 export interface Incident {
   id: string;
-  type: string;
-  severity: string;
+  area: string;
+  type: IncidentType;
+  severity: IncidentSeverity;
   title: string;
   description: string;
-  location?: {
-    latitude?: number;
-    longitude?: number;
-    address?: string;
-  };
-  photos?: string[];
+  location?: IncidentLocation;
+  photos: string[];
   reportedBy?: string;
+  reportedById?: string;
   reportedAt: string;
-  status: string;
-  syncStatus?: 'pending' | 'synced' | 'failed';
-  routeId?: string;
-  vehicleId?: string;
-  estimatedResolutionTime?: string;
-  actualResolutionTime?: string;
-  supervisorNotes?: string;
+  status: IncidentStatus;
+  syncStatus: 'pending' | 'synced' | 'failed';
+  updatedAt?: string;
+  reviewedAt?: string | null;
+  reviewedById?: string;
+}
+
+export interface CapturedPhoto {
+  uri: string;
+  name: string;
+  type: string;
+  size?: number;
+}
+
+interface CreateIncidentPayload {
+  area?: string;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  title: string;
+  description: string;
+  location?: IncidentLocation;
+  attachments: CapturedPhoto[];
 }
 
 interface IncidentState {
   incidents: Incident[];
   currentIncident: Incident | null;
   isLoading: boolean;
+  isDetailLoading: boolean;
   isSubmitting: boolean;
   error: string | null;
-  
-  // Actions
   loadIncidents: () => Promise<void>;
-  createIncident: (incidentData: Omit<Incident, 'id' | 'reportedAt' | 'syncStatus'>) => Promise<void>;
-  updateIncidentStatus: (incidentId: string, status: Incident['status']) => Promise<void>;
-  addIncidentPhoto: (incidentId: string, photoUri: string) => void;
+  loadIncidentDetail: (id: string) => Promise<void>;
+  createIncident: (payload: CreateIncidentPayload) => Promise<Incident | null>;
+  updateIncidentStatus: (incidentId: string, status: IncidentStatus) => Promise<void>;
   setCurrentIncident: (incident: Incident | null) => void;
   clearError: () => void;
 }
 
-function mapApiToUi(i: ApiIncident): Incident {
+const TYPE_TO_BACK: Record<IncidentType, BackIncidentType> = {
+  vehicle_breakdown: 'VEHICLE_BREAKDOWN',
+  accident: 'ACCIDENT',
+  traffic_delay: 'TRAFFIC_DELAY',
+  weather: 'WEATHER',
+  security: 'SECURITY',
+  other: 'OTHER',
+};
+
+const SEVERITY_TO_BACK: Record<IncidentSeverity, BackIncidentSeverity> = {
+  low: 'LOW',
+  medium: 'MEDIUM',
+  high: 'HIGH',
+  critical: 'CRITICAL',
+};
+
+const STATUS_TO_BACK: Record<IncidentStatus, BackIncidentStatus> = {
+  reported: 'REPORTED',
+  acknowledged: 'ACKNOWLEDGED',
+  in_progress: 'IN_PROGRESS',
+  resolved: 'RESOLVED',
+};
+
+const TYPE_FROM_BACK: Record<BackIncidentType, IncidentType> = {
+  VEHICLE_BREAKDOWN: 'vehicle_breakdown',
+  ACCIDENT: 'accident',
+  TRAFFIC_DELAY: 'traffic_delay',
+  WEATHER: 'weather',
+  SECURITY: 'security',
+  OTHER: 'other',
+};
+
+const SEVERITY_FROM_BACK: Record<BackIncidentSeverity, IncidentSeverity> = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  CRITICAL: 'critical',
+};
+
+const STATUS_FROM_BACK: Record<BackIncidentStatus, IncidentStatus> = {
+  REPORTED: 'reported',
+  ACKNOWLEDGED: 'acknowledged',
+  IN_PROGRESS: 'in_progress',
+  RESOLVED: 'resolved',
+};
+
+function normalizeLocation(raw: unknown): IncidentLocation | undefined {
+  if (!raw) return undefined;
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    return trimmed.length ? { address: trimmed } : undefined;
+  }
+
+  if (typeof raw === 'object') {
+    const source = raw as Record<string, unknown>;
+    const addressCandidate = source.address ?? source.Address ?? source.direccion ?? source.Direccion;
+    let address: string | undefined;
+    if (typeof addressCandidate === 'string' && addressCandidate.trim().length) {
+      address = addressCandidate.trim();
+    }
+
+    const toNumber = (value: unknown): number | undefined => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string') {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
+      }
+      return undefined;
+    };
+
+    const latitude = toNumber(source.latitude ?? source.Latitude ?? source.lat);
+    const longitude = toNumber(source.longitude ?? source.Longitude ?? source.lng);
+
+    const payload: IncidentLocation = {};
+    if (typeof latitude === 'number') payload.latitude = latitude;
+    if (typeof longitude === 'number') payload.longitude = longitude;
+    if (address) payload.address = address;
+
+    return Object.keys(payload).length ? payload : undefined;
+  }
+
+  return undefined;
+}
+
+function mapBackIncidentToIncident(back: BackIncident): Incident {
   return {
-    id: String(i.id),
-    title: i.title,
-    description: i.description || '',
-    type: (i.type || 'other').toString().toLowerCase(),
-    severity: (i.severity || 'medium').toString().toLowerCase(),
-    status: (i.status || 'reported').toString().toLowerCase(),
-    reportedAt: i.reportedAt || new Date().toISOString(),
-    // location y photos pueden venir solo en get(id); mantener opcionales
+    id: String(back.id),
+    area: back.area ?? 'Transporte',
+    type: TYPE_FROM_BACK[back.type] ?? 'other',
+    severity: SEVERITY_FROM_BACK[back.severity] ?? 'medium',
+    title: back.title ?? 'Incidente',
+    description: back.description ?? '',
+    location: normalizeLocation(back.location),
+    photos: Array.isArray(back.photos) ? back.photos : [],
+    reportedBy:
+      typeof back.reportedByName === 'string' && back.reportedByName.trim().length
+        ? back.reportedByName.trim()
+        : typeof back.reportedBy === 'string' && back.reportedBy.trim().length
+        ? back.reportedBy.trim()
+        : back.reportedById != null
+        ? String(back.reportedById)
+        : undefined,
+    reportedById: back.reportedById != null ? String(back.reportedById) : undefined,
+    reportedAt: back.reportedAt ?? new Date().toISOString(),
+    status: STATUS_FROM_BACK[back.status] ?? 'reported',
+    syncStatus: 'synced',
+    updatedAt: back.updatedAt,
+    reviewedAt: back.reviewedAt ?? undefined,
+    reviewedById: back.reviewedById != null ? String(back.reviewedById) : undefined,
+  };
+}
+
+function mergeIncidentList(list: Incident[], next: Incident): Incident[] {
+  const exists = list.findIndex((item) => item.id === next.id);
+  if (exists === -1) {
+    return [next, ...list];
+  }
+  const clone = [...list];
+  clone[exists] = { ...clone[exists], ...next, photos: next.photos.length ? next.photos : clone[exists].photos };
+  return clone;
+}
+
+function inferArea(user: User | null): string {
+  const KNOWN_AREAS = ['Transporte', 'Aseo', 'Obras', 'IT', 'Admin', 'RRHH', 'Finanzas', 'Prev_Riesgo'];
+  if (user?.areaIds?.length) {
+    const candidate = user.areaIds.find((area) => KNOWN_AREAS.includes(area));
+    if (candidate) return candidate;
+  }
+
+  const departmentMap: Record<User['department'], string> = {
+    transport: 'Transporte',
+    cleaning: 'Aseo',
+    civil_works: 'Obras',
+    it: 'IT',
+    management: 'Admin',
+    finance: 'Finanzas',
+  };
+
+  if (user?.department && departmentMap[user.department]) {
+    return departmentMap[user.department];
+  }
+
+  return 'Transporte';
+}
+
+function toFilePayload(photo: CapturedPhoto): IncidentFilePayload {
+  return {
+    uri: photo.uri,
+    name: photo.name,
+    type: photo.type || 'image/jpeg',
   };
 }
 
@@ -58,14 +230,15 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
   incidents: [],
   currentIncident: null,
   isLoading: false,
+  isDetailLoading: false,
   isSubmitting: false,
   error: null,
 
   loadIncidents: async () => {
     set({ isLoading: true, error: null });
     try {
-      const { items } = await IncidentApi.list(1, 50);
-      const mapped = items.map(mapApiToUi);
+      const { items } = await IncidentApi.list(1, 100);
+      const mapped = items.map(mapBackIncidentToIncident);
       set({ incidents: mapped, isLoading: false });
     } catch (error: any) {
       console.error('Error al cargar incidentes:', error);
@@ -73,64 +246,84 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
     }
   },
 
-  createIncident: async (incidentData) => {
+  loadIncidentDetail: async (id: string) => {
+    set({ isDetailLoading: true });
+    try {
+      const detail = await IncidentApi.get(Number(id));
+      const mapped = mapBackIncidentToIncident(detail);
+      set((state) => ({
+        currentIncident: state.currentIncident?.id === mapped.id ? { ...state.currentIncident, ...mapped } : mapped,
+        incidents: mergeIncidentList(state.incidents, mapped),
+        isDetailLoading: false,
+      }));
+    } catch (error: any) {
+      console.error('Error al cargar el detalle del incidente:', error);
+      set({ error: error?.message || 'Error al cargar el detalle', isDetailLoading: false });
+    }
+  },
+
+  createIncident: async (payload: CreateIncidentPayload) => {
     set({ isSubmitting: true, error: null });
     try {
-      // Mapear a DTO del backend
       const user = useAuthStore.getState().user;
-      const sev = String(incidentData.severity || 'medium').toLowerCase();
-      let sevBackend: CreateIncidentInput['Severidad'] = 'MEDIUM';
-      if (sev === 'high' || sev === 'critical') {
-        sevBackend = 'HIGH';
-      } else if (sev === 'low') {
-        sevBackend = 'LOW';
-      }
+      const area = payload.area?.trim().length ? payload.area.trim() : inferArea(user ?? null);
       const input: CreateIncidentInput = {
-        Area: user?.department ? String(user.department) : 'General',
-        Descripcion: incidentData.description,
-        Tipo: incidentData.type,
-        Severidad: sevBackend,
-        Direccion: incidentData.location?.address,
-        Latitude: typeof incidentData.location?.latitude === 'number' ? incidentData.location?.latitude : undefined,
-        Longitude: typeof incidentData.location?.longitude === 'number' ? incidentData.location?.longitude : undefined,
+        Title: payload.title.trim(),
+        Description: payload.description.trim(),
+        Area: area,
+        Tipo: TYPE_TO_BACK[payload.type] ?? 'OTHER',
+        Severidad: SEVERITY_TO_BACK[payload.severity] ?? 'MEDIUM',
+        Direccion: payload.location?.address,
+        Latitude: payload.location?.latitude,
+        Longitude: payload.location?.longitude,
         Fecha: new Date().toISOString(),
       };
+
       const created = await IncidentApi.create(input);
-      const ui = mapApiToUi(created);
-      set(state => ({ incidents: [ui, ...state.incidents], isSubmitting: false }));
-    } catch (error) {
-      console.error('Error al crear incidente:', error);
-      set({ error: 'Error al crear incidente', isSubmitting: false });
-    }
-  },
+      let mapped = mapBackIncidentToIncident(created);
 
-  updateIncidentStatus: async (incidentId: string, status: Incident['status']) => {
-    try {
-      await IncidentApi.update(Number(incidentId), { Status: String(status).toUpperCase() });
-      set(state => ({
-        incidents: state.incidents.map(incident =>
-          incident.id === incidentId 
-            ? { ...incident, status }
-            : incident
-        ),
+      if (payload.attachments.length) {
+        try {
+          const files = payload.attachments.map(toFilePayload);
+          const photosResponse = await IncidentApi.uploadPhotos(Number(created.id), files);
+          if (Array.isArray(photosResponse.photos) && photosResponse.photos.length) {
+            mapped = { ...mapped, photos: photosResponse.photos };
+          } else {
+            const refreshed = await IncidentApi.get(Number(created.id));
+            mapped = mapBackIncidentToIncident(refreshed);
+          }
+        } catch (uploadError) {
+          console.warn('No se pudieron subir las evidencias del incidente:', uploadError);
+          set({ error: 'Incidente creado, pero algunas fotos no se pudieron subir.' });
+        }
+      }
+
+      set((state) => ({
+        incidents: mergeIncidentList(state.incidents, mapped),
+        currentIncident: mapped,
+        isSubmitting: false,
       }));
-    } catch (error) {
-      console.error('Error al actualizar incidente:', error);
-      set({ error: 'Error al actualizar incidente' });
+      return mapped;
+    } catch (error: any) {
+      console.error('Error al crear incidente:', error);
+      set({ error: error?.message || 'Error al crear incidente', isSubmitting: false });
+      return null;
     }
   },
 
-  addIncidentPhoto: (incidentId: string, photoUri: string) => {
-    set(state => ({
-      incidents: state.incidents.map(incident =>
-        incident.id === incidentId
-          ? { ...incident, photos: [ ...(incident.photos ?? []), photoUri ] }
-          : incident
-      ),
-      currentIncident: state.currentIncident?.id === incidentId
-        ? { ...state.currentIncident, photos: [ ...(state.currentIncident?.photos ?? []), photoUri ] }
-        : state.currentIncident,
-    }));
+  updateIncidentStatus: async (incidentId: string, status: IncidentStatus) => {
+    try {
+      const updated = await IncidentApi.update(Number(incidentId), { Status: STATUS_TO_BACK[status] });
+      const mapped = mapBackIncidentToIncident(updated);
+      set((state) => ({
+        incidents: mergeIncidentList(state.incidents, mapped),
+        currentIncident: state.currentIncident?.id === mapped.id ? { ...state.currentIncident, ...mapped } : state.currentIncident,
+      }));
+    } catch (error: any) {
+      console.error('Error al actualizar incidente:', error);
+      set({ error: error?.message || 'Error al actualizar incidente' });
+      throw error;
+    }
   },
 
   setCurrentIncident: (incident: Incident | null) => {

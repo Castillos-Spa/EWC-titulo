@@ -5,13 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/app_movil/components/DashboardAlertsCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/DashboardAlertsCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/components/DashboardTimelineCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/DashboardTimelineCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/components/MaintenanceDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/MaintenanceDetailModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/components/ModuleCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/ModuleCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/components/ui/KpiStat.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/ui/KpiStat.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/stores/notificationsStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/notificationsStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/prisma/schema.prisma" beforeDir="false" afterPath="$PROJECT_DIR$/backend/prisma/schema.prisma" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/IncidentCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/IncidentCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,21 +45,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "git-widget-placeholder": "Speed__Run",
-    "ignore.virus.scanning.warn.message": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "D:/Yo/Proyecto/EWC-titulo"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;Speed__Run&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Yo/Proyecto/EWC-titulo&quot;
   }
-}]]></component>
+}</component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="" />
