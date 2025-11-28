@@ -187,6 +187,19 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 		const flatResults = useMemo(() => buildFlatResults(user?.isAdmin, searchResults), [user?.isAdmin, searchResults]);
 	const areaCount = Array.isArray(user?.areas) ? user?.areas?.length ?? 0 : 0;
 	const areaBadgeLabel = areaCount > 0 ? `${areaCount} áreas` : user?.email ?? 'Sesión activa';
+	const profileDisplayName = useMemo(
+		() => (user?.fullName && user.fullName.trim().length > 0 ? user.fullName : user?.username ?? 'Usuario'),
+		[user?.fullName, user?.username],
+	);
+	const profileInitials = useMemo(() => {
+		const base = (user?.fullName || user?.username || '').trim();
+		if (!base) return 'U';
+		const segments = base.split(' ').filter(Boolean);
+		if (segments.length >= 2) {
+			return `${segments[0].charAt(0)}${segments[1].charAt(0)}`.toUpperCase();
+		}
+		return base.slice(0, 2).toUpperCase();
+	}, [user?.fullName, user?.username]);
 	const unreadDisplay = unreadCount > 9 ? '9+' : String(unreadCount);
 	const density: UiDensity = uiDensity ?? 'comfortable';
 	const headerPadding = density === 'compact' ? 'px-5 py-3' : 'px-6 py-4';
@@ -569,7 +582,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 							{areaBadgeLabel}
 						</span>
 					</div>
-					<p className="text-sm text-slate-500 dark:text-blue-100/80">Bienvenido, {user?.username}</p>
+					<p className="text-sm text-slate-500 dark:text-blue-100/80">Bienvenido, {profileDisplayName}</p>
 				</div>
 
 	<div className={`ml-auto flex items-center ${actionGap}`}>
@@ -917,10 +930,14 @@ const Header: React.FC<HeaderProps> = ({ title, onProfileClick, onSettingsClick,
 							onClick={() => setShowProfileMenu(prev => !prev)}
 							className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-700 shadow-sm backdrop-blur hover:border-sky-300 hover:bg-sky-50 dark:border-white/10 dark:bg-white/10 dark:text-blue-100 dark:hover:border-white/20 dark:hover:bg-white/20"
 						>
-							<span className="inline-flex items-center justify-center w-8 h-8 text-blue-700 rounded-full shadow-inner bg-gradient-to-br from-blue-500/20 to-indigo-500/30 dark:from-blue-500/25 dark:to-indigo-500/20 dark:text-blue-100">
-								{user?.username?.charAt(0) || 'U'}
+							<span className="inline-flex items-center justify-center w-8 h-8 overflow-hidden text-blue-700 rounded-full shadow-inner bg-gradient-to-br from-blue-500/20 to-indigo-500/30 dark:from-blue-500/25 dark:to-indigo-500/20 dark:text-blue-100">
+								{user?.avatarUrl ? (
+									<img src={user.avatarUrl} alt="Avatar del usuario" className="object-cover w-full h-full" />
+								) : (
+									<span>{profileInitials}</span>
+								)}
 							</span>
-							<span className="hidden sm:inline">{user?.username}</span>
+							<span className="hidden sm:inline">{profileDisplayName}</span>
 							<ChevronDown className="w-4 h-4" />
 						</button>
 

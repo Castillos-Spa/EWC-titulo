@@ -1,16 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateCivilWorkDto } from './dto/create-civil-work.dto';
 import { UpdateCivilWorkDto } from './dto/update-civil-work.dto';
 import { CivilWork, Prisma, CivilWorkStatus } from '@prisma/client';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { StorageService } from '@/app/storage/storage.service';
+import type { Express } from 'express';
 
 @Injectable()
 export class CivilWorkService {
+  private readonly logger = new Logger(CivilWorkService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly storage: StorageService,
   ) {}
 
   // Define un include estándar para obtener todos los detalles de una obra.
@@ -41,7 +46,7 @@ export class CivilWorkService {
     });
 
     this.eventEmitter.emit('civilwork.created', newCivilWork);
-    return newCivilWork;
+    return this.withSignedPhotos(newCivilWork);
   }
 
   async findAll(paginationQuery: PaginationQueryDto) {
@@ -84,7 +89,7 @@ export class CivilWorkService {
     if (!civilWork) {
       throw new NotFoundException(`Obra Civil con ID #${id} no encontrada.`);
     }
-    return civilWork;
+    return this.withSignedPhotos(civilWork);
   }
 
   async updateTasks(id: number, tasks: { name: string; completed: boolean }[]): Promise<CivilWork> {
@@ -111,7 +116,7 @@ export class CivilWorkService {
       status = currentWork.status;
     }
 
-    return this.prisma.civilWork.update({
+    const updated = await this.prisma.civilWork.update({
       where: { id },
       data: {
         tasks: tasks as any, // Prisma espera un JsonValue
@@ -121,6 +126,8 @@ export class CivilWorkService {
       },
       include: this.civilWorkInclude,
     });
+
+    return this.withSignedPhotos(updated);
   }
 
   async update(id: number, updateDto: UpdateCivilWorkDto): Promise<CivilWork> {
@@ -149,7 +156,7 @@ export class CivilWorkService {
       });
 
       this.eventEmitter.emit('civilwork.updated', updatedCivilWork);
-      return updatedCivilWork;
+      return this.withSignedPhotos(updatedCivilWork);
     });
   }
 
@@ -160,5 +167,82 @@ export class CivilWorkService {
     return this.prisma.civilWork.delete({
       where: { id },
     });
+  }
+
+  async addPhotos(id: number, files: Express.Multer.File[]): Promise<{ id: number; photos: string[] }> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No se recibieron archivos para adjuntar.');
+    }
+
+    const civilWork = await this.prisma.civilWork.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!civilWork) {
+      throw new NotFoundException(`Obra Civil con ID #${id} no encontrada.`);
+    }
+
+    const stored = await this.storage.uploadFiles(files, { folder: `civil-works/${id}` });
+    const references = stored.map(file => file.key ?? file.url);
+
+    const updated = await this.prisma.civilWork.update({
+      where: { id },
+      data: {
+        photos: {
+          push: references,
+        },
+      },
+      select: { id: true, photos: true },
+    });
+
+    const signedPhotos = await this.storage.getSignedUrls(updated.photos ?? []);
+
+    this.eventEmitter.emit('civilwork.photosUploaded', { id, count: references.length });
+
+    return {
+      id: updated.id,
+      photos: signedPhotos,
+    };
+  }
+
+  async getSignedPhotos(id: number): Promise<string[]> {
+    const civilWork = await this.prisma.civilWork.findUnique({
+      where: { id },
+      select: { photos: true },
+    });
+
+    if (!civilWork) {
+      throw new NotFoundException(`Obra Civil con ID #${id} no encontrada.`);
+    }
+
+    if (!civilWork.photos?.length) {
+      return [];
+    }
+
+    return this.storage.getSignedUrls(civilWork.photos);
+  }
+
+  private async withSignedPhotos<T extends { photos?: string[] | null }>(civilWork: T): Promise<T> {
+    if (!civilWork?.photos || civilWork.photos.length === 0) {
+      return civilWork;
+    }
+
+    const signedPhotos = await Promise.all(
+      civilWork.photos.map(async photo => {
+        try {
+          return await this.storage.getSignedUrl(photo);
+        } catch (error) {
+          const err = error as Error;
+          this.logger.warn(`No se pudo firmar la foto (${photo}): ${err.message}`);
+          return photo;
+        }
+      }),
+    );
+
+    return {
+      ...civilWork,
+      photos: signedPhotos,
+    };
   }
 }

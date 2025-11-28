@@ -18,6 +18,12 @@ model User {
   mustChangePassword   Boolean              @default(false)
   refreshToken         String?              @unique
   lastLogin            DateTime?            @map("last_login")
+  fullName             String?
+  phone                String?
+  address              String?
+  jobTitle             String?
+  bio                  String?
+  avatarUrl            String?
   Aseo                 Aseo[]
   createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
   drivenFuelLogs       FuelLog[]            @relation("DriverFuelLogs")

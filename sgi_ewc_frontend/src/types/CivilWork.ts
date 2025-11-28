@@ -34,7 +34,17 @@ export interface CivilWork {
 }
 
 // Este tipo se usa para el payload de creación
-export type CreateCivilWorkPayload = Omit<
-  CivilWork,
-  "id" | "actualEndDate" | "createdById"
->;
+export interface CreateCivilWorkPayload {
+  project: string;
+  location: string;
+  startDate: string;
+  estimatedEndDate: string;
+  workType: CivilWorkType;
+  tasks?: string[];
+  progress?: number;
+  status?: CivilWorkStatus;
+  observations?: string;
+  issues?: string[];
+  responsibleStaffUsernames?: string[];
+  materialsUsed?: string[];
+}

@@ -173,6 +173,10 @@ export class StorageService {
     }
   }
 
+  getObjectKey(reference: string): string | null {
+    return this.extractObjectKey(reference);
+  }
+
   private buildObjectKey(file: UploadedFile, folder?: string): string {
     const cleanFolder = folder ? folder.replace(/(^\/+|\/+?$)/g, '') : undefined;
     const extension = extname(file.originalname) || this.extensionFromMime(file.mimetype);

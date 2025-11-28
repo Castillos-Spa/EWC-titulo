@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
-import { X, MapPin, CalendarDays, CalendarClock, Layers, Gauge, Users2, ClipboardList, Package, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { X, MapPin, CalendarDays, CalendarClock, Layers, Gauge, Users2, ClipboardList, Package, AlertTriangle, CheckCircle2, Paperclip, ExternalLink, ImageOff } from 'lucide-react';
 import type { CivilWork, CivilWorkTask } from '../../../types/CivilWork';
 import { useCivilWorks } from '../hooks/useCivilWorks';
 import { useIntlFormat } from '../../../app/intl/format';
@@ -20,7 +20,7 @@ export const CivilWorkDetailModal: React.FC<{
   onClose: () => void;
   onEdit?: (r: CivilWork) => void;
 }> = ({ report, onClose, onEdit }) => {
-  const { updateTasks } = useCivilWorks();
+  const { updateTasks, loadPhotos } = useCivilWorks();
   const { formatDate } = useIntlFormat();
 
   const handleToggle = useCallback(async (index: number) => {
@@ -33,7 +33,14 @@ export const CivilWorkDetailModal: React.FC<{
   const staff = Array.isArray(report.responsibleStaffUsernames) ? report.responsibleStaffUsernames : [];
   const issues = Array.isArray(report.issues) ? report.issues : [];
   const materials = Array.isArray(report.materialsUsed) ? report.materialsUsed : [];
+  const photos = useMemo(() => (Array.isArray(report.photos) ? report.photos.filter((url): url is string => typeof url === 'string' && url.trim().length > 0) : []), [report.photos]);
   const timeline = useMemo(() => computeTimeline(report.estimatedEndDate), [report.estimatedEndDate]);
+
+  useEffect(() => {
+    if (!photos.length) {
+      void loadPhotos(report.id);
+    }
+  }, [photos.length, loadPhotos, report.id]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
@@ -187,6 +194,44 @@ export const CivilWorkDetailModal: React.FC<{
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {photos.length > 0 && (
+              <section className="rounded-3xl border border-white/60 bg-white/80 px-5 py-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-blue-200/70">
+                  <Paperclip className="h-4 w-4" /> Evidencia fotográfica
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {photos.map((photo, index) => (
+                    <a
+                      key={`${report.id}-photo-${index}`}
+                      href={photo}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white/70 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-white/10"
+                    >
+                      <img
+                        src={photo}
+                        alt={`Registro fotográfico ${index + 1}`}
+                        className="h-36 w-full object-cover transition duration-300 group-hover:scale-105"
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.style.display = 'none';
+                          const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                      <div className="flex h-36 w-full items-center justify-center bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-400" style={{ display: 'none' }}>
+                        <ImageOff className="h-6 w-6" />
+                      </div>
+                      <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-slate-900/80 to-transparent px-3 py-2 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100">
+                        Abrir en pestaña
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </span>
+                    </a>
+                  ))}
+                </div>
               </section>
             )}
 

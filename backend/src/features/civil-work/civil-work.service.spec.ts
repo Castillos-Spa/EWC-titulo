@@ -3,16 +3,23 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CivilWorkService } from './civil-work.service';
 import { createPrismaMock, PrismaMock } from '../../../test/utils/mock-prisma';
 import { CivilWorkStatus } from '@prisma/client';
+import type { StorageService } from '../../app/storage/storage.service';
 
 describe('CivilWorkService', () => {
   let service: CivilWorkService;
   let prisma: PrismaMock;
   const eventEmitter = { emit: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
+  let storage: jest.Mocked<Partial<StorageService>>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     prisma = createPrismaMock();
-    service = new CivilWorkService(prisma, eventEmitter);
+    storage = {
+      getSignedUrl: jest.fn().mockImplementation(async (value: string) => value),
+      getSignedUrls: jest.fn().mockImplementation(async (values: string[]) => values),
+      uploadFiles: jest.fn(),
+    };
+    service = new CivilWorkService(prisma, eventEmitter, storage as StorageService);
   });
 
   describe('create', () => {
