@@ -26,6 +26,12 @@ describe('JwtStrategy', () => {
     isAdmin: true,
     mustChangePassword: false,
     active: true,
+    fullName: 'Test User',
+    phone: '+56912345678',
+    address: 'Test Street 123',
+    jobTitle: 'QA Analyst',
+    bio: 'Test bio',
+    avatarUrl: 'https://example.com/avatar.png',
     iat: 1620000000,
     exp: 1620003600,
   });
@@ -54,6 +60,12 @@ describe('JwtStrategy', () => {
         isAdmin: payload.isAdmin,
         active: payload.active,
         mustChangePassword: payload.mustChangePassword,
+        fullName: payload.fullName,
+        phone: payload.phone,
+        address: payload.address,
+        jobTitle: payload.jobTitle,
+        bio: payload.bio,
+        avatarUrl: payload.avatarUrl,
       });
     });
 
@@ -105,6 +117,12 @@ describe('JwtStrategy', () => {
         roles: undefined,
         permissions: undefined,
         rolesByArea: {} as any,
+        fullName: undefined,
+        phone: undefined,
+        address: undefined,
+        jobTitle: undefined,
+        bio: undefined,
+        avatarUrl: undefined,
       } as unknown as JwtPayload;
 
       const result = await jwtStrategy.validate(minimalPayload);
@@ -115,6 +133,12 @@ describe('JwtStrategy', () => {
           email: payload.email,
           roles: undefined,
           permissions: undefined,
+          fullName: undefined,
+          phone: undefined,
+          address: undefined,
+          jobTitle: undefined,
+          bio: undefined,
+          avatarUrl: undefined,
         }),
       );
     });

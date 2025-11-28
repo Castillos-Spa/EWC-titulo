@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, User, Users, Mail, Shield, Edit, Trash2, CheckCircle, XCircle, Eye, Copy, Check, Info } from 'lucide-react';
+import {
+  Plus,
+  User,
+  Users,
+  Mail,
+  Shield,
+  Edit,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Copy,
+  Check,
+  Info,
+  Phone,
+  MapPin,
+  Sparkles,
+  AlignLeft,
+} from 'lucide-react';
 import { getUsers, createUser, updateUser, deleteUser, getTempPassword } from '../../../utils/userApi';
 import { User as UserType, Role } from '../../../types/User';
 import UserForm from '../components/UserForm';
@@ -45,6 +63,16 @@ const mapSingleArea = (a: string) => {
   }
 };
 
+const getUserInitials = (fullName?: string | null, username?: string | null) => {
+  const base = (fullName ?? username ?? '').trim();
+  if (!base) return 'U';
+  const segments = base.split(' ').filter(Boolean);
+  if (segments.length >= 2) {
+    return `${segments[0].charAt(0)}${segments[1].charAt(0)}`.toUpperCase();
+  }
+  return base.slice(0, 2).toUpperCase();
+};
+
 // Modal para ver perfil (patrón unificado)
 const ProfileModal: React.FC<{ user: UserType; onClose: () => void }> = ({ user, onClose }) => {
   const { formatDateTime, formatDate } = useIntlFormat();
@@ -53,6 +81,29 @@ const ProfileModal: React.FC<{ user: UserType; onClose: () => void }> = ({ user,
     globalThis.addEventListener('keydown', handler);
     return () => globalThis.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  const displayName = user.fullName && user.fullName.trim().length > 0 ? user.fullName : user.username;
+  const initials = getUserInitials(user.fullName, user.username);
+  const contactItems = [
+    {
+      id: 'contact-email',
+      icon: <Mail className="h-4 w-4" />,
+      label: 'Correo',
+      value: user.email,
+    },
+    {
+      id: 'contact-phone',
+      icon: <Phone className="h-4 w-4" />,
+      label: 'Teléfono',
+      value: user.phone ?? 'Sin teléfono registrado',
+    },
+    {
+      id: 'contact-address',
+      icon: <MapPin className="h-4 w-4" />,
+      label: 'Dirección',
+      value: user.address ?? 'Sin dirección registrada',
+    },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/70 px-4 py-10 backdrop-blur">
@@ -73,18 +124,38 @@ const ProfileModal: React.FC<{ user: UserType; onClose: () => void }> = ({ user,
         </div>
 
         <div className="mt-6 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center rounded-full w-14 h-14 bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-100">
-              <span className="text-lg font-semibold">{user.username.charAt(0)}</span>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-sky-500/10 text-sky-600 shadow-inner dark:bg-sky-500/20 dark:text-sky-100">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-lg font-semibold">{initials}</span>
+              )}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-lg font-medium">{user.username}</h4>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-lg font-medium text-slate-900 dark:text-slate-100">{displayName}</h4>
+                {user.jobTitle && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-blue-100">
+                    <Sparkles className="h-3 w-3" /> {user.jobTitle}
+                  </span>
+                )}
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.active ? 'border border-emerald-400/60 bg-emerald-500/15 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-100' : 'border border-rose-400/60 bg-rose-500/15 text-rose-600 dark:border-rose-500/40 dark:bg-rose-500/20 dark:text-rose-100'}`}>
                   {user.active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
-              <div className="flex items-center text-sm text-slate-600 dark:text-blue-200/80"><Mail className="w-4 h-4 mr-1" /> {user.email}</div>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400 dark:text-blue-200/70">@{user.username}</p>
+              <div className="grid gap-3 text-sm text-slate-600 dark:text-blue-200/80 sm:grid-cols-2">
+                {contactItems.map(item => (
+                  <div key={item.id} className="flex items-start gap-2">
+                    <span className="mt-0.5 text-slate-400 dark:text-blue-300">{item.icon}</span>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-blue-200/60">{item.label}</p>
+                      <p className="break-words text-sm text-slate-700 dark:text-slate-100">{item.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -118,6 +189,15 @@ const ProfileModal: React.FC<{ user: UserType; onClose: () => void }> = ({ user,
               <p className="text-sm">{formatDate(user.updatedAt) || '-'}</p>
             </div>
           </div>
+
+          {user.bio && user.bio.trim().length > 0 && (
+            <div className="rounded-3xl border border-slate-200/70 bg-white/70 p-5 shadow-inner shadow-slate-200/40 dark:border-white/10 dark:bg-white/5">
+              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-blue-200/70">
+                <AlignLeft className="h-4 w-4" /> Biografía
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-blue-200/80">{user.bio}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -420,18 +500,34 @@ const UserManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-transparent divide-y divide-slate-200/60 dark:divide-white/10">
-                  {currentUsers.map(user => (
+                  {currentUsers.map(user => {
+                    const displayName = user.fullName && user.fullName.trim().length > 0 ? user.fullName : user.username;
+                    const initials = getUserInitials(user.fullName, user.username);
+                    return (
                     <tr key={user.id} className="transition hover:bg-white/70 dark:hover:bg-white/10">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center rounded-full h-11 w-11 bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-100">
-                            <span className="text-sm font-semibold">{user.username.charAt(0)}</span>
+                          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-100">
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-sm font-semibold">{initials}</span>
+                            )}
                           </div>
                           <div className="space-y-1">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{user.username}</p>
-                            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-blue-200/80">
-                              <Mail className="h-3.5 w-3.5" />
-                              <span className="break-all">{user.email}</span>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{displayName}</p>
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-blue-200/60">@{user.username}</p>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-blue-200/80">
+                              <span className="inline-flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                <span className="break-all">{user.email}</span>
+                              </span>
+                              {user.phone && (
+                                <span className="inline-flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{user.phone}</span>
+                                </span>
+                              )}
                               {user.mustChangePassword && (
                                 <button
                                   type="button"
@@ -511,7 +607,8 @@ const UserManagement: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>

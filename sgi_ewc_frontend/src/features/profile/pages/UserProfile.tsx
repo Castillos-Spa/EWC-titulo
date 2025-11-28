@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   User,
   Lock,
@@ -14,9 +14,14 @@ import {
   Sparkles,
   Activity,
   CheckCircle2,
+  Camera,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { changePassword as apiChangePassword, updateUser as apiUpdateUser } from '../../../utils/userApi';
+import {
+  changePassword as apiChangePassword,
+  updateOwnProfile as apiUpdateOwnProfile,
+  uploadOwnAvatar as apiUploadOwnAvatar,
+} from '../../../utils/userApi';
 import { useIntlFormat } from '../../../app/intl/format';
 
 const UserProfile: React.FC = () => {
@@ -28,12 +33,17 @@ const UserProfile: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState({
-    name: user?.username || '',
+    fullName: user?.fullName || user?.username || '',
+    username: user?.username || '',
     email: user?.email || '',
-    phone: '',
-    address: '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    jobTitle: user?.jobTitle || '',
+    bio: user?.bio || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -47,16 +57,33 @@ const UserProfile: React.FC = () => {
   });
 
   const initials = useMemo(() => {
-    const base = user?.username?.trim();
+    const base = (user?.fullName || user?.username || '').trim();
     if (!base) return '?';
     const segments = base.split(' ').filter(Boolean);
     if (segments.length >= 2) {
       return `${segments[0].charAt(0)}${segments[1].charAt(0)}`.toUpperCase();
     }
     return base.slice(0, 2).toUpperCase();
-  }, [user?.username]);
+  }, [user?.fullName, user?.username]);
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const syncFormFromProfile = useCallback(
+    (source?: typeof user) => {
+      const profile = source ?? user;
+      setFormData(previous => ({
+        ...previous,
+        fullName: profile?.fullName || profile?.username || '',
+        username: profile?.username || '',
+        email: profile?.email || '',
+        phone: profile?.phone || '',
+        address: profile?.address || '',
+        jobTitle: profile?.jobTitle || '',
+        bio: profile?.bio || '',
+      }));
+    },
+    [user?.address, user?.bio, user?.email, user?.fullName, user?.jobTitle, user?.phone, user?.username],
+  );
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
     setFormData(previous => ({
       ...previous,
@@ -71,6 +98,37 @@ const UserProfile: React.FC = () => {
     }));
   };
 
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!user) {
+      alert('Error: No se pudo identificar al usuario.');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const updated = await apiUploadOwnAvatar(file);
+      try {
+        localStorage.setItem('userData', JSON.stringify(updated));
+      } catch {}
+      globalThis.dispatchEvent?.(new CustomEvent('session-refreshed', { detail: updated }));
+      syncFormFromProfile(updated);
+      alert('Avatar actualizado correctamente.');
+    } catch (error) {
+      console.error('Error al actualizar el avatar:', error);
+      alert(`No se pudo actualizar el avatar: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleSavePersonal = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user) {
@@ -79,20 +137,53 @@ const UserProfile: React.FC = () => {
     }
     try {
       setIsSaving(true);
-      const payload = {
-        username: formData.name?.trim() || user.username,
-        email: formData.email?.trim() || user.email,
-      } as const;
-      const updated = await apiUpdateUser(user.id, payload);
+      const changes: Record<string, string> = {};
+
+      const trimmedFullName = formData.fullName.trim();
+      if (trimmedFullName !== (user.fullName ?? '')) {
+        changes.fullName = trimmedFullName;
+      }
+
+      const trimmedUsername = formData.username.trim();
+      if (trimmedUsername && trimmedUsername !== user.username) {
+        changes.username = trimmedUsername;
+      }
+
+      const trimmedEmail = formData.email.trim();
+      if (!trimmedEmail) {
+        throw new Error('El correo electrónico no puede estar vacío.');
+      }
+      if (trimmedEmail !== user.email) {
+        changes.email = trimmedEmail;
+      }
+
+      const compareOptional = (
+        key: keyof typeof formData,
+        current: string | null | undefined,
+        target: string,
+      ) => {
+        const trimmed = target.trim();
+        if (trimmed !== (current ?? '')) {
+          changes[key] = trimmed;
+        }
+      };
+
+      compareOptional('phone', user.phone, formData.phone);
+      compareOptional('address', user.address, formData.address);
+      compareOptional('jobTitle', user.jobTitle, formData.jobTitle);
+      compareOptional('bio', user.bio, formData.bio);
+
+      if (Object.keys(changes).length === 0) {
+        alert('No hay cambios para guardar.');
+        return;
+      }
+
+      const updated = await apiUpdateOwnProfile(changes);
       try {
         localStorage.setItem('userData', JSON.stringify(updated));
       } catch {}
       globalThis.dispatchEvent?.(new CustomEvent('session-refreshed', { detail: updated }));
-      setFormData(prev => ({
-        ...prev,
-        name: updated.username ?? prev.name,
-        email: updated.email ?? prev.email,
-      }));
+      syncFormFromProfile(updated);
       alert('Perfil actualizado correctamente.');
       setIsEditing(false);
     } catch (error) {
@@ -105,12 +196,13 @@ const UserProfile: React.FC = () => {
 
   // Mantener el formulario sincronizado con cambios del usuario (p.ej., tras guardar o refresh de sesión)
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      name: user?.username || '',
-      email: user?.email || '',
-    }));
-  }, [user?.username, user?.email]);
+    syncFormFromProfile();
+  }, [syncFormFromProfile]);
+
+  const handleCancelEdit = () => {
+    syncFormFromProfile();
+    setIsEditing(false);
+  };
 
   const handleChangePassword = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -231,14 +323,43 @@ const UserProfile: React.FC = () => {
         <div className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-emerald-300/25 blur-3xl dark:bg-emerald-500/20" />
         <div className="relative flex flex-wrap items-start justify-between gap-8">
           <div className="flex items-start gap-6">
-            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-emerald-500 text-2xl font-semibold text-white shadow-lg shadow-sky-400/40">
-              {initials}
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-24 w-24 overflow-hidden rounded-3xl shadow-lg shadow-sky-400/40">
+                {user?.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt="Avatar del usuario"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-sky-500 to-emerald-500 text-2xl font-semibold text-white">
+                    {initials}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-70 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
+              >
+                <Camera className="h-3.5 w-3.5" /> {isUploadingAvatar ? 'Actualizando…' : 'Cambiar foto'}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
             </div>
             <div className="space-y-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
                 <Sparkles className="h-4 w-4" /> Perfil corporativo
               </span>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">{user?.username ?? 'Usuario sin nombre'}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                {user?.fullName || user?.username || 'Usuario sin nombre'}
+              </h1>
               <p className="text-sm text-slate-600 dark:text-blue-100/80">{user?.email ?? 'Sin correo registrado'}</p>
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-blue-100">
@@ -333,8 +454,8 @@ const UserProfile: React.FC = () => {
                         <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                         <input
                           id="profile-name"
-                          name="name"
-                          value={formData.name}
+                          name="fullName"
+                          value={formData.fullName}
                           onChange={handleInputChange}
                           disabled={!isEditing}
                           className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
@@ -391,6 +512,54 @@ const UserProfile: React.FC = () => {
                     </label>
                   </div>
 
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">
+                      <span>Nombre de usuario</span>
+                      <div className="relative">
+                        <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
+                          id="profile-username"
+                          name="username"
+                          value={formData.username}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                          type="text"
+                        />
+                      </div>
+                    </label>
+                    <label className="space-y-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">
+                      <span>Cargo</span>
+                      <div className="relative">
+                        <Sparkles className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                        <input
+                          id="profile-jobTitle"
+                          name="jobTitle"
+                          value={formData.jobTitle}
+                          onChange={handleInputChange}
+                          disabled={!isEditing}
+                          placeholder="Cargo o puesto"
+                          className="w-full rounded-2xl border border-slate-200 bg-white/80 px-11 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                          type="text"
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  <label className="block space-y-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-blue-200/70">
+                    <span>Biografía</span>
+                    <textarea
+                      id="profile-bio"
+                      name="bio"
+                      value={formData.bio}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      placeholder="Comparte una breve descripción personal"
+                      rows={4}
+                      className="w-full rounded-2xl border border-slate-200 bg-white/80 px-5 py-3 text-slate-700 shadow-inner shadow-slate-200/60 transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:shadow-none dark:focus:border-sky-400 dark:focus:ring-sky-500/30"
+                    />
+                  </label>
+
                   <section className="space-y-4 rounded-3xl border border-slate-200/60 bg-white/70 px-5 py-5 shadow-inner shadow-slate-200/30 dark:border-white/10 dark:bg-white/5">
                     <h4 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-blue-200/70">Información del sistema</h4>
                     <div className="grid gap-4 md:grid-cols-2">
@@ -425,7 +594,7 @@ const UserProfile: React.FC = () => {
                     <div className="flex justify-end gap-3">
                       <button
                         type="button"
-                        onClick={() => setIsEditing(false)}
+                        onClick={handleCancelEdit}
                         disabled={isSaving}
                         className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/10 dark:text-blue-100"
                       >

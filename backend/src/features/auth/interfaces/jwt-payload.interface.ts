@@ -20,4 +20,10 @@ export interface JwtPayload {
   isAdmin: boolean;
   mustChangePassword?: boolean;
   active?: boolean;
+  fullName?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  jobTitle?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
 }

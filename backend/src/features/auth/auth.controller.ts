@@ -19,10 +19,14 @@ import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { RegisterDto } from './dtos/register.dto';
 import { OptionalAuth } from './decorators/optional-auth.decorator';
+import { UsersService } from '../users/users.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Public()
   @UseGuards(LocalAuthGuard)
@@ -53,8 +57,8 @@ export class AuthController {
   }
 
   @Get('profile')
-  getProfile(@Request() req) {
-    return req.user;
+  async getProfile(@Request() req) {
+    return this.usersService.getProfile(req.user.userId);
   }
 
   @Roles(Role.Admin)

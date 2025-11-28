@@ -86,6 +86,40 @@ export async function changePassword(
   });
 }
 
+export async function updateOwnProfile(
+  data: Partial<
+    Pick<
+      User,
+      | "username"
+      | "fullName"
+      | "email"
+      | "phone"
+      | "address"
+      | "jobTitle"
+      | "bio"
+    >
+  >
+): Promise<User> {
+  const updated = await apiFetch("/users/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+  invalidateCache([PROFILE_CACHE_KEY, USERS_CACHE_KEY]);
+  return updated as User;
+}
+
+export async function uploadOwnAvatar(file: File): Promise<User> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const updated = await apiFetch("/users/me/avatar", {
+    method: "POST",
+    body: formData,
+  });
+  invalidateCache([PROFILE_CACHE_KEY, USERS_CACHE_KEY]);
+  return updated as User;
+}
+
 // --- User Management ---
 export async function getUsers(forceRefresh = false): Promise<User[]> {
   return fetchWithCache(

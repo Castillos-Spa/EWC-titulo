@@ -36,7 +36,7 @@ export class AuthService {
   }
 
   async login(user: Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'>) {
-    const { payload, userDetails } = this.createJwtPayload(user);
+    const { payload, userDetails } = await this.createJwtPayload(user);
     const access_token = this.jwtService.sign(payload);
     const refreshSecret =
       this.configService.get<string>('JWT_REFRESH_SECRET') || this.configService.get<string>('JWT_SECRET');
@@ -94,7 +94,7 @@ export class AuthService {
         throw new UnauthorizedException('Access Denied');
       }
 
-      const { payload, userDetails } = this.createJwtPayload(user);
+      const { payload, userDetails } = await this.createJwtPayload(user);
       const newAccessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
 
       return {
@@ -109,8 +109,15 @@ export class AuthService {
     }
   }
 
-  private createJwtPayload(user: Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'>) {
-    const roleAssignments = user.roleAssignments || [];
+  private async createJwtPayload(
+    user: Omit<Prisma.UserGetPayload<{ include: { roleAssignments: true } }>, 'password'>,
+  ) {
+    const fullUser = await this.usersService.getProfile(user.id);
+    if (!fullUser) {
+      throw new UnauthorizedException('Usuario no autorizado');
+    }
+
+    const roleAssignments = fullUser.roleAssignments || [];
 
     const activeAssignments = roleAssignments.filter(a => a.isActive);
 
@@ -131,28 +138,40 @@ export class AuthService {
     const isAdmin = roles.includes('Admin');
 
     const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      username: user.username,
+      sub: fullUser.id,
+      email: fullUser.email,
+      username: fullUser.username,
       areas,
       roles,
       permissions: allPermissions,
       rolesByArea,
       isAdmin,
-      mustChangePassword: user.mustChangePassword,
-      active: user.active,
+      mustChangePassword: fullUser.mustChangePassword,
+      active: fullUser.active,
+      fullName: fullUser.fullName ?? null,
+      phone: fullUser.phone ?? null,
+      address: fullUser.address ?? null,
+      jobTitle: fullUser.jobTitle ?? null,
+      bio: fullUser.bio ?? null,
+      avatarUrl: fullUser.avatarUrl ?? null,
     };
 
     const userDetails = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
+      id: fullUser.id,
+      username: fullUser.username,
+      email: fullUser.email,
       areas,
       roles,
       rolesByArea,
       isAdmin,
-      mustChangePassword: user.mustChangePassword,
-      active: user.active,
+      mustChangePassword: fullUser.mustChangePassword,
+      active: fullUser.active,
+      fullName: fullUser.fullName ?? null,
+      phone: fullUser.phone ?? null,
+      address: fullUser.address ?? null,
+      jobTitle: fullUser.jobTitle ?? null,
+      bio: fullUser.bio ?? null,
+      avatarUrl: fullUser.avatarUrl ?? null,
     };
 
     return { payload, userDetails };
