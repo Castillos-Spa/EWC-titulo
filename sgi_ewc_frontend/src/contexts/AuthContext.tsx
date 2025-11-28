@@ -1,81 +1,223 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'transport_supervisor' | 'driver' | 'general_services' | 'it_staff' | 'cleaning' | 'civil_works';
-  area: 'water_transport' | 'general_services' | 'it' | 'admin';
-  avatar?: string;
-}
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { login as apiLogin, getProfile, logoutUser } from '../utils/userApi';
+import type {
+  User,
+  ClientAuthSession,
+  TenantSummary,
+  TenantCompany,
+  BackendModuleKey,
+} from '../types/User';
+import { loadAuthSession, saveAuthSession, clearAuthSession } from '../utils/authSessionStorage';
 
 interface AuthContextType {
+  session: ClientAuthSession | null;
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  tenant: TenantSummary | null;
+  companyId: number | null;
+  companies: TenantCompany[];
+  modules: BackendModuleKey[];
+  login: (
+    email: string,
+    password: string,
+    tenantSlug: string,
+    companyId?: number | null,
+  ) => Promise<boolean>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demonstration
-const mockUsers: User[] = [
-  { id: '1', email: 'admin@company.com', name: 'System Administrator', role: 'admin', area: 'admin' },
-  { id: '2', email: 'transport@company.com', name: 'Transport Supervisor', role: 'transport_supervisor', area: 'water_transport' },
-  { id: '3', email: 'driver1@company.com', name: 'John Driver', role: 'driver', area: 'water_transport' },
-  { id: '4', email: 'services@company.com', name: 'Services Manager', role: 'general_services', area: 'general_services' },
-  { id: '5', email: 'it@company.com', name: 'IT Support', role: 'it_staff', area: 'it' },
-  { id: '6', email: 'cleaning@company.com', name: 'Maria Cleaning', role: 'cleaning', area: 'general_services' },
-  { id: '7', email: 'civil@company.com', name: 'Carlos Construction', role: 'civil_works', area: 'general_services' },
-];
+const buildSessionFromProfile = (
+  profile: User,
+  base: ClientAuthSession | null,
+): ClientAuthSession => ({
+  user: profile,
+  tenant: base?.tenant ?? null,
+  companyId: profile.companyId ?? base?.companyId ?? null,
+  companies: base?.companies ?? [],
+  modules: profile.modules ?? base?.modules ?? [],
+  tenantModules: profile.tenantModules ?? base?.tenantModules ?? base?.modules ?? [],
+  restrictedModules: profile.restrictedModules ?? base?.restrictedModules ?? [],
+  moduleMap: profile.moduleMap ?? base?.moduleMap ?? undefined,
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<ClientAuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for stored auth token
-    const token = localStorage.getItem('authToken');
-    const userData = localStorage.getItem('userData');
-    
-    if (token && userData) {
-      setUser(JSON.parse(userData));
+  const applySession = useCallback((next: ClientAuthSession | null) => {
+    if (next) {
+      saveAuthSession(next);
+      setSession(next);
+    } else {
+      clearAuthSession();
+      setSession(null);
     }
-    setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (foundUser && password === 'password123') {
-      const token = 'mock-jwt-token-' + Date.now();
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('userData', JSON.stringify(foundUser));
-      setUser(foundUser);
-      setIsLoading(false);
-      return true;
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser();
+    } catch (error) {
+      console.error('Fallo al cerrar sesión en el servidor:', error);
+    } finally {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      applySession(null);
     }
-    
-    setIsLoading(false);
-    return false;
-  };
+  }, [applySession]);
 
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    setUser(null);
-  };
+  const loadUserFromToken = useCallback(async () => {
+    const token = localStorage.getItem('authToken');
+    const storedSession = loadAuthSession();
+    if (storedSession) {
+      setSession(storedSession);
+    }
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
+    if (!token) {
+      applySession(null);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const profile = await getProfile();
+      const mergedSession = buildSessionFromProfile(profile, storedSession);
+      applySession(mergedSession);
+    } catch (error) {
+      console.error('Fallo al verificar el token, cerrando sesión local.', error);
+      await logout();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [applySession, logout]);
+
+  useEffect(() => {
+    void loadUserFromToken();
+
+    const handleSessionExpired = () => {
+      void logout();
+    };
+
+    const handleSessionRefreshed = (event: Event) => {
+      const detail = (event as CustomEvent<ClientAuthSession | undefined>).detail;
+      if (detail) {
+        applySession(detail);
+      } else {
+        void loadUserFromToken();
+      }
+    };
+
+    globalThis.addEventListener?.('session-expired', handleSessionExpired);
+    globalThis.addEventListener?.('session-refreshed', handleSessionRefreshed);
+
+    return () => {
+      globalThis.removeEventListener?.('session-expired', handleSessionExpired);
+      globalThis.removeEventListener?.('session-refreshed', handleSessionRefreshed);
+    };
+  }, [applySession, loadUserFromToken, logout]);
+
+  const login = useCallback(
+    async (
+      email: string,
+      password: string,
+      tenantSlug: string,
+      requestedCompanyId?: number | null,
+    ): Promise<boolean> => {
+      setIsLoading(true);
+      try {
+        const {
+          access_token,
+          refresh_token,
+          user: loggedInUser,
+          tenant,
+          companyId: responseCompanyId,
+          companies,
+          modules,
+          tenantModules,
+          restrictedModules,
+          moduleMap,
+        } = await apiLogin(email, password, tenantSlug, requestedCompanyId);
+
+        if (!access_token || !refresh_token || !loggedInUser) {
+          throw new Error('No se recibieron los tokens necesarios');
+        }
+
+        localStorage.setItem('authToken', access_token);
+        localStorage.setItem('refreshToken', refresh_token);
+
+        let normalizedModules: BackendModuleKey[] = [];
+        if (Array.isArray(modules)) {
+          normalizedModules = modules;
+        } else if (Array.isArray(loggedInUser.modules)) {
+          normalizedModules = loggedInUser.modules;
+        }
+
+        let normalizedTenantModules: BackendModuleKey[] = [];
+        if (Array.isArray(tenantModules)) {
+          normalizedTenantModules = tenantModules;
+        } else if (Array.isArray(loggedInUser.tenantModules)) {
+          normalizedTenantModules = loggedInUser.tenantModules;
+        } else {
+          normalizedTenantModules = normalizedModules;
+        }
+
+        let normalizedRestrictedModules: BackendModuleKey[] = [];
+        if (Array.isArray(restrictedModules)) {
+          normalizedRestrictedModules = restrictedModules;
+        } else if (Array.isArray(loggedInUser.restrictedModules)) {
+          normalizedRestrictedModules = loggedInUser.restrictedModules;
+        }
+
+        const nextSession: ClientAuthSession = {
+          user: loggedInUser,
+          tenant: tenant ?? null,
+          companyId: responseCompanyId ?? requestedCompanyId ?? null,
+          companies: Array.isArray(companies) ? companies : [],
+          modules: normalizedModules,
+          tenantModules: normalizedTenantModules,
+          restrictedModules: normalizedRestrictedModules,
+          moduleMap: moduleMap ?? loggedInUser.moduleMap ?? undefined,
+        };
+
+        applySession(nextSession);
+
+        try {
+          if (tenantSlug) {
+            localStorage.setItem('lastTenantSlug', tenantSlug);
+          }
+        } catch (storageError) {
+          console.warn('No se pudo persistir el último tenant utilizado', storageError);
+        }
+
+        setIsLoading(false);
+        return true;
+      } catch (err) {
+        console.error('Login error', err);
+        setIsLoading(false);
+        return false;
+      }
+    },
+    [applySession],
   );
+
+  const contextValue = useMemo(
+    () => ({
+      session,
+      user: session?.user ?? null,
+      tenant: session?.tenant ?? null,
+      companyId: session?.companyId ?? null,
+      companies: session?.companies ?? [],
+      modules: session?.modules ?? [],
+      login,
+      logout,
+      isLoading,
+    }),
+    [session, login, logout, isLoading],
+  );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components

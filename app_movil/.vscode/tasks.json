@@ -1,0 +1,27 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "lint app_movil",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"lint"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Install dependencies (pnpm) - app_movil",
+			"type": "shell",
+			"command": "pnpm install",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}

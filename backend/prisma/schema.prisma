@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,40 +8,437 @@ datasource db {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  username    String
-  email       String   @unique
-  area        String
-  password    String
-  roles       Role[]   @default([])
-  permissions Permission[] @default([])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                   Int                  @id @default(autoincrement())
+  username             String
+  email                String               @unique
+  password             String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  active               Boolean              @default(true)
+  mustChangePassword   Boolean              @default(false)
+  refreshToken         String?              @unique
+  lastLogin            DateTime?            @map("last_login")
+  fullName             String?
+  phone                String?
+  address              String?
+  jobTitle             String?
+  bio                  String?
+  avatarUrl            String?
+  Aseo                 Aseo[]
+  createdCivilWorks    CivilWork[]          @relation("CivilWork_createdByIdToUser")
+  drivenFuelLogs       FuelLog[]            @relation("DriverFuelLogs")
+  createdFuelLogs      FuelLog[]            @relation("UserFuelLogs")
+  reportedIncidents    Incident[]           @relation("ReportedIncidents")
+  reviewedIncidents    Incident[]           @relation("ReviewedIncidents")
+  createdNotifications Notification[]       @relation("CreatedNotifications")
+  assignedTickets      Ticket[]             @relation("AssignedTickets")
+  createdTickets       Ticket[]             @relation("CreatedTickets")
+  TicketApproval       TicketApproval[]
+  assignments          TruckAssignment[]    @relation("DriverToAssignments")
+  UserNotification     UserNotification[]
+  roleAssignments      UserRoleAssignment[]
+  notifications        Notification[]       @relation("NotificationToUser")
 
-  // Relaciones con los tickets
-  assignedTickets Ticket[] @relation("AssignedTickets")
-  createdTickets  Ticket[] @relation("CreatedTickets")
+  @@index([username], map: "idx_user_username")
+  @@index([refreshToken], map: "idx_user_refresh_token")
 }
 
-// Modelo de tickets
+model UserRoleAssignment {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  role        Role
+  specialty   Specialty?
+  permissions Permission[] @default([])
+  isActive    Boolean      @default(true)
+  assignedAt  DateTime     @default(now())
+  area        Area
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, area, role])
+  @@index([userId])
+  @@index([area, role])
+}
+
 model Ticket {
+  id                         Int              @id @default(autoincrement())
+  title                      String
+  description                String?
+  status                     TicketStatus     @default(Pendiente)
+  priority                   TicketPriority   @default(Media)
+  category                   TicketCategory
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  createdById                Int
+  assignedToId               Int?
+  recipientRole              Role[]
+  assignedUserConfirmation   Boolean?         @default(false)
+  requestingUserConfirmation Boolean?         @default(false)
+  tags                       String[]         @default([])
+  ordenTrabajoId             Int?             @unique
+  recipientArea              Area[]           @default([])
+  attachmentUrls             String[]         @default([])
+  attachments                Documento[]
+  assignedTo                 User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdBy                  User             @relation("CreatedTickets", fields: [createdById], references: [id])
+  ordenTrabajo               OrdenTrabajo?    @relation("OTReviewTicket", fields: [ordenTrabajoId], references: [id])
+  approvals                  TicketApproval[]
+}
+
+model Vehiculo {
+  id                  Int               @id @default(autoincrement())
+  patente             String            @unique
+  capacidad           Float
+  odometro            Int
+  estado              VehiculoStatus    @default(disponible)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  areaAsignada        String?
+  lastMaintenanceDate DateTime?
+  marca               String            @default("")
+  modelo              String            @default("")
+  codigo              String?           @unique
+  tipo                String?
+  documentos          Documento[]
+  fuelLogs            FuelLog[]
+  ordenes             OrdenTrabajo[]
+  assignments         TruckAssignment[] @relation("TruckToAssignments")
+
+  @@index([estado])
+  @@index([areaAsignada])
+}
+
+model Documento {
   id          Int      @id @default(autoincrement())
+  vehiculoId  Int
+  tipo        String
+  url         String
+  fechaSubida DateTime @default(now())
+  descripcion String?
+  ticketId    Int?
+  ticket      Ticket?  @relation(fields: [ticketId], references: [id])
+  vehiculo    Vehiculo @relation(fields: [vehiculoId], references: [id])
+}
+
+model OrdenTrabajo {
+  id              Int       @id @default(autoincrement())
+  tipo            String
+  estado          String    @default("abierta")
+  vehiculoId      Int
+  tareas          String[]  @default([])
+  responsableId   Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  description     String?
+  estimatedCost   Float?
+  observations    String?
+  repuestos       String[]  @default([])
+  scheduledDate   DateTime?
+  nextServiceDate DateTime?
+  vehiculo        Vehiculo  @relation(fields: [vehiculoId], references: [id])
+  qa              QA[]
+  reviewTicket    Ticket?   @relation("OTReviewTicket")
+}
+
+model QA {
+  id        Int          @id @default(autoincrement())
+  checklist String
+  resultado String
+  otId      Int
+  createdAt DateTime     @default(now())
+  ot        OrdenTrabajo @relation(fields: [otId], references: [id])
+}
+
+model SolicitudCompra {
+  id        Int        @id @default(autoincrement())
+  monto     Float
+  aprobada  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  repuestos Repuesto[]
+}
+
+model Repuesto {
+  id                Int              @id @default(autoincrement())
+  nombre            String
+  stock             Int              @default(0)
+  costoUnitario     Float            @default(0)
+  solicitudCompraId Int?
+  createdAt         DateTime         @default(now())
+  solicitudCompra   SolicitudCompra? @relation(fields: [solicitudCompraId], references: [id])
+}
+
+model InventoryItem {
+  id           Int                 @id @default(autoincrement())
+  sku          String              @unique
+  nombre       String
+  categoria    String
+  ubicacion    String
+  stockActual  Int                 @default(0)
+  stockMinimo  Int                 @default(0)
+  unidadMedida String
+  estado       InventoryItemStatus @default(ACTIVO)
+  descripcion  String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  movements    InventoryMovement[]
+}
+
+model InventoryMovement {
+  id             Int                   @id @default(autoincrement())
+  itemId         Int
+  tipo           InventoryMovementType
+  cantidad       Int
+  motivo         String
+  usuario        String
+  fecha          DateTime              @default(now())
+  saldoAnterior  Int
+  saldoPosterior Int
+  item           InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, fecha])
+}
+
+model ITAsset {
+  id            Int               @id @default(autoincrement())
+  assetTag      String            @unique
+  serialNumber  String?
+  nombre        String
+  categoria     String
+  ubicacion     String
+  estado        ITAssetStatus     @default(EN_STOCK)
+  asignadoA     String?
+  proveedor     String?
+  fechaCompra   DateTime?
+  garantiaHasta DateTime?
+  notas         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  movimientos   ITAssetMovement[]
+}
+
+model ITAssetMovement {
+  id      Int                 @id @default(autoincrement())
+  assetId Int
+  tipo    ITAssetMovementType
+  fecha   DateTime            @default(now())
+  detalle String
+  usuario String
+  asset   ITAsset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, fecha])
+}
+
+model Notification {
+  id          Int                @id @default(autoincrement())
   title       String
-  description String?
-  status      TicketStatus   @default(Pendiente)
-  priority    TicketPriority @default(Media)
-  category    String // e.g., Soporte IT, Mantenimiento, Suministros
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relación con el usuario que lo creó
-  createdBy   User @relation("CreatedTickets", fields: [createdById], references: [id])
+  message     String
+  type        String
+  createdAt   DateTime           @default(now())
+  areas       String[]           @default([])
+  roles       Role[]             @default([])
   createdById Int
+  pinned      Boolean            @default(false)
+  priority    String             @default("normal")
+  scheduledAt DateTime?
+  createdBy   User               @relation("CreatedNotifications", fields: [createdById], references: [id])
+  readBy      UserNotification[]
+  user        User[]             @relation("NotificationToUser")
+}
 
-  // Relación con el usuario asignado (opcional)
-  assignedTo   User? @relation("AssignedTickets", fields: [assignedToId], references: [id])
-  assignedToId Int?
+model UserNotification {
+  userId         Int
+  notificationId Int
+  read           Boolean      @default(false)
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, notificationId])
+}
+
+model TicketApproval {
+  id           Int            @id @default(autoincrement())
+  ticketId     Int
+  step         Int
+  status       ApprovalStatus @default(Pendiente)
+  approverRole Role
+  approvedById Int?
+  approvedAt   DateTime?
+  comments     String?
+  approverArea Area
+  approvedBy   User?          @relation(fields: [approvedById], references: [id])
+  ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, step])
+  @@index([ticketId])
+  @@index([approverArea, approverRole])
+}
+
+model FuelLog {
+  id         Int      @id @default(autoincrement())
+  vehiculoId Int
+  date       DateTime
+  liters     Float
+  cost       Float?
+  odometer   Int
+  driverId   Int
+  invoiceUrl String?
+  createdAt  DateTime @default(now())
+  userId     Int?
+  driver     User     @relation("DriverFuelLogs", fields: [driverId], references: [id])
+  user       User?    @relation("UserFuelLogs", fields: [userId], references: [id])
+  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
+
+  @@index([vehiculoId, date])
+}
+
+model Incident {
+  id           Int              @id @default(autoincrement())
+  title        String
+  description  String
+  area         String
+  type         IncidentType
+  severity     IncidentSeverity
+  status       IncidentStatus   @default(REPORTED)
+  location     Json
+  photos       String[]         @default([])
+  reportedById Int
+  reportedAt   DateTime         @default(now())
+  reviewedAt   DateTime?
+  reviewedById Int?
+  updatedAt    DateTime         @updatedAt
+  reportedBy   User             @relation("ReportedIncidents", fields: [reportedById], references: [id])
+  reviewedBy   User?            @relation("ReviewedIncidents", fields: [reviewedById], references: [id])
+
+  @@index([reportedById])
+  @@index([reviewedById])
+}
+
+model TransportRoute {
+  id          Int               @id @default(autoincrement())
+  code        String            @unique
+  origin      String
+  destination String
+  distanceKm  Float
+  frequency   RouteFrequency
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  assignments TruckAssignment[] @relation("RouteToAssignments")
+}
+
+model TruckAssignment {
+  id           Int            @id @default(autoincrement())
+  truckId      Int
+  routeId      Int
+  driverId     Int
+  date         DateTime
+  status       String         @default("Planificada")
+  volumeLiters Float?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  driver       User           @relation("DriverToAssignments", fields: [driverId], references: [id])
+  route        TransportRoute @relation("RouteToAssignments", fields: [routeId], references: [id])
+  truck        Vehiculo       @relation("TruckToAssignments", fields: [truckId], references: [id])
+
+  @@unique([truckId, routeId, date])
+}
+
+model Aseo {
+  id               Int            @id @default(autoincrement())
+  date             DateTime
+  area             String
+  tasks            String[]       @default([])
+  responsibleStaff String
+  timeSpent        Float
+  issues           String[]       @default([])
+  status           CleaningStatus
+  observations     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  createdById      Int
+  User             User           @relation(fields: [createdById], references: [id])
+
+  @@index([createdById])
+}
+
+model CivilWork {
+  id                        Int             @id @default(autoincrement())
+  project                   String
+  location                  String
+  startDate                 DateTime
+  estimatedEndDate          DateTime
+  actualEndDate             DateTime?
+  workType                  CivilWorkType
+  tasks                     Json
+  progress                  Int             @default(0)
+  issues                    String[]        @default([])
+  status                    CivilWorkStatus @default(PENDING)
+  observations              String?
+  photos                    String[]        @default([])
+  responsibleStaffUsernames String[]        @default([])
+  materialsUsed             String[]        @default([])
+  createdById               Int
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+  createdBy                 User            @relation("CivilWork_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+}
+
+model ApprovalWorkflow {
+  id        Int            @id @default(autoincrement())
+  name      String
+  area      Area
+  category  TicketCategory
+  steps     Json
+  createdAt DateTime       @default(now())
+  updatedAt DateTime
+}
+
+/// Enum de roles
+enum Role {
+  Admin
+  Jefe
+  Supervisor
+  Especialista
+  Trabajador
+  Lector
+}
+
+/// Enum de especialidades
+enum Specialty {
+  DRIVER
+  MECHANIC
+}
+
+/// Enum de permisos
+enum Permission {
+  VIEW_DASHBOARD
+  VIEW_TICKETS
+  MANAGE_TICKETS
+  MANAGE_ROUTES
+  MANAGE_FLEET
+  VIEW_TRIP_REPORTS
+  MANAGE_TRIP_REPORTS
+  VIEW_ROUTES
+  VIEW_FLEET
+  VIEW_MAINTENANCE
+  MANAGE_MAINTENANCE
+  VIEW_CIVIL_WORKS
+  MANAGE_CIVIL_WORKS
+  VIEW_CLEANING_REPORTS
+  MANAGE_CLEANING_REPORTS
+  VIEW_MANAGEMENT_USER
+  MANAGE_MANAGEMENT_USER
+  VIEW_EMPLOYEES
+  MANAGE_EMPLOYEES
+  VIEW_PAYROLL
+  MANAGE_PAYROLL
+  VIEW_FINANCIAL_REPORTS
+  MANAGE_BUDGETS
+  APPROVE_EXPENSES
+  VIEW_RISK_ASSESSMENTS
+  MANAGE_RISK_ASSESSMENTS
+  CREATE_SAFETY_PROTOCOLS
 }
 
 enum TicketStatus {
@@ -64,40 +455,111 @@ enum TicketPriority {
   Urgente
 }
 
-
-/// Enum de roles
-enum Role {
-  Admin
-  Transporte
-  Driver
-  Obras
-  Aseo
-  IT
-  User
+enum VehiculoStatus {
+  disponible
+  en_mantenimiento
+  inactivo
+  en_uso
 }
 
-/// Enum de permisos
-enum Permission {
-  // General
-  VIEW_DASHBOARD
-  VIEW_TICKETS
-  MANAGE_TICKETS
+enum TicketCategory {
+  Soporte_IT
+  Solicitud_Suministro
+  Mantenimiento
+  Reporte_Incidente
+}
 
-  // Transporte
-  VIEW_TRIP_REPORTS
-  MANAGE_TRIP_REPORTS
-  VIEW_ROUTES
-  MANAGE_ROUTES
-  VIEW_FLEET
-  MANAGE_FLEET
-  VIEW_MAINTENANCE
-  MANAGE_MAINTENANCE
+enum ApprovalStatus {
+  Pendiente
+  Aprobado
+  Rechazado
+}
 
-  // Obras
-  VIEW_CIVIL_WORKS
-  MANAGE_CIVIL_WORKS
+enum InventoryItemStatus {
+  ACTIVO
+  INACTIVO
+}
 
-  // Aseo
-  VIEW_CLEANING_REPORTS
-  MANAGE_CLEANING_REPORTS
+enum InventoryMovementType {
+  INGRESO
+  EGRESO
+  AJUSTE
+}
+
+enum IncidentSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IncidentStatus {
+  REPORTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum IncidentType {
+  VEHICLE_BREAKDOWN
+  ACCIDENT
+  TRAFFIC_DELAY
+  WEATHER
+  SECURITY
+  OTHER
+}
+
+enum CleaningStatus {
+  COMPLETED
+  PARTIAL
+  PENDING
+}
+
+enum CivilWorkType {
+  CONSTRUCTION
+  REPAIR
+  MAINTENANCE
+  INSPECTION
+}
+
+enum CivilWorkStatus {
+  COMPLETED
+  IN_PROGRESS
+  PENDING
+  ON_HOLD
+}
+
+/// Enum para la frecuencia de las rutas de transporte
+enum RouteFrequency {
+  Diaria
+  Semanal
+  Mensual
+  Ocasional
+  Adhoc
+}
+
+enum Area {
+  Admin
+  IT
+  Transporte
+  Obras
+  Aseo
+  RRHH
+  Finanzas
+  Prev_Riesgo
+}
+
+enum ITAssetStatus {
+  EN_STOCK
+  ASIGNADO
+  EN_REPARACION
+  RETIRADO
+}
+
+enum ITAssetMovementType {
+  ALTA
+  ASIGNACION
+  DEVOLUCION
+  REPARACION
+  BAJA
 }

@@ -1,0 +1,73 @@
+import { Module } from '@nestjs/common';
+import { APP_GUARD, Reflector } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
+import {
+  ThrottlerGuard,
+  ThrottlerModule,
+  getOptionsToken,
+  getStorageToken,
+  ThrottlerModuleOptions,
+  ThrottlerStorage,
+} from '@nestjs/throttler';
+import { AuthModule } from '@/features/auth/auth.module';
+import { UsersModule } from '@/features/users/users.module';
+import { JwtAuthGuard } from '@/features/auth/guards/jwt-auth.guard';
+import { WorkshopModule } from '@/features/workshop/workshop.module';
+import { TicketModule } from '@/features/ticket/ticket.module';
+import { NotificationModule } from '@/features/notification/notification.module';
+import { FuelModule } from '@/features/fuel/fuel.module';
+import { IncidentModule } from '@/features/incident/incident.module';
+import { CleaningModule } from '@/features/cleaning/cleaning.module';
+import { CivilWorkModule } from '@/features/civil-work/civil-work.module';
+import { RoutesModule } from '@/features/routes/routes.module';
+import { VehicleModule } from '@/features/vehicle/vehicle.module';
+import { CoreModule } from './core/core.module';
+import { DashboardModule } from '@/features/dashboard/dashboard.module';
+import { BukModule } from '@/features/buk/buk.module';
+import { InventoryModule } from '@/features/inventory/inventory.module';
+import { ItInventoryModule } from '@/features/it-inventory/it-inventory.module';
+import { StorageModule } from '@/app/storage/storage.module';
+
+@Module({
+  imports: [
+    // Configura el ConfigModule para que sea global y cargue las variables .env
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60,
+        limit: 100,
+      },
+    ]),
+    AuthModule,
+    UsersModule,
+    WorkshopModule,
+    TicketModule,
+    NotificationModule,
+    FuelModule,
+    IncidentModule,
+    CleaningModule,
+    CivilWorkModule,
+    RoutesModule,
+    VehicleModule,
+    DashboardModule,
+    BukModule,
+    InventoryModule,
+    ItInventoryModule,
+    StorageModule,
+    CoreModule,
+  ],
+
+  providers: [
+    {
+      provide: APP_GUARD,
+      useFactory: (options: ThrottlerModuleOptions, storage: ThrottlerStorage) =>
+        new ThrottlerGuard(options, storage, new Reflector()),
+      inject: [getOptionsToken(), getStorageToken()],
+    },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+  ],
+})
+export class AppModule {}

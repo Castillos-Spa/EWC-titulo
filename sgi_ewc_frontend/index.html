@@ -1,10 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Enterprise Management System</title>
+    <title>P I G O</title>
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('theme');
+          var prefersDark = globalThis.matchMedia && globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+          var resolvedDark = false;
+          if (!theme) {
+            resolvedDark = prefersDark;
+          } else if (theme === 'system') {
+            resolvedDark = prefersDark;
+          } else {
+            resolvedDark = theme === 'dark';
+          }
+          document.documentElement.classList.toggle('dark', resolvedDark);
+        } catch (e) {
+          console && console.debug && console.debug('Theme init error', e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

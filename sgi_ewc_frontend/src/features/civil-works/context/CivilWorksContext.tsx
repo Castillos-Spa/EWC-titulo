@@ -1,0 +1,120 @@
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import type { CivilWork, CivilWorkTask, CreateCivilWorkPayload } from '../../../types/CivilWork';
+import {
+  fetchCivilWorks,
+  fetchCivilWorkById,
+  createCivilWork,
+  updateCivilWork,
+  updateCivilWorkTasks,
+  deleteCivilWork,
+  uploadCivilWorkPhotos,
+  getCivilWorkPhotos,
+} from '../../../utils/civilWorkApi';
+
+type Ctx = {
+  items: Partial<CivilWork>[];
+  selected: CivilWork | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+  selectById: (id: number) => Promise<void>;
+  clearSelection: () => void;
+  create: (payload: CreateCivilWorkPayload, attachments?: File[]) => Promise<CivilWork>;
+  update: (id: number, payload: Partial<CivilWork>) => Promise<CivilWork>;
+  updateTasks: (id: number, tasks: CivilWorkTask[]) => Promise<CivilWork>;
+  remove: (id: number) => Promise<void>;
+  uploadPhotos: (id: number, files: File[]) => Promise<string[]>;
+  loadPhotos: (id: number) => Promise<string[]>;
+};
+
+const CivilWorksContext = createContext<Ctx | undefined>(undefined);
+
+export const CivilWorksProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [items, setItems] = useState<Partial<CivilWork>[]>([]);
+  const [selected, setSelected] = useState<CivilWork | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetchCivilWorks();
+      setItems(res.items);
+      setError(null);
+    } catch (e) {
+      console.error(e);
+      setError('No se pudieron cargar las obras civiles');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  const selectById = useCallback(async (id: number) => {
+    const full = await fetchCivilWorkById(id);
+    setSelected(full);
+    setItems(prev => prev.map(item => (item?.id === id ? { ...item, ...full } : item)));
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelected(null);
+  }, []);
+
+  const create = useCallback(async (payload: CreateCivilWorkPayload, attachments?: File[]) => {
+    const created = await createCivilWork(payload);
+    let next = created;
+
+    if (attachments && attachments.length) {
+      const { photos } = await uploadCivilWorkPhotos(created.id, attachments);
+      next = { ...created, photos };
+    }
+
+    setItems(prev => [next, ...prev]);
+    return next;
+  }, []);
+
+  const update = useCallback(async (id: number, payload: Partial<CivilWork>) => {
+    const updated = await updateCivilWork(id, payload);
+    setItems(prev => prev.map(i => (i?.id === id ? { ...i, ...updated } : i)));
+    if (selected?.id === id) setSelected(updated);
+    return updated;
+  }, [selected]);
+
+  const updateTasks = useCallback(async (id: number, tasks: CivilWorkTask[]) => {
+    const updated = await updateCivilWorkTasks(id, tasks);
+    setItems(prev => prev.map(i => (i?.id === id ? { ...i, ...updated } : i)));
+    if (selected?.id === id) setSelected(updated);
+    return updated;
+  }, [selected]);
+
+  const remove = useCallback(async (id: number) => {
+    await deleteCivilWork(id);
+    setItems(prev => prev.filter(i => i?.id !== id));
+    if (selected?.id === id) setSelected(null);
+  }, [selected]);
+
+  const uploadPhotos = useCallback(async (id: number, files: File[]) => {
+    if (!files.length) return [];
+    const { photos } = await uploadCivilWorkPhotos(id, files);
+    setItems(prev => prev.map(i => (i?.id === id ? { ...i, photos } : i)));
+    if (selected?.id === id) setSelected(prev => (prev ? { ...prev, photos } : prev));
+    return photos;
+  }, [selected]);
+
+  const loadPhotos = useCallback(async (id: number) => {
+    const photos = await getCivilWorkPhotos(id);
+    setItems(prev => prev.map(i => (i?.id === id ? { ...i, photos } : i)));
+    if (selected?.id === id) setSelected(prev => (prev ? { ...prev, photos } : prev));
+    return photos;
+  }, [selected]);
+
+  const value = useMemo<Ctx>(
+    () => ({ items, selected, loading, error, refresh, selectById, clearSelection, create, update, updateTasks, remove, uploadPhotos, loadPhotos }),
+    [items, selected, loading, error, refresh, selectById, clearSelection, create, update, updateTasks, remove, uploadPhotos, loadPhotos],
+  );
+
+  return <CivilWorksContext.Provider value={value}>{children}</CivilWorksContext.Provider>;
+};
+
+export default CivilWorksContext;

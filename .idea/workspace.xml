@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/CreateFuelRecordModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/CreateFuelRecordModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FleetVehicleCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FleetVehicleCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelAnalytics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelAnalytics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelDetailModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/pnpm-lock.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/pnpm-lock.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/VehiculoApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/VehiculoApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/fleetStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/fleetStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/fuelStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/fuelStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Wils0nCastill0&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Castillos-Spa/EWC-titulo.git&quot;,
+    &quot;accountId&quot;: &quot;b871b925-ede7-4518-84a0-95375f1efb56&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 2
+}</component>
+  <component name="ProjectId" id="333hBB4y6C598XJDjABCf7zzpOd" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;Speed__Run&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Yo/Proyecto/EWC-titulo&quot;
+  }
+}</component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="" />
+      <created>1758551529819</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1758551529819</updated>
+    </task>
+    <servers />
+  </component>
+</project>
