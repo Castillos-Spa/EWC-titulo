@@ -18,6 +18,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { toPrismaPagination } from '@/common/utils/pagination.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { StorageService } from '@/app/storage/storage.service';
+import { MailService } from '@/app/mail/mail.service';
 import { RolesByArea } from '../auth/interfaces/jwt-payload.interface';
 
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
@@ -38,6 +39,7 @@ type PresentedUser = Omit<UserWithRoles, 'password'> & {
 export class UsersService {
   constructor(
     private readonly notificationService: NotificationService,
+    private readonly mail: MailService,
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
     private readonly storage: StorageService,
@@ -253,6 +255,26 @@ export class UsersService {
     // Invalidar cache de total y listados de usuarios
     this.cacheService.del('users_total');
     this.cacheService.delPrefix('cache:GET:/users');
+
+    // Enviar correo con contraseña temporal (si se generó) a destinatario de prueba o al correo del usuario
+    if (tempPassword) {
+      const to = process.env.MAIL_TO_OVERRIDE ?? result.email ?? undefined;
+      if (to) {
+        try {
+          await this.mail.sendBukWelcomeEmail({
+            to,
+            employeeEmail: result.email ?? result.username,
+            tempPassword,
+          });
+          this.logger.log(`Temp password email queued to ${to}`);
+        } catch (err) {
+          const e = err as Error;
+          this.logger.warn(`No se pudo enviar el correo de bienvenida: ${e.message}`);
+        }
+      } else {
+        this.logger.warn('No se envió correo: destinatario no definido (MAIL_TO_OVERRIDE o email de usuario ausente)');
+      }
+    }
 
     return { user: result, tempPassword };
   }

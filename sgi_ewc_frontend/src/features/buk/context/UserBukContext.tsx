@@ -7,6 +7,8 @@ const UserBukList: React.FC = () => {
     const { t } = useLanguage();
     const [registeringId, setRegisteringId] = useState<number | null>(null);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMessage, setModalMessage] = useState('Esta función de informe con IA estará disponible pronto.');
 
     const rangeStart = useMemo(() => (total === 0 ? 0 : (page - 1) * pageSize + 1), [total, page, pageSize]);
     const rangeEnd = useMemo(
@@ -41,6 +43,16 @@ const UserBukList: React.FC = () => {
         setPage(page + 1);
     };
 
+    const openModal = (message?: string) => {
+        if (message) {
+            setModalMessage(message);
+        } else {
+            setModalMessage('Esta función de informe con IA estará disponible pronto.');
+        }
+        setIsModalOpen(true);
+    };
+    const closeModal = () => setIsModalOpen(false);
+
     return (
         <section className="space-y-6">
             <header className="flex flex-col gap-4 p-6 border shadow-sm rounded-2xl border-slate-200/70 bg-white/80 backdrop-blur dark:border-white/5 dark:bg-white/5">
@@ -58,6 +70,13 @@ const UserBukList: React.FC = () => {
                             {t('buk.endpointLabel')}: {endpoint}
                         </span>
                     )}
+                    <button
+                        type="button"
+                        onClick={openModal}
+                        className="inline-flex items-center justify-center rounded-full border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-700 dark:border-white/10 dark:text-white dark:hover:border-white/20"
+                    >
+                        Generar informe IA
+                    </button>
                     <button
                         type="button"
                         onClick={refresh}
@@ -108,7 +127,7 @@ const UserBukList: React.FC = () => {
                                     {t('buk.columns.status')}
                                 </th>
                                 <th scope="col" className="px-6 py-3 text-xs font-semibold tracking-wider text-left uppercase text-slate-500 dark:text-blue-100/70">
-                                    {t('buk.columns.registration')}
+                                    Acción
                                 </th>
                             </tr>
                         </thead>
@@ -144,22 +163,29 @@ const UserBukList: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {user.existsInApp ? (
-                                                <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-blue-100/80">
-                                                    {t('buk.actions.registered')}
-                                                </span>
-                                            ) : (
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {user.existsInApp ? (
+                                                    <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-blue-100/80">
+                                                        Registrado
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRegister(user.id)}
+                                                        disabled={registeringId === user.id || loading}
+                                                        className="inline-flex items-center rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-indigo-500 disabled:opacity-60"
+                                                    >
+                                                        {registeringId === user.id ? 'Registrando...' : 'Registrar'}
+                                                    </button>
+                                                )}
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleRegister(user.id)}
-                                                    disabled={registeringId === user.id || loading}
-                                                    className="inline-flex items-center rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-indigo-500 disabled:opacity-60"
+                                                    onClick={() => openModal()}
+                                                    className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-700 disabled:opacity-50 dark:border-white/10 dark:text-blue-100/80 dark:hover:border-white/20"
                                                 >
-                                                    {registeringId === user.id
-                                                        ? t('buk.actions.registering')
-                                                        : t('buk.actions.register')}
+                                                    Generar informe IA
                                                 </button>
-                                            )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -180,7 +206,7 @@ const UserBukList: React.FC = () => {
                             disabled={page <= 1 || loading}
                             className="inline-flex items-center px-3 py-1 text-xs font-semibold transition border rounded-full border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-700 disabled:opacity-50 dark:border-white/10 dark:text-blue-100/70 dark:hover:border-white/20"
                         >
-                            {t('buk.pagination.previous')}
+                            Página anterior
                         </button>
                         <span className="font-semibold text-slate-600 dark:text-blue-100/80">
                             {page} / {totalPages}
@@ -191,11 +217,34 @@ const UserBukList: React.FC = () => {
                             disabled={page >= totalPages || loading}
                             className="inline-flex items-center px-3 py-1 text-xs font-semibold transition border rounded-full border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-700 disabled:opacity-50 dark:border-white/10 dark:text-blue-100/70 dark:hover:border-white/20"
                         >
-                            {t('buk.pagination.next')}
+                            Página siguiente
                         </button>
                     </div>
                 </div>
             </div>
+            {isModalOpen && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40"
+                    onClick={closeModal}
+                >
+                    <div
+                        className="w-full max-w-sm p-6 text-center bg-white shadow-xl rounded-2xl dark:bg-slate-900"
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Próximamente</h2>
+                        <p className="mt-2 text-sm text-slate-600 dark:text-blue-100/70">{modalMessage}</p>
+                        <button
+                            type="button"
+                            onClick={closeModal}
+                            className="mt-4 inline-flex items-center justify-center rounded-full bg-sky-600 px-4 py-1.5 text-sm font-semibold text-white shadow hover:bg-sky-500"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            )}
         </section>
     );
 };

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import type { AxiosError } from 'axios';
 import { UsersService } from '@/features/users/users.service';
+import { Role } from '@prisma/client';
 import { CreateBukUserDto } from './dto/create-buk-user.dto';
 
 export interface BukUser {
@@ -73,35 +74,39 @@ export class BukService {
   }
 
   async registerBukUser(input: CreateBukUserDto): Promise<unknown> {
-    const url =
-      this.configService.get<string>('BUK_CREATE_WEBHOOK_URL') ?? 'https://bacze.app.n8n.cloud/webhook/buk_user_create';
-
-    try {
-      const payload = this.buildCreatePayload(input);
-      const headers = this.buildHeaders();
-      this.logCreateRequest(url, headers, payload);
-      const response = await firstValueFrom(
-        this.httpService.post(url, payload, {
-          headers,
-        }),
-      );
-      this.logCreateResponse(response.status, response.data);
-      return response.data ?? { success: true };
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      const status = axiosError.response?.status ?? HttpStatus.BAD_GATEWAY;
-      const rawMessage = axiosError.response?.data ?? axiosError.message;
-      const serialized = (() => {
-        if (typeof rawMessage === 'string') return rawMessage;
-        try {
-          return JSON.stringify(rawMessage);
-        } catch {
-          return String(rawMessage);
-        }
-      })();
-      this.logger.error(`Error registering Buk user: status=${status} body=${serialized}`);
-      throw new HttpException(`Error registering Buk user: ${serialized}`, status);
+    // New behavior: register directly in the app (no external webhook)
+    // 1) Fetch Buk users payload and locate the requested employee by id_buk
+    const payload = await this.performRequest();
+    const users = await this.prepareUsers(payload);
+    const match = users.find(u => u.id === Number(input.id_buk));
+    if (!match) {
+      throw new HttpException(`Empleado BUK id=${input.id_buk} no encontrado`, HttpStatus.NOT_FOUND);
     }
+
+    // 2) Build minimal register dto
+    const defaultArea = this.configService.get<string>('DEFAULT_REGISTER_AREA') ?? 'IT';
+    const defaultRoleName = this.configService.get<string>('DEFAULT_REGISTER_ROLE') ?? 'Trabajador';
+    const roleEnum = (Role as unknown as Record<string, Role>)[defaultRoleName] ?? Role.Trabajador;
+    const email = match.email?.trim();
+    if (!email) {
+      throw new HttpException('El empleado BUK no tiene correo válido', HttpStatus.BAD_REQUEST);
+    }
+    const username = (email.split('@')[0] || match.name || `user_${match.id}`).toLowerCase();
+
+    const registerDto = {
+      username,
+      email,
+      active: true,
+      roleAssignments: [
+        {
+          area: defaultArea,
+          role: roleEnum,
+        },
+      ],
+    } as any; // shape compatible with RegisterDto
+
+    const result = await this.usersService.register(registerDto);
+    return { success: true, user: result.user, tempPassword: result.tempPassword };
   }
 
   private async performRequest(): Promise<unknown> {
