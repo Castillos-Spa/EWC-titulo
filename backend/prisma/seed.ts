@@ -382,11 +382,16 @@ async function main() {
   console.log('🔑 Contraseña para todos: admin123');
 }
 
-main()
-  .catch(e => {
-    console.error('❌ Error en seed:', e);
+async function runSeed() {
+  try {
+    await main();
+  } catch (error) {
+    console.error('❌ Error en seed:', error);
     process.exit(1);
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-floating-promises, @typescript-eslint/prefer-top-level-await
+runSeed();

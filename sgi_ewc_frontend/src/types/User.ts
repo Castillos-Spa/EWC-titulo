@@ -6,6 +6,7 @@ export type Role =
   | "Especialista"
   | "Trabajador"
   | "Lector";
+
 export type Specialty =
   | "DRIVER"
   | "MECHANIC"
@@ -16,6 +17,29 @@ export type Specialty =
   | "SAFETY_INSPECTOR"
   | "IT_SUPPORT";
 
+export type TenantStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
+
+export type CompanyStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED";
+
+export type BackendModuleKey =
+  | "DASHBOARD"
+  | "INCIDENTS"
+  | "TICKETS"
+  | "NOTIFICATIONS"
+  | "USERS"
+  | "FLEET"
+  | "FUEL"
+  | "ROUTES"
+  | "CLEANING"
+  | "CIVIL_WORK"
+  | "MAINTENANCE"
+  | "PURCHASING"
+  | "HR"
+  | "FINANCE"
+  | "SAFETY"
+  | "ANALYTICS"
+  | "CUSTOM";
+
 export interface RoleAssignment {
   area: string;
   role: Role;
@@ -23,6 +47,7 @@ export interface RoleAssignment {
   additionalPermissions?: string[];
   permissions?: string[];
   isActive?: boolean;
+  companyId?: number | null;
 }
 
 export interface RolesByArea {
@@ -55,4 +80,66 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   mustChangePassword?: boolean;
+  tenantId?: number;
+  tenantSlug?: string | null;
+  companyId?: number | null;
+  companyIds?: number[];
+  modules?: BackendModuleKey[];
+  tenantModules?: BackendModuleKey[];
+  restrictedModules?: BackendModuleKey[];
+  moduleMap?: ModuleAccessSnapshot;
+}
+
+export interface TenantSummary {
+  id: number;
+  slug: string;
+  name: string;
+  status: TenantStatus;
+}
+
+export interface TenantCompany {
+  id: number;
+  name: string;
+  status: CompanyStatus;
+  isDefault: boolean;
+}
+
+export interface TenantAccessOption {
+  tenant: TenantSummary;
+  defaultCompanyId: number | null;
+  companies: TenantCompany[];
+  requiresCompanySelection: boolean;
+}
+
+export interface AuthDiscoveryResponse {
+  email: string;
+  tenants: TenantAccessOption[];
+}
+
+export interface ClientAuthSession {
+  user: User;
+  tenant: TenantSummary | null;
+  companyId: number | null;
+  companies: TenantCompany[];
+  modules: BackendModuleKey[];
+  tenantModules?: BackendModuleKey[];
+  restrictedModules?: BackendModuleKey[];
+  moduleMap?: ModuleAccessSnapshot;
+}
+
+export interface ModuleStatusBuckets {
+  active: BackendModuleKey[];
+  trial: BackendModuleKey[];
+  inactive: BackendModuleKey[];
+  pending: BackendModuleKey[];
+  enabled: BackendModuleKey[];
+  disabled: BackendModuleKey[];
+}
+
+export interface ModuleAccessSnapshot {
+  tenant: ModuleStatusBuckets;
+  user: {
+    enabled: BackendModuleKey[];
+    restricted: BackendModuleKey[];
+  };
 }

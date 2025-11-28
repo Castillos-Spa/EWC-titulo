@@ -30,10 +30,44 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
+type RefreshSessionPayload = {
+  user?: ClientAuthSession["user"];
+  tenant?: ClientAuthSession["tenant"];
+  companyId?: number | null;
+  companies?: ClientAuthSession["companies"];
+  modules?: ClientAuthSession["modules"];
+};
+
+const applyRefreshedSession = (payload: RefreshSessionPayload) => {
+  if (!payload.user) {
+    globalThis.dispatchEvent?.(
+      new CustomEvent("session-refreshed", { detail: undefined })
+    );
+    return;
+  }
+
+  const previousSession = loadAuthSession();
+  const nextSession: ClientAuthSession = {
+    user: payload.user,
+    tenant: payload.tenant ?? previousSession?.tenant ?? null,
+    companyId: payload.companyId ?? previousSession?.companyId ?? null,
+    companies: Array.isArray(payload.companies)
+      ? payload.companies
+      : previousSession?.companies ?? [],
+    modules:
+      payload.modules ?? payload.user.modules ?? previousSession?.modules ?? [],
+  };
+
+  saveAuthSession(nextSession);
+  globalThis.dispatchEvent?.(
+    new CustomEvent("session-refreshed", { detail: nextSession })
+  );
+};
+
 const handleLogout = () => {
   localStorage.removeItem("authToken");
   localStorage.removeItem("refreshToken");
-  localStorage.removeItem("userData");
+  clearAuthSession();
   // Disparamos un evento global para que la UI reaccione (AuthContext lo escucha).
   globalThis.dispatchEvent?.(new Event("session-expired"));
 };

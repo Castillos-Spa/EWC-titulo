@@ -35,6 +35,12 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
+  @Public()
+  @Post('discover')
+  async discoverAccess(@Body() { email, tenantSlug }: DiscoverAccessDto) {
+    return this.authService.discoverAccess(email, tenantSlug);
+  }
+
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @OptionalAuth()
