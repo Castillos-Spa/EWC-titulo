@@ -1,9 +1,9 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, useWindowDimensions } from 'react-native';
-import { useThemeStore } from '../stores/themeStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { useAuthz } from '@/hooks/useAuthz';
-import { useNavigationStore } from '../stores/navigationStore';
+import { useNavigationStore } from '@/stores/navigationStore';
 import {
   Home,
   Ticket,
@@ -47,6 +47,7 @@ export default function TabLayout() {
   // Breakpoints básicos
   const isSmall = width < 400;
   const isTablet = width >= 768;
+  const showTabLabels = width >= 400;
 
   // Altura y labels según tamaño (sin ternarios anidados)
   let baseHeight = 64;
@@ -74,8 +75,8 @@ export default function TabLayout() {
           left: 0,
           right: 0,
         },
-        tabBarShowLabel: !isSmall,
-        tabBarLabelStyle: !isSmall
+        tabBarShowLabel: showTabLabels,
+        tabBarLabelStyle: showTabLabels
           ? {
               fontSize: isTablet ? 12 : 11,
               fontWeight: '600',

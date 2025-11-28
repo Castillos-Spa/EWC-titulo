@@ -46,12 +46,12 @@ model User {
 model UserRoleAssignment {
   id          Int          @id @default(autoincrement())
   userId      Int
-  area        Area
   role        Role
   specialty   Specialty?
   permissions Permission[] @default([])
   isActive    Boolean      @default(true)
   assignedAt  DateTime     @default(now())
+  area        Area
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, area, role])
@@ -70,13 +70,13 @@ model Ticket {
   updatedAt                  DateTime         @updatedAt
   createdById                Int
   assignedToId               Int?
-  recipientArea              Area[]           @default([])
   recipientRole              Role[]
   assignedUserConfirmation   Boolean?         @default(false)
   requestingUserConfirmation Boolean?         @default(false)
   tags                       String[]         @default([])
-  attachmentUrls             String[]         @default([])
   ordenTrabajoId             Int?             @unique
+  recipientArea              Area[]           @default([])
+  attachmentUrls             String[]         @default([])
   attachments                Documento[]
   assignedTo                 User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
   createdBy                  User             @relation("CreatedTickets", fields: [createdById], references: [id])
@@ -89,7 +89,6 @@ model Vehiculo {
   patente             String            @unique
   capacidad           Float
   odometro            Int
-  tipo                String?
   estado              VehiculoStatus    @default(disponible)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -98,6 +97,7 @@ model Vehiculo {
   marca               String            @default("")
   modelo              String            @default("")
   codigo              String?           @unique
+  tipo                String?
   documentos          Documento[]
   fuelLogs            FuelLog[]
   ordenes             OrdenTrabajo[]
@@ -260,10 +260,10 @@ model TicketApproval {
   step         Int
   status       ApprovalStatus @default(Pendiente)
   approverRole Role
-  approverArea Area
   approvedById Int?
   approvedAt   DateTime?
   comments     String?
+  approverArea Area
   approvedBy   User?          @relation(fields: [approvedById], references: [id])
   ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 

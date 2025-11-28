@@ -6,35 +6,24 @@
   <component name="ChangeListManager">
     <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/index.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/notifications.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/notifications.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/routes.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/routes.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/work.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/work.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/CreateNotificationModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/CreateNotificationModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/KanbanColumn.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/KanbanColumn.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/KanbanTaskCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/KanbanTaskCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/ModuleCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/ModuleCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/RouteCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/RouteCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/RouteDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/RouteDetailModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/TicketCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/TicketCard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/TicketDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/TicketDetailModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/components/TripModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/components/TripModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/ApiClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/ApiClient.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/DatabaseService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/DatabaseService.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/NotificationApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/NotificationApi.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/services/SafeStorage.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/services/SafeStorage.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/notificationsStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/notificationsStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/app/stores/routeStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/stores/routeStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/features/routes/routes.module.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/features/routes/routes.module.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/features/routes/routes.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/features/routes/routes.service.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/fleet/components/FleetVehicleModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/fleet/components/FleetVehicleModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/profile/pages/UserProfile.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/profile/pages/UserProfile.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/truck-assignments/components/AssignTruckModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/truck-assignments/components/AssignTruckModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/truck-assignments/components/TruckAssignmentCards.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/truck-assignments/components/TruckAssignmentCards.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/truck-assignments/context/TruckAssignmentContext.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/truck-assignments/context/TruckAssignmentContext.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/users/components/UserForm.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/users/components/UserForm.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/users/pages/UserManagement.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/features/users/pages/UserManagement.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sgi_ewc_frontend/src/utils/tallerApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/sgi_ewc_frontend/src/utils/tallerApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/CreateFuelRecordModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/CreateFuelRecordModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FleetVehicleCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FleetVehicleCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelAnalytics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelAnalytics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelDetailModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/pnpm-lock.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/pnpm-lock.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/VehiculoApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/VehiculoApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/fleetStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/fleetStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/fuelStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/fuelStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -76,7 +65,7 @@
     &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
     &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
     &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;Movil&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;Speed__Run&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;D:/Yo/Proyecto/EWC-titulo&quot;

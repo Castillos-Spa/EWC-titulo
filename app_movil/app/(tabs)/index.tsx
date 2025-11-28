@@ -7,24 +7,22 @@ import {
   ScrollView,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useAuthStore } from '../stores/authStore';
-import { useThemeStore } from '../stores/themeStore';
+import { useAuthStore } from '@/stores/authStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { Route, TriangleAlert as AlertTriangle, Fuel, Ticket, LogOut, User, Sparkles as Cleaning, HardHat, Kanban, Bell, TrendingUp, CircleCheck as CheckCircle, Clock, Map, Car, Wrench, Settings } from 'lucide-react-native';
-import { useNotificationsStore } from '../stores/notificationsStore';
-import { NotificationsDrawer } from '../components/NotificationsDrawer';
-import { useSyncStore } from '../stores/syncStore';
+import { useNotificationsStore } from '@/stores/notificationsStore';
+import { NotificationsDrawer } from '@/components/NotificationsDrawer';
+import { useSyncStore } from '@/stores/syncStore';
 import { useAuthz } from '@/hooks/useAuthz';
-import { useNavigationStore } from '../stores/navigationStore';
-import { DashboardApi, type DaySummary } from '../services/DashboardApi';
-import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '../services/DashboardInsights';
-import { SafeStorage } from '../services/SafeStorage';
-import { DashboardAlertsCard } from '../components/DashboardAlertsCard';
-import { buildPrioritizedAlerts, mapNotificationsToAlertSource } from '@/app/utils/dashboard';
-import { SectionHeader } from '../components/ui/SectionHeader';
+import { useNavigationStore } from '@/stores/navigationStore';
+import { DashboardApi, type DaySummary } from '@/services/DashboardApi';
+import { fetchDashboardInsights, loadCachedDashboardInsights, getDashboardInsightsCacheInfo, type DashboardInsightData } from '@/services/DashboardInsights';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 
 function getRoleDisplayName(role: string) {
   const roles = {
@@ -332,80 +330,67 @@ function QuickAccessCarousel({ colors, tiles, compact }: Readonly<{ colors: any;
   );
 }
 
-function AlertsSection({
-  colors,
-  alerts,
-  secondary,
-  loading,
-  filter,
-  onFilterChange,
-  compact,
-  sectionStyle,
-}: Readonly<{
-  colors: any;
-  alerts: any[];
-  secondary: any[];
-  loading: boolean;
-  filter: 'critical' | 'all';
-  onFilterChange: (v: 'critical' | 'all') => void;
-  compact?: boolean;
-  sectionStyle?: any;
-}>) {
-  return (
-    <View style={[styles.section, sectionStyle]}>
-      <SectionHeader title="Alertas priorizadas" subtitle="Incidentes, tickets y OTs críticos" />
-      <View
-        style={[
-          styles.cardSurface,
-          compact && styles.cardSurfaceCompact,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        <DashboardAlertsCard
-          alerts={alerts}
-          secondary={secondary}
-          loading={loading}
-          filter={filter}
-          onFilterChange={onFilterChange}
-          colors={colors}
-        />
-      </View>
-    </View>
-  );
-}
+function NotificationsPanel({ colors, notifications, onOpenDrawer, sectionStyle, loading, error, onReload }: Readonly<{ colors: any; notifications: any[]; onOpenDrawer: () => void; sectionStyle?: any; loading: boolean; error: string | null; onReload: () => void }>) {
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Cargando notificaciones…</Text>
+        </View>
+      );
+    }
 
-function NotificationsPanel({ colors, notifications, onOpenDrawer, sectionStyle }: Readonly<{ colors: any; notifications: any[]; onOpenDrawer: () => void; sectionStyle?: any }>) {
+    if (error) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
+            <Bell size={16} color={colors.error || '#DC2626'} />
+          </View>
+          <Text style={[styles.notificationTitle, { color: colors.error || '#DC2626', marginTop: 8 }]}>No se pudieron cargar las notificaciones</Text>
+          <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
+            <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (notifications.length === 0) {
+      return (
+        <View style={styles.notificationEmptyState}>
+          <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
+            <Bell size={16} color={colors.textSecondary} />
+          </View>
+          <Text style={[styles.notificationTitle, { color: colors.textSecondary, marginTop: 8 }]}>Sin notificaciones recientes</Text>
+          <TouchableOpacity onPress={onReload} style={[styles.notificationsButton, { marginTop: 12 }]}>
+            <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Actualizar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return notifications.slice(0, 5).map((n) => (
+      <View key={n.id} style={styles.notificationItem}>
+        <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
+          <Bell size={16} color={colors.primary} />
+        </View>
+        <View style={styles.notificationContent}>
+          <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
+            {n.message || n.type || 'Notificación'}
+          </Text>
+          <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
+            {new Date(n.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+      </View>
+    ));
+  };
+
   return (
     <View style={[styles.section, sectionStyle]}>
       <SectionHeader title="Notificaciones recientes" subtitle="Sincronizadas con el centro web" />
       <View style={[styles.notificationsList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        {notifications.length === 0 ? (
-          <View style={[styles.notificationItem, { borderBottomWidth: 0 }]}>
-            <View style={[styles.notificationIcon, { backgroundColor: colors.background }]}>
-              <Bell size={16} color={colors.textSecondary} />
-            </View>
-            <View style={styles.notificationContent}>
-              <Text style={[styles.notificationTitle, { color: colors.textSecondary }]}>Sin notificaciones recientes</Text>
-              <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>Todo funcionando</Text>
-            </View>
-          </View>
-        ) : (
-          notifications.slice(0, 5).map((n) => (
-            <View key={n.id} style={styles.notificationItem}>
-              <View style={[styles.notificationIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Bell size={16} color={colors.primary} />
-              </View>
-              <View style={styles.notificationContent}>
-                <Text style={[styles.notificationTitle, { color: colors.text }]} numberOfLines={1}>
-                  {n.message || n.type || 'Notificación'}
-                </Text>
-                <Text style={[styles.notificationTime, { color: colors.textSecondary }]}>
-                  {new Date(n.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-            </View>
-          ))
-        )}
+        {renderContent()}
       </View>
       <TouchableOpacity onPress={onOpenDrawer} style={styles.notificationsButton}>
         <Text style={[styles.notificationsButtonText, { color: colors.primary }]}>Ver todas</Text>
@@ -419,7 +404,12 @@ export default function HomeScreen() { // NOSONAR
   const { user, logout } = useAuthStore();
   const { getColors } = useThemeStore();
   const insets = useSafeAreaInsets();
-  const { items: notifications } = useNotificationsStore();
+  const {
+    items: notifications,
+    loading: notificationsLoading,
+    error: notificationsError,
+    hydrateFromApi: hydrateNotifications,
+  } = useNotificationsStore();
   const { width } = useWindowDimensions();
   const isCompactScreen = width < 380;
 
@@ -430,21 +420,16 @@ export default function HomeScreen() { // NOSONAR
   const [summary, setSummary] = useState<DaySummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [insights, setInsights] = useState<DashboardInsightData | null>(null);
-  const [insightsLoading, setInsightsLoading] = useState(false);
-  const [alertsFilter, setAlertsFilter] = useState<'critical' | 'all'>('critical');
   const [cacheTs, setCacheTs] = useState<number | null>(null);
   const [usingCache, setUsingCache] = useState(false);
 
   const loadInsights = useCallback(async () => {
     try {
-      setInsightsLoading(true);
       const data = await fetchDashboardInsights();
       setInsights(data);
       setUsingCache(false);
     } catch (err) {
       console.warn('dashboard insights load failed', err);
-    } finally {
-      setInsightsLoading(false);
     }
   }, []);
 
@@ -463,35 +448,25 @@ export default function HomeScreen() { // NOSONAR
   }, []);
 
   useEffect(() => {
-    // Conectar WS al montar o cuando cambia el usuario
-    useNotificationsStore.getState().connect();
-    // Chequear estado de sincronización al entrar
+    if (!user?.id) return;
+    const notificationsStore = useNotificationsStore.getState();
+
+    notificationsStore.connect();
+
+    (async () => {
+      try {
+        await notificationsStore.hydrateFromApi(1);
+      } catch (error) {
+        console.warn('notifications hydrate failed', error);
+      }
+    })();
+
     useSyncStore.getState().checkNow();
+
     return () => {
-      useNotificationsStore.getState().disconnect();
+      notificationsStore.disconnect();
     };
   }, [user?.id]);
-
-  // Cargar preferencia de filtro de alertas (persistencia)
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const saved = await SafeStorage.getItem('dashboard_alerts_filter');
-        if (!cancelled && (saved === 'critical' || saved === 'all')) {
-          setAlertsFilter(saved);
-        }
-      } catch {}
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Guardar preferencia cuando cambie
-  useEffect(() => {
-    void SafeStorage.setItem('dashboard_alerts_filter', alertsFilter).catch(() => {});
-  }, [alertsFilter]);
-
   useEffect(() => {
     // cargar resumen del día cuando haya usuario
     const load = async () => {
@@ -532,6 +507,10 @@ export default function HomeScreen() { // NOSONAR
       setSummaryLoading(false);
     }
   };
+
+  const handleNotificationsReload = useCallback(() => {
+    void hydrateNotifications(1);
+  }, [hydrateNotifications]);
 
   // Acciones rápidas: atajos a módulos visibles para el usuario que NO están en la barra de navegación
   const {
@@ -586,21 +565,6 @@ export default function HomeScreen() { // NOSONAR
   
 
   const generalHighlights = useMemo(() => insights?.modules.general?.highlights ?? [], [insights]);
-
-  const prioritizedAlerts = useMemo(() => {
-    if (!insights) {
-      return { critical: [], all: [] };
-    }
-    const notificationsSource = mapNotificationsToAlertSource(notifications);
-    return buildPrioritizedAlerts({
-      tickets: insights.alertSources.tickets,
-      ots: insights.alertSources.ots,
-      incidents: insights.alertSources.incidents,
-      civil: insights.alertSources.civil,
-      aseos: insights.alertSources.aseos,
-      notifications: notificationsSource,
-    });
-  }, [insights, notifications]);
 
   let dbStatusLabel = '—';
   if (dbOk === true) dbStatusLabel = 'OK';
@@ -705,20 +669,12 @@ export default function HomeScreen() { // NOSONAR
         <QuickAccessCarousel colors={colors} tiles={quickAccessTiles} compact={isCompactScreen} />
       </View>
 
-      <AlertsSection
-        colors={colors}
-        alerts={prioritizedAlerts.critical}
-        secondary={prioritizedAlerts.all}
-        loading={insightsLoading}
-        filter={alertsFilter}
-        onFilterChange={setAlertsFilter}
-        compact={isCompactScreen}
-        sectionStyle={sectionSpacingStyle}
-      />
-
       <NotificationsPanel
         colors={colors}
         notifications={notifications}
+        loading={notificationsLoading}
+        error={notificationsError}
+        onReload={handleNotificationsReload}
         onOpenDrawer={() => setDrawerOpen(true)}
         sectionStyle={sectionSpacingStyle}
       />
@@ -886,11 +842,6 @@ const styles: any = StyleSheet.create({
   },
   quickAccessSubtitle: {
     fontSize: 13,
-  },
-  cardSurface: {
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
   },
   cacheBadge: {
     fontSize: 12,
@@ -1143,6 +1094,13 @@ const styles: any = StyleSheet.create({
   notificationsList: {
     borderRadius: 16,
     borderWidth: 1,
+  },
+  notificationEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    gap: 8,
   },
   notificationItem: {
     flexDirection: 'row',
