@@ -36,6 +36,19 @@ interface IncidentDetailModalProps {
 export function IncidentDetailModal({ incident, visible, isLoading = false, onClose }: IncidentDetailModalProps) {
   const { getColors } = useThemeStore();
   const colors = getColors();
+
+  const locationInfo = useMemo(() => {
+    if (!incident?.location) {
+      return { address: null as string | null, latitude: null as number | null, longitude: null as number | null };
+    }
+    const { address, latitude, longitude } = incident.location;
+    return {
+      address: address ?? null,
+      latitude: typeof latitude === 'number' ? latitude : null,
+      longitude: typeof longitude === 'number' ? longitude : null,
+    };
+  }, [incident]);
+
   // Validación de props para evitar crashes
   if (!incident) {
     return null;
@@ -111,18 +124,6 @@ export function IncidentDetailModal({ incident, visible, isLoading = false, onCl
       minute: '2-digit',
     });
   };
-
-  const locationInfo = useMemo(() => {
-    if (!incident.location) {
-      return { address: null as string | null, latitude: null as number | null, longitude: null as number | null };
-    }
-    const { address, latitude, longitude } = incident.location;
-    return {
-      address: address ?? null,
-      latitude: typeof latitude === 'number' ? latitude : null,
-      longitude: typeof longitude === 'number' ? longitude : null,
-    };
-  }, [incident.location]);
 
   const openInMaps = () => {
     if (locationInfo.latitude === null || locationInfo.longitude === null) {

@@ -63,7 +63,9 @@ export function CreateIncidentModal({ visible, onClose }: CreateIncidentModalPro
         }
       }
     }
-    ['Transporte', 'Aseo', 'Obras', 'IT', 'Admin', 'Finanzas', 'Prev_Riesgo'].forEach((fallback) => unique.add(fallback));
+    for (const fallback of ['Transporte', 'Aseo', 'Obras', 'IT', 'Admin', 'Finanzas', 'Prev_Riesgo']) {
+      unique.add(fallback);
+    }
     return Array.from(unique);
   }, [user]);
 

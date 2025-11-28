@@ -126,38 +126,56 @@ function normalizeLocation(raw: unknown): IncidentLocation | undefined {
     return trimmed.length ? { address: trimmed } : undefined;
   }
 
-  if (typeof raw === 'object') {
-    const source = raw as Record<string, unknown>;
-    const addressCandidate = source.address ?? source.Address ?? source.direccion ?? source.Direccion;
-    let address: string | undefined;
-    if (typeof addressCandidate === 'string' && addressCandidate.trim().length) {
-      address = addressCandidate.trim();
+  if (typeof raw !== 'object' || raw === null) return undefined;
+
+  const source = raw as Record<string, unknown>;
+
+  const getFirstString = (obj: Record<string, unknown>, keys: string[]): string | undefined => {
+    for (const key of keys) {
+      const val = obj[key];
+      if (typeof val === 'string' && val.trim().length) return val.trim();
     }
+    return undefined;
+  };
 
-    const toNumber = (value: unknown): number | undefined => {
-      if (typeof value === 'number' && Number.isFinite(value)) return value;
-      if (typeof value === 'string') {
-        const parsed = Number.parseFloat(value);
-        return Number.isFinite(parsed) ? parsed : undefined;
-      }
-      return undefined;
-    };
+  const toNumber = (value: unknown): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  };
 
-    const latitude = toNumber(source.latitude ?? source.Latitude ?? source.lat);
-    const longitude = toNumber(source.longitude ?? source.Longitude ?? source.lng);
+  const address = getFirstString(source, ['address', 'Address', 'direccion', 'Direccion']);
+  const latitude = toNumber(source.latitude ?? source.Latitude ?? source.lat);
+  const longitude = toNumber(source.longitude ?? source.Longitude ?? source.lng);
 
-    const payload: IncidentLocation = {};
-    if (typeof latitude === 'number') payload.latitude = latitude;
-    if (typeof longitude === 'number') payload.longitude = longitude;
-    if (address) payload.address = address;
+  const payload: IncidentLocation = {};
+  if (typeof latitude === 'number') payload.latitude = latitude;
+  if (typeof longitude === 'number') payload.longitude = longitude;
+  if (address) payload.address = address;
 
-    return Object.keys(payload).length ? payload : undefined;
-  }
-
-  return undefined;
+  return Object.keys(payload).length ? payload : undefined;
 }
 
 function mapBackIncidentToIncident(back: BackIncident): Incident {
+  const reportedByName = typeof back.reportedByName === 'string' ? back.reportedByName.trim() : '';
+  const reportedByRaw = typeof back.reportedBy === 'string' ? back.reportedBy.trim() : '';
+  let reportedBy: string | undefined;
+  if (reportedByName) {
+    reportedBy = reportedByName;
+  } else if (reportedByRaw) {
+    reportedBy = reportedByRaw;
+  } else if (typeof back.reportedById === 'number' || typeof back.reportedById === 'string') {
+    reportedBy = String(back.reportedById);
+  }
+
+  const reportedById =
+    typeof back.reportedById === 'number' || typeof back.reportedById === 'string' ? String(back.reportedById) : undefined;
+  const reviewedById =
+    typeof back.reviewedById === 'number' || typeof back.reviewedById === 'string' ? String(back.reviewedById) : undefined;
+
   return {
     id: String(back.id),
     area: back.area ?? 'Transporte',
@@ -167,21 +185,14 @@ function mapBackIncidentToIncident(back: BackIncident): Incident {
     description: back.description ?? '',
     location: normalizeLocation(back.location),
     photos: Array.isArray(back.photos) ? back.photos : [],
-    reportedBy:
-      typeof back.reportedByName === 'string' && back.reportedByName.trim().length
-        ? back.reportedByName.trim()
-        : typeof back.reportedBy === 'string' && back.reportedBy.trim().length
-        ? back.reportedBy.trim()
-        : back.reportedById != null
-        ? String(back.reportedById)
-        : undefined,
-    reportedById: back.reportedById != null ? String(back.reportedById) : undefined,
+    reportedBy,
+    reportedById,
     reportedAt: back.reportedAt ?? new Date().toISOString(),
     status: STATUS_FROM_BACK[back.status] ?? 'reported',
     syncStatus: 'synced',
     updatedAt: back.updatedAt,
     reviewedAt: back.reviewedAt ?? undefined,
-    reviewedById: back.reviewedById != null ? String(back.reviewedById) : undefined,
+    reviewedById,
   };
 }
 
@@ -196,9 +207,9 @@ function mergeIncidentList(list: Incident[], next: Incident): Incident[] {
 }
 
 function inferArea(user: User | null): string {
-  const KNOWN_AREAS = ['Transporte', 'Aseo', 'Obras', 'IT', 'Admin', 'RRHH', 'Finanzas', 'Prev_Riesgo'];
+  const KNOWN_AREAS = new Set(['Transporte', 'Aseo', 'Obras', 'IT', 'Admin', 'RRHH', 'Finanzas', 'Prev_Riesgo']);
   if (user?.areaIds?.length) {
-    const candidate = user.areaIds.find((area) => KNOWN_AREAS.includes(area));
+    const candidate = user.areaIds.find((area) => KNOWN_AREAS.has(area));
     if (candidate) return candidate;
   }
 
@@ -224,6 +235,13 @@ function toFilePayload(photo: CapturedPhoto): IncidentFilePayload {
     name: photo.name,
     type: photo.type || 'image/jpeg',
   };
+}
+
+async function uploadIncidentPhotos(incidentId: number, attachments: CapturedPhoto[]): Promise<string[]> {
+  if (!attachments.length) return [];
+  const files = attachments.map(toFilePayload);
+  const photosResponse = await IncidentApi.uploadPhotos(incidentId, files);
+  return Array.isArray(photosResponse.photos) ? photosResponse.photos : [];
 }
 
 export const useIncidentStore = create<IncidentState>((set, get) => ({
@@ -266,7 +284,8 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
     set({ isSubmitting: true, error: null });
     try {
       const user = useAuthStore.getState().user;
-      const area = payload.area?.trim().length ? payload.area.trim() : inferArea(user ?? null);
+      const requestedArea = payload.area?.trim();
+      const area = requestedArea && requestedArea.length > 0 ? requestedArea : inferArea(user ?? null);
       const input: CreateIncidentInput = {
         Title: payload.title.trim(),
         Description: payload.description.trim(),
@@ -282,20 +301,17 @@ export const useIncidentStore = create<IncidentState>((set, get) => ({
       const created = await IncidentApi.create(input);
       let mapped = mapBackIncidentToIncident(created);
 
-      if (payload.attachments.length) {
-        try {
-          const files = payload.attachments.map(toFilePayload);
-          const photosResponse = await IncidentApi.uploadPhotos(Number(created.id), files);
-          if (Array.isArray(photosResponse.photos) && photosResponse.photos.length) {
-            mapped = { ...mapped, photos: photosResponse.photos };
-          } else {
-            const refreshed = await IncidentApi.get(Number(created.id));
-            mapped = mapBackIncidentToIncident(refreshed);
-          }
-        } catch (uploadError) {
-          console.warn('No se pudieron subir las evidencias del incidente:', uploadError);
-          set({ error: 'Incidente creado, pero algunas fotos no se pudieron subir.' });
+      try {
+        const receivedPhotos = await uploadIncidentPhotos(Number(created.id), payload.attachments);
+        if (receivedPhotos.length) {
+          mapped = { ...mapped, photos: receivedPhotos };
+        } else if (payload.attachments.length) {
+          const refreshed = await IncidentApi.get(Number(created.id));
+          mapped = mapBackIncidentToIncident(refreshed);
         }
+      } catch (uploadError) {
+        console.warn('No se pudieron subir las evidencias del incidente:', uploadError);
+        set({ error: 'Incidente creado, pero algunas fotos no se pudieron subir.' });
       }
 
       set((state) => ({

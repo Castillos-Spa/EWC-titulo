@@ -4,11 +4,12 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { TrendingUp, TrendingDown, Gauge, Fuel, Award, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { TrendingUp, Gauge, Fuel, Award, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 import { useThemeStore } from '@/stores/themeStore';
+import type { FuelAnalyticsSnapshot, FuelEfficiencyBadge } from '@/stores/fuelStore';
 
 interface FuelAnalyticsProps {
-  readonly analytics: any;
+  readonly analytics: FuelAnalyticsSnapshot | null;
 }
 
 export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
@@ -24,32 +25,36 @@ export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
     );
   }
 
-  const getEfficiencyColor = (efficiency: string) => {
+  const getEfficiencyColor = (efficiency: FuelEfficiencyBadge) => {
     switch (efficiency) {
       case 'excellent': return '#16A34A';
       case 'good': return '#65A30D';
-      case 'average': return '#D97706';
-      case 'poor': return '#DC2626';
+      case 'watch': return '#D97706';
+      case 'critical': return '#DC2626';
       default: return '#6B7280';
     }
   };
 
-  const getEfficiencyIcon = (efficiency: string) => {
+  const getEfficiencyIcon = (efficiency: FuelEfficiencyBadge) => {
     switch (efficiency) {
       case 'excellent': return Award;
-      case 'good': return TrendingUp;
-      case 'average': return Gauge;
-      case 'poor': return AlertTriangle;
-      default: return Gauge;
+      case 'good':
+      case 'watch':
+        return TrendingUp;
+      case 'critical':
+        return AlertTriangle;
+      default:
+        return Gauge;
     }
   };
 
-  const getEfficiencyLabel = (efficiency: string) => {
+  const getEfficiencyLabel = (efficiency: FuelEfficiencyBadge) => {
     const labels = {
       excellent: 'Excelente',
       good: 'Buena',
-      average: 'Promedio',
-      poor: 'Deficiente',
+      watch: 'Vigilancia',
+      critical: 'Crítica',
+      unknown: 'Sin datos',
     };
     return labels[efficiency as keyof typeof labels] || efficiency;
   };
@@ -59,8 +64,7 @@ export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
 
   const formatLastRefuel = () => {
     if (!analytics.lastRefuel) return 'No registrado';
-    
-    const date = new Date(analytics.lastRefuel.recordedAt);
+    const date = new Date(analytics.lastRefuel.date);
     const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
     
     if (daysAgo === 0) return 'Hoy';
@@ -76,12 +80,12 @@ export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <View style={styles.statIcon}>
-            <TrendingDown size={24} color={colors.primary} />
+            <Gauge size={24} color={colors.primary} />
           </View>
           <Text style={[styles.statValue, { color: colors.text }]}>
-            {analytics.totalConsumption.toFixed(1)}L
+            {analytics.averageConsumption > 0 ? analytics.averageConsumption.toFixed(1) : '--'}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Consumo Total</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>L/100 km</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
@@ -89,19 +93,19 @@ export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
             <TrendingUp size={24} color={colors.success} />
           </View>
           <Text style={[styles.statValue, { color: colors.text }]}>
-            {analytics.totalRefueled.toFixed(1)}L
+            {analytics.totalLiters.toFixed(1)} L
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Reabastecido</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Litros cargados</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: colors.card }]}>
           <View style={styles.statIcon}>
-            <Gauge size={24} color={colors.warning} />
+            <Fuel size={24} color={colors.warning} />
           </View>
           <Text style={[styles.statValue, { color: colors.text }]}>
-            {analytics.averageConsumption > 0 ? `${analytics.averageConsumption.toFixed(1)}` : '--'}
+            {analytics.totalDistance > 0 ? analytics.totalDistance.toLocaleString('es-CL') : '--'}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>L/100km</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>KM recorridos</Text>
         </View>
 
         <View style={[styles.statCard, { backgroundColor: colors.card }]}> 
@@ -120,39 +124,29 @@ export function FuelAnalytics({ analytics }: FuelAnalyticsProps) {
         <View style={styles.infoRow}>
           <Fuel size={20} color={colors.textSecondary} />
           <View style={styles.infoContent}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Último Reabastecimiento</Text>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Última carga</Text>
             <Text style={[styles.infoValue, { color: colors.text }]}>{formatLastRefuel()}</Text>
           </View>
         </View>
 
-        {analytics.nextRefuelEstimate && (
-          <View style={styles.infoRow}>
+        <View style={styles.infoRow}>
+          <TrendingUp size={20} color={colors.textSecondary} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Número de cargas</Text>
+            <Text style={[styles.infoValue, { color: colors.text }]}>{analytics.refuelCount}</Text>
+          </View>
+        </View>
+
+        {analytics.efficiency === 'critical' && (
+          <View style={[styles.tipsCard, { backgroundColor: `${colors.warning}15`, borderLeftColor: colors.warning }]}>
             <AlertTriangle size={20} color={colors.warning} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Próximo Reabastecimiento</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>
-                En ~{Math.round(analytics.nextRefuelEstimate)} km
-              </Text>
+            <View style={styles.tipsContent}>
+              <Text style={[styles.tipsTitle, { color: colors.warning }]}>Consumo crítico</Text>
+              <Text style={[styles.tipsText, { color: colors.text }]}>Repite la medición tras la próxima ruta y revisa hábitos de conducción y presiones de neumáticos.</Text>
             </View>
           </View>
         )}
       </View>
-
-      {/* Efficiency Tips */}
-      {analytics.efficiency === 'poor' && (
-        <View style={[styles.tipsCard, { backgroundColor: `${colors.warning}15`, borderLeftColor: colors.warning }]}>
-          <AlertTriangle size={20} color={colors.warning} />
-          <View style={styles.tipsContent}>
-            <Text style={[styles.tipsTitle, { color: colors.warning }]}>Consejos para Mejorar Eficiencia</Text>
-            <Text style={[styles.tipsText, { color: colors.text }]}>
-              • Mantén velocidad constante{'\n'}
-              • Evita aceleraciones bruscas{'\n'}
-              • Revisa presión de neumáticos{'\n'}
-              • Programa mantenimiento preventivo
-            </Text>
-          </View>
-        </View>
-      )}
     </View>
   );
 }

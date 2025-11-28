@@ -25,6 +25,29 @@ export const registerApiSuccessCallback = (cb: ApiSuccessCallback) => {
 };
 
 class ApiClientClass {
+  private normalizeInitHeaders(source?: HeadersInit): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (!source) return headers;
+
+    if (source instanceof Headers) {
+      for (const [key, value] of source.entries()) headers[key] = value;
+      return headers;
+    }
+
+    if (Array.isArray(source)) {
+      for (const [key, value] of source) headers[String(key)] = String(value);
+      return headers;
+    }
+
+    if (typeof source === 'object') {
+      for (const key of Object.keys(source)) {
+        const value = (source as any)[key];
+        headers[String(key)] = String(value);
+      }
+    }
+    return headers;
+  }
+
   private getBaseUrl(): string {
     const envUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL;
     const extra: any = Constants?.expoConfig?.extra;
@@ -53,20 +76,7 @@ class ApiClientClass {
   }
 
   private async buildHeaders(init?: ApiRequestInit): Promise<Record<string, string>> {
-    const headers: Record<string, string> = {};
-
-    const source = init?.headers;
-    if (source instanceof Headers) {
-      source.forEach((value, key) => {
-        headers[key] = value;
-      });
-    } else if (Array.isArray(source)) {
-      for (const [key, value] of source) {
-        headers[String(key)] = String(value);
-      }
-    } else if (source && typeof source === 'object') {
-      Object.assign(headers, source as Record<string, string>);
-    }
+    const headers = this.normalizeInitHeaders(init?.headers);
 
     const hasContentType = Object.keys(headers).some((key) => key.toLowerCase() === 'content-type');
     const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData;
@@ -103,7 +113,7 @@ class ApiClientClass {
     const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
 
     // Primer intento
-  let res = await this.doFetch(url, init);
+    let res = await this.doFetch(url, init);
     if (res.status === 401 && init.authenticate) {
       // Intentar refresh y reintentar una vez
       try {
@@ -115,13 +125,13 @@ class ApiClientClass {
         // Intentar logout; si falla simplemente continuamos.
         await useAuthStore.getState().logout().catch(() => {});
         const mapped = mapStatusToError(401, 'Sesión expirada. Inicia sesión nuevamente.');
-        (mapped as any).cause = error_;
+        try { Reflect.set(mapped, 'cause', error_); } catch {}
         throw mapped;
       }
     }
 
-  const text = await res.text();
-    const data = text ? (() => { try { return JSON.parse(text); } catch { return text as any; } })() : null;
+    const text = await res.text();
+    const data = text ? (() => { try { return JSON.parse(text); } catch { return text; } })() : null;
     if (!res.ok) {
       const message = (data && (data.message || data.error)) || res.statusText;
       throw mapStatusToError(res.status, message, data);

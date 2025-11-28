@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AlertTriangle, Camera, Plus, RefreshCw, Search, Shield } from 'lucide-react-native';
+import { AlertTriangle, Camera, Filter, Plus, RefreshCw, Search, Shield } from 'lucide-react-native';
 import { useIncidentStore } from '@/stores/incidentStore';
 import type { Incident, IncidentSeverity, IncidentStatus } from '@/stores/incidentStore';
 import { useThemeStore } from '@/stores/themeStore';
@@ -23,7 +23,7 @@ import { IncidentDetailModal } from '@/components/IncidentDetailModal';
 type StatusFilter = 'all' | IncidentStatus;
 type SeverityFilter = 'all' | IncidentSeverity;
 
-const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: 'Todos' },
   { value: 'reported', label: 'Reportados' },
   { value: 'acknowledged', label: 'Reconocidos' },
@@ -31,7 +31,7 @@ const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'resolved', label: 'Resueltos' },
 ];
 
-const SEVERITY_FILTERS: Array<{ value: SeverityFilter; label: string }> = [
+const SEVERITY_FILTERS: { value: SeverityFilter; label: string }[] = [
   { value: 'all', label: 'Todas' },
   { value: 'low', label: 'Baja' },
   { value: 'medium', label: 'Media' },
@@ -56,8 +56,21 @@ const SEVERITY_COLOR: Record<IncidentSeverity, string> = {
 function computeLayout(width: number) {
   const isCompact = width < 360;
   const isWide = width > 768;
-  const horizontalPadding = isCompact ? 16 : isWide ? 28 : 20;
-  const heroTitleSize = isCompact ? 22 : isWide ? 28 : 24;
+
+  let horizontalPadding = 20;
+  if (isCompact) {
+    horizontalPadding = 16;
+  } else if (isWide) {
+    horizontalPadding = 28;
+  }
+
+  let heroTitleSize = 24;
+  if (isCompact) {
+    heroTitleSize = 22;
+  } else if (isWide) {
+    heroTitleSize = 28;
+  }
+
   const statValueSize = isCompact ? 18 : 20;
   const sectionGap = isCompact ? 12 : 16;
   return { horizontalPadding, heroTitleSize, statValueSize, sectionGap };
@@ -90,6 +103,7 @@ export default function IncidentsScreen() {
   const [onlyWithPhotos, setOnlyWithPhotos] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [advancingMap, setAdvancingMap] = useState<Record<string, boolean>>({});
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     void loadIncidents();
@@ -176,6 +190,41 @@ export default function IncidentsScreen() {
     setSearchTerm('');
   };
 
+  let listContent: React.ReactNode;
+  if (isLoading && incidents.length === 0) {
+    listContent = (
+      <View style={styles.loadingState}>
+        <ActivityIndicator size="small" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Cargando incidentes</Text>
+      </View>
+    );
+  } else if (filteredIncidents.length === 0) {
+    listContent = (
+      <View style={styles.emptyState}>
+        <AlertTriangle size={48} color={colors.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>No encontramos incidentes</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Ajusta los filtros o registra un nuevo reporte.</Text>
+        <TouchableOpacity
+          style={[styles.emptyAction, { backgroundColor: colors.primary }]}
+          onPress={() => setShowCreateModal(true)}
+        >
+          <Plus size={18} color="#FFFFFF" />
+          <Text style={styles.emptyActionText}>Reportar incidente</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  } else {
+    listContent = filteredIncidents.map((incident) => (
+      <IncidentCard
+        key={incident.id}
+        incident={incident}
+        onPress={() => handleIncidentPress(incident)}
+        onAdvanceStatus={() => handleAdvanceStatus(incident)}
+        advancing={Boolean(advancingMap[incident.id])}
+      />
+    ));
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
@@ -250,67 +299,91 @@ export default function IncidentsScreen() {
           </View>
         </View>
 
-        <View style={[styles.filterSection, { borderTopColor: colors.border }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.filterRow}>
-              {STATUS_FILTERS.map((filter) => (
-                <TouchableOpacity
-                  key={filter.value}
-                  style={[styles.filterChip, filter.value === statusFilter && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                  onPress={() => setStatusFilter(filter.value)}
-                >
-                  <Text style={[styles.filterChipText, filter.value === statusFilter && { color: '#FFFFFF' }]}>
-                    {filter.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+        <View style={styles.filterToggleRow}>
+          <TouchableOpacity
+            style={[styles.filterToggleButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            onPress={() => setShowFilters((prev) => !prev)}
+          >
+            <Filter size={16} color={colors.primary} />
+            <Text style={[styles.filterToggleText, { color: colors.text }]}>
+              {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+            </Text>
+          </TouchableOpacity>
           {hasActiveFilters ? (
-            <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFiltersState}>
-              <Text style={styles.clearFiltersText}>Limpiar</Text>
-            </TouchableOpacity>
+            <View style={[styles.activeFiltersBadge, { backgroundColor: colors.primary + '18' }]}> 
+              <Text style={[styles.activeFiltersText, { color: colors.primary }]}>Filtros activos</Text>
+            </View>
           ) : null}
         </View>
 
-        <View style={styles.severityRow}>
-          {SEVERITY_FILTERS.map((filter) => {
-            const isActive = filter.value === severityFilter;
-            const tone = filter.value === 'all' ? colors.textSecondary : SEVERITY_COLOR[filter.value as IncidentSeverity];
-            return (
-              <TouchableOpacity
-                key={filter.value}
-                style={[styles.severityChip, { borderColor: filter.value === 'all' ? colors.border : tone + '66' }, isActive && { backgroundColor: tone + '1A' }]}
-                onPress={() => setSeverityFilter(filter.value)}
-              >
-                <Text style={[styles.severityChipText, { color: isActive ? tone : colors.textSecondary }]}>{filter.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {showFilters ? (
+          <>
+            <View style={[styles.filterSection, { borderTopColor: colors.border }]}> 
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.filterRow}>
+                  {STATUS_FILTERS.map((filter) => (
+                    <TouchableOpacity
+                      key={filter.value}
+                      style={[styles.filterChip, filter.value === statusFilter && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                      onPress={() => setStatusFilter(filter.value)}
+                    >
+                      <Text style={[styles.filterChipText, filter.value === statusFilter && { color: '#FFFFFF' }]}>
+                        {filter.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              {hasActiveFilters ? (
+                <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFiltersState}>
+                  <Text style={styles.clearFiltersText}>Limpiar</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
 
-        <View style={styles.searchRow}>
-          <View style={[styles.searchBox, { backgroundColor: colors.background, borderColor: colors.border }]}> 
-            <Search size={18} color={colors.textSecondary} />
-            <TextInput
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-              placeholder="Buscar por título, descripción o área"
-              placeholderTextColor={colors.textSecondary}
-              style={[styles.searchInput, { color: colors.text }]}
-              autoCorrect={false}
-            />
-          </View>
-          <TouchableOpacity
-            style={[styles.toggleChip, onlyWithPhotos && { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}
-            onPress={() => setOnlyWithPhotos((prev) => !prev)}
-          >
-            <Camera size={16} color={onlyWithPhotos ? colors.primary : colors.textSecondary} />
-            <Text style={[styles.toggleChipText, { color: onlyWithPhotos ? colors.primary : colors.textSecondary }]}>
-              Solo con fotos ({stats.withPhotos})
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.severityRow}>
+              {SEVERITY_FILTERS.map((filter) => {
+                const isActive = filter.value === severityFilter;
+                let tone = colors.textSecondary;
+                if (filter.value !== 'all') {
+                  tone = SEVERITY_COLOR[filter.value];
+                }
+                return (
+                  <TouchableOpacity
+                    key={filter.value}
+                    style={[styles.severityChip, { borderColor: filter.value === 'all' ? colors.border : tone + '66' }, isActive && { backgroundColor: tone + '1A' }]}
+                    onPress={() => setSeverityFilter(filter.value)}
+                  >
+                    <Text style={[styles.severityChipText, { color: isActive ? tone : colors.textSecondary }]}>{filter.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.searchRow}>
+              <View style={[styles.searchBox, { backgroundColor: colors.background, borderColor: colors.border }]}> 
+                <Search size={18} color={colors.textSecondary} />
+                <TextInput
+                  value={searchTerm}
+                  onChangeText={setSearchTerm}
+                  placeholder="Buscar por título, descripción o área"
+                  placeholderTextColor={colors.textSecondary}
+                  style={[styles.searchInput, { color: colors.text }]}
+                  autoCorrect={false}
+                />
+              </View>
+              <TouchableOpacity
+                style={[styles.toggleChip, onlyWithPhotos && { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}
+                onPress={() => setOnlyWithPhotos((prev) => !prev)}
+              >
+                <Camera size={16} color={onlyWithPhotos ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.toggleChipText, { color: onlyWithPhotos ? colors.primary : colors.textSecondary }]}>
+                  Solo con fotos ({stats.withPhotos})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : null}
       </View>
 
       {error ? (
@@ -333,35 +406,7 @@ export default function IncidentsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {isLoading && incidents.length === 0 ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Cargando incidentes</Text>
-          </View>
-        ) : filteredIncidents.length === 0 ? (
-          <View style={styles.emptyState}>
-            <AlertTriangle size={48} color={colors.textSecondary} />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No encontramos incidentes</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Ajusta los filtros o registra un nuevo reporte.</Text>
-            <TouchableOpacity
-              style={[styles.emptyAction, { backgroundColor: colors.primary }]}
-              onPress={() => setShowCreateModal(true)}
-            >
-              <Plus size={18} color="#FFFFFF" />
-              <Text style={styles.emptyActionText}>Reportar incidente</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          filteredIncidents.map((incident) => (
-            <IncidentCard
-              key={incident.id}
-              incident={incident}
-              onPress={() => handleIncidentPress(incident)}
-              onAdvanceStatus={() => handleAdvanceStatus(incident)}
-              advancing={Boolean(advancingMap[incident.id])}
-            />
-          ))
-        )}
+        {listContent}
       </ScrollView>
 
       <CreateIncidentModal visible={showCreateModal} onClose={() => setShowCreateModal(false)} />
@@ -409,6 +454,11 @@ const styles = StyleSheet.create({
   filterChipText: { fontSize: 13, fontWeight: '600', color: '#475569' },
   clearFiltersButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#E2E8F0' },
   clearFiltersText: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
+  filterToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  filterToggleButton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  filterToggleText: { fontSize: 13, fontWeight: '700' },
+  activeFiltersBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+  activeFiltersText: { fontSize: 12, fontWeight: '700' },
   severityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   severityChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, backgroundColor: '#F8FAFC' },
   severityChipText: { fontSize: 12, fontWeight: '700' },

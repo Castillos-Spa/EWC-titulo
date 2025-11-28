@@ -1,269 +1,164 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { TrendingUp, TrendingDown, MapPin, Clock, Receipt, Gauge } from 'lucide-react-native';
+import { Calendar, Fuel, Gauge, Receipt, User } from 'lucide-react-native';
 import { useThemeStore } from '@/stores/themeStore';
-
-interface FuelRecordLocation {
-  address?: string;
-  latitude?: number;
-  longitude?: number;
-}
-
-interface FuelRecord {
-  id: string;
-  type: 'refuel' | 'consumption';
-  vehiclePlate: string;
-  amount: number; // litros
-  odometer: number; // km
-  stationName?: string;
-  location?: FuelRecordLocation;
-  recordedAt: string; // ISO date
-  receiptPhoto?: string | null;
-  notes?: string | null;
-  syncStatus?: 'pending' | 'synced' | 'failed';
-}
+import type { FuelLogRecord } from '@/stores/fuelStore';
 
 interface FuelCardProps {
-  readonly record: FuelRecord;
-  readonly onPress: () => void;
+  readonly record: FuelLogRecord;
+  readonly onPress?: () => void;
 }
 
 export function FuelCard({ record, onPress }: FuelCardProps) {
   const { getColors } = useThemeStore();
   const colors = getColors();
-
-  const getTypeColor = (type: string) => {
-    return type === 'refuel' ? '#16A34A' : '#2563EB';
-  };
-
-  const getTypeIcon = (type: string) => {
-    return type === 'refuel' ? TrendingUp : TrendingDown;
-  };
-
-  const getTypeLabel = (type: string) => {
-    return type === 'refuel' ? 'Reabastecimiento' : 'Consumo';
-  };
-
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString('es-ES', { 
-        day: '2-digit', 
-        month: '2-digit' 
-      }),
-      time: date.toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
-    };
-  };
-
-  const typeColor = getTypeColor(record.type);
-  const TypeIcon = getTypeIcon(record.type);
-  const { date, time } = formatDateTime(record.recordedAt);
+  const date = new Date(record.date);
+  const liters = `${record.liters.toFixed(1)} L`;
+  const dateLabel = date.toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+  const timeLabel = date.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <TouchableOpacity style={[styles.card, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
-      {/* Header */}
-      <View style={styles.cardHeader}>
-        <View style={styles.typeSection}>
-          <View style={[styles.typeBadge, { backgroundColor: `${typeColor}15` }]}>
-            <TypeIcon size={16} color={typeColor} />
-            <Text style={[styles.typeText, { color: typeColor }]}>
-              {getTypeLabel(record.type)}
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.8}
+    >
+      <View style={styles.headerRow}>
+        <View style={styles.plateColumn}>
+          <Text style={[styles.plate, { color: colors.text }]}>{record.vehiclePlate}</Text>
+          <Text style={[styles.subtle, { color: colors.textSecondary }]}>
+            {record.vehicleMarca || record.vehicleModelo ? `${record.vehicleMarca ?? ''} ${record.vehicleModelo ?? ''}`.trim() : 'Vehículo corporativo'}
+          </Text>
+        </View>
+        <View style={styles.amountBadge}>
+          <Text style={[styles.amount, { color: colors.text }]}>{liters}</Text>
+          <Text style={[styles.subtle, { color: colors.textSecondary }]}>Registrados</Text>
+        </View>
+      </View>
+
+      <View style={styles.metaRow}>
+        <View style={styles.metaItem}>
+          <Fuel size={18} color={colors.primary} />
+          <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Odómetro</Text>
+          <Text style={[styles.metaValue, { color: colors.text }]}>{record.odometer.toLocaleString('es-CL')} km</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Calendar size={18} color={colors.primary} />
+          <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Fecha</Text>
+          <Text style={[styles.metaValue, { color: colors.text }]}>{dateLabel} · {timeLabel}</Text>
+        </View>
+      </View>
+
+      <View style={styles.metaRow}>
+        <View style={styles.metaItem}>
+          <User size={18} color={colors.primary} />
+          <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Conductor</Text>
+          <Text style={[styles.metaValue, { color: colors.text }]}>{record.driver?.username ?? 'No asignado'}</Text>
+        </View>
+        {typeof record.cost === 'number' && (
+          <View style={styles.metaItem}>
+            <Receipt size={18} color={colors.primary} />
+            <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Costo</Text>
+            <Text style={[styles.metaValue, { color: colors.text }]}>
+              ${record.cost.toLocaleString('es-CL')}
             </Text>
           </View>
-          <Text style={[styles.vehicleText, { color: colors.text }]}>{record.vehiclePlate}</Text>
-        </View>
-        
-        <View style={styles.amountSection}>
-          <Text style={[styles.amountValue, { color: colors.text }]}>{typeof record.amount === 'number' ? record.amount.toFixed(1) : '-'}</Text>
-          <Text style={[styles.amountUnit, { color: colors.textSecondary }]}>L</Text>
-        </View>
+        )}
       </View>
 
-      {/* Content */}
-      <View style={styles.cardContent}>
-        {/* Odometer */}
-        <View style={styles.odometerSection}>
-            <Gauge size={16} color={colors.textSecondary} />
-            <Text style={[styles.odometerText, { color: colors.textSecondary }]}>
-            {typeof record.odometer === 'number' ? `${record.odometer.toLocaleString()} km` : '—'}
+      <View style={styles.footerRow}>
+        <View style={[styles.badge, { backgroundColor: `${colors.primary}15` }]}> 
+          <Gauge size={14} color={colors.primary} />
+          <Text style={[styles.badgeText, { color: colors.primary }]}>Registro oficial</Text>
+        </View>
+        {record.invoiceUrl ? (
+          <Text style={[styles.link, { color: colors.primary }]} numberOfLines={1}>
+            {record.invoiceUrl}
           </Text>
-        </View>
-
-        {/* Location */}
-        <View style={styles.locationSection}>
-            <MapPin size={16} color={colors.textSecondary} />
-            <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
-            {record.stationName || record.location?.address || 'Ubicación GPS'}
-          </Text>
-        </View>
-
-        {/* Time */}
-        <View style={styles.timeSection}>
-         <Clock size={16} color={colors.textSecondary} />
-         <Text style={[styles.timeText, { color: colors.textSecondary }]}>{date} • {time}</Text>
-        </View>
-
-        {/* Additional Info */}
-        <View style={styles.additionalInfo}>
-            {record.receiptPhoto && (
-              <View style={[styles.receiptIndicator, { backgroundColor: colors.card }]}>
-                <Receipt size={14} color={colors.success} />
-                <Text style={[styles.receiptText, { color: colors.success }]}>Recibo</Text>
-              </View>
-            )}
-            {record.notes && (
-              <View style={[styles.notesIndicator, { backgroundColor: colors.card }]}>
-                <Text style={[styles.notesText, { color: colors.textSecondary }]}>Notas</Text>
-              </View>
-            )}
-        </View>
+        ) : null}
       </View>
-
-      {/* Sync Status Indicator */}
-      {record.syncStatus === 'pending' && (
-        <View style={styles.syncIndicator}>
-            <View style={[styles.syncDot, { backgroundColor: colors.warning }]} />
-        </View>
-      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    position: 'relative',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 14,
+    gap: 12,
   },
-  cardHeader: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingBottom: 12,
+    gap: 12,
   },
-  typeSection: {
+  plateColumn: {
     flex: 1,
-    minWidth: 0, // Allow flex shrinking
+    minWidth: 0,
+    gap: 4,
   },
-  typeBadge: {
+  plate: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  subtle: {
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  amountBadge: {
+    alignItems: 'flex-end',
+  },
+  amount: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  metaItem: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: 'rgba(15,23,42,0.03)',
+    gap: 2,
+  },
+  metaLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  metaValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-    flexShrink: 1,
+    borderRadius: 999,
   },
-  typeText: {
+  badgeText: {
     fontSize: 12,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-  vehicleText: {
-    fontSize: 16,
     fontWeight: '600',
-    color: '#475569',
-    flexShrink: 1,
   },
-  amountSection: {
-    alignItems: 'flex-end',
-    minWidth: 80,
-  },
-  amountValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  amountUnit: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 2,
-  },
-  cardContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 8,
-  },
-  odometerSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  odometerText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  locationSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#64748B',
+  link: {
     flex: 1,
-  },
-  timeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timeText: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  additionalInfo: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-  },
-  receiptIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
-  },
-  receiptText: {
+    textAlign: 'right',
     fontSize: 12,
     fontWeight: '600',
-    color: '#16A34A',
-  },
-  notesIndicator: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-  },
-  notesText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  syncIndicator: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-  },
-  syncDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F59E0B',
   },
 });

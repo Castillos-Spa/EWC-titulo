@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { VehiculoApi, VehiculoDto, VehiculoEstado } from '../services/VehiculoApi';
+import { VehiculoApi, VehiculoDto, VehiculoEstado, VehiculoListResponse } from '../services/VehiculoApi';
 
 export interface FleetState {
   vehicles: VehiculoDto[];
@@ -29,8 +29,9 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   loadVehicles: async () => {
     set({ isLoading: true, error: null });
     try {
-      const vehicles = await VehiculoApi.getVehiculos();
-      set({ vehicles, isLoading: false });
+      const response = await VehiculoApi.getVehiculos();
+      const list = Array.isArray(response) ? response : (response as VehiculoListResponse)?.items ?? [];
+      set({ vehicles: list, isLoading: false });
     } catch (error) {
       console.error('Error al cargar vehículos:', error);
       set({ error: 'Error al cargar vehículos', isLoading: false });

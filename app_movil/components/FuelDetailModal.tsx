@@ -1,31 +1,11 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Linking,
-} from 'react-native';
-import { 
-  X, 
-  MapPin, 
-  Clock, 
-  User, 
-  Fuel, 
-  Navigation, 
-  Gauge,
-  Receipt,
-  TrendingUp,
-  TrendingDown,
-  FileText,
-} from 'lucide-react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Linking } from 'react-native';
+import { X, Fuel, Gauge, Calendar, User, Receipt } from 'lucide-react-native';
 import { useThemeStore } from '@/stores/themeStore';
+import type { FuelLogRecord } from '@/stores/fuelStore';
 
 interface FuelDetailModalProps {
-  readonly record: any;
+  readonly record: FuelLogRecord | null;
   readonly visible: boolean;
   readonly onClose: () => void;
 }
@@ -33,170 +13,55 @@ interface FuelDetailModalProps {
 export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalProps) {
   const { getColors } = useThemeStore();
   const colors = getColors();
-  const getTypeColor = (type: string) => {
-    return type === 'refuel' ? '#16A34A' : '#2563EB';
-  };
 
-  const getTypeIcon = (type: string) => {
-    return type === 'refuel' ? TrendingUp : TrendingDown;
-  };
+  if (!record) {
+    return null;
+  }
 
-  const getTypeLabel = (type: string) => {
-    return type === 'refuel' ? 'Reabastecimiento' : 'Consumo';
-  };
+  const date = new Date(record.date);
+  const dateLabel = date.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
+  const timeLabel = date.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  const litersLabel = `${record.liters.toFixed(1)} litros`;
+  const costLabel = typeof record.cost === 'number' ? `$${record.cost.toLocaleString('es-CL')}` : 'No registrado';
 
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const openInvoice = () => {
+    if (record.invoiceUrl) {
+      Linking.openURL(record.invoiceUrl).catch(() => {});
+    }
   };
-
-  const openInMaps = () => {
-    const { latitude, longitude } = record.location;
-    const url = `https://maps.google.com/?q=${latitude},${longitude}`;
-    Linking.openURL(url);
-  };
-
-  const typeColor = getTypeColor(record.type);
-  const TypeIcon = getTypeIcon(record.type);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Header */}
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.card }]} onPress={onClose}>
-            <X size={24} color={colors.textSecondary} />
+            <X size={22} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>Detalle del Registro</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Detalle de carga</Text>
           <View style={styles.placeholder} />
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Type and Amount */}
-          <View style={[styles.mainInfo, { backgroundColor: colors.surface }]}>
-            <View style={[styles.typeBadge, { backgroundColor: `${typeColor}15` }]}>
-              <TypeIcon size={24} color={typeColor} />
-              <Text style={[styles.typeText, { color: typeColor }]}>
-                {getTypeLabel(record.type)}
-              </Text>
-            </View>
-            
-            <View style={styles.amountSection}>
-              <Text style={[styles.amountValue, { color: colors.text }]}>{record.amount.toFixed(1)}</Text>
-              <Text style={[styles.amountUnit, { color: colors.textSecondary }]}>Litros</Text>
-            </View>
+          <View style={[styles.heroCard, { backgroundColor: colors.surface }]}> 
+            <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>Volumen registrado</Text>
+            <Text style={[styles.heroValue, { color: colors.text }]}>{litersLabel}</Text>
+            <Text style={[styles.heroSub, { color: colors.textSecondary }]}>Patente {record.vehiclePlate}</Text>
           </View>
 
-          {/* Vehicle and Driver Info */}
-          <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
-            <View style={styles.infoItem}>
-              <Fuel size={20} color={colors.textSecondary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Vehículo</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{record.vehiclePlate}</Text>
-              </View>
-            </View>
-
-            <View style={styles.infoItem}>
-              <User size={20} color={colors.textSecondary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Conductor</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{record.driverName}</Text>
-              </View>
-            </View>
-
-            <View style={styles.infoItem}>
-              <Gauge size={20} color={colors.textSecondary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Kilometraje</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{record.odometer.toLocaleString()} km</Text>
-              </View>
-            </View>
-
-            <View style={styles.infoItem}>
-              <Clock size={20} color={colors.textSecondary} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Fecha y hora</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{formatDateTime(record.recordedAt)}</Text>
-              </View>
-            </View>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}> 
+            <InfoRow label="Vehículo" value={formatVehicle(record)} icon={<Fuel size={18} color={colors.primary} />} labelColor={colors.textSecondary} valueColor={colors.text} />
+            <InfoRow label="Conductor" value={record.driver?.username ?? 'No asignado'} icon={<User size={18} color={colors.primary} />} labelColor={colors.textSecondary} valueColor={colors.text} />
+            <InfoRow label="Kilometraje" value={`${record.odometer.toLocaleString('es-CL')} km`} icon={<Gauge size={18} color={colors.primary} />} labelColor={colors.textSecondary} valueColor={colors.text} />
+            <InfoRow label="Fecha" value={`${dateLabel} · ${timeLabel}`} icon={<Calendar size={18} color={colors.primary} />} labelColor={colors.textSecondary} valueColor={colors.text} />
           </View>
 
-          {/* Station Name (for refuels) */}
-          {record.stationName && (
-            <View style={styles.stationSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Estación de Servicio</Text>
-              <View style={[styles.stationCard, { backgroundColor: colors.surface }]}>
-                <Fuel size={20} color={colors.success} />
-                <Text style={[styles.stationName, { color: colors.text }]}>{record.stationName}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Location */}
-          <View style={styles.locationSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Ubicación</Text>
-            <View style={[styles.locationCard, { backgroundColor: colors.surface }]}>
-              <View style={styles.locationInfo}>
-                <MapPin size={20} color={colors.primary} />
-                <View style={styles.locationDetails}>
-                  <Text style={[styles.locationAddress, { color: colors.text }]}>
-                    {record.location.address || 'Ubicación GPS'}
-                  </Text>
-                  <Text style={[styles.locationCoords, { color: colors.textSecondary }]}>
-                    {record.location.latitude.toFixed(6)}, {record.location.longitude.toFixed(6)}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity style={[styles.mapsButton, { backgroundColor: colors.card, borderColor: colors.primary }]} onPress={openInMaps}>
-                <Navigation size={20} color={colors.primary} />
-                <Text style={[styles.mapsButtonText, { color: colors.primary }]}>Ver en Mapas</Text>
+          <View style={[styles.section, { backgroundColor: colors.surface }]}> 
+            <InfoRow label="Costo" value={costLabel} icon={<Receipt size={18} color={colors.primary} />} labelColor={colors.textSecondary} valueColor={colors.text} />
+            {record.invoiceUrl ? (
+              <TouchableOpacity style={[styles.linkRow, { borderColor: colors.border }]} onPress={openInvoice}>
+                <Text style={[styles.linkText, { color: colors.primary }]} numberOfLines={1}>{record.invoiceUrl}</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Receipt Photo */}
-          {record.receiptPhoto && (
-            <View style={styles.photoSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                <Receipt size={20} color={colors.text} /> Recibo
-              </Text>
-              <View style={styles.photoContainer}>
-                <Image source={{ uri: record.receiptPhoto }} style={styles.photo} />
-              </View>
-            </View>
-          )}
-
-          {/* Notes */}
-          {record.notes && (
-            <View style={styles.notesSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                <FileText size={20} color={colors.text} /> Notas
-              </Text>
-              <View style={[styles.notesCard, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.notesText, { color: colors.text }]}>{record.notes}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Sync Status */}
-          <View style={styles.syncSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Estado de Sincronización</Text>
-            <View style={[styles.syncCard, { backgroundColor: colors.surface }]}>
-              <View style={[
-                styles.syncIndicator,
-                { backgroundColor: record.syncStatus === 'synced' ? colors.success : colors.warning }
-              ]} />
-              <Text style={[styles.syncText, { color: colors.text }]}>
-                {record.syncStatus === 'synced' ? 'Sincronizado' : 'Pendiente de sincronización'}
-              </Text>
-            </View>
+            ) : null}
           </View>
         </ScrollView>
       </View>
@@ -204,210 +69,81 @@ export function FuelDetailModal({ record, visible, onClose }: FuelDetailModalPro
   );
 }
 
+function formatVehicle(record: FuelLogRecord): string {
+  const brand = record.vehicleMarca ?? '';
+  const model = record.vehicleModelo ?? '';
+  const label = `${brand} ${model}`.trim();
+  return label.length > 0 ? label : record.vehiclePlate;
+}
+
+interface InfoRowProps {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  labelColor: string;
+  valueColor: string;
+}
+
+function InfoRow({ label, value, icon, labelColor, valueColor }: InfoRowProps) {
+  return (
+    <View style={styles.infoRow}>
+      <View style={styles.infoIcon}>{icon}</View>
+      <View style={styles.infoCopy}>
+        <Text style={[styles.infoLabel, { color: labelColor }]}>{label}</Text>
+        <Text style={[styles.infoValue, { color: valueColor }]}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
-  closeButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  placeholder: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  mainInfo: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
+  closeButton: { padding: 8, borderRadius: 10 },
+  title: { fontSize: 18, fontWeight: '700' },
+  placeholder: { width: 32 },
+  content: { flex: 1, paddingHorizontal: 20 },
+  heroCard: {
     marginTop: 20,
     marginBottom: 20,
-    alignItems: 'center',
+    borderRadius: 18,
+    padding: 20,
+    gap: 6,
   },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  heroLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' },
+  heroValue: { fontSize: 32, fontWeight: '700' },
+  heroSub: { fontSize: 14, fontWeight: '600' },
+  section: {
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     marginBottom: 16,
+    gap: 14,
   },
-  typeText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  amountSection: {
-    alignItems: 'center',
-  },
-  amountValue: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  amountUnit: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 4,
-  },
-  infoSection: {
-    backgroundColor: '#FFFFFF',
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  infoIcon: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    gap: 16,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#64748B',
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  stationSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  locationSection: {
-    marginBottom: 20,
-  },
-  locationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  locationDetails: {
-    flex: 1,
-  },
-  locationAddress: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  locationCoords: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  mapsButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: 'rgba(15,23,42,0.05)',
+  },
+  infoCopy: { flex: 1 },
+  infoLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
+  infoValue: { fontSize: 16, fontWeight: '600', marginTop: 2 },
+  linkRow: {
     borderWidth: 1,
-    borderColor: '#2563EB',
-  },
-  mapsButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2563EB',
-  },
-  photoSection: {
-    marginBottom: 20,
-  },
-  photoContainer: {
-    alignItems: 'center',
-  },
-  photo: {
-    width: 200,
-    height: 200,
     borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  notesSection: {
-    marginBottom: 20,
-  },
-  notesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-  },
-  notesText: {
-    fontSize: 16,
-    color: '#475569',
-    lineHeight: 24,
-  },
-  syncSection: {
-    marginBottom: 20,
-  },
-  syncCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  syncIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  syncText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#475569',
-  },
+  linkText: { fontSize: 14, fontWeight: '600' },
 });

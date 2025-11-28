@@ -60,6 +60,7 @@
     "baseline-browser-mapping": "^2.8.31",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~10.0.0",
+    "expo-module-scripts": "^5.0.7",
     "typescript": "~5.9.2"
   }
 }

@@ -18,6 +18,14 @@ export interface VehiculoDto {
   lastMaintenanceDate?: string | null;
 }
 
+export interface VehiculoListResponse {
+  items: VehiculoDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface CreateVehiculoPayload {
   patente: string;
   capacidad: number;
@@ -38,24 +46,24 @@ export interface RegistrarDocumentoPayload {
 }
 
 class VehiculoApiClass {
-  async getVehiculos(): Promise<VehiculoDto[]> {
-    return ApiClient.get<VehiculoDto[]>(`/taller/vehiculos`, true);
+  async getVehiculos(): Promise<VehiculoListResponse | VehiculoDto[]> {
+    return ApiClient.get<VehiculoListResponse | VehiculoDto[]>(`/vehicles`, true);
   }
 
   async createVehiculo(payload: CreateVehiculoPayload): Promise<VehiculoDto> {
-    return ApiClient.post<VehiculoDto>(`/taller/vehiculos`, payload, true);
+    return ApiClient.post<VehiculoDto>(`/vehicles`, payload, true);
   }
 
   async updateVehiculo(id: number, patch: Partial<CreateVehiculoPayload>): Promise<VehiculoDto> {
-    return ApiClient.patch<VehiculoDto>(`/taller/vehiculos/${id}`, patch, true);
+    return ApiClient.patch<VehiculoDto>(`/vehicles/${id}`, patch, true);
   }
 
   async deleteVehiculo(id: number): Promise<void> {
-    await ApiClient.delete<void>(`/vehiculo/${id}`, true);
+    await ApiClient.delete<void>(`/vehicles/${id}`, true);
   }
 
   async registrarDocumento(id: number, payload: RegistrarDocumentoPayload): Promise<void> {
-    await ApiClient.post<void>(`/vehiculo/${id}/documentos`, payload, true);
+    await ApiClient.post<void>(`/vehicles/${id}/documentos`, payload, true);
   }
 }
 

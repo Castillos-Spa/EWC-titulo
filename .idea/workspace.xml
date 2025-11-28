@@ -6,12 +6,23 @@
   <component name="ChangeListManager">
     <list default="true" id="4478fa0a-3c31-417d-89ee-e8ba59adabad" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fleet.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/fuel.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/app/(tabs)/incidents.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/CreateFuelRecordModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/CreateFuelRecordModal.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/CreateIncidentModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app_movil/components/IncidentCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/IncidentCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FleetVehicleCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FleetVehicleCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelAnalytics.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelAnalytics.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelCard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/components/FuelDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/FuelDetailModal.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/components/IncidentDetailModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/pnpm-lock.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/pnpm-lock.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/ApiClient.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/IncidentApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/services/VehiculoApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/services/VehiculoApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/fleetStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/fleetStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app_movil/stores/fuelStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/fuelStore.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app_movil/stores/incidentStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

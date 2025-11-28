@@ -107,13 +107,13 @@ export const IncidentApi = {
       return { id, photos: [] };
     }
     const form = new FormData();
-    files.forEach((file) => {
+    for (const file of files) {
       form.append('files', {
         uri: file.uri,
         name: file.name,
         type: file.type || 'image/jpeg',
       } as any);
-    });
+    }
     return ApiClient.upload(`/incident/${id}/photos`, form, true);
   },
   async getPhotos(id: number): Promise<IncidentPhotosResponse> {
