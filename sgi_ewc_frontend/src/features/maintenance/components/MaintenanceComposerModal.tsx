@@ -99,19 +99,25 @@ const MaintenanceComposerModal: React.FC<MaintenanceComposerModalProps> = ({ ope
     if (submitting) return;
     setSubmitting(true);
     try {
+      const toIsoOrUndefined = (value: string) => {
+        if (!value) return undefined;
+        const isoCandidate = new Date(`${value}T00:00:00Z`).toISOString();
+        return isoCandidate;
+      };
+
       const payload: ComposerPayload = {
         vehiculoId: Number(form.vehiculoId),
         tipo: form.tipo,
         description: form.description.trim(),
         responsableId: form.responsableId ? Number(form.responsableId) : undefined,
         estimatedCost: form.estimatedCost ? Number(form.estimatedCost) : undefined,
-        scheduledDate: form.scheduledDate || undefined,
+        scheduledDate: toIsoOrUndefined(form.scheduledDate),
         repuestos: form.repuestos
           .split(',')
           .map(item => item.trim())
           .filter(Boolean),
         observations: form.observations.trim() || undefined,
-        nextServiceDate: form.nextServiceDate || undefined,
+        nextServiceDate: toIsoOrUndefined(form.nextServiceDate),
         estado: form.estado,
       };
       await onSubmit(payload);

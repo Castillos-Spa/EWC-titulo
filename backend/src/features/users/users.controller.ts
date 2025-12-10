@@ -1,18 +1,22 @@
 import {
+  Body,
   Controller,
+  Delete,
+  ForbiddenException,
   Get,
+  Param,
+  Patch,
   Post,
   Put,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  ForbiddenException,
-  Request,
   Query,
+  Request,
+  UploadedFile,
+  UseGuards,
   UseInterceptors,
   ValidationPipe,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 import { UsersService } from './users.service';
 import { RegisterDto } from '../auth/dtos/register.dto';
@@ -21,7 +25,11 @@ import { SimpleCacheInterceptor } from 'src/common/simple-cache.interceptor';
 import { CacheTTL } from 'src/common/cache-ttl.decorator';
 import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { Express } from 'express';
 
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -73,6 +81,27 @@ export class UsersController {
       throw new ForbiddenException('No tienes permiso para cambiar la contraseña de este usuario.');
     }
     return this.usersService.changePassword(userId, dto.currentPassword, dto.newPassword);
+  }
+
+  @Patch('me/profile')
+  async updateOwnProfile(
+    @Request() req,
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })) dto: UpdateProfileDto,
+  ) {
+    const { userId, roles } = req.user;
+    return this.usersService.updateProfile(userId, dto, { userId, roles });
+  }
+
+  @Post('me/avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 7 * 1024 * 1024 },
+    }),
+  )
+  async uploadOwnAvatar(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    const { userId, roles } = req.user;
+    return this.usersService.updateAvatar(userId, file, { userId, roles });
   }
 
   @Put(':id/regenerate-password')

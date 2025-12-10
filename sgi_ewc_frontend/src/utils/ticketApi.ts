@@ -3,6 +3,11 @@ import { Ticket, TicketPriority } from "../types/Ticket";
 import { fetchWithCache, invalidateCache } from "./requestCache";
 import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
+export interface TicketAttachmentsResponse {
+  id: number;
+  attachments: string[];
+}
+
 export type CreateTicketPayload = {
   title: string;
   description?: string;
@@ -72,6 +77,29 @@ export async function updateTicket(
   invalidateDashboardOverviewCache();
   return updated;
 }
+
+export async function uploadTicketAttachments(
+  id: number,
+  files: File[]
+): Promise<TicketAttachmentsResponse> {
+  if (!files.length) {
+    return { id, attachments: [] };
+  }
+
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const response = await apiFetch(`/tickets/${id}/attachments`, {
+    method: "POST",
+    body: formData,
+  });
+  invalidateCache(TICKETS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
+  return response as TicketAttachmentsResponse;
+}
+
 export const approveTicketStep = async (
   ticketId: number,
   approvalId: number,

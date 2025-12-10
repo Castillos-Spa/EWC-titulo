@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Boxes, Plus, Scale, BadgePercent } from 'lucide-react';
 import type { InventoryItem, InventoryFilters, StockMovement } from '../types';
-import { listItems, createItem, adjustStock, listMovements } from '../services/mockInventoryApi';
+import { listItems, createItem, adjustStock, listMovements } from '../services/inventoryApi';
 import InventoryFiltersComp from '../components/InventoryFilters';
 import ItemsTable from '../components/ItemsTable';
 import ItemFormModal from '../components/ItemFormModal';
@@ -21,13 +21,26 @@ export default function InventoryPage() {
     return Array.from(new Set(items.map(i => i.categoria))).sort((a,b) => a.localeCompare(b));
   }, [items]);
 
+  const reloadItems = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await listItems(filters);
+      setItems(data);
+    } catch (error) {
+      console.error('[InventoryPage] error loading items', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
   useEffect(() => {
-    let mounted = true;
+    let active = true;
     setLoading(true);
     listItems(filters)
-      .then(data => { if (mounted) setItems(data); })
-      .finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
+      .then(data => { if (active) setItems(data); })
+      .catch(error => { if (active) console.error('[InventoryPage] error loading items', error); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [filters]);
 
   useEffect(() => {
@@ -53,23 +66,39 @@ export default function InventoryPage() {
 
   useEffect(() => {
     if (!selected) { setMovs([]); return; }
-    listMovements(selected.id).then(setMovs);
+    let active = true;
+    listMovements(selected.id)
+      .then(data => { if (active) setMovs(data); })
+      .catch(error => { if (active) console.error('[InventoryPage] error loading movements', error); });
+    return () => { active = false; };
   }, [selected]);
 
   const handleCreate = async (payload: Parameters<typeof createItem>[0]) => {
-    await createItem(payload);
-    setShowCreate(false);
-  // refrescar lista
-  setLoading(true);
-  listItems(filters).then(setItems).finally(() => setLoading(false));
+    try {
+      const created = await createItem(payload);
+      setSelected(created);
+    } catch (error) {
+      console.error('[InventoryPage] error creating inventory item', error);
+    } finally {
+      setShowCreate(false);
+      await reloadItems();
+    }
   };
 
   const handleAdjust = async (itemId: number, cantidad: number, motivo: string) => {
-    await adjustStock(itemId, { cantidad, motivo });
-    setShowAdjust(null);
-    if (selected?.id === itemId) listMovements(itemId).then(setMovs);
-  setLoading(true);
-  listItems(filters).then(setItems).finally(() => setLoading(false));
+    try {
+      const updated = await adjustStock(itemId, { cantidad, motivo });
+      setSelected(prev => (prev?.id === updated.id ? updated : prev));
+      if (selected?.id === itemId) {
+        const movements = await listMovements(itemId);
+        setMovs(movements);
+      }
+    } catch (error) {
+      console.error('[InventoryPage] error adjusting stock', error);
+    } finally {
+      setShowAdjust(null);
+      await reloadItems();
+    }
   };
 
   return (

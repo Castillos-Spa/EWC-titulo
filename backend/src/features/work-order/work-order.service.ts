@@ -8,9 +8,10 @@ import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 
 export enum WorkOrderStatus {
   OPEN = 'abierta',
+  IN_PROGRESS = 'en_progreso',
   UNDER_REVIEW = 'pendiente_revision',
-  CLOSED = 'Cerrada',
-  // ... additional statuses
+  COMPLETED = 'completado',
+  LEGACY_CLOSED = 'Cerrada',
 }
 
 @Injectable()
@@ -46,9 +47,11 @@ export class WorkOrderService {
         data: { lastMaintenanceDate: new Date() },
       });
 
-      this.eventEmitter.emit('ot.created', newWorkOrder);
+      const normalizedWorkOrder = this.normalizeWorkOrder(newWorkOrder);
 
-      return newWorkOrder;
+      this.eventEmitter.emit('ot.created', normalizedWorkOrder);
+
+      return normalizedWorkOrder;
     });
   }
 
@@ -68,7 +71,9 @@ export class WorkOrderService {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    return { items, total, page, pageSize, totalPages };
+    const normalizedItems = items.map(item => this.normalizeWorkOrder(item));
+
+    return { items: normalizedItems, total, page, pageSize, totalPages };
   }
 
   async findOne(id: number) {
@@ -76,7 +81,7 @@ export class WorkOrderService {
     if (!workOrder) {
       throw new NotFoundException(`Work order with ID ${id} not found`);
     }
-    return workOrder;
+    return this.normalizeWorkOrder(workOrder);
   }
 
   async updateStatus(id: number, status: WorkOrderStatus) {
@@ -86,11 +91,13 @@ export class WorkOrderService {
       include: { vehiculo: true },
     });
 
+    const normalizedWorkOrder = this.normalizeWorkOrder(updatedWorkOrder);
+
     if (status === WorkOrderStatus.UNDER_REVIEW && updatedWorkOrder) {
-      this.eventEmitter.emit('orden_trabajo.pendiente_revision', updatedWorkOrder);
+      this.eventEmitter.emit('orden_trabajo.pendiente_revision', normalizedWorkOrder);
     }
 
-    return updatedWorkOrder;
+    return normalizedWorkOrder;
   }
 
   async update(id: number, updateWorkOrderDto: UpdateWorkOrderDto) {
@@ -111,8 +118,9 @@ export class WorkOrderService {
     await this.findOne(id);
 
     const updatedWorkOrder = await this.prisma.ordenTrabajo.update({ where: { id }, data });
-    this.eventEmitter.emit('ot.updated', updatedWorkOrder);
-    return updatedWorkOrder;
+    const normalizedWorkOrder = this.normalizeWorkOrder(updatedWorkOrder);
+    this.eventEmitter.emit('ot.updated', normalizedWorkOrder);
+    return normalizedWorkOrder;
   }
 
   // Cerrar una orden de trabajo y crear un registro en QA
@@ -125,7 +133,7 @@ export class WorkOrderService {
 
       await prisma.ordenTrabajo.update({
         where: { id },
-        data: { estado: WorkOrderStatus.CLOSED },
+        data: { estado: WorkOrderStatus.COMPLETED },
       });
 
       return prisma.qA.create({
@@ -151,5 +159,14 @@ export class WorkOrderService {
       where: { id },
       include: this.workOrderInclude,
     });
+  }
+
+  private normalizeWorkOrder<T extends { estado: string }>(workOrder: T): T & { estado: WorkOrderStatus } {
+    const normalizedStatus =
+      workOrder.estado === WorkOrderStatus.LEGACY_CLOSED
+        ? WorkOrderStatus.COMPLETED
+        : (workOrder.estado as WorkOrderStatus);
+
+    return { ...workOrder, estado: normalizedStatus };
   }
 }

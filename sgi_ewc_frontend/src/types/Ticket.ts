@@ -35,4 +35,5 @@ export interface Ticket {
   assignedUserConfirmation: boolean | null;
   requestingUserConfirmation: boolean | null;
   tags: string[];
+  attachmentUrls?: string[];
 }

@@ -8,7 +8,6 @@ import type {
   IncidentType,
 } from "../types/Incident";
 
-// Tipos para la comunicación con el backend (ajustados al schema Prisma)
 export type BackIncidentType =
   | "VEHICLE_BREAKDOWN"
   | "ACCIDENT"
@@ -32,26 +31,39 @@ export interface BackIncident {
   type: BackIncidentType;
   severity: BackIncidentSeverity;
   status: BackIncidentStatus;
-  // location can be arbitrary JSON coming from backend; prefer unknown over any
-  location: unknown;
+  location?: unknown;
   photos: string[];
-  reportedById: number;
+  reportedById?: number | null;
+  reportedByName?: string | null;
+  reportedBy?: string | null;
   reportedAt: string;
   reviewedAt?: string | null;
   reviewedById?: number | null;
   updatedAt: string;
 }
 
-function mapTypeToBack(t: IncidentType): BackIncidentType {
-  switch (t) {
+export interface IncidentPhotosResponse {
+  id: number;
+  photos: string[];
+}
+
+function mapTypeToBack(
+  value?: IncidentType | BackIncidentType | null
+): BackIncidentType {
+  switch (value) {
+    case "VEHICLE_BREAKDOWN":
     case "vehicle_breakdown":
       return "VEHICLE_BREAKDOWN";
+    case "ACCIDENT":
     case "accident":
       return "ACCIDENT";
+    case "TRAFFIC_DELAY":
     case "traffic_delay":
       return "TRAFFIC_DELAY";
+    case "WEATHER":
     case "weather":
       return "WEATHER";
+    case "SECURITY":
     case "security":
       return "SECURITY";
     default:
@@ -59,12 +71,17 @@ function mapTypeToBack(t: IncidentType): BackIncidentType {
   }
 }
 
-function mapSeverityToBack(s: IncidentSeverity): BackIncidentSeverity {
-  switch (s) {
+function mapSeverityToBack(
+  value?: IncidentSeverity | BackIncidentSeverity | null
+): BackIncidentSeverity {
+  switch (value) {
+    case "CRITICAL":
     case "critical":
       return "CRITICAL";
+    case "HIGH":
     case "high":
       return "HIGH";
+    case "LOW":
     case "low":
       return "LOW";
     default:
@@ -72,12 +89,17 @@ function mapSeverityToBack(s: IncidentSeverity): BackIncidentSeverity {
   }
 }
 
-function mapStatusToBack(s: IncidentStatus): BackIncidentStatus {
-  switch (s) {
+function mapStatusToBack(
+  value?: IncidentStatus | BackIncidentStatus | null
+): BackIncidentStatus {
+  switch (value) {
+    case "REPORTED":
     case "reported":
       return "REPORTED";
+    case "ACKNOWLEDGED":
     case "acknowledged":
       return "ACKNOWLEDGED";
+    case "IN_PROGRESS":
     case "in_progress":
       return "IN_PROGRESS";
     default:
@@ -86,95 +108,176 @@ function mapStatusToBack(s: IncidentStatus): BackIncidentStatus {
 }
 
 function mapBackToFront(b: BackIncident): FrontIncident {
+  const toFrontType = (t: BackIncidentType): IncidentType => {
+    switch (t) {
+      case "VEHICLE_BREAKDOWN":
+        return "vehicle_breakdown";
+      case "ACCIDENT":
+        return "accident";
+      case "TRAFFIC_DELAY":
+        return "traffic_delay";
+      case "WEATHER":
+        return "weather";
+      case "SECURITY":
+        return "security";
+      default:
+        return "other";
+    }
+  };
+
+  const toFrontSeverity = (s: BackIncidentSeverity): IncidentSeverity => {
+    switch (s) {
+      case "CRITICAL":
+        return "critical";
+      case "HIGH":
+        return "high";
+      case "LOW":
+        return "low";
+      default:
+        return "medium";
+    }
+  };
+
+  const toFrontStatus = (s: BackIncidentStatus): IncidentStatus => {
+    switch (s) {
+      case "ACKNOWLEDGED":
+        return "acknowledged";
+      case "IN_PROGRESS":
+        return "in_progress";
+      case "RESOLVED":
+        return "resolved";
+      default:
+        return "reported";
+    }
+  };
+
+  const location = (() => {
+    const loc = b.location;
+    if (!loc) return {} as Record<string, unknown>;
+    if (typeof loc === "object" && loc !== null) {
+      return loc as Record<string, unknown>;
+    }
+    if (typeof loc === "string") {
+      const trimmed = loc.trim();
+      return trimmed.length
+        ? ({ address: trimmed } as Record<string, unknown>)
+        : ({} as Record<string, unknown>);
+    }
+    return {} as Record<string, unknown>;
+  })();
+
   return {
     id: String(b.id),
     area: b.area,
-    type: b.type.toString().toLowerCase() as unknown as IncidentType,
-    severity: b.severity
-      .toString()
-      .toLowerCase() as unknown as IncidentSeverity,
+    type: toFrontType(b.type),
+    severity: toFrontSeverity(b.severity),
     title: b.title,
     description: b.description,
-    // try to map geo-like location, otherwise keep empty fallback
-    location: (() => {
-      const loc = b.location;
-      function isGeoLocation(
-        x: unknown
-      ): x is { latitude: number; longitude: number; address?: string } {
-        return (
-          typeof x === "object" &&
-          x !== null &&
-          "latitude" in x &&
-          "longitude" in x
-        );
-      }
-      if (!loc) return { latitude: 0, longitude: 0 };
-      if (isGeoLocation(loc)) return loc;
-      return loc as Record<string, unknown>;
-    })(),
+    location,
     photos: b.photos || [],
-    reportedBy: String(b.reportedById),
+    reportedBy:
+      typeof b.reportedByName === "string" && b.reportedByName.trim().length
+        ? b.reportedByName.trim()
+        : typeof b.reportedBy === "string" && b.reportedBy.trim().length
+        ? b.reportedBy.trim()
+        : b.reportedById != null
+        ? String(b.reportedById)
+        : "",
     reportedAt: b.reportedAt,
-    status: b.status.toLowerCase() as unknown as IncidentStatus,
+    status: toFrontStatus(b.status),
     syncStatus: "synced",
+    updatedAt: b.updatedAt,
+    reviewedAt: b.reviewedAt,
+    reviewedById: b.reviewedById ?? undefined,
+    reportedById: b.reportedById ?? undefined,
   } as FrontIncident;
 }
 
 const INCIDENTS_CACHE_KEY = "incidents:list";
 
-const mapLocationForUpdate = (location: unknown): Record<string, unknown> => {
-  const patch: Record<string, unknown> = {};
+const extractLocationFields = (
+  location: unknown
+): { address?: string; latitude?: number; longitude?: number } => {
+  const result: {
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+  } = {};
+
   if (!location) {
-    return patch;
+    return result;
   }
 
   if (typeof location === "string") {
-    patch.Direccion = location;
-    return patch;
+    const trimmed = location.trim();
+    if (trimmed.length) {
+      result.address = trimmed;
+    }
+    return result;
   }
 
   if (typeof location === "object" && location !== null) {
     const raw = location as Record<string, unknown>;
-    if (typeof raw.address === "string") {
-      patch.Direccion = raw.address;
-    } else if (
-      typeof raw.latitude === "number" &&
-      typeof raw.longitude === "number"
-    ) {
-      patch.Direccion = `${raw.latitude},${raw.longitude}`;
-    } else {
-      patch.Direccion = JSON.stringify(raw);
+    const address = raw.address ?? raw.Direccion ?? raw.direccion;
+    if (typeof address === "string" && address.trim().length) {
+      result.address = address.trim();
     }
 
-    if (typeof raw.latitude === "number") {
-      patch.Latitude = raw.latitude;
+    const lat = raw.latitude ?? raw.lat ?? raw.Latitude;
+    const lng = raw.longitude ?? raw.lng ?? raw.Longitude;
+    const toNumber = (value: unknown) => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string") {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    };
+
+    const latitude = toNumber(lat);
+    const longitude = toNumber(lng);
+    if (latitude !== null) {
+      result.latitude = latitude;
+    }
+    if (longitude !== null) {
+      result.longitude = longitude;
     }
 
-    if (typeof raw.longitude === "number") {
-      patch.Longitude = raw.longitude;
+    if (!result.address && result.latitude === 0 && result.longitude === 0) {
+      delete result.latitude;
+      delete result.longitude;
     }
   }
 
-  return patch;
+  return result;
 };
 
 const buildUpdatePayload = (
   data: Partial<FrontIncident>
 ): Record<string, unknown> => {
   const payload: Record<string, unknown> = {};
-  if (data.title) payload.Title = data.title;
-  if (data.description) payload.Descripcion = data.description;
+
+  if (typeof data.title === "string") payload.title = data.title;
+  if (typeof data.description === "string")
+    payload.description = data.description;
+  if (typeof data.area === "string") payload.area = data.area;
   if (data.status)
-    payload.Status = mapStatusToBack(data.status as unknown as IncidentStatus);
+    payload.status = mapStatusToBack(data.status as unknown as IncidentStatus);
   if (data.severity)
-    payload.Severidad = mapSeverityToBack(
+    payload.severity = mapSeverityToBack(
       data.severity as unknown as IncidentSeverity
     );
   if (data.type)
-    payload.Tipo = mapTypeToBack(data.type as unknown as IncidentType);
+    payload.type = mapTypeToBack(data.type as unknown as IncidentType);
 
-  const locationPatch = mapLocationForUpdate(data.location as unknown);
+  const locationPatch = extractLocationFields(data.location as unknown);
   Object.assign(payload, locationPatch);
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined) {
+      delete payload[key];
+    }
+  });
 
   return payload;
 };
@@ -187,8 +290,9 @@ export async function fetchIncidents(
     async () => {
       const res: unknown = await apiFetch("/incident");
       if (!res) return [];
-      if (Array.isArray(res))
+      if (Array.isArray(res)) {
         return (res as BackIncident[]).map(mapBackToFront);
+      }
       const obj = res as Record<string, unknown>;
       if (obj.items && Array.isArray(obj.items)) {
         return (obj.items as BackIncident[]).map(mapBackToFront);
@@ -202,56 +306,75 @@ export async function fetchIncidents(
 export async function createIncident(
   data: Partial<FrontIncident>
 ): Promise<FrontIncident> {
+  if (typeof data.title !== "string" || !data.title.trim()) {
+    throw new Error("title is required");
+  }
+  if (typeof data.description !== "string") {
+    throw new Error("description is required");
+  }
+  if (typeof data.area !== "string") {
+    throw new Error("area is required");
+  }
+
   const payload: Record<string, unknown> = {
-    Area: data.area,
-    Descripcion: data.description,
-    Fecha: data.reportedAt ?? new Date().toISOString(),
-    Tipo: mapTypeToBack(data.type as unknown as IncidentType),
-    Severidad: mapSeverityToBack(data.severity as unknown as IncidentSeverity),
-    // Backend expects Direccion to be a string. Prefer a human address when available,
-    // otherwise fall back to "lat,lon" or empty string.
-    Direccion: (() => {
-      const loc = data.location as unknown;
-      if (!loc) return "";
-      if (typeof loc === "string") return loc;
-      if (typeof loc === "object" && loc !== null) {
-        const l = loc as Record<string, unknown>;
-        if (typeof l.address === "string" && l.address.length) return l.address;
-        if (typeof l.latitude === "number" && typeof l.longitude === "number")
-          return `${l.latitude},${l.longitude}`;
-        return JSON.stringify(l);
-      }
-      return "";
-    })(),
-    // also include numeric latitude/longitude if available
-    Latitude: ((): number | undefined => {
-      const loc = data.location as unknown;
-      if (
-        typeof loc === "object" &&
-        loc !== null &&
-        typeof (loc as Record<string, unknown>).latitude === "number"
-      )
-        return (loc as Record<string, unknown>).latitude as number;
-      return undefined;
-    })(),
-    Longitude: ((): number | undefined => {
-      const loc = data.location as unknown;
-      if (
-        typeof loc === "object" &&
-        loc !== null &&
-        typeof (loc as Record<string, unknown>).longitude === "number"
-      )
-        return (loc as Record<string, unknown>).longitude as number;
-      return undefined;
-    })(),
+    title: data.title.trim(),
+    description: data.description.trim(),
+    area: data.area.trim(),
+    type: mapTypeToBack(data.type as unknown as IncidentType),
+    severity: mapSeverityToBack(data.severity as unknown as IncidentSeverity),
+    reportedAt: data.reportedAt ?? new Date().toISOString(),
   };
+
+  const locationFields = extractLocationFields(data.location as unknown);
+  Object.assign(payload, locationFields);
+
   const created = await apiFetch("/incident", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+
   invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
   invalidateDashboardOverviewCache();
+
   return mapBackToFront(created as BackIncident);
+}
+
+export async function uploadIncidentPhotos(
+  id: string | number,
+  files: File[]
+): Promise<IncidentPhotosResponse> {
+  if (!files.length) {
+    return { id: Number(id), photos: [] };
+  }
+
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("files", file);
+  }
+
+  const response = await apiFetch(`/incident/${id}/photos`, {
+    method: "POST",
+    body: formData,
+  });
+
+  invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
+  invalidateDashboardOverviewCache();
+
+  return response as IncidentPhotosResponse;
+}
+
+export async function getIncidentPhotos(
+  id: string | number
+): Promise<string[]> {
+  const response = await apiFetch(`/incident/${id}/photos`, { method: "GET" });
+  if (
+    response &&
+    typeof response === "object" &&
+    Array.isArray((response as Record<string, unknown>).photos)
+  ) {
+    return (response as { photos: string[] }).photos;
+  }
+  return [];
 }
 
 export async function updateIncident(
@@ -263,8 +386,10 @@ export async function updateIncident(
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+
   invalidateCacheByPrefix(INCIDENTS_CACHE_KEY);
   invalidateDashboardOverviewCache();
+
   return mapBackToFront(updated as BackIncident);
 }
 

@@ -23,6 +23,10 @@ import { RoutesModule } from '@/features/routes/routes.module';
 import { VehicleModule } from '@/features/vehicle/vehicle.module';
 import { CoreModule } from './core/core.module';
 import { DashboardModule } from '@/features/dashboard/dashboard.module';
+import { BukModule } from '@/features/buk/buk.module';
+import { InventoryModule } from '@/features/inventory/inventory.module';
+import { ItInventoryModule } from '@/features/it-inventory/it-inventory.module';
+import { StorageModule } from '@/app/storage/storage.module';
 
 @Module({
   imports: [
@@ -49,6 +53,10 @@ import { DashboardModule } from '@/features/dashboard/dashboard.module';
     RoutesModule,
     VehicleModule,
     DashboardModule,
+    BukModule,
+    InventoryModule,
+    ItInventoryModule,
+    StorageModule,
     CoreModule,
   ],
 

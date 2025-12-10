@@ -18,7 +18,7 @@ export class CreateWorkOrderDto {
 
   @IsOptional()
   @IsDateString()
-  scheduledDate?: Date;
+  scheduledDate?: string;
 
   @IsOptional()
   @IsInt()
@@ -34,5 +34,5 @@ export class CreateWorkOrderDto {
 
   @IsOptional()
   @IsDateString()
-  nextServiceDate?: Date;
+  nextServiceDate?: string;
 }

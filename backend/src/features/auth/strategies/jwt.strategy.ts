@@ -42,6 +42,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       isAdmin: payload.isAdmin,
       active: payload.active,
       mustChangePassword: payload.mustChangePassword,
+      fullName: payload.fullName,
+      phone: payload.phone,
+      address: payload.address,
+      jobTitle: payload.jobTitle,
+      bio: payload.bio,
+      avatarUrl: payload.avatarUrl,
     };
   }
 }

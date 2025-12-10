@@ -4,7 +4,14 @@ import {
   fetchWithCache,
   invalidateCache,
 } from "./requestCache";
-import type { User } from "../types/User";
+import type {
+  User,
+  TenantSummary,
+  TenantCompany,
+  BackendModuleKey,
+  AuthDiscoveryResponse,
+  ModuleAccessSnapshot,
+} from "../types/User";
 export type { User } from "../types/User";
 import { invalidateDashboardOverviewCache } from "./dashboardApi";
 
@@ -15,6 +22,19 @@ type PaginatedUserResponse =
       data?: User[] | null;
       results?: User[] | null;
     };
+
+export interface AuthSessionResponse {
+  access_token: string;
+  refresh_token: string;
+  user: User;
+  tenant?: TenantSummary | null;
+  companyId?: number | null;
+  companies?: TenantCompany[];
+  modules?: BackendModuleKey[];
+  tenantModules?: BackendModuleKey[];
+  restrictedModules?: BackendModuleKey[];
+  moduleMap?: ModuleAccessSnapshot;
+}
 
 const extractUsers = (
   input: PaginatedUserResponse | null | undefined
@@ -36,15 +56,45 @@ const USERS_CACHE_KEY = "users:list";
 
 export async function login(
   email: string,
-  password: string
-): Promise<{ access_token: string; refresh_token: string; user: User }> {
-  const result = await apiFetch("/auth/login", {
+  password: string,
+  tenantSlug: string,
+  companyId?: number | null
+): Promise<AuthSessionResponse> {
+  const payload: Record<string, unknown> = {
+    email,
+    password,
+    tenantSlug,
+  };
+  if (
+    companyId !== undefined &&
+    companyId !== null &&
+    !Number.isNaN(companyId)
+  ) {
+    payload.companyId = companyId;
+  }
+
+  const result = (await apiFetch("/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
+    body: JSON.stringify(payload),
+  })) as AuthSessionResponse;
   clearRequestCache();
   invalidateCache([PROFILE_CACHE_KEY, USERS_CACHE_KEY]);
   return result;
+}
+
+export async function discoverAuthAccess(
+  email: string,
+  tenantSlug?: string
+): Promise<AuthDiscoveryResponse> {
+  const payload: Record<string, string> = { email };
+  if (tenantSlug) {
+    payload.tenantSlug = tenantSlug;
+  }
+
+  return apiFetch("/auth/discover", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }) as Promise<AuthDiscoveryResponse>;
 }
 
 export async function getProfile(): Promise<User> {
@@ -84,6 +134,40 @@ export async function changePassword(
     method: "PATCH",
     body: JSON.stringify({ currentPassword, newPassword }),
   });
+}
+
+export async function updateOwnProfile(
+  data: Partial<
+    Pick<
+      User,
+      | "username"
+      | "fullName"
+      | "email"
+      | "phone"
+      | "address"
+      | "jobTitle"
+      | "bio"
+    >
+  >
+): Promise<User> {
+  const updated = await apiFetch("/users/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+  invalidateCache([PROFILE_CACHE_KEY, USERS_CACHE_KEY]);
+  return updated as User;
+}
+
+export async function uploadOwnAvatar(file: File): Promise<User> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const updated = await apiFetch("/users/me/avatar", {
+    method: "POST",
+    body: formData,
+  });
+  invalidateCache([PROFILE_CACHE_KEY, USERS_CACHE_KEY]);
+  return updated as User;
 }
 
 // --- User Management ---

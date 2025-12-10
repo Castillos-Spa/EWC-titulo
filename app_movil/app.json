@@ -28,10 +28,15 @@
       "expo-web-browser",
       "expo-secure-store",
       "expo-local-authentication",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-sqlite"
     ],
     "extra": {
-      "apiUrl": "http://localhost:3000"
+      "apiUrl": "https://ewc-titulo-production.up.railway.app",
+      "router": {},
+      "eas": {
+        "projectId": "a27ff41d-1b59-4336-90b6-d7bc04c99048"
+      }
     },
     "experiments": {
       "typedRoutes": true

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import {
   Role,
   Area,
@@ -18,13 +18,22 @@ import { PaginationQueryDto } from '@/app/shared/dto/pagination-query.dto';
 import { ApproveStepDto } from './dto/approve-step.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { Area as AreaEnum } from '@/app/shared/enums/area.enum';
+import { StorageService } from '@/app/storage/storage.service';
+import type { Express } from 'express';
+
+export interface TicketAttachmentsResponse {
+  id: number;
+  attachments: string[];
+}
 
 @Injectable()
 export class TicketService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly storage: StorageService,
   ) {}
+  private readonly logger = new Logger(TicketService.name);
   private async getApprovalWorkflow(
     area: Area,
     category: TicketCategory,
@@ -52,16 +61,44 @@ export class TicketService {
     // Convertir el array de strings de área al enum Area
     const recipientAreaEnum = recipientArea?.map(areaStr => areaStr as Area) ?? [];
 
-    const newTicket = await this.prisma.ticket.create({
-      data: {
-        ...restOfDto,
-        category: categoryEnum,
-        recipientArea: recipientAreaEnum, // Usamos el array de enums
-        tags: tags ?? [],
-        createdById,
-        recipientRole: recipientRole ?? [], // Initialize recipientRole as an empty array if not provided
-      },
-    });
+    let newTicket: Ticket;
+
+    try {
+      newTicket = await this.prisma.ticket.create({
+        data: {
+          ...restOfDto,
+          category: categoryEnum,
+          recipientArea: recipientAreaEnum, // Usamos el array de enums
+          tags: tags ?? [],
+          createdById,
+          recipientRole: recipientRole ?? [], // Initialize recipientRole as an empty array if not provided
+        },
+      });
+    } catch (error) {
+      // Log detailed info for debugging enum/value issues
+      // eslint-disable-next-line no-console
+      const errorDetails =
+        typeof error === 'object' && error && 'code' in error
+          ? {
+              code: (error as { code?: unknown }).code,
+              meta: (error as { meta?: unknown }).meta,
+              message: (error as Error).message,
+            }
+          : error;
+
+      console.error('TicketService.create prisma.ticket.create failed', {
+        payload: {
+          ...restOfDto,
+          category: categoryEnum,
+          recipientArea: recipientAreaEnum,
+          tags,
+          createdById,
+          recipientRole,
+        },
+        error: errorDetails,
+      });
+      throw error;
+    }
 
     const creator = await this.prisma.user.findUnique({
       where: { id: createdById },
@@ -120,22 +157,17 @@ export class TicketService {
     const { page = 1, pageSize = 20 } = paginationQuery;
     const skip = (page - 1) * Number(pageSize);
 
-    const [items, total] = await Promise.all([
+    const [rawItems, total] = await Promise.all([
       this.prisma.ticket.findMany({
         skip,
         take: pageSize,
         orderBy: { id: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          category: true,
-          createdAt: true,
-          createdBy: { select: { id: true, username: true } },
-        },
+        include: ticketInclude,
       }),
       this.prisma.ticket.count(),
     ]);
+
+    const items = await Promise.all(rawItems.map(item => this.withSignedAttachments(item)));
 
     const totalPages = Math.ceil(total / pageSize);
 
@@ -143,10 +175,14 @@ export class TicketService {
   }
 
   async findOne(id: number) {
-    return this.prisma.ticket.findUnique({
+    const ticket = await this.prisma.ticket.findUnique({
       where: { id },
       include: ticketInclude,
     });
+    if (!ticket) {
+      return ticket;
+    }
+    return this.withSignedAttachments(ticket);
   }
 
   async update(id: number, updateTicketDto: UpdateTicketDto, updatedById: number) {
@@ -258,10 +294,14 @@ export class TicketService {
     });
 
     // Volver a buscar el ticket actualizado con todas las relaciones para devolverlo al frontend
-    return this.prisma.ticket.findUnique({
+    const result = await this.prisma.ticket.findUnique({
       where: { id },
       include: ticketInclude,
     });
+    if (!result) {
+      throw new NotFoundException(`Ticket con ID #${id} no encontrado tras la actualización`);
+    }
+    return this.withSignedAttachments(result);
   }
 
   async approveStep(ticketId: number, approvalId: number, userId: number, approveStepDto: ApproveStepDto) {
@@ -357,7 +397,7 @@ export class TicketService {
       });
     });
 
-    return updatedTicket;
+    return this.withSignedAttachments(updatedTicket);
   }
 
   async remove(id: number) {
@@ -366,6 +406,72 @@ export class TicketService {
       throw new NotFoundException(`Ticket con ID #${id} no encontrado`);
     }
     return this.prisma.ticket.delete({ where: { id } });
+  }
+
+  async addAttachments(id: number, files: Express.Multer.File[]): Promise<TicketAttachmentsResponse> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No se recibieron archivos para adjuntar.');
+    }
+
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException(`Ticket con ID #${id} no encontrado`);
+    }
+
+    const stored = await this.storage.uploadFiles(files, {
+      folder: `tickets/${id}`,
+    });
+
+    const urls = stored.map(file => file.url);
+
+    const updated = await this.prisma.ticket.update({
+      where: { id },
+      data: {
+        attachmentUrls: {
+          push: urls,
+        },
+      },
+      select: { id: true, attachmentUrls: true },
+    });
+
+    this.eventEmitter.emit('ticket.attachments.uploaded', {
+      ticketId: updated.id,
+      urls,
+    });
+
+    const signedAttachments = await this.storage.getSignedUrls(updated.attachmentUrls ?? []);
+
+    return {
+      id: updated.id,
+      attachments: signedAttachments,
+    };
+  }
+
+  private async withSignedAttachments<T extends { attachmentUrls?: string[] | null }>(ticket: T): Promise<T> {
+    if (!ticket?.attachmentUrls?.length) {
+      return ticket;
+    }
+
+    const signedUrls = await Promise.all(
+      ticket.attachmentUrls.map(async url => {
+        try {
+          return await this.storage.getSignedUrl(url);
+        } catch (error) {
+          const err = error as Error;
+          this.logger.warn(`No se pudo firmar la URL del adjunto (${url}): ${err.message}`);
+          return url;
+        }
+      }),
+    );
+
+    return {
+      ...ticket,
+      attachmentUrls: signedUrls,
+    };
   }
 
   // --- Event Listeners ---

@@ -12,13 +12,13 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, Navigation2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouteStore } from '../stores/routeStore';
-import { useThemeStore } from '../stores/themeStore';
-import { useAuthStore } from '../stores/authStore';
-import { RouteCard } from '../components/RouteCard';
-import RouteDetailModal from '../components/RouteDetailModal';
-import TripModal from '../components/TripModal';
-import { AccessGuard } from '../components/AccessGuard';
+import { useRouteStore } from '@/stores/routeStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { useAuthStore } from '@/stores/authStore';
+import { RouteCard } from '@/components/RouteCard';
+import RouteDetailModal from '@/components/RouteDetailModal';
+import TripModal from '@/components/TripModal';
+import { AccessGuard } from '@/components/AccessGuard';
 import { useAuthz } from '@/hooks/useAuthz';
 
 type RouteLayout = {

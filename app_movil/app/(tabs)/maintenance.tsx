@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import { useThemeStore } from '../stores/themeStore';
-import { useMaintenanceStore } from '../stores/maintenanceStore';
-import { useFleetStore } from '../stores/fleetStore';
+import { useThemeStore } from '@/stores/themeStore';
+import { useMaintenanceStore } from '@/stores/maintenanceStore';
+import { useFleetStore } from '@/stores/fleetStore';
 import { Wrench, Plus, RefreshCw, CheckCircle2, AlertTriangle, Clock, Filter } from 'lucide-react-native';
-import { AccessGuard } from '../components/AccessGuard';
-import { MaintenanceDetailModal } from '../components/MaintenanceDetailModal';
+import { AccessGuard } from '@/components/AccessGuard';
+import { MaintenanceDetailModal } from '@/components/MaintenanceDetailModal';
 import { useAuthz } from '@/hooks/useAuthz';
 
 export default function MaintenanceScreen() {

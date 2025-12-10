@@ -245,14 +245,14 @@ describe('Integrated Journeys (e2e)', () => {
     closeWorkOrder: jest.fn(async (id: number, checklist: string, result: string) => {
       const workOrder = workOrdersStore.find(candidate => candidate.id === id);
       if (workOrder) {
-        workOrder.estado = WorkOrderStatus.CLOSED;
+        workOrder.estado = WorkOrderStatus.COMPLETED;
       }
       return {
         id,
         checklist,
         resultado: result,
         otId: id,
-        estado: WorkOrderStatus.CLOSED,
+        estado: WorkOrderStatus.COMPLETED,
       };
     }),
     getOverview: jest.fn(async (query: any) => ({
@@ -506,7 +506,7 @@ describe('Integrated Journeys (e2e)', () => {
 
     expect(closeResponse.status).toBe(200);
     expect(closeResponse.body).toEqual(
-      expect.objectContaining({ otId: workOrderId, resultado: 'Aprobado', estado: WorkOrderStatus.CLOSED }),
+      expect.objectContaining({ otId: workOrderId, resultado: 'Aprobado', estado: WorkOrderStatus.COMPLETED }),
     );
 
     const overviewResponse = await request(httpServer)

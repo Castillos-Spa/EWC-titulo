@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CivilWorksApi, CivilWorkStatus as BStatus, CivilWorkType as BType, CivilWork } from '../services/CivilWorksApi';
+import { CivilWorksApi, CivilWorkStatus as BStatus, CivilWorkType as BType, CivilWork } from '@/services/CivilWorksApi';
 
 export interface WorkOrder {
   id: string;
@@ -97,7 +97,7 @@ const updateCurrentOrderMaterialUsage = (
   materialId: string,
   used: number
 ): WorkOrder | null => {
-  if (!current || current.id !== orderId) return current;
+  if (current?.id !== orderId) return current;
   return {
     ...current,
     materials: current.materials.map(material =>
@@ -143,7 +143,7 @@ const updateCurrentOrderSafetyChecklist = (
   notes?: string,
   photoPath?: string
 ): WorkOrder | null => {
-  if (!current || current.id !== orderId) return current;
+  if (current?.id !== orderId) return current;
   return {
     ...current,
     safetyChecklist: current.safetyChecklist.map(item =>
@@ -242,7 +242,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         type: mapType(it.workType),
         priority: 'medium',
         status: mapStatus(it.status),
-        assignedTo: (it.responsibleStaff || []).map(s => String(s)),
+        assignedTo: it.responsibleStaff?.map(String) ?? [],
         assignedBy: '',
         location: {
           latitude: 0,
@@ -299,7 +299,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         type: mapTypeToUi(it.workType),
         priority: 'medium',
         status: mapStatusToUi(it.status),
-        assignedTo: (it.responsibleStaff || []).map(s => String(s)),
+        assignedTo: it.responsibleStaff?.map(String) ?? [],
         assignedBy: '',
         location: {
           latitude: 0,
@@ -353,7 +353,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         const [left, right] = s.includes(':') ? s.split(':', 2).map(x => x.trim()) : [s, ''];
   const re = /(\d+(?:\.\d+)?)/;
   const exec = re.exec(right);
-  const quantity = exec ? parseFloat(exec[1]) : 1;
+  const quantity = exec ? Number.parseFloat(exec[1]) : 1;
   const unit = exec ? right.slice(exec.index + exec[1].length).trim() : '';
         return {
           id: `mat-${idx}`,
@@ -372,7 +372,7 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         type: mapType(cw.workType),
         priority: 'medium',
         status: mapStatus(cw.status),
-        assignedTo: (cw.responsibleStaff || []).map(s => String(s)),
+        assignedTo: cw.responsibleStaff?.map(String) ?? [],
         assignedBy: '',
         location: {
           latitude: 0,
@@ -385,16 +385,16 @@ export const useCivilWorksStore = create<CivilWorksState>((set, get) => ({
         scheduledDate: cw.date,
         startTime: undefined,
         endTime: undefined,
-        materials: (cw.materialsUsed || []).map(parseMaterial),
+        materials: cw.materialsUsed?.map(parseMaterial) ?? [],
         safetyChecklist: [],
-        progressPhotos: (cw.photos || []).map((p, idx) => ({
+        progressPhotos: cw.photos?.map((p, idx) => ({
           id: `photo-${cw.id}-${idx}`,
           uri: p,
           description: '',
           takenAt: new Date().toISOString(),
           takenBy: 'Sistema',
           stage: 'during',
-        })),
+        })) ?? [],
         notes: cw.observations || undefined,
         completionNotes: undefined,
         supervisorApproval: undefined,

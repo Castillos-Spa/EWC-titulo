@@ -21,22 +21,22 @@ import {
   Layers,
   X as XIcon,
 } from 'lucide-react-native';
-import { useThemeStore } from '../stores/themeStore';
-import { useUIStore } from '../stores/uiStore';
-import { useAuthStore } from '../stores/authStore';
-import { AccessGuard } from '../components/AccessGuard';
+import { useThemeStore } from '@/stores/themeStore';
+import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
+import { AccessGuard } from '@/components/AccessGuard';
 import { useAuthz } from '@/hooks/useAuthz';
 
 // Tickets (lista)
-import { useTicketStore } from '../stores/ticketStore';
-import { TicketCard } from '../components/TicketCard';
-import { TicketDetailModal } from '../components/TicketDetailModal';
+import { useTicketStore } from '@/stores/ticketStore';
+import { TicketCard } from '@/components/TicketCard';
+import { TicketDetailModal } from '@/components/TicketDetailModal';
 
 // Kanban (tablero)
-import { useKanbanStore } from '../stores/kanbanStore';
-import { KanbanColumn } from '../components/KanbanColumn';
-import { TaskDetailModal } from '../components/TaskDetailModal';
-import { CreateITTicketModal } from '../components/CreateITTicketModal';
+import { useKanbanStore } from '@/stores/kanbanStore';
+import { KanbanColumn } from '@/components/KanbanColumn';
+import { TaskDetailModal } from '@/components/TaskDetailModal';
+import { CreateITTicketModal } from '@/components/CreateITTicketModal';
 
 type ViewMode = 'list' | 'kanban';
 
